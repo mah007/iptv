@@ -2,7 +2,7 @@
 
 **A self-hosted OTT/VOD subscription platform with an Xtream Codes-compatible API.** It brings library management like Plex/Jellyfin together with an IPTV panel. IPTV Smarters, TiviMate, XCIPTV, OTT Navigator and similar apps work with it out of the box.
 
-> 🚧 **Status: planning.** The specification is complete and implementation starts with [Milestone 1](#roadmap). The commands and URLs below describe the target workflow; each becomes available when its milestone lands. Progress is tracked in `docs/PROGRESS.md` (created in M1).
+> 🚧 **Status: Milestone 1 (foundation) is built.** The full stack boots with `make up`: Traefik, PostgreSQL, two Valkey instances, Meilisearch, Django web, Celery worker and beat, and the admin and portal shells in Arabic and English. Product features arrive milestone by milestone (see the [roadmap](#roadmap)); sections below are marked with the milestone that delivers them. Progress: [docs/PROGRESS.md](docs/PROGRESS.md). Decisions: [docs/adr/](docs/adr/).
 
 > ⚖️ **For content you own or are licensed to distribute.** Smart IPTV has no torrent, Usenet, indexer or scraper features, and never will. Media enters only through folders or storage buckets that you manage. Every title carries rights-holder and licence fields, and titles hide automatically when their licence expires.
 
@@ -125,7 +125,9 @@ flowchart LR
 | Tooling | uv, Ruff, mypy, pytest, pnpm, Vitest, Playwright, Locust, k6 |
 | CI | GitHub Actions: lint, types, tests, build, Trivy, licence gate, pip-audit, Semgrep, Bandit |
 
-ADR-0001 records the exact versions, checked as the latest stable releases with licences verified, in M1. Every dependency imported into our code is permissively licensed (MIT, BSD, Apache-2.0, ISC, MPL-2.0, or LGPL used unmodified). GPL/AGPL tools run only as separate processes.
+**Pinned today:** Python 3.13, Django 5.2 LTS, Celery 5.6, PostgreSQL 18, Valkey 9.1, Meilisearch 1.54, Traefik 3.7, Node.js 24 LTS, pnpm 12, React 19, Vite 8, Tailwind CSS 4, TypeScript 6.0. [ADR-0001](docs/adr/0001-stack-and-versions.md) lists every version, the date it was checked, and the reason for each deviation from the original spec.
+
+Every dependency imported into our code is permissively licensed (MIT, BSD, Apache-2.0, ISC, MPL-2.0, or LGPL used unmodified), and a licence gate enforces this in CI. GPL/AGPL tools run only as separate processes.
 
 ## System requirements
 
@@ -134,12 +136,12 @@ ADR-0001 records the exact versions, checked as the latest stable releases with 
 |---|---|
 | Operating system | Linux x86_64 is recommended for production. For development, Linux or Windows with Docker Desktop and WSL2. |
 | Docker | Docker Engine with the Compose v2 plugin. |
-| Basics | `git` and `make`. |
-| Contributors only | [uv](https://docs.astral.sh/uv/) (it installs Python 3.13), a Node.js LTS release with pnpm (versions pinned in M1). |
+| Basics | `git`, `make`, `openssl` and `python3` (for the secrets script and licence gate). Everything else runs in containers. |
+| Contributors (optional) | For editor tooling outside containers: [uv](https://docs.astral.sh/uv/) (installs Python 3.13) and Node.js 24 LTS with corepack (pnpm 12). |
 | GPU (optional) | Intel iGPU/Arc (QSV/VAAPI via `/dev/dri`) or an NVIDIA GPU with the NVIDIA Container Toolkit. Without a GPU, transcoding falls back to CPU. |
 
 ### Network
-- Ports **80** and **443** free on the host, for Traefik.
+- Ports **80** and **443** free on the host, for Traefik. In development, `make secrets` switches to port **8080** automatically if 80 is taken.
 - DNS records for `app.`, `api.`, `tv.`, `admin.`, `media.` (small tier) and `grafana.` under your domain. Development uses `*.localhost` with no DNS needed.
 - Outbound HTTPS to TMDB, plus any of TheTVDB, SMTP, payment providers, Telegram and WhatsApp that you enable.
 
@@ -162,25 +164,36 @@ These are starting points, not benchmarks. The M15 load-test report will replace
 
 ## Quick start (development)
 
-> Available from **M1**.
-
 ```bash
-git clone git@github.com:mah007/iptv.git smart-iptv && cd smart-iptv
-make secrets        # generate dev secrets into a git-ignored .env
-make up             # start the whole stack with hot reload
-make migrate
-make seed           # create the admin (credentials printed once), plans, categories and demo customers
-make sample-media   # generate legal test videos named like real releases
+git clone https://github.com/mah007/iptv.git smart-iptv && cd smart-iptv
+make secrets   # create a git-ignored .env with generated secrets (picks port 8080 if 80 is busy)
+make up        # build, start everything with hot reload, wait for healthchecks, run migrations
+make smoke     # check routing, isolation and readiness through Traefik
 ```
+
+`make up` prints the URLs. With the default port 80 they are:
 
 | URL | What |
 |---|---|
-| http://admin.localhost | Admin SPA |
+| http://admin.localhost | Admin SPA (Arabic/English, light/dark) |
 | http://app.localhost | Customer portal |
-| http://api.localhost/api/v1 | REST API (OpenAPI docs) |
-| http://tv.localhost | Xtream endpoint for IPTV apps |
+| http://api.localhost/api/v1/health | REST API health; the API itself grows from M2 |
+| http://tv.localhost/health | Xtream host; `player_api.php` arrives in M9 |
+| http://traefik.localhost | Traefik dashboard (development only) |
 
-Useful commands: `make logs s=web`, `make test`, `make lint`, `make fmt`, `make typecheck`, `make down`.
+On port 8080, add `:8080` to each URL. Modern browsers and curl resolve `*.localhost` to your machine, so no hosts-file edits are needed.
+
+| Command | What it does |
+|---|---|
+| `make` | List every command |
+| `make test` | pytest (against the running stack's real Postgres, Valkey and Meilisearch) and Vitest |
+| `make test-backend t="apps/core/tests/test_routing.py -k internal"` | Run selected backend tests |
+| `make lint` · `make fmt` · `make typecheck` | Ruff, ESLint and Prettier · auto-format · mypy and tsc |
+| `make logs s=web` · `make ps` · `make shell` | Follow one service's logs · status · Django shell |
+| `make build` · `make licenses` | Production images · licence gate on their dependencies |
+| `make down` | Stop the stack; data volumes are kept |
+
+Seeding demo data (`make seed`) arrives in M3, and generated sample media (`make sample-media`) in M4.
 
 ## Connecting an IPTV app
 
@@ -245,8 +258,8 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 
 | # | Milestone | Delivers | Status |
 |---|---|---|---|
-| M1 | Infrastructure & repo | Monorepo; `make up` boots the full stack; CI green (lint, types, tests, build, Trivy, licence gate); versions pinned in ADR-0001 | ⏭️ Next |
-| M2 | Backend foundation | Settings, core models, redacted structured logs, problem+json errors, OpenAPI, Celery queues, feature flags, audit log, health checks, metrics | Planned |
+| M1 | Infrastructure & repo | Monorepo; `make up` boots the full stack; CI green (lint, types, tests, build, Trivy, licence gate); versions pinned in ADR-0001 | ✅ Built |
+| M2 | Backend foundation | Redacted structured logs, problem+json errors, OpenAPI and the generated client, settings registry, feature flags, audit log, metrics | ⏭️ Next |
 | M3 | Accounts & subscriptions | Users, roles, devices, Xtream credentials (Argon2id), admin MFA, plans, subscription activation, expiry and grace jobs, entitlement cache | Planned |
 | M4 | Library scanner | Watcher, reconciliation scans, move detection, ffprobe, filename parsing, live scan progress, sample media | Planned |
 | M5 | Metadata | TMDB/TVDB clients, match scoring, review queue, English and Arabic enrichment, image pipeline | Planned |
@@ -276,14 +289,16 @@ monitoring/  Prometheus rules, Grafana dashboards, Loki and Alloy config
 compat/      Xtream JSON schemas, golden fixtures, client checklist
 loadtests/   Locust and k6 scenarios
 scripts/     secrets, sample media, backup/restore, key rotation
-docs/        SPEC.md, PROGRESS.md, ADRs, runbooks, client setup guides (ar/en)
+docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, client setup guides (ar/en)
 ```
 
 ## Development workflow
 
-- Work happens milestone by milestone: plan, record decisions as ADRs (`docs/adr/`), build in small verified steps, then stop at a checkpoint.
+- Work happens milestone by milestone: plan, record decisions as ADRs (`docs/adr/`), build in small verified steps, then stop at a checkpoint. Status lives in [docs/PROGRESS.md](docs/PROGRESS.md).
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/), for example `feat(playback): …` or `fix(xtream): …`.
-- After API changes, `make api-client` regenerates the typed frontend client. CI fails if the generated client is out of date.
+- CI runs the same `make` targets you run locally: `make up`, `make smoke`, `make lint`, `make typecheck`, `make test`, then `make build`, a Trivy scan and `make licenses`.
+- The frontend lint blocks hard-coded user-facing text (use i18next) and physical left/right Tailwind classes (use logical ones so Arabic mirrors).
+- From M2, `make api-client` regenerates the typed frontend client after API changes, and CI fails if it's out of date.
 - [CLAUDE.md](CLAUDE.md) holds the architecture rules and conventions for AI-assisted development with Claude Code.
 
 ## Security

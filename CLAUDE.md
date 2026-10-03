@@ -3,9 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Smart IPTV
-The full specification is `docs/SPEC.md`. Read it before every milestone. Progress lives in `docs/PROGRESS.md`, and decisions in `docs/adr/NNNN-title.md`.
+The full specification is `docs/SPEC.md`. Read it before every milestone. Progress lives in `docs/PROGRESS.md`, and decisions in `docs/adr/NNNN-title.md`; ADR-0001 holds pinned versions and ADR-0002 the identity, routing and network foundations.
 
-Before M1 the repo holds only the spec: there's no Makefile, no code and no `docs/`. If `docs/SPEC.md` is missing, the spec is still `SMART_IPTV_MASTER_PROMPT.md` at the repo root; move it to `docs/SPEC.md` as part of M1.
+`docs/SPEC.md` exists locally but is excluded from git (`.git/info/exclude`) because the GitHub repo is public. Never commit or publish it until the owner decides.
 
 Spec map, for reading one section mid-milestone: §1 rules · §3 architecture · §5 repo layout · §6 data model · §7 services (7.1 scan, 7.2 parse/match, 7.3 transcode, 7.4 entitlements/playback, 7.5 Xtream, 7.6 billing, 7.7 notifications, 7.8 search, 7.9 recommendations) · §8 admin UI · §9 portal · §10 REST API · §11 security · §12 Nginx edge · §13 Docker · §14 observability · §15 tests and gates · §16 milestones and acceptance criteria.
 
@@ -46,23 +46,32 @@ A self-hosted OTT/VOD subscription platform for **owned or licensed content** on
 - Load-test only on the local network, never against a CDN or public egress.
 
 ## Commands
-These are the planned Makefile targets; they exist once M1 lands.
-- `make secrets` (generate dev secrets), then `make up` / `make down` / `make logs s=web`
-- `make test`, `make lint`, `make fmt`, `make typecheck`
-- `make migrate`, `make seed` (prints the admin credentials once), `make sample-media` (generates legal FFmpeg test files named like real releases)
-- `make api-client` regenerates the Orval client in `frontend/packages/api` after API changes. Never hand-edit it; CI fails if it's stale.
-- `make loadtest`, `make backup`, `make restore-test`, `make deploy`
-- M1 must add here how to run a single backend test (pytest) and a single frontend test (Vitest).
+Everything runs in containers through the Makefile (`make` lists targets). The stack must be up for backend tests: they use the real Postgres, Valkey and Meilisearch.
+- `make secrets` (creates `.env`; never read or print it), `make up` (build, wait for health, migrate), `make smoke`, `make down`, `make ps`, `make logs s=web`, `make shell`
+- `make test`: pytest with 85% coverage enforced, plus Vitest.
+- `make lint`, `make fmt`, `make typecheck`, `make build` (production images), `make licenses` (licence gate; run after `make build`)
+- Single backend test: `make test-backend t="apps/core/tests/test_routing.py -k internal"`. Passing `t` skips the coverage gate.
+- Single frontend test: `docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml run --rm frontend pnpm --filter @smart-iptv/admin exec vitest run src/app.test.tsx`
+- Host shortcuts (faster, outside containers): in `backend/` run `uv run ruff check .` and `uv run mypy .`; in `frontend/` run `pnpm lint`, `pnpm typecheck` and `pnpm test`.
+- Planned, not yet in the Makefile: `make api-client` (M2: regenerates the Orval client, which is never hand-edited, and CI fails if it's stale), `make seed` (M3), `make sample-media` (M4), `make loadtest`, `make backup`, `make restore-test`, `make deploy`.
+
+## Gotchas learned building M1
+- Dev runs on `HTTP_PORT` from `.env`. It's 8080 on this machine, where Apache holds port 80, so URLs are `http://admin.localhost:8080`.
+- Don't add pnpm `minimumReleaseAgeExclude` entries. If pnpm refuses a too-new release, widen the range and let it pick an older one.
+- uv uses `prerelease = "explicit"`. kombu 5.6 (stable) needs `redis<6.5`, so redis-py stays on 6.4 until kombu 5.7 is final. redis-py types sync calls as maybe-awaitable, so `cast()` results.
+- Traefik registers recreated containers asynchronously; `make smoke` retries for 30 s, and new smoke checks should do the same.
+- Production images drop pip and apply distro updates. Gunicorn 26 needs `--no-control-socket`, because `/app` is read-only to uid 10001.
 
 ## Conventions
 - **Python:** 3.13, uv, Ruff, mypy (strict in playback/xtream_api/billing), pytest. Service functions live in `services.py`, not in views or serializers. Use `select_related`/`prefetch_related`, and no N+1 (assert query counts in tests). Thresholds, TTLs and feature flags are typed settings (the settings registry and the `Setting` model), not constants. API errors are RFC 9457 problem+json with a stable `code` (`CONCURRENCY_LIMIT`, `SUBSCRIPTION_EXPIRED`, …).
-- **Data:** every table has a UUIDv7 `id` plus `created_at`/`updated_at`. Catalog items and episodes also get an integer `xc_id`, because Xtream clients need ints. Money is stored in integer minor units with a `currency` column.
+- **Data:** every model inherits `apps.core.models.BaseModel` (UUIDv7 `id` plus `created_at`/`updated_at`). Catalog items and episodes also get an integer `xc_id`, because Xtream clients need ints. Money is stored in integer minor units with a `currency` column.
+- **Routing:** public endpoints go in the host's URLconf (`config/urls_api.py` or `urls_xtream.py`); internal ones go only in `config/urls_internal.py`. `HostURLConfMiddleware` keeps them apart.
 - **Tests:**
   - TMDB calls replay from VCR cassettes in `backend/tests/cassettes/` when `TMDB_API_KEY` is unset.
   - Parser cases live in `backend/tests/data/filenames.csv`.
   - Test the concurrency Lua script against real Redis (Testcontainers), not a mock.
   - Coverage must be ≥ 85% on core apps.
-- **Frontend:** TypeScript strict, TanStack Query/Router/Table, shadcn/ui from `packages/ui`, logical CSS properties only (RTL), all strings via i18next (ar + en). There must be no hard-coded user-facing text.
+- **Frontend:** TypeScript strict, TanStack Query/Router/Table, shadcn/ui-style components in `packages/ui` (`@smart-iptv/ui`), logical CSS properties only (RTL), all strings via i18next (ar + en). There must be no hard-coded user-facing text. ESLint enforces both: `i18next/no-literal-string`, plus a rule against physical Tailwind classes such as `ml-*` or `text-left`. App strings go in `src/locales/{en,ar}.json`; shared strings live in the `ui` namespace.
 - **Commits:** Conventional Commits. Tag `m{N}-done` when acceptance passes.
 
 ## Workflow per milestone
