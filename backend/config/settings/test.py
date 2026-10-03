@@ -16,6 +16,8 @@ os.environ.setdefault("POSTGRES_PASSWORD", "iptv")
 os.environ.setdefault("REDIS_STATE_PASSWORD", "iptv")
 os.environ.setdefault("REDIS_CACHE_PASSWORD", "iptv")
 os.environ.setdefault("MEILI_MASTER_KEY", "test-only-master-key")
+# A valid Fernet key (urlsafe base64 of 32 bytes) for host-side tooling such as mypy.
+os.environ.setdefault("FIELD_ENCRYPTION_KEY", "dGVzdC1vbmx5LWluc2VjdXJlLWZlcm5ldC1rZXkhISE=")
 
 from .base import *
 

@@ -1,0 +1,24 @@
+{
+  "name": "@smart-iptv/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "orval --config orval.config.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.104.1",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.104.1",
+    "@types/react": "^19.3.0",
+    "orval": "^8.0.0",
+    "react": "^19.3.0",
+    "typescript": "6.0.3"
+  }
+}

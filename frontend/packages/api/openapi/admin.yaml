@@ -1,0 +1,3400 @@
+openapi: 3.1.0
+info:
+  title: Smart IPTV Admin API
+  version: 1.0.0
+  description: Same-origin API of the admin SPA. Errors are RFC 9457 problem details.
+paths:
+  /api/v1/admin/access-rules:
+    get:
+      operationId: access_rules_list
+      summary: IP, network and country rules, global and per customer
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - in: query
+          name: scope
+          schema:
+            type: string
+            enum:
+              - customer
+              - global
+          description: |-
+            global: rules for everyone; customer: per-customer rules.
+
+            * `global` - global
+            * `customer` - customer
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum:
+              - cidr_deny
+              - country_allow
+              - country_deny
+              - ip_allow
+              - ip_deny
+          description: |-
+            * `ip_allow` - Allow IP address
+            * `ip_deny` - Deny IP address
+            * `cidr_deny` - Deny network (CIDR)
+            * `country_allow` - Allow country
+            * `country_deny` - Deny country
+        - in: query
+          name: user
+          schema:
+            type: string
+            format: uuid
+          description: Rules of one customer.
+      tags:
+        - access-rules
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAccessRuleList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: access_rules_create
+      summary: Add a rule for one customer, or for everyone
+      tags:
+        - access-rules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccessRuleCreateRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessRule"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/access-rules/{id}:
+    delete:
+      operationId: access_rules_destroy
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Remove a rule
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - access-rules
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: Removed.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/admins:
+    get:
+      operationId: admins_list
+      summary: Admin users with their roles and MFA status
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+      tags:
+        - admins
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAdminList"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: admins_create
+      description: The password is shown once. MFA enrolment happens at first sign-in.
+      summary: Create an admin with a generated password
+      tags:
+        - admins
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCreateRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCreated"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/admins/{id}:
+    get:
+      operationId: admins_retrieve
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: An admin user
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - admins
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: admins_update
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Change an admin's profile, status or roles
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - admins
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedAdminUpdateRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/audit:
+    get:
+      operationId: audit_list
+      description: "GET /api/v1/admin/audit: newest first, filterable, paginated."
+      parameters:
+        - in: query
+          name: action
+          schema:
+            type: string
+        - in: query
+          name: actor
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: at_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: at_before
+          schema:
+            type: string
+            format: date-time
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - in: query
+          name: target_id
+          schema:
+            type: string
+        - in: query
+          name: target_type
+          schema:
+            type: string
+      tags:
+        - audit
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAuditLogList"
+          description: ""
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/categories:
+    get:
+      operationId: categories_list
+      description: "GET /api/v1/admin/categories: for access-profile editors now,
+        the catalogue in M6."
+      summary: List categories, by kind and order
+      parameters:
+        - in: query
+          name: kind
+          schema:
+            type: string
+            enum:
+              - live
+              - series
+              - vod
+          description: |-
+            * `vod` - Movies
+            * `series` - Series
+            * `live` - Live TV
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+      tags:
+        - categories
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedCategoryList"
+          description: ""
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers:
+    get:
+      operationId: customers_list
+      summary: List customers with their access status and device counts
+      parameters:
+        - in: query
+          name: access_status
+          schema:
+            type: string
+            enum:
+              - active
+              - disabled
+              - expired
+              - suspended
+          description: |-
+            What the customer may do right now: active, expired, suspended, disabled.
+
+            * `active` - ACTIVE
+            * `expired` - EXPIRED
+            * `suspended` - SUSPENDED
+            * `disabled` - DISABLED
+        - in: query
+          name: expiring_within_days
+          schema:
+            type: integer
+          description: Active customers whose access ends within this many days.
+        - in: query
+          name: ordering
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - -created_at
+                - -expires_at
+                - -name
+                - -username
+                - created_at
+                - expires_at
+                - name
+                - username
+          description: |-
+            Sort key; prefix with - for descending. Default: -created_at.
+
+            * `created_at` - Created at
+            * `-created_at` - Created at (descending)
+            * `name` - Name
+            * `-name` - Name (descending)
+            * `username` - Username
+            * `-username` - Username (descending)
+            * `expires_at` - Expires at
+            * `-expires_at` - Expires at (descending)
+          explode: false
+          style: form
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum:
+              - active
+              - disabled
+              - suspended
+          description: |-
+            Account status.
+
+            * `active` - Active
+            * `suspended` - Suspended
+            * `disabled` - Disabled
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedCustomerSummaryList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: customers_create
+      description: The response holds the device credential's password; it is shown
+        once.
+      summary: Create a customer, their access profile and optionally a first device
+      tags:
+        - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerCreateRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerCreated"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}:
+    get:
+      operationId: customers_retrieve
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: A customer with their access profile and devices
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: customers_update
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Change a customer's profile
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedCustomerProfileRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerDetail"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/access:
+    get:
+      operationId: customers_access_retrieve
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: A customer's access profile
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessProfile"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: customers_access_update
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Change a customer's access profile; the entitlement follows at once
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedAccessProfileRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessProfile"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/devices:
+    get:
+      operationId: customers_devices_list
+      summary: A customer's devices, revoked ones included
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedDeviceList"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: customers_devices_create
+      description: The response holds the password; it is shown once. Refused with
+        DEVICE_LIMIT when the customer already has max_devices devices.
+      summary: Add an IPTV app device with a new Xtream credential
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceCreateRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuedCredential"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/reactivate:
+    post:
+      operationId: customers_reactivate
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Reactivate a suspended or disabled customer
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/suspend:
+    post:
+      operationId: customers_suspend
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: "Suspend a customer: playback stops, the account is kept"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuspendRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerDetail"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/dashboard/kpis:
+    get:
+      operationId: dashboard_kpis
+      summary: Customer and device KPIs (cached for 30 s)
+      tags:
+        - dashboard
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kpis"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/devices/{id}/approve:
+    post:
+      operationId: devices_approve
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Approve a device waiting for approval
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - devices
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/devices/{id}/block:
+    post:
+      operationId: devices_block
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: "Block a device: its sessions stop and it cannot play"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - devices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceBlockRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/devices/{id}/reset-credentials:
+    post:
+      operationId: devices_reset_credentials
+      description: The response holds the new password; it is shown once.
+      summary: Issue a new password for the device; the old one stops working
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - devices
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuedCredential"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/devices/{id}/revoke:
+    post:
+      operationId: devices_revoke
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Revoke a device and its credential for good
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - devices
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/devices/{id}/unblock:
+    post:
+      operationId: devices_unblock
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Unblock a device
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - devices
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/permissions:
+    get:
+      operationId: permissions_list
+      description: Small and fixed (defined in code), so not paginated.
+      summary: The permission catalogue
+      tags:
+        - permissions
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Permission"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/roles:
+    get:
+      operationId: roles_list
+      summary: Every role with its permissions (a handful, so not paginated)
+      tags:
+        - roles
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Role"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: roles_create
+      summary: Create a role
+      tags:
+        - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/roles/{id}:
+    get:
+      operationId: roles_retrieve
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: A role with its permissions
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - roles
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: roles_update
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Rename a role or change its permissions
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedRoleRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: roles_destroy
+      description: "RBAC-guarded admin endpoint: subclasses declare `required_permissions`."
+      summary: Delete a role no admin holds
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - roles
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/settings:
+    get:
+      operationId: settings_list
+      summary: List every setting with its effective value
+      tags:
+        - settings
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SettingEntry"
+          description: ""
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/settings/{key}:
+    patch:
+      operationId: settings_update
+      summary: Change a setting; it applies everywhere without a restart
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      tags:
+        - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedSettingRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingEntry"
+          description: ""
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/csrf:
+    get:
+      operationId: auth_csrf
+      description: "GET /api/v1/auth/csrf: sets the `csrftoken` cookie the SPA echoes
+        as X-CSRFToken."
+      summary: Set the CSRF cookie
+      tags:
+        - auth
+      responses:
+        "204":
+          description: The csrftoken cookie is set.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/login:
+    post:
+      operationId: auth_login
+      description: "POST /api/v1/auth/login: step one, the password. Never signs in
+        by itself."
+      summary: Check the password; the response says which MFA step follows
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/logout:
+    post:
+      operationId: auth_logout
+      description: "POST /api/v1/auth/logout: ends the session (also a half-finished
+        sign-in)."
+      summary: Sign out
+      tags:
+        - auth
+      security:
+        - sessionAuth: []
+        - {}
+      responses:
+        "204":
+          description: Signed out.
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/me:
+    get:
+      operationId: auth_me
+      description: "GET /api/v1/auth/me: the signed-in admin, their roles and permission
+        codes."
+      summary: The signed-in admin
+      tags:
+        - auth
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/mfa/verify:
+    post:
+      operationId: auth_mfa_verify
+      description: "POST /api/v1/auth/mfa/verify: step two, the TOTP code; signs the
+        session in."
+      summary: Verify the authenticator code and sign in
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaVerifyRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+components:
+  schemas:
+    AccessProfile:
+      type: object
+      description: A customer's access profile. Empty `category_ids` means every category.
+      properties:
+        status:
+          allOf:
+            - $ref: "#/components/schemas/AccessStatus"
+          readOnly: true
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        max_streams:
+          type: integer
+          maximum: 50
+          minimum: 1
+        max_devices:
+          type: integer
+          maximum: 50
+          minimum: 1
+        max_quality:
+          allOf:
+            - $ref: "#/components/schemas/MaxQuality"
+          minimum: 0
+          maximum: 32767
+        concurrency_policy:
+          $ref: "#/components/schemas/ConcurrencyPolicy"
+        allow_movies:
+          type: boolean
+        allow_series:
+          type: boolean
+        allow_live:
+          type: boolean
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryBrief"
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - categories
+        - status
+        - updated_at
+    AccessProfileRequest:
+      type: object
+      description: A customer's access profile. Empty `category_ids` means every category.
+      properties:
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        max_streams:
+          type: integer
+          maximum: 50
+          minimum: 1
+        max_devices:
+          type: integer
+          maximum: 50
+          minimum: 1
+        max_quality:
+          allOf:
+            - $ref: "#/components/schemas/MaxQuality"
+          minimum: 0
+          maximum: 32767
+        concurrency_policy:
+          $ref: "#/components/schemas/ConcurrencyPolicy"
+        allow_movies:
+          type: boolean
+        allow_series:
+          type: boolean
+        allow_live:
+          type: boolean
+        category_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+          maxItems: 500
+    AccessRule:
+      type: object
+      description: An IP, network or country rule; `user` null means it applies to
+        everyone.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+        type:
+          allOf:
+            - $ref: "#/components/schemas/AccessRuleType"
+          readOnly: true
+        value:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - created_at
+        - expires_at
+        - id
+        - reason
+        - type
+        - user
+        - value
+    AccessRuleCreateRequest:
+      type: object
+      properties:
+        user:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Customer id; omit for a global rule.
+        type:
+          $ref: "#/components/schemas/AccessRuleType"
+        value:
+          type: string
+          minLength: 1
+          description: IP address, CIDR network or ISO 3166-1 alpha-2 country code.
+          maxLength: 64
+        reason:
+          type: string
+          default: ""
+          maxLength: 200
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - type
+        - value
+    AccessRuleType:
+      enum:
+        - ip_allow
+        - ip_deny
+        - cidr_deny
+        - country_allow
+        - country_deny
+      type: string
+      description: |-
+        * `ip_allow` - Allow IP address
+        * `ip_deny` - Deny IP address
+        * `cidr_deny` - Deny network (CIDR)
+        * `country_allow` - Allow country
+        * `country_deny` - Deny country
+    AccessStatus:
+      enum:
+        - active
+        - expired
+        - suspended
+        - disabled
+      type: string
+      description: |-
+        * `active` - ACTIVE
+        * `expired` - EXPIRED
+        * `suspended` - SUSPENDED
+        * `disabled` - DISABLED
+    Admin:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        status:
+          allOf:
+            - $ref: "#/components/schemas/UserStatus"
+          readOnly: true
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleBrief"
+          readOnly: true
+        mfa_enabled:
+          type: boolean
+          readOnly: true
+        last_login:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        last_login_ip:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - created_at
+        - email
+        - id
+        - last_login
+        - last_login_ip
+        - mfa_enabled
+        - name
+        - roles
+        - status
+        - username
+    AdminCreateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        name:
+          type: string
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+            - type: string
+              format: email
+              maxLength: 254
+            - type: string
+              maxLength: 0
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+        - username
+    AdminCreated:
+      type: object
+      properties:
+        admin:
+          allOf:
+            - $ref: "#/components/schemas/Admin"
+          readOnly: true
+        password:
+          type: string
+          readOnly: true
+          description: Shown once.
+      required:
+        - admin
+        - password
+    AppHint:
+      enum:
+        - smarters
+        - tivimate
+        - ibo
+        - xciptv
+        - ott_navigator
+        - smartone
+        - iptvnator
+        - uhf
+        - other
+      type: string
+      description: |-
+        * `smarters` - IPTV Smarters
+        * `tivimate` - TiviMate
+        * `ibo` - IBO Player
+        * `xciptv` - XCIPTV
+        * `ott_navigator` - OTT Navigator
+        * `smartone` - SmartOne
+        * `iptvnator` - IPTVnator
+        * `uhf` - UHF
+        * `other` - Other
+    AuditActor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+      required:
+        - id
+        - username
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        at:
+          type: string
+          format: date-time
+          readOnly: true
+        actor:
+          oneOf:
+            - $ref: "#/components/schemas/AuditActor"
+            - type: "null"
+          readOnly: true
+        actor_ip:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        action:
+          type: string
+          readOnly: true
+        target_type:
+          type: string
+          readOnly: true
+        target_id:
+          type: string
+          readOnly: true
+        before:
+          oneOf:
+            - {}
+            - type: "null"
+          readOnly: true
+        after:
+          oneOf:
+            - {}
+            - type: "null"
+          readOnly: true
+      required:
+        - action
+        - actor
+        - actor_ip
+        - after
+        - at
+        - before
+        - id
+        - target_id
+        - target_type
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        xc_id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/CategoryKind"
+          readOnly: true
+        name_en:
+          type: string
+          readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        sort:
+          type: integer
+          readOnly: true
+        is_adult:
+          type: boolean
+          readOnly: true
+        visible_in_xtream:
+          type: boolean
+          readOnly: true
+        icon:
+          type: string
+          readOnly: true
+        parent:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+      required:
+        - icon
+        - id
+        - is_adult
+        - kind
+        - name_ar
+        - name_en
+        - parent
+        - slug
+        - sort
+        - visible_in_xtream
+        - xc_id
+    CategoryBrief:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/CategoryKind"
+          readOnly: true
+        name_en:
+          type: string
+          readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
+      required:
+        - id
+        - kind
+        - name_ar
+        - name_en
+    CategoryKind:
+      enum:
+        - vod
+        - series
+        - live
+      type: string
+      description: |-
+        * `vod` - Movies
+        * `series` - Series
+        * `live` - Live TV
+    ConcurrencyPolicy:
+      enum:
+        - reject
+        - kick_oldest
+      type: string
+      description: |-
+        * `reject` - Reject new streams
+        * `kick_oldest` - Stop the oldest stream
+    CustomerCreateRequest:
+      type: object
+      description: "The create-customer wizard: profile, access profile and an optional
+        first device."
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+            - type: string
+              format: email
+              maxLength: 254
+            - type: string
+              maxLength: 0
+        phone:
+          type: string
+          maxLength: 16
+        locale:
+          $ref: "#/components/schemas/Locale"
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        notes:
+          type: string
+        marketing_opt_in:
+          type: boolean
+        access:
+          $ref: "#/components/schemas/AccessProfileRequest"
+        device:
+          oneOf:
+            - $ref: "#/components/schemas/DeviceCreateRequest"
+            - type: "null"
+      required:
+        - name
+    CustomerCreated:
+      type: object
+      properties:
+        customer:
+          allOf:
+            - $ref: "#/components/schemas/CustomerDetail"
+          readOnly: true
+        credential:
+          oneOf:
+            - $ref: "#/components/schemas/IssuedCredential"
+            - type: "null"
+          readOnly: true
+      required:
+        - credential
+        - customer
+    CustomerDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        phone:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/UserStatus"
+          readOnly: true
+        locale:
+          allOf:
+            - $ref: "#/components/schemas/Locale"
+          readOnly: true
+        timezone:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        marketing_opt_in:
+          type: boolean
+          readOnly: true
+        access:
+          oneOf:
+            - $ref: "#/components/schemas/AccessProfile"
+            - type: "null"
+          readOnly: true
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Device"
+          readOnly: true
+        last_login:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - access
+        - created_at
+        - devices
+        - email
+        - id
+        - last_login
+        - locale
+        - marketing_opt_in
+        - name
+        - notes
+        - phone
+        - status
+        - timezone
+        - updated_at
+        - username
+    CustomerSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        phone:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/UserStatus"
+          readOnly: true
+        access_status:
+          allOf:
+            - $ref: "#/components/schemas/AccessStatus"
+          readOnly: true
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        max_devices:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        device_count:
+          type: integer
+          readOnly: true
+        last_seen:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - access_status
+        - created_at
+        - device_count
+        - email
+        - expires_at
+        - id
+        - last_seen
+        - max_devices
+        - name
+        - phone
+        - status
+        - username
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/DeviceKind"
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        app_hint:
+          allOf:
+            - $ref: "#/components/schemas/AppHint"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/DeviceStatus"
+          readOnly: true
+        approved:
+          type: boolean
+          readOnly: true
+        blocked:
+          type: boolean
+          readOnly: true
+        blocked_reason:
+          type: string
+          readOnly: true
+        revoked_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        xtream_username:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        first_seen:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        last_seen:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        last_ip:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        last_country:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - app_hint
+        - approved
+        - blocked
+        - blocked_reason
+        - created_at
+        - first_seen
+        - id
+        - kind
+        - last_country
+        - last_ip
+        - last_seen
+        - name
+        - revoked_at
+        - status
+        - xtream_username
+    DeviceBlockRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          default: ""
+          maxLength: 200
+    DeviceCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          default: ""
+          maxLength: 100
+        app_hint:
+          allOf:
+            - $ref: "#/components/schemas/AppHint"
+          default: other
+    DeviceKind:
+      enum:
+        - xtream
+        - web
+        - app
+      type: string
+      description: |-
+        * `xtream` - IPTV app (Xtream)
+        * `web` - Web player
+        * `app` - Mobile app
+    DeviceStatus:
+      enum:
+        - active
+        - pending
+        - blocked
+        - revoked
+      type: string
+      description: |-
+        * `active` - ACTIVE
+        * `pending` - PENDING
+        * `blocked` - BLOCKED
+        * `revoked` - REVOKED
+    IssuedCredential:
+      type: object
+      description: "Shown once: the plaintext password can never be read again (reset
+        makes a new one)."
+      properties:
+        device:
+          allOf:
+            - $ref: "#/components/schemas/Device"
+          readOnly: true
+        server_url:
+          type: string
+          readOnly: true
+          description: What the IPTV app asks for as the server or portal URL.
+        username:
+          type: string
+          readOnly: true
+        password:
+          type: string
+          readOnly: true
+      required:
+        - device
+        - password
+        - server_url
+        - username
+    Kpis:
+      type: object
+      properties:
+        customers_total:
+          type: integer
+          description: Every customer account.
+        customers_active:
+          type: integer
+          description: Active accounts whose access has not ended.
+        customers_expired:
+          type: integer
+          description: Active accounts whose access ended.
+        customers_suspended:
+          type: integer
+          description: Suspended accounts.
+        expiring_7d:
+          type: integer
+          description: Active access ending within 7 days.
+        devices_total:
+          type: integer
+          description: Devices that are not revoked.
+        devices_blocked:
+          type: integer
+          description: Blocked devices (not revoked).
+        as_of:
+          type: string
+          format: date-time
+          description: When the figures were computed (cached 30 s).
+      required:
+        - as_of
+        - customers_active
+        - customers_expired
+        - customers_suspended
+        - customers_total
+        - devices_blocked
+        - devices_total
+        - expiring_7d
+    Locale:
+      enum:
+        - ar
+        - en
+      type: string
+      description: |-
+        * `ar` - العربية
+        * `en` - English
+    LoginRequest:
+      type: object
+      properties:
+        login:
+          type: string
+          minLength: 1
+          description: Username or email address.
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+      required:
+        - login
+        - password
+    LoginResponse:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/LoginStatus"
+        otpauth_uri:
+          type: string
+          description: "Only with mfa_setup_required: the content of the authenticator
+            QR code."
+      required:
+        - status
+    LoginStatus:
+      enum:
+        - mfa_required
+        - mfa_setup_required
+      type: string
+      description: |-
+        * `mfa_required` - MFA_REQUIRED
+        * `mfa_setup_required` - MFA_SETUP_REQUIRED
+    MaxQuality:
+      enum:
+        - 480
+        - 720
+        - 1080
+        - 2160
+      type: integer
+      description: |-
+        * `480` - 480p
+        * `720` - 720p
+        * `1080` - 1080p
+        * `2160` - 2160p
+    Me:
+      type: object
+      description: The signed-in admin. `permissions` is what the UI may offer; the
+        API checks again.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        locale:
+          allOf:
+            - $ref: "#/components/schemas/Locale"
+          readOnly: true
+        timezone:
+          type: string
+          readOnly: true
+        mfa_enabled:
+          type: boolean
+          readOnly: true
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        permissions:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+        - email
+        - id
+        - locale
+        - mfa_enabled
+        - name
+        - permissions
+        - roles
+        - timezone
+        - username
+    MfaVerifyRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          description: The six-digit code.
+          maxLength: 16
+      required:
+        - code
+    PaginatedAccessRuleList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessRule"
+    PaginatedAdminList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Admin"
+    PaginatedAuditLogList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLog"
+    PaginatedCategoryList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+    PaginatedCustomerSummaryList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerSummary"
+    PaginatedDeviceList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Device"
+    PatchedAccessProfileRequest:
+      type: object
+      description: A customer's access profile. Empty `category_ids` means every category.
+      properties:
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        max_streams:
+          type: integer
+          maximum: 50
+          minimum: 1
+        max_devices:
+          type: integer
+          maximum: 50
+          minimum: 1
+        max_quality:
+          allOf:
+            - $ref: "#/components/schemas/MaxQuality"
+          minimum: 0
+          maximum: 32767
+        concurrency_policy:
+          $ref: "#/components/schemas/ConcurrencyPolicy"
+        allow_movies:
+          type: boolean
+        allow_series:
+          type: boolean
+        allow_live:
+          type: boolean
+        category_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+          maxItems: 500
+    PatchedAdminUpdateRequest:
+      type: object
+      description: Suspended or disabled admins cannot sign in, and open sessions
+        lose all access.
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+            - type: string
+              format: email
+              maxLength: 254
+            - type: string
+              maxLength: 0
+        status:
+          $ref: "#/components/schemas/UserStatus"
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    PatchedCustomerProfileRequest:
+      type: object
+      description: Writable profile fields. Phones are stored in E.164 (+966 when
+        no prefix is typed).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+            - type: string
+              format: email
+              maxLength: 254
+            - type: string
+              maxLength: 0
+        phone:
+          type: string
+          maxLength: 16
+        locale:
+          $ref: "#/components/schemas/Locale"
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        notes:
+          type: string
+        marketing_opt_in:
+          type: boolean
+    PatchedRoleRequest:
+      type: object
+      description: A role and its permission codes. The owner role always lists every
+        permission.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        description:
+          type: string
+          maxLength: 200
+        permissions:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+          maxItems: 16
+    PatchedSettingRequest:
+      type: object
+      description: "PATCH body. Partial like any PATCH: without `value` nothing changes."
+      properties:
+        value:
+          type:
+            - boolean
+            - number
+            - string
+    Permission:
+      type: object
+      properties:
+        code:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+      required:
+        - code
+        - description
+    Role:
+      type: object
+      description: A role and its permission codes. The owner role always lists every
+        permission.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 64
+        description:
+          type: string
+          maxLength: 200
+        permissions:
+          type: array
+          items:
+            type: string
+            maxLength: 64
+          maxItems: 16
+        is_system:
+          type: boolean
+          readOnly: true
+        admin_count:
+          type: integer
+          readOnly: true
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - admin_count
+        - created_at
+        - id
+        - is_system
+        - name
+        - updated_at
+    RoleBrief:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+        - id
+        - name
+    RoleRequest:
+      type: object
+      description: A role and its permission codes. The owner role always lists every
+        permission.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        description:
+          type: string
+          maxLength: 200
+        permissions:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+          maxItems: 16
+      required:
+        - name
+    SettingEntry:
+      type: object
+      description: A registered setting with its effective value. Sensitive values
+        are never sent.
+      properties:
+        key:
+          type: string
+          readOnly: true
+        group:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/SettingKind"
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        default:
+          type:
+            - boolean
+            - number
+            - string
+            - "null"
+          readOnly: true
+        value:
+          type:
+            - boolean
+            - number
+            - string
+            - "null"
+          readOnly: true
+        is_default:
+          type: boolean
+          readOnly: true
+        sensitive:
+          type: boolean
+          readOnly: true
+        min_value:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        max_value:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        choices:
+          type:
+            - array
+            - "null"
+          items:
+            type: string
+          readOnly: true
+        updated_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        updated_by:
+          type:
+            - string
+            - "null"
+          readOnly: true
+      required:
+        - choices
+        - default
+        - description
+        - group
+        - is_default
+        - key
+        - kind
+        - max_value
+        - min_value
+        - sensitive
+        - updated_at
+        - updated_by
+        - value
+    SettingKind:
+      enum:
+        - bool
+        - int
+        - float
+        - str
+      type: string
+      description: |-
+        * `bool` - BOOL
+        * `int` - INT
+        * `float` - FLOAT
+        * `str` - STR
+    SuspendRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          default: ""
+          maxLength: 200
+    UserStatus:
+      enum:
+        - active
+        - suspended
+        - disabled
+      type: string
+      description: |-
+        * `active` - Active
+        * `suspended` - Suspended
+        * `disabled` - Disabled
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - NOT_AUTHENTICATED
+        - PERMISSION_DENIED
+        - NOT_FOUND
+        - METHOD_NOT_ALLOWED
+        - RATE_LIMITED
+        - INTERNAL_ERROR
+        - INVALID_CREDENTIALS
+        - ACCOUNT_LOCKED
+        - MFA_REQUIRED
+        - MFA_SETUP_REQUIRED
+        - MFA_INVALID
+        - SUBSCRIPTION_EXPIRED
+        - CONCURRENCY_LIMIT
+        - CATEGORY_NOT_ALLOWED
+        - DEVICE_BLOCKED
+        - DEVICE_LIMIT
+        - TITLE_PREPARING
+        - CONFLICT
+      description: Stable machine-readable error code.
+    Problem:
+      type: object
+      description: RFC 9457 problem details, served as application/problem+json.
+      properties:
+        type:
+          type: string
+          description: urn:smart-iptv:problem:<code>
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        detail:
+          type: string
+        field_errors:
+          type: object
+          description: Messages per field; nested fields use dotted paths.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - type
+        - title
+        - status
+        - code
+        - detail
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
