@@ -1,0 +1,13 @@
+http:
+  middlewares:
+    # Same name as the dev middleware, so the routers' labels work in both;
+    # production adds HSTS (everything is served over HTTPS).
+    secure-headers:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: strict-origin-when-cross-origin
+        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        # Preload stays the operator's explicit choice (see backend/config/settings/prod.py).

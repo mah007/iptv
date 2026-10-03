@@ -1,0 +1,46 @@
+# Production overlay for a single host (SPEC §13, small tier). Use it on top of the base:
+#   docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml up -d --build --wait
+# Differences from the dev overlay:
+# - TLS from Let's Encrypt (HTTP-01), HTTP→HTTPS redirect and HSTS (docker/traefik/prod/)
+# - production Django settings and the built runtime images; no source bind mounts
+# - no Traefik dashboard
+# Runbook: docs/runbooks/deploy.md
+
+x-prod-app: &prod-app
+  environment:
+    DJANGO_SETTINGS_MODULE: config.settings.prod
+    WEB_CONCURRENCY: ${WEB_CONCURRENCY:-4}
+
+services:
+  traefik:
+    ports:
+      - "443:443"
+    volumes:
+      - ./docker/traefik/prod/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./docker/traefik/prod/dynamic:/etc/traefik/dynamic:ro
+      - traefik-acme:/letsencrypt
+
+  web:
+    <<: *prod-app
+    labels:
+      traefik.http.routers.api.entrypoints: websecure
+      traefik.http.routers.api.tls.certresolver: letsencrypt
+      traefik.http.routers.tv.entrypoints: websecure
+      traefik.http.routers.tv.tls.certresolver: letsencrypt
+
+  worker:
+    <<: *prod-app
+
+  beat:
+    <<: *prod-app
+
+  frontend:
+    labels:
+      traefik.http.routers.admin.entrypoints: websecure
+      traefik.http.routers.admin.tls.certresolver: letsencrypt
+      traefik.http.routers.portal.entrypoints: websecure
+      traefik.http.routers.portal.tls.certresolver: letsencrypt
+
+volumes:
+  # Let's Encrypt account and certificates; keep it to avoid re-issuing (rate limits).
+  traefik-acme:

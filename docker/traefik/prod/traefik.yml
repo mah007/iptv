@@ -1,0 +1,39 @@
+# Traefik static configuration for production (single host). Routers come from
+# container labels; docker/compose.prod.yml switches them to `websecure` + TLS.
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      # Everything moves to HTTPS. ACME HTTP-01 challenges are answered before
+      # this redirect, so certificate issuance still works on port 80.
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: smart-iptv-edge
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# No `api` section: the dashboard is not exposed in production.
+ping: {}
+
+log:
+  level: INFO
+
+# Access logging stays off: Xtream URLs carry credentials in the path, and the
+# redacting log pipeline arrives in M2/M13.
