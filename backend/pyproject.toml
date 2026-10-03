@@ -1,0 +1,88 @@
+[project]
+name = "smart-iptv"
+version = "0.1.0"
+description = "Smart IPTV control plane: REST API, Xtream API, workers"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "django>=5.2.17,<5.3",
+    "celery[redis]>=5.6.3,<5.7",
+    # Stable kombu 5.6 caps redis-py below 6.5; lift with kombu 5.7 final.
+    "redis>=6.4.0,<6.5",
+    "psycopg[binary]>=3.3.6,<3.4",
+    "uvicorn>=0.54.0,<0.55",
+    "uvicorn-worker>=0.4.0,<0.5",
+    "gunicorn>=26.2.0,<27",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1,<10",
+    "pytest-django>=4.14.0,<5",
+    "pytest-cov>=7.1.0,<8",
+    "ruff>=0.16.10,<0.17",
+    # django-stubs 5.2.x tracks Django 5.2 and caps mypy below 1.20.
+    "django-stubs[compatible-mypy]>=5.2.9,<5.3",
+    "celery-types>=0.26.0,<0.27",
+    "watchfiles>=1.1.0,<2",
+]
+
+[tool.uv]
+package = false
+# Never resolve to a pre-release unless we ask for one explicitly.
+prerelease = "explicit"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = ["**/migrations/*.py"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "UP", "B", "C4", "SIM", "RUF",
+    "S",    # bandit
+    "DJ",   # django
+    "DTZ",  # naive datetimes
+    "PT",   # pytest style
+    "PL",   # pylint
+    "T20",  # stray print()
+]
+ignore = ["PLR2004"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "PLR0913"]
+"config/settings/*.py" = ["F403", "F405"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+no_implicit_reexport = true
+strict_equality = true
+exclude = ["/migrations/"]
+
+# SPEC §15: strict typing on the money and playback paths.
+[[tool.mypy.overrides]]
+module = ["apps.playback.*", "apps.xtream_api.*", "apps.billing.*"]
+disallow_any_generics = true
+disallow_any_unimported = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = true
+warn_unreachable = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+[tool.pytest.ini_options]
+# Coverage is enforced on full runs only (make test-backend); subsets skip it.
+addopts = "--ds=config.settings.test --strict-markers"
+testpaths = ["apps"]
+python_files = ["test_*.py"]
+
+[tool.coverage.run]
+branch = true
+omit = ["*/migrations/*", "*/tests/*"]
