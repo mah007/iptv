@@ -28,3 +28,6 @@ coverage/
 .claude/settings.local.json
 .DS_Store
 *.log
+
+# Local media libraries and generated sample media (scripts/sample_media.sh)
+media/

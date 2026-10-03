@@ -35,7 +35,7 @@ argument-hint: "<milestone, e.g. 1, 7 or 11b; empty = next>"
 - Files to create or change, grouped by app or package.
 - Decisions, each marked ADR or no ADR. Write an ADR for any new dependency or service, a data-model shape, a security mechanism, a public contract (REST, Xtream, token format), or a deviation from the spec.
 - Every dependency you'll add, checked first with the `dep-check` skill.
-- Re-check the stack pinned in ADR-0001 with `dep-check` and plan security or end-of-life upgrades; this replaces Renovate (ADR-0003).
+- Re-check the stack pinned in ADR-0001 with `dep-check` and plan upgrades for new releases, licence changes and end-of-life lines; this replaces Renovate (ADR-0003). dep-check has no CVE data: Trivy covers the app image's Python packages now, and pip-audit and pnpm audit arrive in M14.
 - Risks, and for each acceptance criterion the exact command or test that will prove it.
 
 ## 3. Build
