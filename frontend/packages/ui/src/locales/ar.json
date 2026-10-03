@@ -1,0 +1,16 @@
+{
+  "brand": "Smart IPTV",
+  "language": {
+    "label": "تغيير اللغة",
+    "switchTo": "English"
+  },
+  "theme": {
+    "toLight": "التبديل إلى الوضع الفاتح",
+    "toDark": "التبديل إلى الوضع الداكن"
+  },
+  "environment": {
+    "development": "تطوير",
+    "staging": "تجريبي",
+    "production": "إنتاج"
+  }
+}
