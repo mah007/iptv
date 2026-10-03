@@ -1,0 +1,14 @@
+{
+  "description": "#EXTINF duration is -1, as Xtream panels write it.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "#EXTINF:-1 tvg-id=\"\" tvg-name=\"The Matrix\"",
+      "new": "#EXTINF:0 tvg-id=\"\" tvg-name=\"The Matrix\""
+    }
+  ],
+  "expect": {
+    "at": "line 6",
+    "kind": "m3u:duration"
+  }
+}

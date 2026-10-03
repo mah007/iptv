@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-iptv.invalid/compat/schemas/get_series.schema.json",
+  "title": "player_api.php?action=get_series[&category_id=]",
+  "description": "The series the user's plan allows, optionally filtered to one category (SPEC §7.5). [] when there is none, never {}.",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/series"
+  },
+  "$defs": {
+    "series": {
+      "type": "object",
+      "properties": {
+        "num": {
+          "$ref": "common.schema.json#/$defs/num"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "series_id": {
+          "$ref": "common.schema.json#/$defs/xcId"
+        },
+        "cover": {
+          "$ref": "common.schema.json#/$defs/imageUrl",
+          "description": "The poster."
+        },
+        "plot": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "cast": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Comma-separated names."
+        },
+        "director": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Comma-separated names (creators for TV)."
+        },
+        "genre": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Comma-separated genre names in the user's locale."
+        },
+        "releaseDate": {
+          "$ref": "common.schema.json#/$defs/date",
+          "description": "First air date (camelCase, as PHP panels send it)."
+        },
+        "release_date": {
+          "$ref": "common.schema.json#/$defs/date",
+          "description": "Same value as releaseDate."
+        },
+        "last_modified": {
+          "$ref": "common.schema.json#/$defs/unixTime",
+          "description": "When an episode was last added or changed; apps use it to refresh caches."
+        },
+        "rating": {
+          "$ref": "common.schema.json#/$defs/rating"
+        },
+        "rating_5based": {
+          "$ref": "common.schema.json#/$defs/rating5"
+        },
+        "backdrop_path": {
+          "$ref": "common.schema.json#/$defs/imageUrlList"
+        },
+        "youtube_trailer": {
+          "$ref": "common.schema.json#/$defs/youtubeKey"
+        },
+        "episode_run_time": {
+          "$ref": "common.schema.json#/$defs/minutes"
+        },
+        "category_id": {
+          "$ref": "common.schema.json#/$defs/categoryId"
+        },
+        "category_ids": {
+          "$ref": "common.schema.json#/$defs/categoryIds"
+        },
+        "tmdb": {
+          "$ref": "common.schema.json#/$defs/tmdbId",
+          "description": "The TMDB id (named tmdb, not tmdb_id, for series)."
+        }
+      },
+      "required": [
+        "num",
+        "name",
+        "series_id",
+        "cover",
+        "plot",
+        "cast",
+        "director",
+        "genre",
+        "releaseDate",
+        "release_date",
+        "last_modified",
+        "rating",
+        "rating_5based",
+        "backdrop_path",
+        "youtube_trailer",
+        "episode_run_time",
+        "category_id",
+        "category_ids",
+        "tmdb"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "last_modified is a unix-seconds string, not an integer.",
+  "fixture": "get_series.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/last_modified",
+      "value": 1791034800
+    }
+  ],
+  "expect": {
+    "at": "$[0].last_modified",
+    "kind": "type"
+  }
+}

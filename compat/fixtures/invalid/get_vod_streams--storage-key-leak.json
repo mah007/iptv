@@ -1,0 +1,15 @@
+{
+  "description": "Internal fields such as storage keys are never serialized.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "add",
+      "path": "/0/storage_key",
+      "value": "renditions/1001/compat.mp4"
+    }
+  ],
+  "expect": {
+    "at": "$[0].storage_key",
+    "kind": "additionalProperties"
+  }
+}

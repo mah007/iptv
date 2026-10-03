@@ -58,7 +58,7 @@ export function localeProblems(locales: Record<string, Messages>): string[] {
 
 /**
  * Browser APIs jsdom doesn't implement but Radix primitives and Recharts use:
- * ResizeObserver, pointer capture and scrollIntoView.
+ * ResizeObserver, pointer capture and scrollIntoView; plus a silent canvas.
  */
 export function installDomShims(): void {
   if (!("ResizeObserver" in window)) {
@@ -84,4 +84,11 @@ export function installDomShims(): void {
   proto.setPointerCapture ??= () => undefined;
   proto.releasePointerCapture ??= () => undefined;
   proto.scrollIntoView ??= () => undefined;
+  // jsdom has no canvas: report "no 2D context" quietly instead of logging
+  // "not implemented" (the blurhash placeholder draws on a canvas).
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    writable: true,
+    value: () => null,
+  });
 }

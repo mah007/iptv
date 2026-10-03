@@ -1,0 +1,15 @@
+{
+  "description": "exp_date is never null: unlimited accounts do not exist here, and \"\" would break date parsing in apps.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/exp_date",
+      "value": null
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.exp_date",
+    "kind": "type"
+  }
+}

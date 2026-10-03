@@ -2,12 +2,24 @@
   "title": "لوحة إدارة Smart IPTV",
   "brand": "Smart IPTV",
   "area": "لوحة الإدارة",
+  "common": {
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "done": "تم"
+  },
   "nav": {
     "label": "التنقل الرئيسي",
     "homeLink": "الصفحة الرئيسية للوحة إدارة Smart IPTV",
-    "home": "الرئيسية",
+    "dashboard": "لوحة المعلومات",
+    "customers": "العملاء",
+    "admins": "المشرفون والأدوار",
+    "audit": "سجل التدقيق",
+    "settings": "الإعدادات",
     "sections": {
-      "overview": "نظرة عامة"
+      "overview": "نظرة عامة",
+      "customers": "العملاء",
+      "security": "الأمان",
+      "system": "النظام"
     }
   },
   "layout": {
@@ -18,12 +30,747 @@
     "label": "قائمة الحساب",
     "signOut": "تسجيل الخروج"
   },
-  "home": {
-    "title": "مرحبًا بك في Smart IPTV",
-    "subtitle": "أساس المنصة يعمل الآن. ستُضاف ميزات الإدارة مرحلةً بعد مرحلة.",
-    "statusTitle": "حالة المنصة",
-    "statusDescription": "الخدمات الأساسية تعمل. إدارة العملاء والاشتراكات هي الخطوة التالية.",
-    "status": "الأساس جاهز"
+  "states": {
+    "denied": {
+      "title": "لا تملك صلاحية الوصول إلى هذا",
+      "description": "دورك لا يشمل هذه الصفحة. اطلب الصلاحية من المالك إن كنت تحتاجها."
+    },
+    "notFound": {
+      "title": "غير موجود",
+      "description": "ربما حُذف، أو أن الرابط غير صحيح."
+    }
+  },
+  "errors": {
+    "VALIDATION_ERROR": "بعض البيانات غير صالحة. راجع النموذج وأعد المحاولة.",
+    "NOT_AUTHENTICATED": "انتهت جلستك. سجّل الدخول مجددًا.",
+    "PERMISSION_DENIED": "لا تملك صلاحية تنفيذ ذلك.",
+    "NOT_FOUND": "لم يعد موجودًا. حدّث الصفحة.",
+    "RATE_LIMITED": "طلبات كثيرة. انتظر قليلًا ثم أعد المحاولة.",
+    "CONFLICT": "لا يمكن تنفيذ ذلك الآن.",
+    "DEVICE_LIMIT": "بلغ هذا العميل الحد الأقصى للأجهزة.",
+    "NETWORK_ERROR": "تعذّر الوصول إلى الخادم. تحقق من اتصالك.",
+    "UNEXPECTED": "حدث خطأ ما. أعد المحاولة."
+  },
+  "dashboard": {
+    "title": "لوحة المعلومات",
+    "description": "العملاء والأجهزة في لمحة.",
+    "asOf": "آخر تحديث",
+    "kpis": {
+      "label": "الأرقام الرئيسية",
+      "customers": "العملاء",
+      "active": "وصول نشط",
+      "activeShare": "{{share}} من كل العملاء",
+      "expiring": "ينتهي خلال 7 أيام",
+      "expiringDetail": "جدّد قبل انتهاء الوصول",
+      "expired": "منتهٍ",
+      "suspended": "موقوف",
+      "devices": "الأجهزة",
+      "devicesBlocked_zero": "المحظورة: {{formatted}}",
+      "devicesBlocked_one": "المحظورة: {{formatted}}",
+      "devicesBlocked_two": "المحظورة: {{formatted}}",
+      "devicesBlocked_few": "المحظورة: {{formatted}}",
+      "devicesBlocked_many": "المحظورة: {{formatted}}",
+      "devicesBlocked_other": "المحظورة: {{formatted}}"
+    },
+    "expiringSoon": "ينتهي قريبًا",
+    "newest": "أحدث العملاء",
+    "viewAll": "عرض الكل",
+    "noneExpiring": "لا ينتهي أي وصول خلال الأيام السبعة القادمة.",
+    "noCustomers": "لا يوجد عملاء بعد.",
+    "panelError": "تعذّر تحميل هذه القائمة"
+  },
+  "customers": {
+    "title": "العملاء",
+    "description": "كل من لديه وصول إلى الخدمة، مع ملف الوصول والأجهزة.",
+    "new": "عميل جديد",
+    "noExpiry": "بلا انتهاء",
+    "never": "أبدًا",
+    "deviceCount": "{{count}} / {{max}}",
+    "columns": {
+      "customer": "العميل",
+      "phone": "الجوال",
+      "access": "الوصول",
+      "expires": "الانتهاء",
+      "devices": "الأجهزة",
+      "lastSeen": "آخر ظهور",
+      "created": "تاريخ الإنشاء"
+    },
+    "filters": {
+      "search": "ابحث بالاسم أو البريد أو الجوال أو اسم المستخدم…",
+      "access": "الوصول",
+      "status": "الحساب",
+      "expiring": "ينتهي خلال",
+      "days_zero": "{{count}} يوم",
+      "days_one": "يوم واحد",
+      "days_two": "يومان",
+      "days_few": "{{count}} أيام",
+      "days_many": "{{count}} يومًا",
+      "days_other": "{{count}} يوم",
+      "chipAccess": "الوصول: {{value}}",
+      "chipStatus": "الحساب: {{value}}",
+      "expiringWithin_zero": "ينتهي خلال {{count}} يوم",
+      "expiringWithin_one": "ينتهي خلال يوم واحد",
+      "expiringWithin_two": "ينتهي خلال يومين",
+      "expiringWithin_few": "ينتهي خلال {{count}} أيام",
+      "expiringWithin_many": "ينتهي خلال {{count}} يومًا",
+      "expiringWithin_other": "ينتهي خلال {{count}} يوم"
+    },
+    "empty": {
+      "title": "لا يوجد عملاء بعد",
+      "description": "أنشئ أول عميل لإصدار بيانات الدخول لتطبيق IPTV الخاص به."
+    },
+    "fields": {
+      "name": "الاسم الكامل",
+      "email": "البريد الإلكتروني",
+      "phone": "رقم الجوال",
+      "phoneHelp": "يمكن كتابة الأرقام السعودية بدون ‎+966.",
+      "locale": "لغة الرسائل",
+      "localeHelp": "تُستخدم في رسائل البريد وبوابة العميل.",
+      "notes": "ملاحظات",
+      "notesHelp": "لا يراها إلا المشرفون.",
+      "expires": "ينتهي الوصول"
+    },
+    "locales": {
+      "ar": "العربية",
+      "en": "English"
+    },
+    "categoryKinds": {
+      "vod": "الأفلام",
+      "series": "المسلسلات",
+      "live": "البث المباشر"
+    },
+    "quality": {
+      "480": "SD 480p",
+      "720": "HD 720p",
+      "1080": "Full HD 1080p",
+      "2160": "4K 2160p"
+    },
+    "policy": {
+      "reject": {
+        "title": "رفض البث الجديد",
+        "description": "عند بلوغ الحد، يُرفض أي بث جديد."
+      },
+      "kick_oldest": {
+        "title": "إيقاف أقدم بث",
+        "description": "عند بلوغ الحد، يتوقف أقدم بث ويعمل البث الجديد."
+      }
+    },
+    "access": {
+      "length": "مدة الوصول",
+      "expiry": {
+        "1m": "شهر",
+        "3m": "3 أشهر",
+        "6m": "6 أشهر",
+        "12m": "سنة",
+        "none": "بلا انتهاء",
+        "custom": "اختر تاريخًا"
+      },
+      "endDate": "آخر يوم للوصول",
+      "endsOn": "ينتهي الوصول في {{date}}.",
+      "neverEnds": "لا ينتهي الوصول أبدًا؛ أوقف العميل لإنهائه.",
+      "pickDate": "اختر آخر يوم للوصول.",
+      "limits": "الحدود",
+      "maxStreams": "عدد البث المتزامن",
+      "maxStreamsHelp": "عدد مقاطع الفيديو التي يمكن تشغيلها في الوقت نفسه.",
+      "maxDevices": "الأجهزة",
+      "maxDevicesHelp": "عدد بيانات الدخول لتطبيقات IPTV المسموح بها للعميل.",
+      "maxQuality": "أعلى جودة",
+      "policy": "عند بلوغ حد البث",
+      "content": "المحتوى",
+      "allow_movies": "الأفلام",
+      "allow_series": "المسلسلات",
+      "allow_live": "البث المباشر",
+      "limitCategories": "تصنيفات محددة فقط",
+      "limitCategoriesHelp": "عند الإيقاف: كل التصنيفات، بما فيها ما يُضاف لاحقًا.",
+      "categoriesError": "تعذّر تحميل التصنيفات. حاول لاحقًا.",
+      "noCategories": "لا توجد تصنيفات بعد."
+    },
+    "validation": {
+      "nameRequired": "أدخل اسم العميل.",
+      "nameTooLong": "استخدم 150 حرفًا على الأكثر.",
+      "email": "أدخل بريدًا إلكترونيًا صحيحًا، أو اتركه فارغًا.",
+      "phone": "استخدم الأرقام فقط، ويمكن أن يبدأ بعلامة +.",
+      "notesTooLong": "الملاحظات 2000 حرف على الأكثر.",
+      "wholeNumber": "أدخل عددًا صحيحًا.",
+      "limitRange": "أدخل رقمًا من 1 إلى 50.",
+      "expiryDate": "اختر آخر يوم للوصول.",
+      "categories": "اختر تصنيفًا واحدًا على الأقل، أو أوقف هذا الخيار.",
+      "deviceNameTooLong": "استخدم 100 حرف على الأكثر."
+    },
+    "create": {
+      "title": "عميل جديد",
+      "stepsLabel": "خطوات إنشاء عميل",
+      "steps": {
+        "profile": {
+          "title": "الملف الشخصي",
+          "description": "من هو العميل وكيف نتواصل معه."
+        },
+        "access": {
+          "title": "الوصول",
+          "description": "إلى متى يمكنه المشاهدة، وعلى كم شاشة، وماذا يشاهد."
+        },
+        "device": {
+          "title": "الجهاز الأول",
+          "description": "بيانات الدخول لتطبيق IPTV، تُنشأ مع الحساب."
+        }
+      },
+      "back": "السابق",
+      "next": "التالي",
+      "cancel": "إلغاء",
+      "submit": "إنشاء العميل",
+      "doneTitle": "تم إنشاء العميل",
+      "doneDescription": "حساب {{name}} وملف وصوله جاهزان.",
+      "credentialTitle": "بيانات الدخول لتطبيق IPTV",
+      "noCredential": "لم تُنشأ بيانات دخول لأي جهاز. أضفها من تبويب الأجهزة في صفحة العميل.",
+      "another": "إنشاء عميل آخر",
+      "close": "إغلاق",
+      "open": "فتح صفحة العميل"
+    },
+    "detail": {
+      "title": "العميل",
+      "tabs": {
+        "overview": "نظرة عامة",
+        "devices": "الأجهزة وبيانات الدخول"
+      },
+      "accessTitle": "ملف الوصول",
+      "profileTitle": "الملف الشخصي",
+      "editAccess": "تعديل",
+      "editProfile": "تعديل الملف",
+      "suspend": "إيقاف",
+      "reactivate": "إعادة التفعيل",
+      "accessStatus": "الحالة",
+      "policy": "عند بلوغ حد البث",
+      "expires": "ينتهي الوصول",
+      "expired": "انتهى الوصول",
+      "neverExpires": "لا ينتهي الوصول أبدًا",
+      "noAccess": "لا يوجد ملف وصول بعد.",
+      "noContent": "لا شيء مسموح",
+      "categories": "التصنيفات",
+      "allCategories": "كل التصنيفات",
+      "account": "الحساب",
+      "created": "تاريخ الإنشاء"
+    },
+    "edit": {
+      "profileTitle": "تعديل الملف الشخصي",
+      "profileDescription": "بيانات التواصل واللغة والملاحظات.",
+      "saved": "حُفظ الملف الشخصي",
+      "accessTitle": "تعديل ملف الوصول",
+      "accessDescription": "تُطبَّق التغييرات فورًا، حتى على البث الجاري.",
+      "accessSaved": "حُفظ ملف الوصول"
+    },
+    "suspend": {
+      "title": "إيقاف {{name}}؟",
+      "description": "يتوقف التشغيل فورًا على كل الأجهزة. يبقى الحساب وأجهزته، ويمكنك إعادة تفعيله لاحقًا.",
+      "reason": "السبب (اختياري)",
+      "confirm": "إيقاف العميل",
+      "done": "أُوقف العميل"
+    },
+    "reactivate": {
+      "title": "إعادة تفعيل {{name}}؟",
+      "description": "يستطيع العميل المشاهدة مجددًا ضمن حدود ملف وصوله.",
+      "confirm": "إعادة التفعيل",
+      "done": "أُعيد تفعيل العميل"
+    }
+  },
+  "credential": {
+    "server": "عنوان الخادم",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "onceWarning": "انسخ هذه البيانات أو شاركها الآن: كلمة المرور تظهر مرة واحدة فقط.",
+    "qrLabel": "رمز QR يحتوي على الخادم واسم المستخدم وكلمة المرور",
+    "qrHint": "امسحه لنسخ بيانات الدخول",
+    "qrGone": "أُخفي مع كلمة المرور",
+    "copyAll": "نسخ كل البيانات"
+  },
+  "devices": {
+    "title": "الأجهزة وبيانات الدخول",
+    "usage": "{{used}} من {{max}} أجهزة مستخدمة",
+    "usageNoLimit_zero": "لا أجهزة",
+    "usageNoLimit_one": "جهاز واحد",
+    "usageNoLimit_two": "جهازان",
+    "usageNoLimit_few": "{{count}} أجهزة",
+    "usageNoLimit_many": "{{count}} جهازًا",
+    "usageNoLimit_other": "{{count}} جهاز",
+    "unnamed": "جهاز بلا اسم",
+    "noCredential": "بلا بيانات دخول",
+    "neverUsed": "لم يُستخدم بعد",
+    "copyUsername": "نسخ اسم المستخدم",
+    "showRevoked_zero": "عرض الأجهزة الملغاة ({{count}})",
+    "showRevoked_one": "عرض الأجهزة الملغاة ({{count}})",
+    "showRevoked_two": "عرض الأجهزة الملغاة ({{count}})",
+    "showRevoked_few": "عرض الأجهزة الملغاة ({{count}})",
+    "showRevoked_many": "عرض الأجهزة الملغاة ({{count}})",
+    "showRevoked_other": "عرض الأجهزة الملغاة ({{count}})",
+    "hideRevoked": "إخفاء الأجهزة الملغاة",
+    "columns": {
+      "device": "الجهاز",
+      "username": "اسم المستخدم",
+      "status": "الحالة",
+      "lastSeen": "آخر استخدام",
+      "added": "أُضيف",
+      "actions": "الإجراءات"
+    },
+    "empty": {
+      "title": "لا توجد أجهزة بعد",
+      "description": "أضف جهازًا لإنشاء بيانات دخول لتطبيق IPTV لهذا العميل."
+    },
+    "apps": {
+      "smarters": "IPTV Smarters",
+      "tivimate": "TiviMate",
+      "ibo": "IBO Player",
+      "xciptv": "XCIPTV",
+      "ott_navigator": "OTT Navigator",
+      "smartone": "SmartOne",
+      "iptvnator": "IPTVnator",
+      "uhf": "UHF",
+      "other": "تطبيق آخر أو غير معروف"
+    },
+    "form": {
+      "createNow": "إنشاء بيانات دخول الجهاز الأول الآن",
+      "createNowHelp": "يمكنك أيضًا إضافة الأجهزة لاحقًا من صفحة العميل.",
+      "name": "اسم الجهاز",
+      "namePlaceholder": "مثال: تلفاز غرفة الجلوس",
+      "app": "تطبيق IPTV",
+      "appHelp": "للتوضيح فقط: يعمل أي تطبيق متوافق مع Xtream.",
+      "generated": "يُنشأ اسم مستخدم وكلمة مرور من 16 حرفًا تلقائيًا. تظهر كلمة المرور مرة واحدة."
+    },
+    "add": {
+      "button": "إضافة جهاز",
+      "title": "إضافة جهاز",
+      "description": "يُنشئ بيانات دخول جديدة لتطبيق IPTV.",
+      "submit": "إنشاء بيانات الدخول",
+      "atLimit": "بلغ العميل حد الأجهزة. ارفع الحد من ملف الوصول، أو ألغِ جهازًا أولًا."
+    },
+    "issued": {
+      "addedTitle": "أُنشئت بيانات دخول الجهاز",
+      "addedDescription": "أدخل هذه البيانات في تطبيق IPTV.",
+      "resetTitle": "صدرت كلمة مرور جديدة",
+      "resetDescription": "لم تعد كلمة المرور القديمة تعمل. أدخل الجديدة في تطبيق IPTV.",
+      "done": "تم"
+    },
+    "actions": {
+      "label": "إجراءات {{name}}",
+      "reset": "إعادة تعيين كلمة المرور",
+      "approve": "اعتماد",
+      "block": "حظر",
+      "unblock": "إلغاء الحظر",
+      "revoke": "إلغاء الجهاز"
+    },
+    "reset": {
+      "title": "إعادة تعيين كلمة مرور {{name}}؟",
+      "description": "تتوقف كلمة المرور الحالية فورًا، ويجب تسجيل الدخول في التطبيق بالكلمة الجديدة.",
+      "confirm": "إعادة تعيين كلمة المرور"
+    },
+    "block": {
+      "title": "حظر {{name}}؟",
+      "description": "يتوقف التشغيل عليه، ولن يعمل حتى تُلغي الحظر.",
+      "reason": "السبب (اختياري)",
+      "confirm": "حظر الجهاز"
+    },
+    "revoke": {
+      "title": "إلغاء {{name}}؟",
+      "description": "تُحذف بيانات دخوله نهائيًا ويتوقف التشغيل. لا يمكن التراجع عن ذلك.",
+      "confirm": "إلغاء الجهاز"
+    },
+    "toasts": {
+      "approved": "اعتُمد الجهاز",
+      "blocked": "حُظر الجهاز",
+      "unblocked": "أُلغي حظر الجهاز",
+      "revoked": "أُلغي الجهاز"
+    }
+  },
+  "admins": {
+    "title": "المشرفون والأدوار",
+    "description": "من يمكنه الدخول إلى لوحة الإدارة، وما يسمح به كل دور.",
+    "tabs": {
+      "admins": "المشرفون",
+      "roles": "الأدوار والصلاحيات"
+    },
+    "search": "ابحث في المشرفين…",
+    "you": "أنت",
+    "noRoles": "بلا أدوار",
+    "mfaOn": "مفعّل",
+    "mfaPending": "غير مُعَدّ",
+    "neverSignedIn": "أبدًا",
+    "rolesError": "تعذّر تحميل الأدوار. حاول لاحقًا.",
+    "columns": {
+      "admin": "المشرف",
+      "roles": "الأدوار",
+      "mfa": "التحقق بخطوتين",
+      "status": "الحالة",
+      "lastLogin": "آخر تسجيل دخول",
+      "actions": "الإجراءات"
+    },
+    "fields": {
+      "username": "اسم المستخدم",
+      "usernameHelp": "حروف وأرقام والرموز ‎@ . + - _‎ فقط.",
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "roles": "الأدوار",
+      "rolesHelp": "يستطيع المشرف كل ما يسمح به أيٌّ من أدواره.",
+      "status": "الحالة"
+    },
+    "create": {
+      "button": "إضافة مشرف",
+      "title": "إضافة مشرف",
+      "description": "تُنشأ كلمة مرور تلقائيًا وتظهر مرة واحدة.",
+      "submit": "إنشاء المشرف",
+      "doneTitle": "تم إنشاء المشرف",
+      "doneDescription": "سلّم {{username}} بيانات الدخول هذه.",
+      "password": "كلمة مرور مؤقتة",
+      "passwordOnce": "انسخ كلمة المرور الآن: تظهر مرة واحدة فقط.",
+      "mfaNote": "عند أول تسجيل دخول يُعِدّ التحقق بخطوتين باستخدام تطبيق مصادقة."
+    },
+    "edit": {
+      "label": "تعديل {{name}}",
+      "title": "تعديل {{name}}",
+      "description": "الملف الشخصي والحالة والأدوار.",
+      "statusHelp": "لا يستطيع المشرف الموقوف أو المعطّل تسجيل الدخول، وتفقد جلساته المفتوحة الوصول.",
+      "selfStatus": "لا يمكنك تغيير حالتك بنفسك.",
+      "saved": "حُفظ المشرف"
+    },
+    "validation": {
+      "usernameRequired": "أدخل اسم مستخدم.",
+      "usernameTooLong": "استخدم 150 حرفًا على الأكثر.",
+      "usernameFormat": "استخدم الحروف والأرقام والرموز ‎@ . + - _‎ فقط.",
+      "nameTooLong": "استخدم 150 حرفًا على الأكثر.",
+      "email": "أدخل بريدًا إلكترونيًا صحيحًا، أو اتركه فارغًا."
+    }
+  },
+  "roles": {
+    "permission": "الصلاحية",
+    "matrixLabel": "صلاحيات كل دور",
+    "matrixHelp": "حدّد ما يسمح به كل دور، ثم احفظ. دور المالك يملك كل الصلاحيات دائمًا.",
+    "readOnly": "يمكنك الاطلاع على الأدوار؛ وتعديلها يتطلب صلاحية إدارة الأدوار.",
+    "grant": "{{role}}: {{permission}}",
+    "adminCount_zero": "المشرفون: {{formatted}}",
+    "adminCount_one": "المشرفون: {{formatted}}",
+    "adminCount_two": "المشرفون: {{formatted}}",
+    "adminCount_few": "المشرفون: {{formatted}}",
+    "adminCount_many": "المشرفون: {{formatted}}",
+    "adminCount_other": "المشرفون: {{formatted}}",
+    "save_zero": "حفظ التغييرات ({{count}})",
+    "save_one": "حفظ التغييرات ({{count}})",
+    "save_two": "حفظ التغييرات ({{count}})",
+    "save_few": "حفظ التغييرات ({{count}})",
+    "save_many": "حفظ التغييرات ({{count}})",
+    "save_other": "حفظ التغييرات ({{count}})",
+    "discard": "تجاهل",
+    "saved": "حُفظت الأدوار",
+    "unsaved": "غير محفوظ",
+    "created": "أُنشئ الدور {{name}}",
+    "deleted": "حُذف الدور",
+    "new": {
+      "button": "دور جديد",
+      "title": "دور جديد",
+      "description": "أعطه اسمًا، ثم حدّد صلاحياته في الجدول.",
+      "submit": "إنشاء الدور"
+    },
+    "fields": {
+      "name": "الاسم",
+      "description": "الوصف"
+    },
+    "delete": {
+      "label": "حذف دور {{name}}",
+      "title": "حذف دور {{name}}؟",
+      "description": "لا يحمل أي مشرف هذا الدور. لا يمكن التراجع عن الحذف.",
+      "confirm": "حذف الدور"
+    },
+    "validation": {
+      "nameRequired": "أدخل اسمًا.",
+      "nameTooLong": "استخدم 64 حرفًا على الأكثر.",
+      "descriptionTooLong": "استخدم 200 حرف على الأكثر."
+    },
+    "names": {
+      "owner": "المالك",
+      "admin": "مدير",
+      "support": "الدعم",
+      "content_manager": "مدير المحتوى",
+      "viewer": "مُطّلع"
+    },
+    "descriptions": {
+      "owner": "وصول كامل، بما في ذلك المشرفون والأدوار.",
+      "admin": "يدير الخدمة يوميًا؛ ولا يدير المشرفين أو الأدوار.",
+      "support": "يساعد العملاء: الملفات والوصول والأجهزة والجلسات.",
+      "content_manager": "يدير المكتبة والتصنيفات ومراجعة البيانات الوصفية.",
+      "viewer": "اطلاع فقط."
+    },
+    "areas": {
+      "dashboard": "لوحة المعلومات",
+      "customers": "العملاء",
+      "devices": "الأجهزة",
+      "sessions": "الجلسات",
+      "subscriptions": "الاشتراكات",
+      "plans": "الباقات",
+      "billing": "الفوترة",
+      "library": "المكتبة",
+      "settings": "الإعدادات",
+      "audit": "التدقيق",
+      "roles": "الأدوار",
+      "admins": "المشرفون"
+    },
+    "permissions": {
+      "dashboard_view": "عرض لوحة المعلومات وأرقامها",
+      "customers_view": "عرض العملاء وملفات وصولهم وأجهزتهم",
+      "customers_edit": "إنشاء العملاء وتعديلهم وتعديل ملفات وصولهم",
+      "devices_manage": "إضافة الأجهزة واعتمادها وحظرها وإلغاؤها، وإعادة تعيين كلمات مرورها",
+      "sessions_kill": "إيقاف تشغيل العميل",
+      "subscriptions_view": "عرض الاشتراكات",
+      "subscriptions_edit": "إنشاء الاشتراكات وتمديدها وتعديلها",
+      "plans_view": "عرض الباقات",
+      "plans_edit": "إنشاء الباقات وتعديلها",
+      "billing_refund": "استرداد المدفوعات",
+      "library_review": "إدارة المكتبات والعناوين والتصنيفات وقائمة المراجعة",
+      "settings_view": "عرض الإعدادات",
+      "settings_edit": "تعديل الإعدادات",
+      "audit_view": "عرض سجل التدقيق",
+      "roles_manage": "إنشاء الأدوار وتعديلها",
+      "admins_manage": "إنشاء المشرفين وتعيين أدوارهم"
+    }
+  },
+  "audit": {
+    "title": "سجل التدقيق",
+    "description": "كل تغيير أجراه المشرفون أو النظام. لا يمكن تعديل السجلات أو حذفها.",
+    "system": "النظام",
+    "noTarget": "—",
+    "changes": "التغييرات",
+    "columns": {
+      "when": "الوقت",
+      "actor": "بواسطة",
+      "action": "الإجراء",
+      "target": "الهدف",
+      "ip": "عنوان IP"
+    },
+    "filters": {
+      "action": "الإجراء",
+      "target": "الهدف",
+      "dates": "التاريخ",
+      "chipAction": "الإجراء: {{value}}",
+      "chipTarget": "الهدف: {{value}}",
+      "chipTargetId": "معرّف الهدف: {{value}}",
+      "chipDates": "{{from}} ← {{to}}"
+    },
+    "empty": {
+      "title": "لا يوجد شيء مسجّل بعد",
+      "description": "تظهر هنا التغييرات التي تُجرى في لوحة الإدارة."
+    },
+    "actions": {
+      "customer_create": "إنشاء عميل",
+      "customer_update": "تعديل ملف عميل",
+      "customer_access_update": "تعديل ملف الوصول",
+      "customer_suspend": "إيقاف عميل",
+      "customer_reactivate": "إعادة تفعيل عميل",
+      "device_create": "إضافة جهاز",
+      "device_reset_credentials": "إعادة تعيين كلمة مرور جهاز",
+      "device_block": "حظر جهاز",
+      "device_unblock": "إلغاء حظر جهاز",
+      "device_approve": "اعتماد جهاز",
+      "device_revoke": "إلغاء جهاز",
+      "access_rule_create": "إضافة قاعدة وصول",
+      "access_rule_delete": "حذف قاعدة وصول",
+      "admin_create": "إنشاء مشرف",
+      "admin_update": "تعديل مشرف",
+      "admin_password_reset": "إعادة تعيين كلمة مرور مشرف",
+      "admin_mfa_reset": "إعادة تعيين التحقق بخطوتين لمشرف",
+      "role_create": "إنشاء دور",
+      "role_update": "تعديل دور",
+      "role_delete": "حذف دور",
+      "setting_update": "تعديل إعداد",
+      "auth_login": "تسجيل دخول",
+      "auth_logout": "تسجيل خروج",
+      "auth_mfa_enroll": "إعداد التحقق بخطوتين",
+      "system_expire": "انتهاء الوصول"
+    },
+    "targets": {
+      "accounts_user": "مستخدم",
+      "accounts_device": "جهاز",
+      "accounts_role": "دور",
+      "accounts_accessrule": "قاعدة وصول",
+      "core_setting": "إعداد",
+      "catalog_category": "تصنيف"
+    }
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "description": "تُطبَّق التغييرات في كل مكان خلال ثوانٍ دون إعادة تشغيل، وتُسجَّل في سجل التدقيق.",
+    "readOnly": "يمكنك الاطلاع على الإعدادات؛ وتعديلها يتطلب صلاحية تعديل الإعدادات.",
+    "sections": "مجموعات الإعدادات",
+    "saved": "حُفظ «{{name}}»",
+    "invalid": "أدخل قيمة صحيحة.",
+    "isDefault": "القيمة الافتراضية",
+    "default": "الافتراضي: {{value}}",
+    "changed": "عُدّل",
+    "changedBy": "عدّله {{name}}",
+    "reset": "استعادة الافتراضي",
+    "newSecret": "أدخل قيمة جديدة",
+    "secretSet": "مُعيَّن",
+    "secretNotSet": "غير مُعيَّن",
+    "groups": {
+      "branding": {
+        "title": "الهوية",
+        "description": "كيف تظهر الخدمة للعملاء."
+      },
+      "xtream": {
+        "title": "خادم Xtream",
+        "description": "ما تُبلَّغ به تطبيقات IPTV عن هذا الخادم."
+      },
+      "playback": {
+        "title": "التشغيل",
+        "description": "روابط الوسائط الموقّعة والتحويل الفوري."
+      },
+      "library": {
+        "title": "المكتبة",
+        "description": "كيف تُلتقط ملفات الوسائط الجديدة."
+      },
+      "metadata": {
+        "title": "البيانات الوصفية",
+        "description": "مطابقة الملفات مع TMDB وما يُعرض منها."
+      },
+      "security": {
+        "title": "الأمان",
+        "description": "جلسات المشرفين."
+      },
+      "features": {
+        "title": "الميزات الاختيارية",
+        "description": "ميزات اختيارية، متوقفة ما لم تُحتج."
+      },
+      "billing": {
+        "title": "الفوترة",
+        "description": "تُستخدم عند إضافة المدفوعات في إصدار لاحق."
+      },
+      "trials": {
+        "title": "التجارب المجانية",
+        "description": "تُستخدم عند إضافة التجارب الذاتية في إصدار لاحق."
+      }
+    },
+    "keys": {
+      "branding": {
+        "service_name_en": {
+          "label": "اسم الخدمة (بالإنجليزية)",
+          "description": "يظهر للعملاء باللغة الإنجليزية."
+        },
+        "service_name_ar": {
+          "label": "اسم الخدمة (بالعربية)",
+          "description": "يظهر للعملاء باللغة العربية."
+        },
+        "accent_color": {
+          "label": "اللون المميِّز",
+          "description": "لون الهوية بصيغة ‎#RRGGBB."
+        },
+        "support_email": {
+          "label": "بريد الدعم",
+          "description": "حيث يراسل العملاء طلبًا للمساعدة."
+        }
+      },
+      "xtream": {
+        "server_url": {
+          "label": "عنوان الخادم",
+          "description": "العنوان العام الذي تستخدمه تطبيقات IPTV كخادم، مثل https://tv.example.com."
+        },
+        "port": {
+          "label": "منفذ HTTP",
+          "description": "منفذ HTTP الذي تُبلَّغ به تطبيقات IPTV."
+        },
+        "https_port": {
+          "label": "منفذ HTTPS",
+          "description": "منفذ HTTPS الذي تُبلَّغ به تطبيقات IPTV."
+        }
+      },
+      "playback": {
+        "token_ttl_vod_s": {
+          "label": "صلاحية روابط الأفلام والمسلسلات",
+          "description": "مدة عمل رابط الوسائط الموقّع، بالثواني."
+        },
+        "token_ttl_live_s": {
+          "label": "صلاحية روابط البث المباشر",
+          "description": "مدة عمل رابط البث المباشر الموقّع، بالثواني."
+        },
+        "ip_binding": {
+          "label": "ربط الروابط بعنوان IP للمشاهد",
+          "description": "يعمل الرابط الموقّع فقط من عنوان IP الذي صدر له."
+        },
+        "realtime_transcode_enabled": {
+          "label": "التحويل الفوري",
+          "description": "السماح بالتحويل أثناء التشغيل كبديل محدود."
+        },
+        "realtime_transcode_max": {
+          "label": "عدد التحويلات الفورية المتزامنة",
+          "description": "الحد الأقصى للتحويل الفوري."
+        }
+      },
+      "library": {
+        "watcher_stable_s": {
+          "label": "الانتظار قبل فحص ملف جديد",
+          "description": "يُفحص الملف الجديد بعد ثبات حجمه هذا العدد من الثواني."
+        }
+      },
+      "metadata": {
+        "match_auto_accept": {
+          "label": "ثقة القبول التلقائي",
+          "description": "أدنى ثقة (من 0 إلى 1) لقبول المطابقة تلقائيًا."
+        },
+        "match_margin": {
+          "label": "الفارق المطلوب",
+          "description": "مقدار تقدّم أفضل مطابقة على التالية (من 0 إلى 1)."
+        },
+        "certification_country": {
+          "label": "دولة التصنيف العمري",
+          "description": "الدولة التي تُعرض تصنيفاتها العمرية (رمز ISO مثل SA)."
+        },
+        "genre_category_map": {
+          "label": "ربط الأنواع بالتصنيفات",
+          "description": "معرّفات أنواع TMDB مرتبطة بمعرّفات التصنيفات، بصيغة كائن JSON."
+        }
+      },
+      "billing": {
+        "vat_rate": {
+          "label": "نسبة ضريبة القيمة المضافة",
+          "description": "تُطبَّق على الفواتير (0.15 تعني 15%)."
+        },
+        "currency": {
+          "label": "العملة",
+          "description": "العملة الافتراضية (ISO 4217، مثل SAR)."
+        },
+        "grace_days": {
+          "label": "أيام السماح",
+          "description": "عدد الأيام التي يظل فيها الاشتراك يعمل بعد انتهائه."
+        }
+      },
+      "trials": {
+        "duration_hours": {
+          "label": "مدة التجربة",
+          "description": "مدة التجربة المجانية، بالساعات."
+        },
+        "limit_per_phone": {
+          "label": "عدد التجارب لكل رقم جوال",
+          "description": "التجارب المجانية المسموح بها لكل رقم جوال."
+        }
+      },
+      "security": {
+        "admin_idle_timeout_min": {
+          "label": "مهلة خمول المشرف",
+          "description": "يُسجَّل خروج المشرف بعد هذا العدد من دقائق الخمول."
+        }
+      },
+      "features": {
+        "subtitle_download": {
+          "label": "تنزيل الترجمات",
+          "description": "جلب الترجمات من مزوّدين خارجيين."
+        },
+        "machine_translation": {
+          "label": "الترجمة الآلية",
+          "description": "ترجمة البيانات الوصفية العربية الناقصة تلقائيًا."
+        },
+        "include_vod_in_m3u": {
+          "label": "الأفلام والمسلسلات في M3U",
+          "description": "تضمينها في قائمة M3U، لا البث المباشر وحده."
+        },
+        "approve_new_devices": {
+          "label": "اعتماد الأجهزة الجديدة",
+          "description": "تنتظر الأجهزة الجديدة اعتماد المشرف قبل أن تعمل."
+        }
+      }
+    }
   },
   "notFound": {
     "code": "404",

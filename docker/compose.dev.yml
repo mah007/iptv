@@ -13,6 +13,10 @@ x-app-dev: &app-dev
     DJANGO_SETTINGS_MODULE: config.settings.dev
   volumes:
     - ./backend:/app
+    # Transcoding profiles live outside backend/ (apps/media/profiles.py finds them here).
+    - ./streaming/ffmpeg:/streaming/ffmpeg:ro
+    # Media libraries, read-only (make sample-media fills ./media; ADR-0009).
+    - ./media:/media:ro
   working_dir: /app
 
 services:
@@ -31,6 +35,16 @@ services:
   worker:
     <<: *app-dev
     command: ["watchfiles", "--filter", "python", "celery -A config worker --queues default,scan,metadata,images,notify --concurrency 2 --loglevel INFO", "/app"]
+
+  watcher:
+    <<: *app-dev
+    command: ["watchfiles", "--filter", "python", "python manage.py watch_libraries", "/app"]
+
+  media-init:
+    <<: *app-dev
+    user: "0:0"
+    environment:
+      DATA_OWNER: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
   beat:
     <<: *app-dev

@@ -1,0 +1,15 @@
+{
+  "description": "active_cons is a string (\"0\"), not an integer.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/active_cons",
+      "value": 0
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.active_cons",
+    "kind": "type"
+  }
+}

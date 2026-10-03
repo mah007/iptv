@@ -1,0 +1,15 @@
+{
+  "description": "movie_data.category_id is a string, not an integer.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/movie_data/category_id",
+      "value": 12
+    }
+  ],
+  "expect": {
+    "at": "$.movie_data.category_id",
+    "kind": "type"
+  }
+}

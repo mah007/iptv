@@ -1,4 +1,4 @@
-"""Container healthchecks: `python -m apps.core.healthcheck web|beat`. Exit 0 = healthy."""
+"""Container healthchecks: `python -m apps.core.healthcheck web|beat|watcher`. Exit 0 = healthy."""
 
 import os
 import sys
@@ -8,6 +8,7 @@ from typing import cast
 
 WEB_LIVE_URL = "http://127.0.0.1:8000/internal/health/live"
 BEAT_MAX_AGE_S = 90
+WATCHER_MAX_AGE_S = 90
 
 
 def check_web() -> bool:
@@ -19,26 +20,36 @@ def check_web() -> bool:
         return False
 
 
-def check_beat() -> bool:
-    """Healthy while the heartbeat that beat schedules keeps arriving."""
+def _fresh(key: str, max_age_s: int) -> bool:
+    """Whether the heartbeat timestamp at `key` in redis-state is recent."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
     import redis  # noqa: PLC0415
     from django.conf import settings  # noqa: PLC0415 (settings only, no app loading)
 
-    from apps.core.tasks import HEARTBEAT_KEY  # noqa: PLC0415
-
     client = redis.Redis.from_url(settings.REDIS_STATE_URL, socket_timeout=3)
     try:
         # redis-py types sync and async clients together; this one is sync.
-        value = cast("bytes | None", client.get(HEARTBEAT_KEY))
+        value = cast("bytes | None", client.get(key))
     except redis.RedisError:
         return False
     if value is None:
         return False
-    return time.time() - int(value) <= BEAT_MAX_AGE_S
+    return time.time() - int(value) <= max_age_s
 
 
-CHECKS = {"web": check_web, "beat": check_beat}
+def check_beat() -> bool:
+    """Healthy while the heartbeat that beat schedules keeps arriving."""
+    from apps.core.tasks import HEARTBEAT_KEY  # noqa: PLC0415
+
+    return _fresh(HEARTBEAT_KEY, BEAT_MAX_AGE_S)
+
+
+def check_watcher() -> bool:
+    """Healthy while the library watcher's loop keeps beating (every 30 s)."""
+    return _fresh("hb:watcher", WATCHER_MAX_AGE_S)
+
+
+CHECKS = {"web": check_web, "beat": check_beat, "watcher": check_watcher}
 
 
 def main(argv: list[str]) -> int:

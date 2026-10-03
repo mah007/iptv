@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ComponentProps,
@@ -19,6 +20,8 @@ import { Sheet, SheetContent, SheetTitle } from "./sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 const STORAGE_KEY = "smart-iptv.sidebar";
+/** Tailwind's `md` breakpoint, where the rail replaces the slide-over. */
+const DESKTOP_QUERY = "(min-width: 48rem)";
 
 interface SidebarState {
   /** Desktop rail: icons only. */
@@ -51,6 +54,21 @@ export function SidebarProvider({
     () => readPreference(STORAGE_KEY) === "collapsed",
   );
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Widening the window past the breakpoint hides the sheet's panel, so close
+  // it too (otherwise its overlay would linger over the desktop layout).
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const desktop = window.matchMedia(DESKTOP_QUERY);
+    function onChange(): void {
+      if (desktop.matches) setMobileOpen(false);
+    }
+    desktop.addEventListener("change", onChange);
+    return () => {
+      desktop.removeEventListener("change", onChange);
+    };
+  }, []);
+
   const setCollapsed = useCallback((next: boolean) => {
     setCollapsedState(next);
     writePreference(STORAGE_KEY, next ? "collapsed" : "expanded");

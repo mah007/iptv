@@ -1,0 +1,20 @@
+{
+  "description": "A programme ends after it starts.",
+  "fixture": "get_short_epg.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/stop_timestamp",
+      "value": "1791041400"
+    },
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/end",
+      "value": "2026-10-03 15:30:00"
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[0].stop_timestamp",
+    "kind": "invariant:epg-times"
+  }
+}

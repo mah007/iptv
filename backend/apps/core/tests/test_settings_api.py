@@ -73,11 +73,12 @@ def test_staff_list_every_setting(staff_client: APIClient) -> None:
     }
 
 
-def test_the_list_costs_one_query(
+def test_the_list_costs_two_queries(
     api_client: APIClient, staff_user: User, django_assert_num_queries: Any
 ) -> None:
     api_client.force_authenticate(staff_user)
-    with django_assert_num_queries(1):
+    # The admin's permission codes, then the settings.
+    with django_assert_num_queries(2):
         assert api_client.get(LIST_URL, headers=ADMIN).status_code == 200
 
 

@@ -1,0 +1,15 @@
+{
+  "description": "episode_num is an integer, not a string.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/episodes/1/0/episode_num",
+      "value": "1"
+    }
+  ],
+  "expect": {
+    "at": "$.episodes[\"1\"][0].episode_num",
+    "kind": "type"
+  }
+}

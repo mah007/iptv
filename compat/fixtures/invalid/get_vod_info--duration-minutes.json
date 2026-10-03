@@ -1,0 +1,15 @@
+{
+  "description": "duration is HH:MM:SS.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/info/duration",
+      "value": "136 min"
+    }
+  ],
+  "expect": {
+    "at": "$.info.duration",
+    "kind": "pattern"
+  }
+}

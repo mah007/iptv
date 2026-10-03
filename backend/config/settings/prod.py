@@ -1,7 +1,7 @@
 """Production. TLS terminates at Traefik, which sets X-Forwarded-Proto."""
 
 from config.env import env, env_bool, env_int
-from config.origins import default_port, origins
+from config.origins import default_port, origin, origins
 
 from .base import *
 
@@ -25,3 +25,4 @@ if not SECURE_HSTS_PRELOAD:
 PUBLIC_SCHEME = env("PUBLIC_SCHEME", "https")
 PUBLIC_PORT = env_int("PUBLIC_PORT", default=default_port(PUBLIC_SCHEME))
 CSRF_TRUSTED_ORIGINS = origins(PUBLIC_SCHEME, [ADMIN_HOST, APP_HOST], PUBLIC_PORT)
+MEDIA_BASE_URL = env("MEDIA_BASE_URL", origin(PUBLIC_SCHEME, MEDIA_HOST, PUBLIC_PORT))

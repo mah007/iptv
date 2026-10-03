@@ -1,0 +1,15 @@
+{
+  "description": "Episode ids are strings (\"5001\"), not integers.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/episodes/1/0/id",
+      "value": 5001
+    }
+  ],
+  "expect": {
+    "at": "$.episodes[\"1\"][0].id",
+    "kind": "type"
+  }
+}

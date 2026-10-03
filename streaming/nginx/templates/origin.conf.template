@@ -1,0 +1,30 @@
+# Rendered by docker-entrypoint.d/40-edge-config.sh when EDGE_MODE=s3: the origin
+# behind edge-s3.conf, from EDGE_ORIGIN_URL. Edit the template, not the rendered copy.
+
+upstream edge_origin {
+    zone edge_origin_upstream 64k;
+    server ${EDGE_ORIGIN_HOSTPORT} resolve;
+    keepalive 32;
+}
+
+map "" $edge_origin_scheme {
+    default "${EDGE_ORIGIN_SCHEME}";
+}
+
+# Host header (with a non-default port) and TLS server name (without one).
+map "" $edge_origin_authority {
+    default "${EDGE_ORIGIN_AUTHORITY}";
+}
+
+map "" $edge_origin_host {
+    default "${EDGE_ORIGIN_HOST}";
+}
+
+# <prefix>/<title>/<tail>: the object for a verified token.
+map $edge_object $edge_origin_path {
+    default "${EDGE_ORIGIN_PREFIX}/$edge_object";
+}
+
+# Media slices, keyed by object path and slice range (never by token).
+proxy_cache_path /var/cache/nginx/edge_media levels=1:2 keys_zone=edge_media:50m
+                 max_size=${EDGE_MEDIA_CACHE_SIZE} inactive=30d use_temp_path=off;

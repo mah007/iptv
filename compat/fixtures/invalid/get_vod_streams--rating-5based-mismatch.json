@@ -1,0 +1,15 @@
+{
+  "description": "rating_5based is rating / 2.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/rating_5based",
+      "value": 3.0
+    }
+  ],
+  "expect": {
+    "at": "$[0].rating_5based",
+    "kind": "invariant:rating-scale"
+  }
+}

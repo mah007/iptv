@@ -12,10 +12,21 @@ from typing import Any
 from django.conf import settings
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.openapi import AutoSchema
+from drf_spectacular.utils import OpenApiResponse
 from drf_spectacular.views import SpectacularAPIView
 from rest_framework.permissions import AllowAny, BasePermission, IsAdminUser
 
 from apps.core.errors import PROBLEM_CONTENT_TYPE, ErrorCode
+
+PROBLEM_REF = {"$ref": "#/components/schemas/Problem"}
+_PROBLEM_DESCRIPTIONS = {
+    400: "Invalid request (VALIDATION_ERROR, or a more specific code).",
+    401: "Not signed in (NOT_AUTHENTICATED).",
+    403: "Not allowed (PERMISSION_DENIED, or a more specific code).",
+    404: "No such resource (NOT_FOUND).",
+    409: "Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).",
+    429: "Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.",
+}
 
 _HTTP_METHODS = frozenset({"get", "put", "post", "delete", "options", "head", "patch", "trace"})
 
@@ -55,6 +66,20 @@ def problem_components() -> dict[str, Any]:
     }
 
 
+def problems(*statuses: int) -> dict[tuple[int, str], OpenApiResponse]:
+    """Documented error responses for `extend_schema(responses=...)`.
+
+    Every operation already has `Problem` as its default response; these name the
+    statuses an endpoint is expected to answer with, so clients can type them.
+    """
+    return {
+        (status, PROBLEM_CONTENT_TYPE): OpenApiResponse(
+            response=PROBLEM_REF, description=_PROBLEM_DESCRIPTIONS.get(status, "Error.")
+        )
+        for status in statuses
+    }
+
+
 def add_problem_details(
     result: dict[str, Any], generator: object, request: object, public: bool
 ) -> dict[str, Any]:
@@ -63,7 +88,7 @@ def add_problem_details(
     schemas.update(problem_components())
     default_response = {
         "description": "Error (RFC 9457 problem details).",
-        "content": {PROBLEM_CONTENT_TYPE: {"schema": {"$ref": "#/components/schemas/Problem"}}},
+        "content": {PROBLEM_CONTENT_TYPE: {"schema": PROBLEM_REF}},
     }
     for path_item in result.get("paths", {}).values():
         for method, operation in path_item.items():

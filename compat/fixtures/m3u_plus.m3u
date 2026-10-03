@@ -1,0 +1,15 @@
+#EXTM3U url-tvg="https://tv.example.com/xmltv.php?username=mah-7k3p9q&password=example-password"
+#EXTINF:-1 tvg-id="showcase.example" tvg-name="Showcase 24/7" tvg-logo="https://media.example.com/images/channel-3001/logo/w185.eccbc87e.webp" group-title="Showcase",Showcase 24/7
+https://tv.example.com/live/mah-7k3p9q/example-password/3001.ts
+#EXTINF:-1 tvg-id="family-cinema.example" tvg-name="سينما العائلة" tvg-logo="" group-title="Arabic",سينما العائلة
+https://tv.example.com/live/mah-7k3p9q/example-password/3002.ts
+#EXTINF:-1 tvg-id="" tvg-name="The Matrix" tvg-logo="https://media.example.com/images/movie-1001/poster/w500.5d41402a.webp" group-title="Science Fiction",The Matrix
+https://tv.example.com/movie/mah-7k3p9q/example-password/1001.mp4
+#EXTINF:-1 tvg-id="" tvg-name="رحلة إلى العُلا" tvg-logo="https://media.example.com/images/movie-1002/poster/w500.c4ca4238.webp" group-title="Documentaries",رحلة إلى العُلا
+https://tv.example.com/movie/mah-7k3p9q/example-password/1002.mp4
+#EXTINF:-1 tvg-id="" tvg-name="Breaking Bad S00E01" tvg-logo="https://media.example.com/images/series-2001/poster/w500.a87ff679.webp" group-title="Drama",Breaking Bad S00E01
+https://tv.example.com/series/mah-7k3p9q/example-password/5003.mp4
+#EXTINF:-1 tvg-id="" tvg-name="Breaking Bad S01E01" tvg-logo="https://media.example.com/images/series-2001/poster/w500.a87ff679.webp" group-title="Drama",Breaking Bad S01E01
+https://tv.example.com/series/mah-7k3p9q/example-password/5001.mp4
+#EXTINF:-1 tvg-id="" tvg-name="Breaking Bad S01E02" tvg-logo="https://media.example.com/images/series-2001/poster/w500.a87ff679.webp" group-title="Drama",Breaking Bad S01E02
+https://tv.example.com/series/mah-7k3p9q/example-password/5002.mp4

@@ -5,8 +5,8 @@ from pathlib import Path
 from kombu import Queue
 
 from apps.core.logs import configure_structlog, logging_config, parse_log_format
-from config.env import env, env_int, env_list
-from config.origins import origins
+from config.env import env, env_bool, env_int, env_list
+from config.origins import origin, origins
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -34,12 +34,16 @@ HOST_URLCONFS = {
     APP_HOST: "config.urls_portal",
 }
 ROOT_URLCONF = "config.urls_internal"
+# The media edge (nginx-stream) serves artwork, and from slice 3 media, on its own host.
+MEDIA_HOST = env("MEDIA_HOST", f"media.{DOMAIN}")
 
 # Where browsers load the admin SPA and the portal from. Dev: plain HTTP on
 # HTTP_PORT (8080 when port 80 is taken); prod.py switches to https on 443.
 PUBLIC_SCHEME = env("PUBLIC_SCHEME", "http")
 PUBLIC_PORT = env_int("PUBLIC_PORT", default=env_int("HTTP_PORT", default=80))
 CSRF_TRUSTED_ORIGINS = origins(PUBLIC_SCHEME, [ADMIN_HOST, APP_HOST], PUBLIC_PORT)
+# Public base URL of the edge: artwork is `{MEDIA_BASE_URL}/images/...`.
+MEDIA_BASE_URL = env("MEDIA_BASE_URL", origin(PUBLIC_SCHEME, MEDIA_HOST, PUBLIC_PORT))
 
 # --- Applications -------------------------------------------------------------
 INSTALLED_APPS = [
@@ -52,6 +56,7 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     "django_prometheus",
+    "axes",
     "apps.core",
     "apps.accounts",
     "apps.billing",
@@ -81,6 +86,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # After authentication: turns a sign-in that django-axes locked out into a 429.
+    "axes.middleware.AxesMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
@@ -100,6 +107,42 @@ WSGI_APPLICATION = "config.wsgi.application"
 # requires rebuilding the database (ADR-0002).
 AUTH_USER_MODEL = "accounts.User"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --- Authentication (SPEC §11; ADR-0006) -----------------------------------------
+# django-axes first: it refuses sign-ins from a locked-out username + IP pair
+# before any password is checked.
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+# Admin passwords: Argon2id (Django's Argon2 hasher), PBKDF2 kept to read old hashes.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+]
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 12},
+    },
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+# Admin sign-in lockouts, per username and client IP: 5 failures (wrong
+# password or wrong MFA code) lock the pair for 15 minutes, doubling with each
+# further failure up to 24 hours. Never permanent (apps.accounts.lockout).
+AXES_FAILURE_LIMIT = 5
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_COOLOFF_TIME = "apps.accounts.lockout.cool_off"
+AXES_RESET_ON_SUCCESS = True
+AXES_CLIENT_IP_CALLABLE = "apps.accounts.lockout.axes_client_ip"
+AXES_LOCKOUT_CALLABLE = "apps.accounts.lockout.lockout_response"
+# Successful sign-ins are audited by us (auth.login); axes keeps failures only.
+AXES_DISABLE_ACCESS_LOG = True
+# Fernet key(s) for secrets stored in the database (admin TOTP seeds),
+# comma-separated, newest first (apps.accounts.crypto).
+FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY")
 
 # --- Data stores ----------------------------------------------------------------
 DATABASES = {
@@ -138,6 +181,24 @@ CACHES = {
 }
 
 MEILI_URL = env("MEILI_URL", "http://meilisearch:7700")
+
+# --- Media storage (docs/plans/poc.md slice 2, ADR-0009) -------------------------------
+# Libraries are folders under the read-only media mount; the admin and the API only
+# ever show library-relative paths. The writable media volume holds artwork (images/)
+# and, from slice 3, renditions (renditions/); the edge serves it read-only.
+LIBRARY_ROOT = env("LIBRARY_ROOT", "/media")
+DATA_ROOT = env("DATA_ROOT", "/data")
+# inotify sees nothing on network shares (NFS, SMB): poll them instead.
+LIBRARY_WATCHER_POLLING = env_bool("LIBRARY_WATCHER_POLLING", default=False)
+
+# --- Metadata (SPEC §7.2) ------------------------------------------------------------
+# Without a TMDB credential the client runs in fixture mode: synthetic sample metadata,
+# offline (apps.metadata.tmdb.factory). A v4 read-access token is preferred over a key.
+TMDB_API_KEY = env("TMDB_API_KEY", "")
+TMDB_READ_ACCESS_TOKEN = env("TMDB_READ_ACCESS_TOKEN", "")
+TMDB_LANGUAGE = env("TMDB_LANGUAGE", "en-US")
+TMDB_RATE_LIMIT_PER_S = env_int("TMDB_RATE_LIMIT_PER_S", default=35)
+TMDB_CACHE_TTL_S = env_int("TMDB_CACHE_TTL_S", default=24 * 60 * 60)
 MEILI_MASTER_KEY = env("MEILI_MASTER_KEY")
 
 # --- Celery -------------------------------------------------------------------
@@ -158,6 +219,13 @@ CELERY_TASK_QUEUES = tuple(
         "transcode.nvenc",
     )
 )
+# Ingest (SPEC §7.1-7.2): scans and probes on `scan`, matching and enrichment on
+# `metadata`, artwork on `images`; all on the `worker` service.
+CELERY_TASK_ROUTES = {
+    "apps.library.tasks.*": {"queue": "scan"},
+    "apps.metadata.tasks.fetch_*": {"queue": "images"},
+    "apps.metadata.tasks.*": {"queue": "metadata"},
+}
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
@@ -169,6 +237,18 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.core.tasks.heartbeat",
         "schedule": 30.0,
         "options": {"expires": 25},
+    },
+    # Customers whose access period ended: entitlement -> expired, sessions stop (M7).
+    "accounts-expire-access": {
+        "task": "apps.accounts.tasks.expire_access",
+        "schedule": 300.0,
+        "options": {"expires": 280},
+    },
+    # Starts the reconciliation scan of every library whose scan_interval_min has passed.
+    "library-reconcile": {
+        "task": "apps.library.tasks.reconcile_libraries",
+        "schedule": 60.0,
+        "options": {"expires": 55},
     },
 }
 
@@ -230,6 +310,30 @@ SPECTACULAR_SETTINGS = {
     # Stable enum component names; every shared enum gets an entry here.
     "ENUM_NAME_OVERRIDES": {
         "SettingKind": "apps.core.registry.SettingKind",
+        "UserStatus": "apps.accounts.models.UserStatus",
+        "Locale": "apps.accounts.models.Locale",
+        "MaxQuality": "apps.accounts.models.MaxQuality",
+        "ConcurrencyPolicy": "apps.accounts.models.ConcurrencyPolicy",
+        "DeviceKind": "apps.accounts.models.DeviceKind",
+        "AppHint": "apps.accounts.models.AppHint",
+        "AccessRuleType": "apps.accounts.models.AccessRuleType",
+        "CategoryKind": "apps.catalog.models.CategoryKind",
+        "TitleStatus": "apps.catalog.models.TitleStatus",
+        "TitleVisibility": "apps.catalog.serializers.VISIBILITY_CHOICES",
+        "MetadataSource": "apps.catalog.models.MetadataSource",
+        "ImageKind": "apps.catalog.models.ImageKind",
+        "HdrKind": "apps.catalog.models.HdrKind",
+        "FileState": "apps.catalog.models.FileState",
+        "ReviewStatus": "apps.catalog.models.ReviewStatus",
+        "ReviewKind": "apps.catalog.models.ReviewKind",
+        "CreditRole": "apps.catalog.models.CreditRole",
+        "LibraryKind": "apps.library.models.LibraryKind",
+        "ProcessingPolicy": "apps.library.models.ProcessingPolicy",
+        "ScanTrigger": "apps.library.models.ScanTrigger",
+        "ScanStatus": "apps.library.models.ScanStatus",
+        "AccessStatus": "apps.playback.entitlements.EntitlementStatus",
+        "DeviceStatus": "apps.accounts.serializers.DeviceStatus",
+        "LoginStatus": "apps.accounts.auth.LoginStatus",
     },
     "ENUM_ADD_EXPLICIT_BLANK_NULL_CHOICE": False,
     "POSTPROCESSING_HOOKS": [

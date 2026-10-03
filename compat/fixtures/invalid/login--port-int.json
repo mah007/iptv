@@ -1,0 +1,15 @@
+{
+  "description": "port is a string (\"80\"), not an integer.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/server_info/port",
+      "value": 80
+    }
+  ],
+  "expect": {
+    "at": "$.server_info.port",
+    "kind": "type"
+  }
+}

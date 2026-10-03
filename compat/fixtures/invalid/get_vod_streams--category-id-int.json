@@ -1,0 +1,15 @@
+{
+  "description": "category_id is a string (\"12\"), not an integer.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/category_id",
+      "value": 12
+    }
+  ],
+  "expect": {
+    "at": "$[0].category_id",
+    "kind": "type"
+  }
+}

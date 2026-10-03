@@ -1,0 +1,15 @@
+{
+  "description": "Images are absolute URLs; a relative path is useless to an app and exposes the storage layout.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/stream_icon",
+      "value": "/images/movie-1001/poster/w500.webp"
+    }
+  ],
+  "expect": {
+    "at": "$[0].stream_icon",
+    "kind": "pattern"
+  }
+}

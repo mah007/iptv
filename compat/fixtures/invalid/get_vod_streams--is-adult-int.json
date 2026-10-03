@@ -1,0 +1,15 @@
+{
+  "description": "is_adult is the string \"0\" or \"1\", not an integer.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/is_adult",
+      "value": 0
+    }
+  ],
+  "expect": {
+    "at": "$[0].is_adult",
+    "kind": "type"
+  }
+}

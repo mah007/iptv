@@ -1,0 +1,15 @@
+{
+  "description": "Dates are real calendar dates.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/info/release_date",
+      "value": "1999-02-30"
+    }
+  ],
+  "expect": {
+    "at": "$.info.release_date",
+    "kind": "invariant:real-date"
+  }
+}

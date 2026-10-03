@@ -1,0 +1,14 @@
+{
+  "description": "The playlist lists only what player_api.php shows the account.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "example-password/1002.mp4",
+      "new": "example-password/1099.mp4"
+    }
+  ],
+  "expect": {
+    "at": "line 8",
+    "kind": "m3u:catalog"
+  }
+}

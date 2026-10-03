@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-iptv.invalid/compat/schemas/login.schema.json",
+  "title": "player_api.php login payload",
+  "description": "The response to player_api.php with valid credentials and no action, an unknown action, or action=get_account_info (SPEC §7.5). Clients read the account from user_info and build play URLs from server_info.",
+  "type": "object",
+  "properties": {
+    "user_info": {
+      "$ref": "#/$defs/userInfo"
+    },
+    "server_info": {
+      "$ref": "#/$defs/serverInfo"
+    }
+  },
+  "required": ["user_info", "server_info"],
+  "additionalProperties": false,
+  "$defs": {
+    "userInfo": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "description": "The device credential's username.",
+          "type": "string",
+          "minLength": 1
+        },
+        "password": {
+          "description": "Echoes the password the client sent; the server stores only an Argon2id hash.",
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Operator message shown by some apps; usually \"\"."
+        },
+        "auth": {
+          "type": "integer",
+          "const": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Active", "Expired", "Disabled"]
+        },
+        "exp_date": {
+          "$ref": "common.schema.json#/$defs/unixTime",
+          "description": "Subscription end. Never null: every account has an end date."
+        },
+        "is_trial": {
+          "$ref": "common.schema.json#/$defs/flag"
+        },
+        "active_cons": {
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "created_at": {
+          "$ref": "common.schema.json#/$defs/unixTime"
+        },
+        "max_connections": {
+          "$ref": "common.schema.json#/$defs/positiveCount"
+        },
+        "allowed_output_formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["m3u8", "ts", "mp4"]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "username",
+        "password",
+        "message",
+        "auth",
+        "status",
+        "exp_date",
+        "is_trial",
+        "active_cons",
+        "created_at",
+        "max_connections",
+        "allowed_output_formats"
+      ],
+      "additionalProperties": false
+    },
+    "serverInfo": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "The public Xtream host name only: no scheme, port or path.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$"
+        },
+        "port": {
+          "$ref": "common.schema.json#/$defs/port"
+        },
+        "https_port": {
+          "$ref": "common.schema.json#/$defs/port"
+        },
+        "server_protocol": {
+          "type": "string",
+          "enum": ["http", "https"]
+        },
+        "rtmp_port": {
+          "$ref": "common.schema.json#/$defs/port"
+        },
+        "timezone": {
+          "description": "Always UTC: time_now and the EPG start/end strings are UTC.",
+          "type": "string",
+          "const": "UTC"
+        },
+        "timestamp_now": {
+          "description": "Server time in unix seconds, as an integer.",
+          "type": "integer",
+          "minimum": 1000000000,
+          "maximum": 9999999999
+        },
+        "time_now": {
+          "$ref": "common.schema.json#/$defs/dateTime",
+          "description": "timestamp_now as a UTC date and time."
+        },
+        "process": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "url",
+        "port",
+        "https_port",
+        "server_protocol",
+        "rtmp_port",
+        "timezone",
+        "timestamp_now",
+        "time_now",
+        "process"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

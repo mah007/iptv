@@ -1,0 +1,325 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "adult": false,
+  "backdrop_path": "/synthetic-movie-27205-backdrop-1280x720.jpg",
+  "belongs_to_collection": null,
+  "budget": 160000000,
+  "genres": [
+    {
+      "id": 28,
+      "name": "Action"
+    },
+    {
+      "id": 878,
+      "name": "Science Fiction"
+    },
+    {
+      "id": 12,
+      "name": "Adventure"
+    }
+  ],
+  "homepage": "",
+  "id": 27205,
+  "imdb_id": "tt1375666",
+  "origin_country": [
+    "GB"
+  ],
+  "original_language": "en",
+  "original_title": "Inception",
+  "overview": "Synthetic overview of Inception for offline testing; not TMDB text.",
+  "popularity": 95.2,
+  "poster_path": "/synthetic-movie-27205-poster-en-600x900.jpg",
+  "production_companies": [
+    {
+      "id": 923,
+      "logo_path": null,
+      "name": "Legendary Pictures",
+      "origin_country": "US"
+    },
+    {
+      "id": 9996,
+      "logo_path": null,
+      "name": "Syncopy",
+      "origin_country": "GB"
+    },
+    {
+      "id": 174,
+      "logo_path": null,
+      "name": "Warner Bros. Pictures",
+      "origin_country": "US"
+    }
+  ],
+  "production_countries": [
+    {
+      "iso_3166_1": "GB",
+      "name": "United Kingdom"
+    },
+    {
+      "iso_3166_1": "US",
+      "name": "United States of America"
+    }
+  ],
+  "release_date": "2010-07-15",
+  "revenue": 825532764,
+  "runtime": 148,
+  "spoken_languages": [
+    {
+      "english_name": "English",
+      "iso_639_1": "en",
+      "name": "English"
+    },
+    {
+      "english_name": "Japanese",
+      "iso_639_1": "ja",
+      "name": "日本語"
+    },
+    {
+      "english_name": "French",
+      "iso_639_1": "fr",
+      "name": "Français"
+    }
+  ],
+  "status": "Released",
+  "tagline": "Synthetic tagline.",
+  "title": "Inception",
+  "video": false,
+  "vote_average": 8.4,
+  "vote_count": 37000,
+  "credits": {
+    "cast": [
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 6193,
+        "known_for_department": "Acting",
+        "name": "Leonardo DiCaprio",
+        "original_name": "Leonardo DiCaprio",
+        "popularity": 40.0,
+        "profile_path": "/synthetic-person-6193-profile-400x600.jpg",
+        "cast_id": 100,
+        "character": "Dom Cobb",
+        "credit_id": "synthetic-credit-6193-cast",
+        "order": 0
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 24045,
+        "known_for_department": "Acting",
+        "name": "Joseph Gordon-Levitt",
+        "original_name": "Joseph Gordon-Levitt",
+        "popularity": 34.5,
+        "profile_path": "/synthetic-person-24045-profile-400x600.jpg",
+        "cast_id": 101,
+        "character": "Arthur",
+        "credit_id": "synthetic-credit-24045-cast",
+        "order": 1
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 27578,
+        "known_for_department": "Acting",
+        "name": "Elliot Page",
+        "original_name": "Elliot Page",
+        "popularity": 29.0,
+        "profile_path": "/synthetic-person-27578-profile-400x600.jpg",
+        "cast_id": 102,
+        "character": "Ariadne",
+        "credit_id": "synthetic-credit-27578-cast",
+        "order": 2
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 2524,
+        "known_for_department": "Acting",
+        "name": "Tom Hardy",
+        "original_name": "Tom Hardy",
+        "popularity": 23.5,
+        "profile_path": "/synthetic-person-2524-profile-400x600.jpg",
+        "cast_id": 103,
+        "character": "Eames",
+        "credit_id": "synthetic-credit-2524-cast",
+        "order": 3
+      }
+    ],
+    "crew": [
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 525,
+        "known_for_department": "Directing",
+        "name": "Christopher Nolan",
+        "original_name": "Christopher Nolan",
+        "popularity": 9.5,
+        "profile_path": "/synthetic-person-525-profile-400x600.jpg",
+        "credit_id": "synthetic-credit-525-director",
+        "department": "Directing",
+        "job": "Director"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 525,
+        "known_for_department": "Writing",
+        "name": "Christopher Nolan",
+        "original_name": "Christopher Nolan",
+        "popularity": 9.5,
+        "profile_path": "/synthetic-person-525-profile-400x600.jpg",
+        "credit_id": "synthetic-credit-525-writer",
+        "department": "Writing",
+        "job": "Writer"
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 556,
+        "known_for_department": "Production",
+        "name": "Emma Thomas",
+        "original_name": "Emma Thomas",
+        "popularity": 9.5,
+        "profile_path": "/synthetic-person-556-profile-400x600.jpg",
+        "credit_id": "synthetic-credit-556-producer",
+        "department": "Production",
+        "job": "Producer"
+      }
+    ]
+  },
+  "videos": {
+    "results": []
+  },
+  "images": {
+    "backdrops": [
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": null,
+        "file_path": "/synthetic-movie-27205-backdrop-1280x720.jpg",
+        "vote_average": 5.5,
+        "vote_count": 12,
+        "width": 1280
+      },
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-movie-27205-backdrop-en-1280x720.jpg",
+        "vote_average": 5.2,
+        "vote_count": 12,
+        "width": 1280
+      }
+    ],
+    "logos": [
+      {
+        "aspect_ratio": 2.5,
+        "height": 200,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-movie-27205-logo-en-500x200.png",
+        "vote_average": 5.4,
+        "vote_count": 12,
+        "width": 500
+      }
+    ],
+    "posters": [
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-movie-27205-poster-en-600x900.jpg",
+        "vote_average": 5.6,
+        "vote_count": 12,
+        "width": 600
+      },
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "ar",
+        "file_path": "/synthetic-movie-27205-poster-ar-600x900.jpg",
+        "vote_average": 5.3,
+        "vote_count": 12,
+        "width": 600
+      }
+    ]
+  },
+  "release_dates": {
+    "results": [
+      {
+        "iso_3166_1": "US",
+        "release_dates": [
+          {
+            "certification": "PG-13",
+            "descriptors": [],
+            "iso_639_1": "",
+            "note": "",
+            "release_date": "2010-07-15T00:00:00.000Z",
+            "type": 3
+          }
+        ]
+      }
+    ]
+  },
+  "keywords": {
+    "keywords": [
+      {
+        "id": 1014,
+        "name": "dream"
+      },
+      {
+        "id": 2052,
+        "name": "subconscious"
+      },
+      {
+        "id": 10235,
+        "name": "heist"
+      }
+    ]
+  },
+  "alternative_titles": {
+    "titles": [
+      {
+        "iso_3166_1": "SA",
+        "title": "استهلال",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "US",
+        "title": "Inception: The IMAX Experience",
+        "type": ""
+      }
+    ]
+  },
+  "translations": {
+    "translations": [
+      {
+        "iso_3166_1": "US",
+        "iso_639_1": "en",
+        "name": "English",
+        "english_name": "English",
+        "data": {
+          "homepage": "",
+          "overview": "Synthetic overview of Inception for offline testing; not TMDB text.",
+          "runtime": 148,
+          "tagline": "Synthetic tagline.",
+          "title": "Inception"
+        }
+      },
+      {
+        "iso_3166_1": "SA",
+        "iso_639_1": "ar",
+        "name": "العربية",
+        "english_name": "Arabic",
+        "data": {
+          "homepage": "",
+          "overview": "ملخص اصطناعي للاختبار دون اتصال؛ ليس نصًا من TMDB.",
+          "runtime": 148,
+          "tagline": "شعار اصطناعي للاختبار.",
+          "title": "استهلال"
+        }
+      }
+    ]
+  }
+}

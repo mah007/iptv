@@ -1,0 +1,107 @@
+{
+  "description": "episodes is an object keyed by season number, never a list (PHP turns keys 0..n into a list unless forced).",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/episodes",
+      "value": [
+        [
+          {
+            "id": "5003",
+            "episode_num": 1,
+            "title": "Good Cop / Bad Cop",
+            "container_extension": "mp4",
+            "season": 0,
+            "added": "1791034680",
+            "custom_sid": "",
+            "direct_source": "",
+            "info": {
+              "movie_image": "https://media.example.com/images/episode-5003/still/w500.45c48cce.webp",
+              "plot": "",
+              "duration_secs": 180,
+              "duration": "00:03:00",
+              "rating": "7.1",
+              "air_date": "2009-02-17",
+              "releasedate": "2009-02-17",
+              "video": {
+                "codec_name": "h264",
+                "width": 1280,
+                "height": 720
+              },
+              "audio": {
+                "codec_name": "aac",
+                "channels": 2
+              },
+              "bitrate": 2410
+            }
+          }
+        ],
+        [
+          {
+            "id": "5001",
+            "episode_num": 1,
+            "title": "Pilot",
+            "container_extension": "mp4",
+            "season": 1,
+            "added": "1791034200",
+            "custom_sid": "",
+            "direct_source": "",
+            "info": {
+              "movie_image": "https://media.example.com/images/episode-5001/still/w500.c9f0f895.webp",
+              "plot": "A chemistry teacher learns he has terminal cancer and makes a dangerous decision.",
+              "duration_secs": 3480,
+              "duration": "00:58:00",
+              "rating": "8.3",
+              "air_date": "2008-01-20",
+              "releasedate": "2008-01-20",
+              "video": {
+                "codec_name": "h264",
+                "width": 1280,
+                "height": 720
+              },
+              "audio": {
+                "codec_name": "aac",
+                "channels": 2
+              },
+              "bitrate": 2650
+            }
+          },
+          {
+            "id": "5002",
+            "episode_num": 2,
+            "title": "Cat's in the Bag...",
+            "container_extension": "mp4",
+            "season": 1,
+            "added": "1791034500",
+            "custom_sid": "",
+            "direct_source": "",
+            "info": {
+              "movie_image": "https://media.example.com/images/episode-5002/still/w500.d3d94468.webp",
+              "plot": "Walt and Jesse have to deal with the aftermath of their first cook.",
+              "duration_secs": 2880,
+              "duration": "00:48:00",
+              "rating": "8.1",
+              "air_date": "2008-01-27",
+              "releasedate": "2008-01-27",
+              "video": {
+                "codec_name": "h264",
+                "width": 1280,
+                "height": 720
+              },
+              "audio": {
+                "codec_name": "aac",
+                "channels": 2
+              },
+              "bitrate": 2590
+            }
+          }
+        ]
+      ]
+    }
+  ],
+  "expect": {
+    "at": "$.episodes",
+    "kind": "type"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "episode_run_time is a string (\"45\"), not an integer.",
+  "fixture": "get_series.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/episode_run_time",
+      "value": 45
+    }
+  ],
+  "expect": {
+    "at": "$[0].episode_run_time",
+    "kind": "type"
+  }
+}

@@ -1,0 +1,36 @@
+[
+  {
+    "num": 1,
+    "name": "The Matrix",
+    "stream_type": "movie",
+    "stream_id": 1001,
+    "stream_icon": "https://media.example.com/images/movie-1001/poster/w500.5d41402a.webp",
+    "rating": "8.2",
+    "rating_5based": 4.1,
+    "added": "1791032700",
+    "category_id": "12",
+    "category_ids": [12, 11],
+    "container_extension": "mp4",
+    "custom_sid": "",
+    "direct_source": "",
+    "tmdb_id": "603",
+    "is_adult": "0"
+  },
+  {
+    "num": 2,
+    "name": "رحلة إلى العُلا",
+    "stream_type": "movie",
+    "stream_id": 1002,
+    "stream_icon": "https://media.example.com/images/movie-1002/poster/w500.c4ca4238.webp",
+    "rating": "",
+    "rating_5based": 0,
+    "added": "1791033600",
+    "category_id": "14",
+    "category_ids": [14],
+    "container_extension": "mp4",
+    "custom_sid": "",
+    "direct_source": "",
+    "tmdb_id": "",
+    "is_adult": "0"
+  }
+]

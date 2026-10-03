@@ -52,6 +52,8 @@
   --density-nav: 2rem;
   --density-page: 1.5rem;
   --density-card: 1.25rem;
+  /* Narrowest poster column in library grids. */
+  --density-poster: 10rem;
 
   /* Inter for Latin, IBM Plex Sans Arabic for Arabic (self-hosted, see fonts.ts). */
   --font-family-sans:
@@ -106,6 +108,7 @@
   --density-nav: 1.75rem;
   --density-page: 1rem;
   --density-card: 1rem;
+  --density-poster: 8.5rem;
 }
 
 [dir="rtl"] {

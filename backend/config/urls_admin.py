@@ -14,11 +14,16 @@ from apps.core.schema import AdminSchemaView
 admin_api = [
     path("", include("apps.core.urls_admin")),
     path("", include("apps.audit.urls_admin")),
+    path("", include("apps.accounts.urls_admin")),
+    path("", include("apps.catalog.urls_admin")),
+    path("", include("apps.library.urls_admin")),
+    path("", include("apps.dashboard.urls_admin")),
 ]
 
 urlpatterns = [
     path("api/v1/health", views.public_health, name="admin-health"),
     path("api/v1/schema", AdminSchemaView.as_view(), name="admin-schema"),
+    path("api/v1/auth/", include("apps.accounts.urls_auth")),
     path("api/v1/admin/", include(admin_api)),
     # Last: unknown API paths answer problem+json 404, also when DEBUG is on.
     re_path(r"^api(?:/|$)", errors.api_not_found),

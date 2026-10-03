@@ -1,0 +1,15 @@
+{
+  "description": "timestamp_now is in seconds; milliseconds put the clock in the year 58000.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/server_info/timestamp_now",
+      "value": 1791043200000
+    }
+  ],
+  "expect": {
+    "at": "$.server_info.timestamp_now",
+    "kind": "maximum"
+  }
+}

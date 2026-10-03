@@ -1,0 +1,15 @@
+{
+  "description": "stream_id is written as an integer: 1001.0 is a number.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/stream_id",
+      "value": 1001.0
+    }
+  ],
+  "expect": {
+    "at": "$[0].stream_id",
+    "kind": "type"
+  }
+}

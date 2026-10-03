@@ -1,0 +1,14 @@
+{
+  "description": "Every info field is repeated at the root.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "remove",
+      "path": "/plot"
+    }
+  ],
+  "expect": {
+    "at": "$.plot",
+    "kind": "required"
+  }
+}

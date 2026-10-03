@@ -1,0 +1,15 @@
+{
+  "description": "created_at is a unix-seconds string, not an integer.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/created_at",
+      "value": 1791028800
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.created_at",
+    "kind": "type"
+  }
+}

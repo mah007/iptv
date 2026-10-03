@@ -8,22 +8,24 @@
  * server sent one.
  */
 import { ErrorCode } from "./generated/admin.schemas";
+import type { Problem } from "./generated/admin.schemas";
 
 /** Failures detected in the browser, where no problem document exists. */
 export type ClientErrorCode = "NETWORK_ERROR" | "UNEXPECTED_RESPONSE";
 export type ApiErrorCode = ErrorCode | ClientErrorCode;
 export type FieldErrors = Readonly<Record<string, readonly string[]>>;
 
-export interface ApiErrorInit {
+export interface ApiErrorInit<Body = Problem> {
   status: number;
   code: ApiErrorCode;
   title: string;
   detail: string;
   fieldErrors?: FieldErrors;
   requestId?: string | null;
+  problem?: Body | null;
 }
 
-export class ApiError extends Error {
+export class ApiError<Body = Problem> extends Error {
   override readonly name = "ApiError";
   /** HTTP status; 0 when the request never got a response. */
   readonly status: number;
@@ -35,8 +37,10 @@ export class ApiError extends Error {
   readonly fieldErrors: FieldErrors;
   /** The server's X-Request-ID, to quote in support requests and find in logs. */
   readonly requestId: string | null;
+  /** The problem document as received; null when the server sent none. */
+  readonly problem: Body | null;
 
-  constructor(init: ApiErrorInit) {
+  constructor(init: ApiErrorInit<Body>) {
     super(init.detail);
     this.status = init.status;
     this.code = init.code;
@@ -44,6 +48,7 @@ export class ApiError extends Error {
     this.detail = init.detail;
     this.fieldErrors = init.fieldErrors ?? {};
     this.requestId = init.requestId ?? null;
+    this.problem = init.problem ?? null;
   }
 }
 
@@ -51,8 +56,8 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
-/** Orval: the error type of every generated hook. */
-export type ErrorType<_Body> = ApiError;
+/** Orval: the error type of every generated hook (`Body` is the declared error schema). */
+export type ErrorType<Body> = ApiError<Body>;
 
 /** Sets the csrftoken cookie; called once when an unsafe request finds none. */
 export const CSRF_ENDPOINT = "/api/v1/auth/csrf";
@@ -124,13 +129,15 @@ async function toApiError(response: Response): Promise<ApiError> {
       typeof body.title === "string" &&
       typeof body.detail === "string"
     ) {
+      const problem = body as unknown as Problem;
       return new ApiError({
         status: typeof body.status === "number" ? body.status : response.status,
-        code: body.code as ErrorCode,
-        title: body.title,
-        detail: body.detail,
+        code: problem.code,
+        title: problem.title,
+        detail: problem.detail,
         fieldErrors: fieldErrorsOf(body.field_errors),
         requestId,
+        problem,
       });
     }
   }

@@ -1,0 +1,204 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "adult": false,
+  "backdrop_path": "/synthetic-tv-9000001-backdrop-1280x720.jpg",
+  "created_by": [],
+  "episode_run_time": [
+    30
+  ],
+  "first_air_date": "2020-01-05",
+  "genres": [
+    {
+      "id": 18,
+      "name": "Drama"
+    }
+  ],
+  "homepage": "",
+  "id": 9000001,
+  "in_production": false,
+  "languages": [
+    "en"
+  ],
+  "last_air_date": "2021-01-10",
+  "last_episode_to_air": {
+    "id": 99000302,
+    "name": "Episode 2",
+    "overview": "Synthetic overview of Show S02E02 for offline testing; not TMDB text.",
+    "vote_average": 9.0,
+    "vote_count": 100,
+    "air_date": "2021-01-10",
+    "episode_number": 2,
+    "episode_type": "finale",
+    "production_code": "",
+    "runtime": 30,
+    "season_number": 2,
+    "show_id": 9000001,
+    "still_path": "/synthetic-tv-9000001-s02e02-still-1280x720.jpg"
+  },
+  "name": "Show",
+  "next_episode_to_air": null,
+  "networks": [],
+  "number_of_episodes": 4,
+  "number_of_seasons": 2,
+  "origin_country": [
+    "US"
+  ],
+  "original_language": "en",
+  "original_name": "Show",
+  "overview": "A made-up series that only exists in these fixtures; scripts/sample_media.sh generates its multi-episode file.",
+  "popularity": 1.5,
+  "poster_path": "/synthetic-tv-9000001-poster-en-600x900.jpg",
+  "production_companies": [],
+  "production_countries": [
+    {
+      "iso_3166_1": "US",
+      "name": "United States of America"
+    }
+  ],
+  "seasons": [
+    {
+      "air_date": "2020-01-05",
+      "episode_count": 2,
+      "id": 99000101,
+      "name": "Season 1",
+      "overview": "",
+      "poster_path": "/synthetic-tv-9000001-s01-poster-en-600x900.jpg",
+      "season_number": 1,
+      "vote_average": 7.5
+    },
+    {
+      "air_date": "2021-01-03",
+      "episode_count": 2,
+      "id": 99000102,
+      "name": "Season 2",
+      "overview": "",
+      "poster_path": "/synthetic-tv-9000001-s02-poster-en-600x900.jpg",
+      "season_number": 2,
+      "vote_average": 7.5
+    }
+  ],
+  "spoken_languages": [
+    {
+      "english_name": "English",
+      "iso_639_1": "en",
+      "name": "English"
+    }
+  ],
+  "status": "Ended",
+  "tagline": "",
+  "type": "Scripted",
+  "vote_average": 6.0,
+  "vote_count": 10,
+  "credits": {
+    "cast": [],
+    "crew": []
+  },
+  "videos": {
+    "results": []
+  },
+  "images": {
+    "backdrops": [
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": null,
+        "file_path": "/synthetic-tv-9000001-backdrop-1280x720.jpg",
+        "vote_average": 5.5,
+        "vote_count": 12,
+        "width": 1280
+      },
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-tv-9000001-backdrop-en-1280x720.jpg",
+        "vote_average": 5.2,
+        "vote_count": 12,
+        "width": 1280
+      }
+    ],
+    "logos": [
+      {
+        "aspect_ratio": 2.5,
+        "height": 200,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-tv-9000001-logo-en-500x200.png",
+        "vote_average": 5.4,
+        "vote_count": 12,
+        "width": 500
+      }
+    ],
+    "posters": [
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-tv-9000001-poster-en-600x900.jpg",
+        "vote_average": 5.6,
+        "vote_count": 12,
+        "width": 600
+      },
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "ar",
+        "file_path": "/synthetic-tv-9000001-poster-ar-600x900.jpg",
+        "vote_average": 5.3,
+        "vote_count": 12,
+        "width": 600
+      }
+    ]
+  },
+  "content_ratings": {
+    "results": []
+  },
+  "keywords": {
+    "results": []
+  },
+  "alternative_titles": {
+    "results": []
+  },
+  "translations": {
+    "translations": [
+      {
+        "iso_3166_1": "US",
+        "iso_639_1": "en",
+        "name": "English",
+        "english_name": "English",
+        "data": {
+          "name": "Show",
+          "overview": "A made-up series that only exists in these fixtures; scripts/sample_media.sh generates its multi-episode file.",
+          "homepage": "",
+          "tagline": ""
+        }
+      },
+      {
+        "iso_3166_1": "SA",
+        "iso_639_1": "ar",
+        "name": "العربية",
+        "english_name": "Arabic",
+        "data": {
+          "name": "العرض",
+          "overview": "ملخص اصطناعي للاختبار دون اتصال؛ ليس نصًا من TMDB.",
+          "homepage": "",
+          "tagline": ""
+        }
+      }
+    ]
+  },
+  "external_ids": {
+    "id": 9000001,
+    "imdb_id": null,
+    "freebase_mid": null,
+    "freebase_id": null,
+    "tvdb_id": null,
+    "tvrage_id": null,
+    "wikidata_id": null,
+    "facebook_id": null,
+    "instagram_id": null,
+    "twitter_id": null
+  }
+}

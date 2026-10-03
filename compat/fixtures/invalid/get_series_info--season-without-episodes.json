@@ -1,0 +1,24 @@
+{
+  "description": "seasons lists exactly the seasons that have episodes.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "add",
+      "path": "/seasons/-",
+      "value": {
+        "season_number": 2,
+        "name": "Season 2",
+        "episode_count": 13,
+        "cover": "",
+        "cover_big": "",
+        "air_date": "2009-03-08",
+        "overview": "",
+        "id": 3573
+      }
+    }
+  ],
+  "expect": {
+    "at": "$.seasons",
+    "kind": "invariant:seasons"
+  }
+}

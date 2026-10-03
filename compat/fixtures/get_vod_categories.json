@@ -1,0 +1,17 @@
+[
+  {
+    "category_id": "11",
+    "category_name": "Action",
+    "parent_id": 0
+  },
+  {
+    "category_id": "12",
+    "category_name": "Science Fiction",
+    "parent_id": 0
+  },
+  {
+    "category_id": "14",
+    "category_name": "Documentaries",
+    "parent_id": 0
+  }
+]

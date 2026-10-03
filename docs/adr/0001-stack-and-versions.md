@@ -53,3 +53,27 @@ Dev only: `pytest 9.1.1`, `pytest-django 4.14.0`, `pytest-cov 7.1.0`, `ruff 0.16
 ## Consequences
 - Upgrade checkpoints: Django 6.2 LTS (2027-04), Node 26 (2027), TypeScript 7 (when typescript-eslint supports it), redis-py 8 (when kombu 5.7 is final), Python 3.14 (native uuid7).
 - Every new dependency goes through `dep-check` and an ADR note; the licence gate in `make ci` enforces it.
+
+## M2/M3 additions
+Checked on 2026-10-03 with `.claude/skills/dep-check`. Every package passes the licence gate (61 Python packages, including dev ones, against the backend virtualenv).
+
+### Backend, M2 (locked in `backend/uv.lock`)
+| Package | Pinned | Licence | Notes |
+|---|---|---|---|
+| djangorestframework | 3.18.1 | BSD-3-Clause | Requires Django ≥ 5.2. |
+| drf-spectacular | 0.30.0 | BSD-3-Clause | OpenAPI 3.1 output; `make api-client` runs it with `--validate --fail-on-warn`. |
+| django-filter | 26.1 | BSD-3-Clause | **Not 26.2:** 26.2 was published on the day of the check. We wait out the same release-age cooldown pnpm applies to npm packages; take 26.2 at the next milestone's re-check. |
+| structlog | 26.1.0 | MIT OR Apache-2.0 | |
+| django-prometheus | 2.5.0 | Apache-2.0 | The 2.6.0.dev releases are pre-releases; `prerelease = "explicit"` keeps them out. |
+| prometheus-client | 0.26.0 | Apache-2.0 AND BSD-2-Clause | Declared directly because `apps.core.metrics` imports it. |
+
+Transitive, via drf-spectacular: PyYAML 6.0.3, jsonschema 4.26.0, jsonschema-specifications 2025.9.1, referencing 0.37.0, rpds-py 2026.6.3, attrs 26.1.0, inflection 0.5.1 (all MIT) and uritemplate 4.2.0 (BSD-3-Clause OR Apache-2.0).
+
+Dev only: `djangorestframework-stubs 3.16.9` (MIT), which brings `types-PyYAML`. mypy runs its `mypy_drf_plugin`.
+- **Not 3.17 or 3.18:** those require django-stubs ≥ 6.0 (Django 6.x), and we pin django-stubs 5.2 for Django 5.2 LTS. 3.16.9 is the newest release that supports django-stubs 5.2. Its stubs track DRF 3.16; the APIs we use are unchanged in 3.18.
+- django-filter and django-prometheus ship no type information, so mypy ignores missing imports for those two only.
+
+### Frontend, M2 (locked in `frontend/pnpm-lock.yaml`)
+`orval 8.39.0` (MIT), a dev dependency of `@smart-iptv/api`. It generates the TanStack Query hooks (fetch client) from `openapi/admin.yaml` (ADR-0004).
+
+M3 dependencies are added to this section when they are introduced.

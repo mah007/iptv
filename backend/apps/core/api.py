@@ -1,13 +1,15 @@
 """Admin API of the core app: the settings registry (SPEC §8.3 Settings)."""
 
+from typing import ClassVar
+
 from django.core.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
-from rest_framework.permissions import IsAdminUser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.permissions import HasPermission, Requirements
 from apps.core import services
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.http import acting_user, client_ip
@@ -16,9 +18,8 @@ from apps.core.serializers import SettingEntrySerializer, SettingSerializer
 
 
 class SettingListView(APIView):
-    """Staff only until RBAC lands in M3, which switches it to `settings.view`."""
-
-    permission_classes = (IsAdminUser,)
+    permission_classes = (HasPermission,)
+    required_permissions: ClassVar[Requirements] = {"GET": "settings.view"}
 
     @extend_schema(
         operation_id="settings_list",
@@ -33,9 +34,8 @@ class SettingListView(APIView):
 
 
 class SettingDetailView(APIView):
-    """Staff only until RBAC lands in M3, which switches writes to `settings.edit`."""
-
-    permission_classes = (IsAdminUser,)
+    permission_classes = (HasPermission,)
+    required_permissions: ClassVar[Requirements] = {"PATCH": "settings.edit"}
 
     @extend_schema(
         operation_id="settings_update",

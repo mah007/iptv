@@ -15,16 +15,19 @@ APP_VERSION ?= $(or $(shell sed -n 's/^APP_VERSION=//p' .env 2>/dev/null),dev)
 export APP_VERSION
 
 COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml
+# Every backend container bind-mounts ./media (the libraries, git-ignored). Create it as
+# the host user, or Docker would create it owned by root.
+$(shell mkdir -p media)
 RUN_BACKEND := $(COMPOSE) run --rm --no-deps -T web
 RUN_FRONTEND := $(COMPOSE) run --rm --no-deps -T frontend
 
 # Trivy pinned by digest: a moved or compromised tag can't change what runs.
 TRIVY_IMAGE := aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
-IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION)
+IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/media:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION)
 # Extra docker build flags; before tagging a milestone use BUILD_FLAGS="--pull --no-cache".
 BUILD_FLAGS ?= --pull
 
-.PHONY: help secrets up down ps logs migrate shell smoke test test-backend test-frontend \
+.PHONY: help secrets up down ps logs migrate seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
 	api-client api-client-check build smoke-images scan licenses ci ci-steps
 
@@ -37,13 +40,17 @@ help: ## List available commands
 secrets: ## Create .env with generated dev secrets, or append keys new in .env.example
 	@scripts/secrets.sh
 
-up: .env ## Build and start the dev stack, wait for healthchecks, apply migrations
+# The media token keys (ADR-0007): the edge refuses to start without them.
+secrets/media_token_keys.json:
+	@scripts/secrets.sh
+
+up: .env secrets/media_token_keys.json ## Build and start the dev stack, wait for healthchecks, apply migrations
 	$(COMPOSE) up --build --detach --wait --wait-timeout 300
 	$(COMPOSE) exec -T web python manage.py migrate --noinput
 	@port=$$(grep -E '^HTTP_PORT=' .env | cut -d= -f2); domain=$$(grep -E '^DOMAIN=' .env | cut -d= -f2); \
 	  suffix=$$([ "$$port" = "80" ] || echo ":$$port"); \
 	  echo ""; echo "Smart IPTV is up:"; \
-	  for h in admin app api tv traefik; do echo "  http://$$h.$$domain$$suffix"; done
+	  for h in admin app api tv media traefik; do echo "  http://$$h.$$domain$$suffix"; done
 
 down: ## Stop the stack (data volumes are kept)
 	$(COMPOSE) down
@@ -57,6 +64,12 @@ logs: ## Follow logs; one service with s=<name>, e.g. make logs s=web
 migrate: ## Apply database migrations
 	$(COMPOSE) exec -T web python manage.py migrate --noinput
 
+seed: ## Load demo data (idempotent); prints a new admin's password once. args=--reset-admin-password
+	$(COMPOSE) exec -T web python manage.py seed_demo $(args)
+
+sample-media: ## Generate legal synthetic test media into ./media (FFmpeg; idempotent)
+	@scripts/sample_media.sh media
+
 shell: ## Django shell in the web container
 	$(COMPOSE) exec web python manage.py shell
 
@@ -67,8 +80,8 @@ test: test-backend test-frontend ## Run all tests
 
 PYTEST_COVERAGE := --cov=apps --cov-report=term-missing:skip-covered --cov-fail-under=85
 
-test-backend: ## pytest on the running stack's stores; full run enforces 85% coverage, t="..." runs a subset
-	$(COMPOSE) run --rm -T web pytest $(if $(t),$(t),$(PYTEST_COVERAGE))
+test-backend: ## pytest on the running stack's stores; full run enforces 85% coverage, t="..." runs a subset, lane=1..3 isolates parallel runs
+	$(COMPOSE) run --rm -T $(if $(lane),-e TEST_LANE=$(lane) )web pytest $(if $(t),$(t),$(PYTEST_COVERAGE))
 
 test-frontend: ## Vitest for every frontend package
 	$(RUN_FRONTEND) pnpm test
@@ -107,20 +120,32 @@ api-client: ## Regenerate the admin OpenAPI schema and the typed client in front
 	$(RUN_BACKEND) python manage.py spectacular --urlconf config.urls_admin --validate --fail-on-warn \
 	  > $(API_SCHEMA).tmp || { rm -f $(API_SCHEMA).tmp; exit 1; }
 	@mv $(API_SCHEMA).tmp $(API_SCHEMA)
-	@# Uses the node_modules that `make up` installed; pnpm must not re-install them
-	@# here, which would re-link them to another store.
-	$(RUN_FRONTEND) pnpm --config.verify-deps-before-run=false --filter @smart-iptv/api generate
+	@# Prettier-format the schema (it's committed and checked like any file), then run
+	@# Orval. Both use the node_modules that `make up` installed: pnpm must not
+	@# re-install them here, which would re-link them to another store.
+	$(RUN_FRONTEND) sh -c 'pnpm --config.verify-deps-before-run=false exec prettier --write \
+	  --log-level warn $(patsubst frontend/%,%,$(API_SCHEMA)) \
+	  && pnpm --config.verify-deps-before-run=false --filter @smart-iptv/api generate'
 
-api-client-check: api-client ## Fail if the committed schema or client differs from a fresh generation
-	@changes="$$(git status --porcelain -- $(API_DIR))"; \
-	if [ -n "$$changes" ]; then \
-	  echo "The API client in $(API_DIR) is stale or uncommitted; run make api-client and commit:" >&2; \
-	  echo "$$changes" >&2; exit 1; \
+# Checksums of the schema and client sources (node_modules excluded), to compare generations.
+API_SUMS = find $(API_DIR) -path $(API_DIR)/node_modules -prune -o -type f -print0 | sort -z | xargs -0 sha256sum
+
+api-client-check: ## Fail if the schema or client in the tree differs from a fresh generation
+	@# Compares content before and after regenerating, so it also works on uncommitted
+	@# work (ALLOW_DIRTY=1); make ci's clean-tree check covers "committed".
+	@before="$$(mktemp)"; after="$$(mktemp)"; trap 'rm -f "$$before" "$$after"' EXIT; \
+	$(API_SUMS) > "$$before"; \
+	$(MAKE) --no-print-directory api-client; \
+	$(API_SUMS) > "$$after"; \
+	if ! cmp -s "$$before" "$$after"; then \
+	  echo "The API client in $(API_DIR) is stale; run make api-client and commit. Changed:" >&2; \
+	  diff "$$before" "$$after" | sed -n 's/^[<>] [0-9a-f]*  /  /p' | sort -u >&2; exit 1; \
 	fi
 	@echo "API client is up to date."
 
-build: ## Build the production images (app, frontend), pulling fresh base images
+build: ## Build the production images (app, media, frontend), pulling fresh base images
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
+	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target media -t smart-iptv/media:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/frontend.Dockerfile --target runtime -t smart-iptv/frontend:$(APP_VERSION) .
 
 smoke-images: ## Start the production images (env from .env.example), check --deploy, wait for health

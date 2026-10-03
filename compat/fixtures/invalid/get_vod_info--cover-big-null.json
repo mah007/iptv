@@ -1,0 +1,15 @@
+{
+  "description": "Images are \"\" when missing, never null.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/info/cover_big",
+      "value": null
+    }
+  ],
+  "expect": {
+    "at": "$.info.cover_big",
+    "kind": "type"
+  }
+}

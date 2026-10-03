@@ -1,0 +1,15 @@
+{
+  "description": "Xtream images are JPEG, PNG or WebP: TV apps cannot decode AVIF.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/stream_icon",
+      "value": "https://media.example.com/images/movie-1001/poster/w500.5d41402a.avif"
+    }
+  ],
+  "expect": {
+    "at": "$[0].stream_icon",
+    "kind": "pattern"
+  }
+}

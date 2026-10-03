@@ -1,5 +1,5 @@
 import { CalendarRange, ListFilter, Search, X } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "../lib/cn";
@@ -10,6 +10,7 @@ import { Input } from "./input";
 import { Kbd } from "./kbd";
 import { Label } from "./label";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+import { RadioGroup, RadioGroupItem } from "./radio-group";
 import { Separator } from "./separator";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -54,15 +55,20 @@ export function SearchInput({
     if (value !== draft.trim()) setDraft(value);
   }
 
+  // Reads the latest callback without restarting the debounce when the parent re-renders.
+  const commit = useEffectEvent((next: string) => {
+    onValueChange(next);
+  });
+
   useEffect(() => {
     if (draft.trim() === committed) return;
     const timer = setTimeout(() => {
-      onValueChange(draft.trim());
+      commit(draft.trim());
     }, SEARCH_DEBOUNCE_MS);
     return () => {
       clearTimeout(timer);
     };
-  }, [draft, committed, onValueChange]);
+  }, [draft, committed]);
 
   useEffect(() => {
     if (!shortcut) return;
@@ -133,10 +139,30 @@ export interface FacetFilterProps {
   options: readonly FacetOption[];
   selected: readonly string[];
   onSelectedChange: (values: string[]) => void;
+  /**
+   * One value at a time, for API filters that take a single value: the
+   * options are radio buttons and choosing one replaces the previous choice.
+   */
+  single?: boolean;
 }
 
-/** Multi-select facet (e.g. Status, Plan) in a popover; the trigger shows what is chosen. */
-export function FacetFilter({ title, options, selected, onSelectedChange }: FacetFilterProps) {
+const OPTION_ROW =
+  "flex h-8 cursor-pointer items-center gap-2 rounded-badge px-2 font-normal hover:bg-accent";
+
+function OptionCount({ count }: { count: number | undefined }) {
+  return count === undefined ? null : (
+    <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+  );
+}
+
+/** Facet (e.g. Status, Plan) in a popover; the trigger shows what is chosen. Multi-select unless `single`. */
+export function FacetFilter({
+  title,
+  options,
+  selected,
+  onSelectedChange,
+  single = false,
+}: FacetFilterProps) {
   const { t } = useTranslation("ui");
   const id = useId();
   const chosen = options.filter((option) => selected.includes(option.value));
@@ -180,37 +206,52 @@ export function FacetFilter({ title, options, selected, onSelectedChange }: Face
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-60 p-1">
-        <fieldset>
-          <legend className="sr-only">{title}</legend>
-          <ul className="grid gap-0.5">
+        {single ? (
+          <RadioGroup
+            aria-label={title}
+            value={chosen[0]?.value ?? ""}
+            onValueChange={(value) => {
+              onSelectedChange([value]);
+            }}
+            className="gap-0.5"
+          >
             {options.map((option) => {
               const optionId = `${id}-${option.value}`;
-              const checked = selected.includes(option.value);
               return (
-                <li key={option.value}>
-                  <Label
-                    htmlFor={optionId}
-                    className="flex h-8 cursor-pointer items-center gap-2 rounded-badge px-2 font-normal hover:bg-accent"
-                  >
-                    <Checkbox
-                      id={optionId}
-                      checked={checked}
-                      onCheckedChange={(value) => {
-                        toggle(option.value, value === true);
-                      }}
-                    />
-                    <span className="flex-1 truncate">{option.label}</span>
-                    {option.count === undefined ? null : (
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {option.count}
-                      </span>
-                    )}
-                  </Label>
-                </li>
+                <Label key={option.value} htmlFor={optionId} className={OPTION_ROW}>
+                  <RadioGroupItem id={optionId} value={option.value} />
+                  <span className="flex-1 truncate">{option.label}</span>
+                  <OptionCount count={option.count} />
+                </Label>
               );
             })}
-          </ul>
-        </fieldset>
+          </RadioGroup>
+        ) : (
+          <fieldset>
+            <legend className="sr-only">{title}</legend>
+            <ul className="grid gap-0.5">
+              {options.map((option) => {
+                const optionId = `${id}-${option.value}`;
+                const checked = selected.includes(option.value);
+                return (
+                  <li key={option.value}>
+                    <Label htmlFor={optionId} className={OPTION_ROW}>
+                      <Checkbox
+                        id={optionId}
+                        checked={checked}
+                        onCheckedChange={(value) => {
+                          toggle(option.value, value === true);
+                        }}
+                      />
+                      <span className="flex-1 truncate">{option.label}</span>
+                      <OptionCount count={option.count} />
+                    </Label>
+                  </li>
+                );
+              })}
+            </ul>
+          </fieldset>
+        )}
         {chosen.length > 0 ? (
           <>
             <Separator className="my-1" />

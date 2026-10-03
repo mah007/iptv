@@ -52,6 +52,7 @@ Everything runs in containers through the Makefile (`make` lists targets). The s
 - `make lint`, `make fmt`, `make typecheck`, `make build` (production images), `make scan` (Trivy) and `make licenses` (licence gate); run the last two after `make build`.
 - `make ci`: the full quality gate (ADR-0003 lists its steps). It checks the committed tree: commit first, or use `ALLOW_DIRTY=1` for a check of uncommitted work. There's no hosted CI, so run it before pushing; before tagging `m{N}-done` run `make ci BUILD_FLAGS="--pull --no-cache"`. Don't add GitHub Actions or another hosted CI.
 - Single backend test: `make test-backend t="apps/core/tests/test_routing.py -k internal"`. Passing `t` skips the coverage gate.
+- Parallel backend test runs (several agents at once) must each pass a lane, `lane=1`, `2` or `3`: a lane has its own Postgres test database and Redis indexes. Two runs in the same lane drop and flush each other's data.
 - Single frontend test: `docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml run --rm frontend pnpm --filter @smart-iptv/admin exec vitest run src/app.test.tsx`
 - Host shortcuts (faster, outside containers): in `backend/` run `uv run ruff check .` and `uv run mypy .`; in `frontend/` run `pnpm lint`, `pnpm typecheck` and `pnpm test`.
 - Planned, not yet in the Makefile: `make api-client` (M2: regenerates the Orval client, which is never hand-edited, and `make ci` fails if it's stale), `make seed` (M3), `make sample-media` (M4), `make loadtest`, `make backup`, `make restore-test`, `make deploy`.

@@ -1,0 +1,28 @@
+{
+  "description": "get_short_epg starts at the programme on air; programmes that have ended belong only in get_simple_data_table.",
+  "fixture": "get_short_epg.json",
+  "patch": [
+    {
+      "op": "add",
+      "path": "/epg_listings/0",
+      "value": {
+        "id": "900101",
+        "epg_id": "1",
+        "title": "U3R1ZGlvIE5vdGVz",
+        "lang": "en",
+        "start": "2026-10-03 14:00:00",
+        "end": "2026-10-03 15:30:00",
+        "description": "U2hvcnQgaW50ZXJ2aWV3cyB3aXRoIHRoZSBwcm9kdWN0aW9uIHRlYW0u",
+        "channel_id": "showcase.example",
+        "start_timestamp": "1791036000",
+        "stop_timestamp": "1791041400",
+        "now_playing": 0,
+        "has_archive": 1
+      }
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[1].now_playing",
+    "kind": "invariant:short-epg"
+  }
+}

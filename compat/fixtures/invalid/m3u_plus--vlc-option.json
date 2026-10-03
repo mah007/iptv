@@ -1,0 +1,14 @@
+{
+  "description": "The playlist carries only #EXTINF lines and URLs.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "\"Science Fiction\",The Matrix\nhttps://",
+      "new": "\"Science Fiction\",The Matrix\n#EXTVLCOPT:http-user-agent=SmartIPTV\nhttps://"
+    }
+  ],
+  "expect": {
+    "at": "line 7",
+    "kind": "m3u:directive"
+  }
+}

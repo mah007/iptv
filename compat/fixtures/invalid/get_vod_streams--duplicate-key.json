@@ -1,0 +1,14 @@
+{
+  "description": "A key appears once per object; apps disagree on which duplicate wins.",
+  "fixture": "get_vod_streams.json",
+  "replace": [
+    {
+      "old": "\"stream_id\": 1001,",
+      "new": "\"stream_id\": 1001,\n    \"stream_id\": 1002,"
+    }
+  ],
+  "expect": {
+    "at": "$",
+    "kind": "json"
+  }
+}

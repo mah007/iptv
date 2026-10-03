@@ -1,0 +1,15 @@
+{
+  "description": "episode_count counts playable episodes, not TMDB's total.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/seasons/1/episode_count",
+      "value": 7
+    }
+  ],
+  "expect": {
+    "at": "$.seasons[1].episode_count",
+    "kind": "invariant:seasons"
+  }
+}

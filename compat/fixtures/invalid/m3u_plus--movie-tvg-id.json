@@ -1,0 +1,14 @@
+{
+  "description": "Movies and episodes have tvg-id \"\"; only channels have a guide id.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "tvg-id=\"\" tvg-name=\"The Matrix\"",
+      "new": "tvg-id=\"603\" tvg-name=\"The Matrix\""
+    }
+  ],
+  "expect": {
+    "at": "line 6",
+    "kind": "m3u:tvg-id"
+  }
+}

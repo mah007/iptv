@@ -1,0 +1,15 @@
+{
+  "description": "epg_listings is a list ([] when empty), never {}.",
+  "fixture": "get_short_epg.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings",
+      "value": {}
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings",
+    "kind": "type"
+  }
+}

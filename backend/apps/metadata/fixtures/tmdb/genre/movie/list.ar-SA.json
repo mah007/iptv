@@ -1,0 +1,84 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "genres": [
+    {
+      "id": 28,
+      "name": "أكشن"
+    },
+    {
+      "id": 12,
+      "name": "مغامرة"
+    },
+    {
+      "id": 16,
+      "name": "رسوم متحركة"
+    },
+    {
+      "id": 35,
+      "name": "كوميديا"
+    },
+    {
+      "id": 80,
+      "name": "جريمة"
+    },
+    {
+      "id": 99,
+      "name": "وثائقي"
+    },
+    {
+      "id": 18,
+      "name": "دراما"
+    },
+    {
+      "id": 10751,
+      "name": "عائلي"
+    },
+    {
+      "id": 14,
+      "name": "فانتازيا"
+    },
+    {
+      "id": 36,
+      "name": "تاريخ"
+    },
+    {
+      "id": 27,
+      "name": "رعب"
+    },
+    {
+      "id": 10402,
+      "name": "موسيقى"
+    },
+    {
+      "id": 9648,
+      "name": "غموض"
+    },
+    {
+      "id": 10749,
+      "name": "رومانسية"
+    },
+    {
+      "id": 878,
+      "name": "خيال علمي"
+    },
+    {
+      "id": 10770,
+      "name": "فيلم تلفزيوني"
+    },
+    {
+      "id": 53,
+      "name": "إثارة"
+    },
+    {
+      "id": 10752,
+      "name": "حرب"
+    },
+    {
+      "id": 37,
+      "name": "غربي"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "description": "start is start_timestamp in UTC (server_info.timezone), not Riyadh time.",
+  "fixture": "get_short_epg.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/start",
+      "value": "2026-10-03 18:30:00"
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[0].start",
+    "kind": "invariant:epg-times"
+  }
+}

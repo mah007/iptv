@@ -1,0 +1,15 @@
+{
+  "description": "direct_source is always \"\": origin URLs and storage paths never leave the server.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/direct_source",
+      "value": "https://origin.internal/media/movies/The.Matrix.1999.mkv"
+    }
+  ],
+  "expect": {
+    "at": "$[0].direct_source",
+    "kind": "const"
+  }
+}

@@ -34,7 +34,19 @@
       "Bash(git diff*)",
       "Bash(git log*)",
       "Bash(git show*)",
-      "Bash(python3 .claude/skills/dep-check/scripts/dep_check.py*)"
+      "Bash(python3 .claude/skills/dep-check/scripts/dep_check.py*)",
+      "Bash(git ls-remote *)",
+      "Bash(sed -i 's|volumes: \\\\[d:/data\\\\]|volumes:\\\\n      - d:/data|' compose.yml)",
+      "Bash(timeout 120 docker compose up --detach --wait --wait-timeout 60)",
+      "Bash(echo \"exit=$?\")"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.prod)",
+      "Read(./.env.production)",
+      "Read(./**/.env)",
+      "Read(./secrets/**)"
     ],
     "ask": [
       "Bash(docker volume rm*)",
@@ -47,14 +59,6 @@
       "Bash(git push*)",
       "Bash(git tag*)",
       "Bash(git reset --hard*)"
-    ],
-    "deny": [
-      "Read(./.env)",
-      "Read(./.env.local)",
-      "Read(./.env.prod)",
-      "Read(./.env.production)",
-      "Read(./**/.env)",
-      "Read(./secrets/**)"
     ]
   },
   "hooks": {

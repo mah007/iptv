@@ -1,0 +1,14 @@
+{
+  "description": "The guide declares no entities (billion-laughs protection).",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+      "new": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE tv [<!ENTITY x \"x\">]>"
+    }
+  ],
+  "expect": {
+    "at": "document",
+    "kind": "xmltv:doctype"
+  }
+}

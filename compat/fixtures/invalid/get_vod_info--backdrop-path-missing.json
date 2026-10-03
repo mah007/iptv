@@ -1,0 +1,14 @@
+{
+  "description": "backdrop_path is always present ([] when there is none).",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "remove",
+      "path": "/info/backdrop_path"
+    }
+  ],
+  "expect": {
+    "at": "$.info.backdrop_path",
+    "kind": "required"
+  }
+}

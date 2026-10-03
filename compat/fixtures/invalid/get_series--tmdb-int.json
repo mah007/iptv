@@ -1,0 +1,15 @@
+{
+  "description": "tmdb is a string (\"1396\"), not an integer.",
+  "fixture": "get_series.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/tmdb",
+      "value": 1396
+    }
+  ],
+  "expect": {
+    "at": "$[0].tmdb",
+    "kind": "type"
+  }
+}

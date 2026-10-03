@@ -1,0 +1,15 @@
+{
+  "description": "Episode numbers are unique within a season.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/episodes/1/1/episode_num",
+      "value": 1
+    }
+  ],
+  "expect": {
+    "at": "$.episodes[\"1\"]",
+    "kind": "invariant:episode-order"
+  }
+}

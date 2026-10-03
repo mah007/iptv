@@ -1,0 +1,15 @@
+{
+  "description": "series_id is an integer, not a string.",
+  "fixture": "get_series.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/series_id",
+      "value": "2001"
+    }
+  ],
+  "expect": {
+    "at": "$[0].series_id",
+    "kind": "type"
+  }
+}

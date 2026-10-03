@@ -1,0 +1,15 @@
+{
+  "description": "parent_id is the integer 0, not a string.",
+  "fixture": "get_vod_categories.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/parent_id",
+      "value": "0"
+    }
+  ],
+  "expect": {
+    "at": "$[0].parent_id",
+    "kind": "type"
+  }
+}

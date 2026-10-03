@@ -7,11 +7,19 @@ import {
   Toaster,
   UiProvider,
 } from "@smart-iptv/ui";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { isApiError } from "@smart-iptv/api";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+  type Query,
+} from "@tanstack/react-query";
 import { RouterProvider, type RouterHistory } from "@tanstack/react-router";
 import type { i18n as I18n } from "i18next";
 import { I18nextProvider, useTranslation } from "react-i18next";
 
+import { isSignedOutError } from "./lib/auth";
 import ar from "./locales/ar.json";
 import en from "./locales/en.json";
 import { createAppRouter, type AppRouter } from "./router";
@@ -22,14 +30,39 @@ export interface AppDependencies {
   router: AppRouter;
 }
 
+/** Client errors (4xx) won't change on a retry; network and server errors get one more try. */
+function shouldRetry(failureCount: number, error: unknown): boolean {
+  if (isApiError(error) && error.status >= 400 && error.status < 500) return false;
+  return failureCount < 1;
+}
+
 /** Build everything the app needs, applying theme, density and language before the first paint. */
 export function createAppDependencies(history?: RouterHistory): AppDependencies {
   initTheme("system");
   initDensity();
   const i18n = createI18n({ en, ar });
+
+  // The session ended (30 minutes idle, or signed out elsewhere): any request
+  // that finds it gone sends the admin to sign in, then back to this page.
+  function onSignedOut(error: unknown, query?: Query<unknown, unknown>) {
+    if (!isSignedOutError(error)) return;
+    if (query?.meta?.signInCheck === true) return; // the route guard redirects itself
+    const { pathname, href } = router.state.location;
+    if (pathname.startsWith("/login")) return;
+    void router.navigate({ to: "/login", search: { redirect: href } }).then(() => {
+      // Nothing of the previous session (customer data included) stays cached.
+      queryClient.clear();
+    });
+  }
   const queryClient = new QueryClient({
+    queryCache: new QueryCache({ onError: onSignedOut }),
+    mutationCache: new MutationCache({
+      onError: (error) => {
+        onSignedOut(error);
+      },
+    }),
     defaultOptions: {
-      queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: true },
+      queries: { staleTime: 30_000, retry: shouldRetry, refetchOnWindowFocus: true },
     },
   });
   const router = createAppRouter({ queryClient, ...(history ? { history } : {}) });

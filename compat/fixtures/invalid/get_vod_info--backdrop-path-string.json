@@ -1,0 +1,15 @@
+{
+  "description": "backdrop_path is always an array, even with one image.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/info/backdrop_path",
+      "value": "https://media.example.com/images/movie-1001/backdrop/w1280.7b52009b.webp"
+    }
+  ],
+  "expect": {
+    "at": "$.info.backdrop_path",
+    "kind": "type"
+  }
+}

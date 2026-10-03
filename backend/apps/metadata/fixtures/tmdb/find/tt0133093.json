@@ -1,0 +1,32 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "movie_results": [
+    {
+      "adult": false,
+      "backdrop_path": "/synthetic-movie-603-backdrop-1280x720.jpg",
+      "genre_ids": [
+        28,
+        878
+      ],
+      "id": 603,
+      "original_language": "en",
+      "original_title": "The Matrix",
+      "overview": "Synthetic overview of The Matrix for offline testing; not TMDB text.",
+      "popularity": 80.5,
+      "poster_path": "/synthetic-movie-603-poster-en-600x900.jpg",
+      "release_date": "1999-03-31",
+      "title": "The Matrix",
+      "video": false,
+      "vote_average": 7.0,
+      "vote_count": 1000,
+      "media_type": "movie"
+    }
+  ],
+  "person_results": [],
+  "tv_results": [],
+  "tv_episode_results": [],
+  "tv_season_results": []
+}

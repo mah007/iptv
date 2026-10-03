@@ -1,0 +1,15 @@
+{
+  "description": "https_port is a string (\"443\"), not an integer.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/server_info/https_port",
+      "value": 443
+    }
+  ],
+  "expect": {
+    "at": "$.server_info.https_port",
+    "kind": "type"
+  }
+}

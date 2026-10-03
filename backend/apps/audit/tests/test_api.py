@@ -116,9 +116,9 @@ def test_ordering_can_be_reversed(staff_client: APIClient, history: list[AuditLo
     assert results(response)[0] == "setting.update"
 
 
-def test_listing_costs_two_queries_whatever_the_page(
+def test_listing_costs_three_queries_whatever_the_page(
     staff_client: APIClient, history: list[AuditLog], django_assert_num_queries: Any
 ) -> None:
-    # COUNT(*) and one SELECT joining the actors: no query per row.
-    with django_assert_num_queries(2):
+    # Permission codes, COUNT(*) and one SELECT joining the actors: no query per row.
+    with django_assert_num_queries(3):
         assert staff_client.get(URL, headers=ADMIN).status_code == 200

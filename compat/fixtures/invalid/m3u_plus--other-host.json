@@ -1,0 +1,14 @@
+{
+  "description": "Every URL is on the origin server_info describes.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "https://tv.example.com/movie/mah-7k3p9q/example-password/1001.mp4",
+      "new": "http://203.0.113.7:8080/movie/mah-7k3p9q/example-password/1001.mp4"
+    }
+  ],
+  "expect": {
+    "at": "line 7",
+    "kind": "m3u:origin"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "info": {
+    "name": "The Matrix",
+    "o_name": "The Matrix",
+    "cover_big": "https://media.example.com/images/movie-1001/poster/original.5d41402a.webp",
+    "movie_image": "https://media.example.com/images/movie-1001/poster/w500.5d41402a.webp",
+    "backdrop_path": ["https://media.example.com/images/movie-1001/backdrop/w1280.7b52009b.webp"],
+    "plot": "A computer hacker learns that the world he lives in is a simulation and joins the rebels fighting its machine rulers.",
+    "description": "A computer hacker learns that the world he lives in is a simulation and joins the rebels fighting its machine rulers.",
+    "cast": "Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss, Hugo Weaving, Joe Pantoliano",
+    "actors": "Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss, Hugo Weaving, Joe Pantoliano",
+    "director": "Lana Wachowski, Lilly Wachowski",
+    "genre": "Action, Science Fiction",
+    "release_date": "1999-03-30",
+    "releasedate": "1999-03-30",
+    "year": "1999",
+    "country": "United States",
+    "rating": "8.2",
+    "rating_5based": 4.1,
+    "duration_secs": 8160,
+    "duration": "02:16:00",
+    "tmdb_id": "603",
+    "imdb_id": "tt0133093",
+    "youtube_trailer": "vKQi3bBA1y8",
+    "age": "R",
+    "video": {
+      "codec_name": "h264",
+      "width": 1920,
+      "height": 800
+    },
+    "audio": {
+      "codec_name": "aac",
+      "channels": 2
+    },
+    "bitrate": 4573
+  },
+  "movie_data": {
+    "stream_id": 1001,
+    "name": "The Matrix",
+    "added": "1791032700",
+    "category_id": "12",
+    "container_extension": "mp4",
+    "custom_sid": "",
+    "direct_source": ""
+  },
+  "name": "The Matrix",
+  "o_name": "The Matrix",
+  "cover_big": "https://media.example.com/images/movie-1001/poster/original.5d41402a.webp",
+  "movie_image": "https://media.example.com/images/movie-1001/poster/w500.5d41402a.webp",
+  "backdrop_path": ["https://media.example.com/images/movie-1001/backdrop/w1280.7b52009b.webp"],
+  "plot": "A computer hacker learns that the world he lives in is a simulation and joins the rebels fighting its machine rulers.",
+  "description": "A computer hacker learns that the world he lives in is a simulation and joins the rebels fighting its machine rulers.",
+  "cast": "Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss, Hugo Weaving, Joe Pantoliano",
+  "actors": "Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss, Hugo Weaving, Joe Pantoliano",
+  "director": "Lana Wachowski, Lilly Wachowski",
+  "genre": "Action, Science Fiction",
+  "release_date": "1999-03-30",
+  "releasedate": "1999-03-30",
+  "year": "1999",
+  "country": "United States",
+  "rating": "8.2",
+  "rating_5based": 4.1,
+  "duration_secs": 8160,
+  "duration": "02:16:00",
+  "tmdb_id": "603",
+  "imdb_id": "tt0133093",
+  "youtube_trailer": "vKQi3bBA1y8",
+  "age": "R",
+  "video": {
+    "codec_name": "h264",
+    "width": 1920,
+    "height": 800
+  },
+  "audio": {
+    "codec_name": "aac",
+    "channels": 2
+  },
+  "bitrate": 4573
+}

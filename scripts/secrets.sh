@@ -8,6 +8,9 @@
 # placeholders generated; existing lines are never changed. Only the names of the
 # added keys are printed, never values.
 #
+# For the dev .env it also creates secrets/media_token_keys.json (media token keys,
+# ADR-0007) when that file is missing.
+#
 # Placeholders:
 #   __GENERATE__         64 hex characters (safe inside URLs and shell quoting)
 #   __GENERATE_FERNET__  a Fernet key: urlsafe base64 of 32 random bytes
@@ -52,7 +55,24 @@ pick_port() {
   fi
 }
 
+# Media token keys for the edge and Django: one random key, kid k1. Rotate them with
+# streaming/tools/sign_token.py (streaming/README.md).
+media_keys() {
+  local keys=secrets/media_token_keys.json
+  [[ "$out" == ".env" && ! -s "$keys" ]] || return 0
+  command -v python3 >/dev/null || { echo "python3 is required" >&2; exit 1; }
+  mkdir -p secrets
+  chmod 700 secrets
+  python3 streaming/tools/sign_token.py genkeys --kid k1 > "$keys.tmp"
+  # The edge's master reads it as root without DAC_OVERRIDE, so the file itself is
+  # world-readable; the secrets/ folder (700) keeps other host users out.
+  chmod 644 "$keys.tmp"
+  mv "$keys.tmp" "$keys"
+  echo "Created $keys (media token keys)."
+}
+
 umask 077
+media_keys
 
 if [[ -f "$out" && -s "$out" ]]; then
   additions="$(mktemp)"

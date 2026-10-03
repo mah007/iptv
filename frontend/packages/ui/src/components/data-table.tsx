@@ -118,7 +118,9 @@ export interface DataTableProps<TData extends RowData> {
   className?: string;
 }
 
+// Stable fallbacks: a fresh [] or {} each render would invalidate the table's models.
 const EMPTY: readonly never[] = [];
+const NO_SELECTION: RowSelectionState = {};
 const SELECT_COLUMN_ID = "__select";
 const INTERACTIVE =
   "a, button, input, select, textarea, label, [role='checkbox'], [role='menuitem']";
@@ -173,7 +175,7 @@ export function DataTable<TData extends RowData>({
   const [ownVisibility, setOwnVisibility] = useState<ColumnVisibilityState>({});
   const visibility = columnVisibility ?? ownVisibility;
   const selectable = onRowSelectionChange !== undefined;
-  const selection = rowSelection ?? {};
+  const selection = rowSelection ?? NO_SELECTION;
 
   const allColumns = useMemo<DataTableColumns<TData>>(() => {
     if (!selectable) return columns;

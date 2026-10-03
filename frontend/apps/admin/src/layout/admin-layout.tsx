@@ -14,16 +14,25 @@ import {
   ThemeToggle,
   Topbar,
 } from "@smart-iptv/ui";
+import { useAuthLogout } from "@smart-iptv/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { environment } from "../environment";
+import { useCan, useMe } from "../lib/auth";
+import { notifyError } from "../lib/problems";
 import { BrandLockup, BrandMark } from "./brand";
 import { NAV_SECTIONS } from "./nav";
 import { UserMenu } from "./user-menu";
 
 function AdminSidebar() {
   const { t } = useTranslation();
+  const can = useCan();
+  const sections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => can(item.permission)),
+  })).filter((section) => section.items.length > 0);
   return (
     <Sidebar label={t("nav.label")}>
       <SidebarHeader>
@@ -41,7 +50,7 @@ function AdminSidebar() {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        {NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <SidebarSection key={section.id} title={t(section.titleKey)}>
             {section.items.map((item) => (
               <SidebarItem key={item.to} asChild icon={<item.icon />} label={t(item.labelKey)}>
@@ -59,6 +68,20 @@ function AdminSidebar() {
 export function AdminLayout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const me = useMe();
+  const logout = useAuthLogout({
+    mutation: {
+      onSuccess: async () => {
+        await navigate({ to: "/login" });
+        // Nothing of this session (customer data included) stays in memory.
+        queryClient.clear();
+      },
+      onError: (error) => {
+        notifyError(t, error);
+      },
+    },
+  });
   return (
     <SidebarProvider>
       <a
@@ -85,9 +108,9 @@ export function AdminLayout() {
             <ThemeToggle />
             <Separator orientation="vertical" className="mx-1 h-5" />
             <UserMenu
-              user={null}
+              user={me ? { name: me.name || me.username, email: me.email || me.username } : null}
               onSignOut={() => {
-                void navigate({ to: "/login" });
+                logout.mutate();
               }}
             />
           </div>

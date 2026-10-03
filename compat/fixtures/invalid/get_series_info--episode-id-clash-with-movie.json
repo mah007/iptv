@@ -1,0 +1,15 @@
+{
+  "description": "Episodes share the stream id sequence with movies and live channels.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/episodes/1/0/id",
+      "value": "1001"
+    }
+  ],
+  "expect": {
+    "at": "get_series_info $.episodes[\"1\"][0].id",
+    "kind": "invariant:id-namespace"
+  }
+}

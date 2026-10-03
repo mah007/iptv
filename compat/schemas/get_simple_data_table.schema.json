@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-iptv.invalid/compat/schemas/get_simple_data_table.schema.json",
+  "title": "player_api.php?action=get_simple_data_table&stream_id=",
+  "description": "The full guide of one channel, past programmes included so apps can offer catch-up (SPEC §7.5; built in M12). Titles and descriptions are base64.",
+  "$ref": "common.schema.json#/$defs/epgResponse"
+}

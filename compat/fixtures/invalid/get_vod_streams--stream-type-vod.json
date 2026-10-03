@@ -1,0 +1,15 @@
+{
+  "description": "stream_type is \"movie\" for get_vod_streams.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/stream_type",
+      "value": "vod"
+    }
+  ],
+  "expect": {
+    "at": "$[0].stream_type",
+    "kind": "const"
+  }
+}

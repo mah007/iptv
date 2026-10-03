@@ -1,0 +1,15 @@
+{
+  "description": "A season without playable episodes is left out, not listed as [].",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "add",
+      "path": "/episodes/2",
+      "value": []
+    }
+  ],
+  "expect": {
+    "at": "$.episodes[\"2\"]",
+    "kind": "minItems"
+  }
+}

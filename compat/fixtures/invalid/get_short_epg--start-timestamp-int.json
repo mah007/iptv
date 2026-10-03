@@ -1,0 +1,15 @@
+{
+  "description": "start_timestamp is a unix-seconds string, not an integer.",
+  "fixture": "get_short_epg.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/start_timestamp",
+      "value": 1791041400
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[0].start_timestamp",
+    "kind": "type"
+  }
+}

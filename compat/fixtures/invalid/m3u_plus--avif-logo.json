@@ -1,0 +1,14 @@
+{
+  "description": "tvg-logo follows the image rules: no AVIF.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "w500.5d41402a.webp\" group-title=\"Science Fiction\"",
+      "new": "w500.5d41402a.avif\" group-title=\"Science Fiction\""
+    }
+  ],
+  "expect": {
+    "at": "line 6",
+    "kind": "m3u:tvg-logo"
+  }
+}

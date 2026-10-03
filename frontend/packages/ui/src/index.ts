@@ -170,6 +170,7 @@ export {
 export { QRCodeCard, type QRCodeCardProps } from "./components/qr-code-card";
 export { SecretReveal, type SecretRevealProps } from "./components/secret-reveal";
 export { StatTile, type StatTileProps } from "./components/stat-tile";
+export { Stepper, type StepperProps } from "./components/stepper";
 export {
   isKnownStatus,
   STATUS_TONES,
@@ -178,17 +179,80 @@ export {
   type StatusBadgeProps,
 } from "./components/status-badge";
 
+// Media and operations (SPEC §8.1, §8.3 pages 4-6 and 10)
+export {
+  countryFlagEmoji,
+  countryName,
+  CountryFlag,
+  type CountryFlagProps,
+} from "./components/country-flag";
+export {
+  DescriptionItem,
+  DescriptionList,
+  type DescriptionItemProps,
+  type DescriptionListProps,
+} from "./components/description-list";
+export {
+  DeviceIcon,
+  deviceKind,
+  type DeviceIconProps,
+  type DeviceKind,
+} from "./components/device-icon";
+export { LiveIndicator, type LiveIndicatorProps } from "./components/live-indicator";
+export {
+  PosterCard,
+  PosterCardSkeleton,
+  PosterGrid,
+  type PosterCardProps,
+  type PosterGridProps,
+} from "./components/poster-card";
+export {
+  BackdropImage,
+  PosterImage,
+  type ImageFormat,
+  type ImageUrlResolver,
+  type PosterImageProps,
+} from "./components/poster-image";
+export { ProgressBar, type ProgressBarProps } from "./components/progress-bar";
+export {
+  QualityBadges,
+  qualityKeys,
+  type MediaSummary,
+  type QualityBadgesProps,
+  type QualityKey,
+} from "./components/quality-badges";
+export {
+  LiveDuration,
+  RelativeTime,
+  type LiveDurationProps,
+  type RelativeTimeProps,
+} from "./components/relative-time";
+export {
+  Timeline,
+  TimelineItem,
+  type TimelineItemProps,
+  type TimelineTone,
+} from "./components/timeline";
+
 // Helpers
 export { copyToClipboard } from "./lib/clipboard";
 export { cn } from "./lib/cn";
 export {
   createFormatters,
   DEFAULT_TIME_ZONE,
+  formatBitrate,
+  formatBytes,
+  formatDuration,
   formatLocale,
+  formatNumber,
+  isoDuration,
   useFormatters,
+  type DurationStyle,
   type Formatters,
+  type Numerals,
 } from "./lib/format";
 export { diffJson, type DiffEntry, type DiffKind } from "./lib/json-diff";
+export { useNow } from "./lib/use-now";
 export {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,

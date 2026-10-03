@@ -1,0 +1,15 @@
+{
+  "description": "has_archive is the integer 0 or 1, not a string.",
+  "fixture": "get_simple_data_table.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/has_archive",
+      "value": "1"
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[0].has_archive",
+    "kind": "type"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "epg_channel_id is also the M3U tvg-id, so it has no quotes.",
+  "fixture": "get_live_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/epg_channel_id",
+      "value": "show\"case"
+    }
+  ],
+  "expect": {
+    "at": "$[0].epg_channel_id",
+    "kind": "pattern"
+  }
+}

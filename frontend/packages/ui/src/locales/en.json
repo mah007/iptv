@@ -123,6 +123,72 @@
       "unchanged": "unchanged"
     }
   },
+  "separator": ", ",
+  "quality": {
+    "label": "Quality",
+    "short": {
+      "uhd": "4K",
+      "fhd": "1080p",
+      "hd": "720p",
+      "sd": "SD",
+      "hdr10": "HDR10",
+      "hlg": "HLG",
+      "dv": "DV",
+      "surround71": "7.1",
+      "surround51": "5.1",
+      "atmos": "Atmos",
+      "hevc": "HEVC",
+      "av1": "AV1"
+    },
+    "long": {
+      "uhd": "4K Ultra HD",
+      "fhd": "Full HD 1080p",
+      "hd": "HD 720p",
+      "sd": "Standard definition",
+      "hdr10": "HDR10 high dynamic range",
+      "hlg": "HLG high dynamic range",
+      "dv": "Dolby Vision",
+      "surround71": "7.1 surround sound",
+      "surround51": "5.1 surround sound",
+      "atmos": "Dolby Atmos",
+      "hevc": "HEVC video",
+      "av1": "AV1 video"
+    }
+  },
+  "posterCard": {
+    "rating": "Rated {{value}} out of 10",
+    "subtitles": "Subtitles: {{languages}}"
+  },
+  "progress": {
+    "eta": "{{duration}} left",
+    "speed": "{{value}}×"
+  },
+  "live": {
+    "streams_one": "{{count}} live stream",
+    "streams_other": "{{count}} live streams"
+  },
+  "country": {
+    "unknown": "Unknown country"
+  },
+  "device": {
+    "tv": "TV",
+    "smartphone": "Phone",
+    "tablet": "Tablet",
+    "monitor": "Computer",
+    "unknown": "Unknown device"
+  },
+  "timeline": {
+    "system": "System",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details"
+  },
+  "stepper": {
+    "done": "(completed)"
+  },
+  "description": {
+    "empty": "—",
+    "notSet": "Not set"
+  },
   "status": {
     "active": "Active",
     "grace": "Grace",

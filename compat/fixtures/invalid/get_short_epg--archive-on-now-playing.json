@@ -1,0 +1,15 @@
+{
+  "description": "The programme on air has not ended, so it has no catch-up archive yet (has_archive 0).",
+  "fixture": "get_short_epg.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/has_archive",
+      "value": 1
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[0].has_archive",
+    "kind": "invariant:archive"
+  }
+}

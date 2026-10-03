@@ -46,6 +46,12 @@ def test_operations_have_stable_ids(schema: dict[str, Any]) -> None:
     assert {"settings_list", "settings_update", "audit_list"} <= operation_ids
 
 
+# The sign-in steps before a session exists need no authentication; signing out
+# works with or without a session (it also clears a half-finished sign-in).
+PUBLIC_OPERATIONS = frozenset({"auth_csrf", "auth_login", "auth_mfa_verify"})
+OPTIONAL_AUTH_OPERATIONS = frozenset({"auth_logout"})
+
+
 def test_every_operation_declares_problem_errors(schema: dict[str, Any]) -> None:
     for path_item in schema["paths"].values():
         for operation in path_item.values():
@@ -53,7 +59,12 @@ def test_every_operation_declares_problem_errors(schema: dict[str, Any]) -> None
             assert default["content"]["application/problem+json"]["schema"] == {
                 "$ref": "#/components/schemas/Problem"
             }
-            assert operation["security"] == [{"sessionAuth": []}]
+            if operation["operationId"] in PUBLIC_OPERATIONS:
+                assert operation.get("security", []) in ([], [{}])
+            elif operation["operationId"] in OPTIONAL_AUTH_OPERATIONS:
+                assert operation["security"] == [{"sessionAuth": []}, {}]
+            else:
+                assert operation["security"] == [{"sessionAuth": []}]
 
 
 def test_problem_and_error_codes_are_components(schema: dict[str, Any]) -> None:
@@ -75,7 +86,7 @@ def test_problem_and_error_codes_are_components(schema: dict[str, Any]) -> None:
 
 
 def test_admin_schema_holds_only_the_admin_api(schema: dict[str, Any]) -> None:
-    assert all(path.startswith("/api/v1/admin/") for path in schema["paths"])
+    assert all(path.startswith(("/api/v1/admin/", "/api/v1/auth/")) for path in schema["paths"])
 
 
 def test_pagination_envelope_is_openapi_3_1() -> None:

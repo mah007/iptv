@@ -1,5 +1,5 @@
 import { Slot } from "radix-ui";
-import { createContext, useContext, useId, useMemo, type ComponentProps } from "react";
+import { createContext, useContext, useId, useMemo, type ComponentProps, type ReactNode } from "react";
 import {
   Controller,
   FormProvider,
@@ -102,8 +102,10 @@ export function FormDescription({ className, ...props }: ComponentProps<"p">) {
 export function FormMessage({ className, children, ...props }: ComponentProps<"p">) {
   const { error, messageId } = useFormField();
   const { t } = useTranslation();
-  const message = error?.message;
-  const body = message ? t(message) : children;
+  // Schema messages are translation keys; errors of type "server" carry the
+  // API's own wording (problem+json field_errors) and are shown as sent.
+  let body: ReactNode = children;
+  if (error?.message) body = error.type === "server" ? error.message : t(error.message);
   if (!body) return null;
   return (
     <p

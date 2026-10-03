@@ -1,0 +1,14 @@
+{
+  "description": "Every #EXTINF is followed by its URL line.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "https://tv.example.com/movie/mah-7k3p9q/example-password/1001.mp4\n",
+      "new": ""
+    }
+  ],
+  "expect": {
+    "at": "line 6",
+    "kind": "m3u:missing-url"
+  }
+}

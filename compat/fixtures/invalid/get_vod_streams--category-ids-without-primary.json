@@ -1,0 +1,17 @@
+{
+  "description": "category_ids starts with category_id.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/category_ids",
+      "value": [
+        11
+      ]
+    }
+  ],
+  "expect": {
+    "at": "$[0].category_ids",
+    "kind": "invariant:category-ids"
+  }
+}

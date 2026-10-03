@@ -1,0 +1,15 @@
+{
+  "description": "Each category appears once.",
+  "fixture": "get_vod_categories.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/1/category_id",
+      "value": "11"
+    }
+  ],
+  "expect": {
+    "at": "$[1].category_id",
+    "kind": "invariant:unique-ids"
+  }
+}

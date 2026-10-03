@@ -1,0 +1,15 @@
+{
+  "description": "auth is the integer 0, not a string.",
+  "fixture": "auth_failure.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/auth",
+      "value": "0"
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.auth",
+    "kind": "type"
+  }
+}

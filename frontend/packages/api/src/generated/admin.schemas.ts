@@ -5,6 +5,267 @@
  * Same-origin API of the admin SPA. Errors are RFC 9457 problem details.
  * OpenAPI spec version: 1.0.0
  */
+/**
+ * * `active` - ACTIVE
+ * * `expired` - EXPIRED
+ * * `suspended` - SUSPENDED
+ * * `disabled` - DISABLED
+ */
+export type AccessStatus = (typeof AccessStatus)[keyof typeof AccessStatus];
+
+export const AccessStatus = {
+  active: "active",
+  expired: "expired",
+  suspended: "suspended",
+  disabled: "disabled",
+} as const;
+
+/**
+ * * `480` - 480p
+ * * `720` - 720p
+ * * `1080` - 1080p
+ * * `2160` - 2160p
+ */
+export type MaxQuality = (typeof MaxQuality)[keyof typeof MaxQuality];
+
+export const MaxQuality = {
+  NUMBER_480: 480,
+  NUMBER_720: 720,
+  NUMBER_1080: 1080,
+  NUMBER_2160: 2160,
+} as const;
+
+/**
+ * * `reject` - Reject new streams
+ * * `kick_oldest` - Stop the oldest stream
+ */
+export type ConcurrencyPolicy = (typeof ConcurrencyPolicy)[keyof typeof ConcurrencyPolicy];
+
+export const ConcurrencyPolicy = {
+  reject: "reject",
+  kick_oldest: "kick_oldest",
+} as const;
+
+/**
+ * * `vod` - Movies
+ * * `series` - Series
+ * * `live` - Live TV
+ */
+export type CategoryKind = (typeof CategoryKind)[keyof typeof CategoryKind];
+
+export const CategoryKind = {
+  vod: "vod",
+  series: "series",
+  live: "live",
+} as const;
+
+export interface CategoryBrief {
+  readonly id: string;
+  readonly kind: CategoryKind;
+  readonly name_en: string;
+  readonly name_ar: string;
+}
+
+/**
+ * A customer's access profile. Empty `category_ids` means every category.
+ */
+export interface AccessProfile {
+  readonly status: AccessStatus;
+  /** @nullable */
+  expires_at?: string | null;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_streams?: number;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_devices?: number;
+  /**
+   * @minimum 0
+   * @maximum 32767
+   */
+  max_quality?: MaxQuality;
+  concurrency_policy?: ConcurrencyPolicy;
+  allow_movies?: boolean;
+  allow_series?: boolean;
+  allow_live?: boolean;
+  readonly categories: readonly CategoryBrief[];
+  readonly updated_at: string;
+}
+
+/**
+ * A customer's access profile. Empty `category_ids` means every category.
+ */
+export interface AccessProfileRequest {
+  /** @nullable */
+  expires_at?: string | null;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_streams?: number;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_devices?: number;
+  /**
+   * @minimum 0
+   * @maximum 32767
+   */
+  max_quality?: MaxQuality;
+  concurrency_policy?: ConcurrencyPolicy;
+  allow_movies?: boolean;
+  allow_series?: boolean;
+  allow_live?: boolean;
+  /** @maxItems 500 */
+  category_ids?: string[];
+}
+
+/**
+ * * `ip_allow` - Allow IP address
+ * * `ip_deny` - Deny IP address
+ * * `cidr_deny` - Deny network (CIDR)
+ * * `country_allow` - Allow country
+ * * `country_deny` - Deny country
+ */
+export type AccessRuleType = (typeof AccessRuleType)[keyof typeof AccessRuleType];
+
+export const AccessRuleType = {
+  ip_allow: "ip_allow",
+  ip_deny: "ip_deny",
+  cidr_deny: "cidr_deny",
+  country_allow: "country_allow",
+  country_deny: "country_deny",
+} as const;
+
+/**
+ * An IP, network or country rule; `user` null means it applies to everyone.
+ */
+export interface AccessRule {
+  readonly id: string;
+  /** @nullable */
+  readonly user: string | null;
+  readonly type: AccessRuleType;
+  readonly value: string;
+  readonly reason: string;
+  /** @nullable */
+  readonly expires_at: string | null;
+  readonly created_at: string;
+}
+
+export interface AccessRuleCreateRequest {
+  /**
+   * Customer id; omit for a global rule.
+   * @nullable
+   */
+  user?: string | null;
+  type: AccessRuleType;
+  /**
+   * IP address, CIDR network or ISO 3166-1 alpha-2 country code.
+   * @minLength 1
+   * @maxLength 64
+   */
+  value: string;
+  /** @maxLength 200 */
+  reason?: string;
+  /** @nullable */
+  expires_at?: string | null;
+}
+
+/**
+ * * `active` - Active
+ * * `suspended` - Suspended
+ * * `disabled` - Disabled
+ */
+export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
+
+export const UserStatus = {
+  active: "active",
+  suspended: "suspended",
+  disabled: "disabled",
+} as const;
+
+export interface RoleBrief {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface Admin {
+  readonly id: string;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly username: string;
+  readonly name: string;
+  readonly email: string;
+  readonly status: UserStatus;
+  readonly roles: readonly RoleBrief[];
+  readonly mfa_enabled: boolean;
+  /** @nullable */
+  readonly last_login: string | null;
+  /** @nullable */
+  readonly last_login_ip: string | null;
+  readonly created_at: string;
+}
+
+export interface AdminCreateRequest {
+  /**
+   * Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.
+   * @minLength 1
+   * @maxLength 150
+   * @pattern ^[\w.@+-]+$
+   */
+  username: string;
+  /** @maxLength 150 */
+  name?: string;
+  email?: string;
+  role_ids?: string[];
+}
+
+export interface AdminCreated {
+  readonly admin: Admin;
+  /** Shown once. */
+  readonly password: string;
+}
+
+/**
+ * * `smarters` - IPTV Smarters
+ * * `tivimate` - TiviMate
+ * * `ibo` - IBO Player
+ * * `xciptv` - XCIPTV
+ * * `ott_navigator` - OTT Navigator
+ * * `smartone` - SmartOne
+ * * `iptvnator` - IPTVnator
+ * * `uhf` - UHF
+ * * `other` - Other
+ */
+export type AppHint = (typeof AppHint)[keyof typeof AppHint];
+
+export const AppHint = {
+  smarters: "smarters",
+  tivimate: "tivimate",
+  ibo: "ibo",
+  xciptv: "xciptv",
+  ott_navigator: "ott_navigator",
+  smartone: "smartone",
+  iptvnator: "iptvnator",
+  uhf: "uhf",
+  other: "other",
+} as const;
+
+export interface AudioTrack {
+  stream_index: number;
+  codec: string;
+  channels: number;
+  language: string;
+  /** @nullable */
+  title: string | null;
+  default: boolean;
+  forced: boolean;
+}
+
 export interface AuditActor {
   readonly id: string;
   readonly username: string;
@@ -23,6 +284,805 @@ export interface AuditLog {
   readonly after: unknown | null;
 }
 
+/**
+ * Each signal's score from 0 to 1 (null: not measurable); SPEC §7.2 step 4.
+ */
+export interface Breakdown {
+  title: number;
+  /** @nullable */
+  year: number | null;
+  /** @nullable */
+  runtime: number | null;
+  /** @nullable */
+  popularity: number | null;
+  matched_title: string;
+}
+
+/**
+ * * `movie` - Movie
+ * * `tv` - Series
+ */
+export type ReviewKind = (typeof ReviewKind)[keyof typeof ReviewKind];
+
+export const ReviewKind = {
+  movie: "movie",
+  tv: "tv",
+} as const;
+
+export interface Candidate {
+  provider: string;
+  kind: ReviewKind;
+  /** The TMDB id. */
+  id: number;
+  title: string;
+  /** @nullable */
+  original_title: string | null;
+  /** @nullable */
+  year: number | null;
+  /** @nullable */
+  runtime_min?: number | null;
+  popularity: number;
+  overview: string;
+  /**
+   * A TMDB thumbnail; null in fixture mode.
+   * @nullable
+   */
+  poster_url: string | null;
+  score?: number;
+  breakdown?: Breakdown;
+}
+
+export interface Category {
+  readonly id: string;
+  readonly xc_id: number;
+  readonly kind: CategoryKind;
+  readonly name_en: string;
+  readonly name_ar: string;
+  /** @pattern ^[-a-zA-Z0-9_]+$ */
+  readonly slug: string;
+  readonly sort: number;
+  readonly is_adult: boolean;
+  readonly visible_in_xtream: boolean;
+  readonly icon: string;
+  /** @nullable */
+  readonly parent: string | null;
+}
+
+export interface CategoryReorderRequest {
+  kind: CategoryKind;
+  /** @maxItems 1000 */
+  ids: string[];
+}
+
+/**
+ * Create (kind and names required; the slug defaults to one made from name_en) or
+ * change a category. The kind cannot change once titles may use the category.
+ */
+export interface CategoryWriteRequest {
+  kind: CategoryKind;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name_en: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name_ar: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   * @pattern ^[-a-zA-Z0-9_]+$
+   */
+  slug?: string;
+  /**
+   * @minimum -2147483648
+   * @maximum 2147483647
+   */
+  sort?: number;
+  is_adult?: boolean;
+  visible_in_xtream?: boolean;
+  /** @maxLength 64 */
+  icon?: string;
+  /** @nullable */
+  parent?: string | null;
+}
+
+export interface Person {
+  readonly id: string;
+  /** @nullable */
+  readonly tmdb_id: number | null;
+  readonly name: string;
+  readonly name_ar: string;
+}
+
+/**
+ * * `cast` - Cast
+ * * `director` - Director
+ * * `writer` - Writer
+ * * `producer` - Producer
+ */
+export type CreditRole = (typeof CreditRole)[keyof typeof CreditRole];
+
+export const CreditRole = {
+  cast: "cast",
+  director: "director",
+  writer: "writer",
+  producer: "producer",
+} as const;
+
+export interface Credit {
+  readonly person: Person;
+  readonly role: CreditRole;
+  readonly character: string;
+  readonly order: number;
+}
+
+/**
+ * * `ar` - العربية
+ * * `en` - English
+ */
+export type Locale = (typeof Locale)[keyof typeof Locale];
+
+export const Locale = {
+  ar: "ar",
+  en: "en",
+} as const;
+
+export interface DeviceCreateRequest {
+  /** @maxLength 100 */
+  name?: string;
+  app_hint?: AppHint;
+}
+
+/**
+ * The create-customer wizard: profile, access profile and an optional first device.
+ */
+export interface CustomerCreateRequest {
+  /**
+   * @minLength 1
+   * @maxLength 150
+   */
+  name: string;
+  email?: string;
+  /** @maxLength 16 */
+  phone?: string;
+  locale?: Locale;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  timezone?: string;
+  notes?: string;
+  marketing_opt_in?: boolean;
+  access?: AccessProfileRequest;
+  device?: DeviceCreateRequest | null;
+}
+
+/**
+ * * `xtream` - IPTV app (Xtream)
+ * * `web` - Web player
+ * * `app` - Mobile app
+ */
+export type DeviceKind = (typeof DeviceKind)[keyof typeof DeviceKind];
+
+export const DeviceKind = {
+  xtream: "xtream",
+  web: "web",
+  app: "app",
+} as const;
+
+/**
+ * * `active` - ACTIVE
+ * * `pending` - PENDING
+ * * `blocked` - BLOCKED
+ * * `revoked` - REVOKED
+ */
+export type DeviceStatus = (typeof DeviceStatus)[keyof typeof DeviceStatus];
+
+export const DeviceStatus = {
+  active: "active",
+  pending: "pending",
+  blocked: "blocked",
+  revoked: "revoked",
+} as const;
+
+export interface Device {
+  readonly id: string;
+  readonly kind: DeviceKind;
+  readonly name: string;
+  readonly app_hint: AppHint;
+  readonly status: DeviceStatus;
+  readonly approved: boolean;
+  readonly blocked: boolean;
+  readonly blocked_reason: string;
+  /** @nullable */
+  readonly revoked_at: string | null;
+  /** @nullable */
+  readonly xtream_username: string | null;
+  /** @nullable */
+  readonly first_seen: string | null;
+  /** @nullable */
+  readonly last_seen: string | null;
+  /** @nullable */
+  readonly last_ip: string | null;
+  readonly last_country: string;
+  readonly created_at: string;
+}
+
+export interface CustomerDetail {
+  readonly id: string;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly username: string;
+  readonly name: string;
+  readonly email: string;
+  readonly phone: string;
+  readonly status: UserStatus;
+  readonly locale: Locale;
+  readonly timezone: string;
+  readonly notes: string;
+  readonly marketing_opt_in: boolean;
+  readonly access: AccessProfile | null;
+  readonly devices: readonly Device[];
+  /** @nullable */
+  readonly last_login: string | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+/**
+ * Shown once: the plaintext password can never be read again (reset makes a new one).
+ */
+export interface IssuedCredential {
+  readonly device: Device;
+  /** What the IPTV app asks for as the server or portal URL. */
+  readonly server_url: string;
+  readonly username: string;
+  readonly password: string;
+}
+
+export interface CustomerCreated {
+  readonly customer: CustomerDetail;
+  readonly credential: IssuedCredential | null;
+}
+
+export interface CustomerSummary {
+  readonly id: string;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly username: string;
+  readonly name: string;
+  readonly email: string;
+  readonly phone: string;
+  readonly status: UserStatus;
+  readonly access_status: AccessStatus;
+  /** @nullable */
+  readonly expires_at: string | null;
+  /** @nullable */
+  readonly max_devices: number | null;
+  readonly device_count: number;
+  /** @nullable */
+  readonly last_seen: string | null;
+  readonly created_at: string;
+}
+
+export interface DeviceBlockRequest {
+  /** @maxLength 200 */
+  reason?: string;
+}
+
+/**
+ * * `poster` - Poster
+ * * `backdrop` - Backdrop
+ * * `logo` - Logo
+ * * `still` - Still
+ * * `profile` - Profile
+ */
+export type ImageKind = (typeof ImageKind)[keyof typeof ImageKind];
+
+export const ImageKind = {
+  poster: "poster",
+  backdrop: "backdrop",
+  logo: "logo",
+  still: "still",
+  profile: "profile",
+} as const;
+
+/**
+ * URLs per size and format: {"w500": {"webp": url, "avif": url}, ...}
+ */
+export type ImageSizes = { [key: string]: { [key: string]: string } };
+
+export interface Image {
+  readonly id: string;
+  readonly kind: ImageKind;
+  readonly language: string;
+  /**
+   * The default display size, as WebP.
+   * @nullable
+   */
+  readonly url: string | null;
+  /** URLs per size and format: {"w500": {"webp": url, "avif": url}, ...} */
+  readonly sizes: ImageSizes;
+  readonly width: number;
+  readonly height: number;
+  readonly blurhash: string;
+  readonly is_primary: boolean;
+}
+
+export interface LibraryBrief {
+  readonly id: string;
+  readonly name: string;
+}
+
+/**
+ * * `sdr` - SDR
+ * * `hdr10` - HDR10
+ * * `hlg` - HLG
+ * * `dv` - Dolby Vision
+ */
+export type HdrKind = (typeof HdrKind)[keyof typeof HdrKind];
+
+export const HdrKind = {
+  sdr: "sdr",
+  hdr10: "hdr10",
+  hlg: "hlg",
+  dv: "dv",
+} as const;
+
+export interface SubtitleTrack {
+  stream_index: number;
+  codec: string;
+  language: string;
+  /** @nullable */
+  title: string | null;
+  default: boolean;
+  forced: boolean;
+  /** @nullable */
+  format: string | null;
+  text: boolean;
+}
+
+/**
+ * * `pending` - Waiting to be probed
+ * * `matching` - Waiting for a metadata match
+ * * `matched` - Matched
+ * * `review` - Needs review
+ * * `error` - Error
+ */
+export type FileState = (typeof FileState)[keyof typeof FileState];
+
+export const FileState = {
+  pending: "pending",
+  matching: "matching",
+  matched: "matched",
+  review: "review",
+  error: "error",
+} as const;
+
+/**
+ * A media file as the admin sees it: its path inside its library, technical summary
+ * and pipeline state. Never the storage path.
+ */
+export interface File {
+  readonly id: string;
+  readonly library: LibraryBrief;
+  readonly relative_path: string;
+  readonly size: number;
+  /** @nullable */
+  readonly mtime: string | null;
+  readonly container: string;
+  /** @nullable */
+  readonly duration_ms: number | null;
+  /** @nullable */
+  readonly bitrate: number | null;
+  readonly video_codec: string;
+  readonly video_profile: string;
+  /** @nullable */
+  readonly video_level: number | null;
+  /** @nullable */
+  readonly width: number | null;
+  /** @nullable */
+  readonly height: number | null;
+  /** @nullable */
+  readonly fps: number | null;
+  readonly hdr: HdrKind;
+  readonly audio: readonly AudioTrack[];
+  readonly subtitles: readonly SubtitleTrack[];
+  readonly direct_play: boolean;
+  /** @nullable */
+  readonly match_confidence: number | null;
+  readonly state: FileState;
+  readonly error: string;
+  readonly version_label: string;
+  readonly is_primary: boolean;
+  /** @nullable */
+  readonly removed_at: string | null;
+  readonly created_at: string;
+}
+
+export interface Episode {
+  readonly id: string;
+  readonly xc_id: number;
+  readonly number: number;
+  /** @nullable */
+  readonly absolute_number: number | null;
+  readonly title: string;
+  readonly title_ar: string;
+  readonly overview: string;
+  readonly overview_ar: string;
+  /** @nullable */
+  readonly air_date: string | null;
+  /** @nullable */
+  readonly runtime_min: number | null;
+  /** @nullable */
+  readonly rating: number | null;
+  readonly still: Image | null;
+  readonly files: readonly File[];
+}
+
+/**
+ * * `tmdb_default` - TMDB default
+ * * `tvdb_aired` - TVDB aired
+ * * `tvdb_dvd` - TVDB DVD
+ */
+export type EpisodeOrderingEnum = (typeof EpisodeOrderingEnum)[keyof typeof EpisodeOrderingEnum];
+
+export const EpisodeOrderingEnum = {
+  tmdb_default: "tmdb_default",
+  tvdb_aired: "tvdb_aired",
+  tvdb_dvd: "tvdb_dvd",
+} as const;
+
+export interface Genre {
+  readonly id: string;
+  /** @nullable */
+  readonly tmdb_id: number | null;
+  readonly name_en: string;
+  readonly name_ar: string;
+}
+
+export interface Kpis {
+  /** Every customer account. */
+  customers_total: number;
+  /** Active accounts whose access has not ended. */
+  customers_active: number;
+  /** Active accounts whose access ended. */
+  customers_expired: number;
+  /** Suspended accounts. */
+  customers_suspended: number;
+  /** Active access ending within 7 days. */
+  expiring_7d: number;
+  /** Devices that are not revoked. */
+  devices_total: number;
+  /** Blocked devices (not revoked). */
+  devices_blocked: number;
+  /** When the figures were computed (cached 30 s). */
+  as_of: string;
+}
+
+/**
+ * * `movies` - Movies
+ * * `series` - Series
+ * * `documentaries` - Documentaries
+ * * `kids` - Kids
+ * * `mixed` - Mixed
+ */
+export type LibraryKind = (typeof LibraryKind)[keyof typeof LibraryKind];
+
+export const LibraryKind = {
+  movies: "movies",
+  series: "series",
+  documentaries: "documentaries",
+  kids: "kids",
+  mixed: "mixed",
+} as const;
+
+/**
+ * * `ingest` - At ingest
+ * * `on_demand` - On first play
+ * * `passthrough` - Never (serve the source)
+ */
+export type ProcessingPolicy = (typeof ProcessingPolicy)[keyof typeof ProcessingPolicy];
+
+export const ProcessingPolicy = {
+  ingest: "ingest",
+  on_demand: "on_demand",
+  passthrough: "passthrough",
+} as const;
+
+/**
+ * Totals after the last scan (zeros before the first).
+ */
+export interface LibraryStats {
+  files?: number;
+  bytes?: number;
+  movies?: number;
+  series?: number;
+  episodes?: number;
+  review?: number;
+  errors?: number;
+  pending?: number;
+}
+
+/**
+ * * `watcher` - File watcher
+ * * `schedule` - Schedule
+ * * `manual` - Manual
+ */
+export type ScanTrigger = (typeof ScanTrigger)[keyof typeof ScanTrigger];
+
+export const ScanTrigger = {
+  watcher: "watcher",
+  schedule: "schedule",
+  manual: "manual",
+} as const;
+
+/**
+ * * `queued` - Queued
+ * * `running` - Running
+ * * `done` - Done
+ * * `failed` - Failed
+ */
+export type ScanStatus = (typeof ScanStatus)[keyof typeof ScanStatus];
+
+export const ScanStatus = {
+  queued: "queued",
+  running: "running",
+  done: "done",
+  failed: "failed",
+} as const;
+
+export interface ScanJob {
+  readonly id: string;
+  readonly library: LibraryBrief;
+  readonly trigger: ScanTrigger;
+  readonly status: ScanStatus;
+  readonly path: string;
+  readonly found: number;
+  readonly new: number;
+  readonly changed: number;
+  readonly moved: number;
+  readonly removed: number;
+  readonly errors: number;
+  /** @nullable */
+  readonly started_at: string | null;
+  /** @nullable */
+  readonly finished_at: string | null;
+  readonly log: string;
+  readonly created_at: string;
+}
+
+export interface Library {
+  readonly id: string;
+  readonly name: string;
+  readonly kind: LibraryKind;
+  readonly path: string;
+  readonly processing_policy: ProcessingPolicy;
+  readonly default_categories: readonly CategoryBrief[];
+  readonly scan_interval_min: number;
+  readonly enabled: boolean;
+  /** @nullable */
+  readonly last_scan_at: string | null;
+  readonly stats: LibraryStats;
+  readonly last_scan: ScanJob | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+/**
+ * Create or change a library. `path` is a folder under the media root, given as an
+ * absolute container path (/media/movies) or relative to the root (movies).
+ */
+export interface LibraryWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  kind: LibraryKind;
+  /**
+   * @minLength 1
+   * @maxLength 500
+   */
+  path: string;
+  processing_policy?: ProcessingPolicy;
+  default_categories?: string[];
+  /**
+   * @minimum 1
+   * @maximum 10080
+   */
+  scan_interval_min?: number;
+  enabled?: boolean;
+}
+
+export interface LoginRequest {
+  /**
+   * Username or email address.
+   * @minLength 1
+   * @maxLength 254
+   */
+  login: string;
+  /**
+   * @minLength 1
+   * @maxLength 1024
+   */
+  password: string;
+}
+
+/**
+ * * `mfa_required` - MFA_REQUIRED
+ * * `mfa_setup_required` - MFA_SETUP_REQUIRED
+ */
+export type LoginStatus = (typeof LoginStatus)[keyof typeof LoginStatus];
+
+export const LoginStatus = {
+  mfa_required: "mfa_required",
+  mfa_setup_required: "mfa_setup_required",
+} as const;
+
+export interface LoginResponse {
+  status: LoginStatus;
+  /** Only with mfa_setup_required: the content of the authenticator QR code. */
+  otpauth_uri?: string;
+}
+
+/**
+ * The signed-in admin. `permissions` is what the UI may offer; the API checks again.
+ */
+export interface Me {
+  readonly id: string;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly username: string;
+  readonly name: string;
+  readonly email: string;
+  readonly locale: Locale;
+  readonly timezone: string;
+  readonly mfa_enabled: boolean;
+  readonly roles: readonly string[];
+  readonly permissions: readonly string[];
+}
+
+/**
+ * * `tmdb` - TMDB
+ * * `synthetic` - Synthetic fixtures
+ * * `manual` - Manual
+ */
+export type MetadataSource = (typeof MetadataSource)[keyof typeof MetadataSource];
+
+export const MetadataSource = {
+  tmdb: "tmdb",
+  synthetic: "synthetic",
+  manual: "manual",
+} as const;
+
+export interface MfaVerifyRequest {
+  /**
+   * The six-digit code.
+   * @minLength 1
+   * @maxLength 16
+   */
+  code: string;
+}
+
+/**
+ * * `processing` - Processing
+ * * `review` - Needs review
+ * * `ready` - Ready
+ * * `hidden` - Hidden
+ * * `license_expired` - License expired
+ */
+export type TitleStatus = (typeof TitleStatus)[keyof typeof TitleStatus];
+
+export const TitleStatus = {
+  processing: "processing",
+  review: "review",
+  ready: "ready",
+  hidden: "hidden",
+  license_expired: "license_expired",
+} as const;
+
+export interface MovieDetail {
+  readonly id: string;
+  readonly xc_id: number;
+  /** @nullable */
+  readonly tmdb_id: number | null;
+  readonly imdb_id: string;
+  readonly title: string;
+  readonly title_ar: string;
+  readonly original_title: string;
+  /** @items.maxLength 255 */
+  readonly alt_titles: readonly string[];
+  readonly overview: string;
+  readonly overview_ar: string;
+  readonly tagline: string;
+  readonly tagline_ar: string;
+  /** @nullable */
+  readonly year: number | null;
+  /** @nullable */
+  readonly rating: number | null;
+  readonly vote_count: number;
+  readonly certification: string;
+  readonly original_language: string;
+  /** @items.maxLength 2 */
+  readonly countries: readonly string[];
+  readonly trailer_youtube_key: string;
+  readonly popularity: number;
+  readonly status: TitleStatus;
+  readonly featured: boolean;
+  readonly rights_holder: string;
+  readonly license_ref: string;
+  /** @nullable */
+  readonly license_expires_at: string | null;
+  readonly metadata_source: MetadataSource;
+  /** Metadata from the offline sample fixtures (no TMDB key), not from TMDB. */
+  readonly synthetic: boolean;
+  /** @items.maxLength 64 */
+  readonly metadata_locked_fields: readonly string[];
+  /** @nullable */
+  readonly metadata_refreshed_at: string | null;
+  readonly genres: readonly Genre[];
+  readonly categories: readonly CategoryBrief[];
+  readonly images: readonly Image[];
+  readonly credits: readonly Credit[];
+  readonly created_at: string;
+  readonly updated_at: string;
+  /** @nullable */
+  readonly release_date: string | null;
+  /** @nullable */
+  readonly runtime_min: number | null;
+  readonly files: readonly File[];
+}
+
+/**
+ * Poster and figures shared by the movie and series lists.
+ */
+export interface MovieSummary {
+  readonly id: string;
+  readonly xc_id: number;
+  /** @nullable */
+  readonly tmdb_id: number | null;
+  readonly title: string;
+  readonly title_ar: string;
+  readonly original_title: string;
+  /** @nullable */
+  readonly year: number | null;
+  readonly status: TitleStatus;
+  /** @nullable */
+  readonly rating: number | null;
+  readonly popularity: number;
+  readonly metadata_source: MetadataSource;
+  /** Metadata from the offline sample fixtures (no TMDB key), not from TMDB. */
+  readonly synthetic: boolean;
+  readonly poster: Image | null;
+  readonly categories: readonly CategoryBrief[];
+  /** Files present on disk. */
+  readonly file_count: number;
+  readonly has_arabic_overview: boolean;
+  readonly created_at: string;
+  readonly updated_at: string;
+  /** @nullable */
+  readonly runtime_min: number | null;
+}
+
+export interface PaginatedAccessRuleList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: AccessRule[];
+}
+
+export interface PaginatedAdminList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Admin[];
+}
+
 export interface PaginatedAuditLogList {
   count: number;
   /** @nullable */
@@ -32,11 +1092,620 @@ export interface PaginatedAuditLogList {
   results: AuditLog[];
 }
 
+export interface PaginatedCategoryList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Category[];
+}
+
+export interface PaginatedCustomerSummaryList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: CustomerSummary[];
+}
+
+export interface PaginatedDeviceList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Device[];
+}
+
+export interface PaginatedLibraryList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Library[];
+}
+
+export interface PaginatedMovieSummaryList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: MovieSummary[];
+}
+
+/**
+ * * `open` - Open
+ * * `resolved` - Resolved
+ * * `skipped` - Skipped
+ */
+export type ReviewStatus = (typeof ReviewStatus)[keyof typeof ReviewStatus];
+
+export const ReviewStatus = {
+  open: "open",
+  resolved: "resolved",
+  skipped: "skipped",
+} as const;
+
+export interface ReviewFile {
+  readonly id: string;
+  readonly library: LibraryBrief;
+  readonly relative_path: string;
+  readonly size: number;
+  readonly container: string;
+  /** @nullable */
+  readonly duration_ms: number | null;
+  readonly video_codec: string;
+  /** @nullable */
+  readonly width: number | null;
+  /** @nullable */
+  readonly height: number | null;
+  readonly hdr: HdrKind;
+  readonly state: FileState;
+}
+
+export interface ProviderIds {
+  /** @nullable */
+  tmdb: number | null;
+  /** @nullable */
+  imdb: string | null;
+  /** @nullable */
+  tvdb: number | null;
+}
+
+/**
+ * What the file name says (P2 `ParseResult.to_json`).
+ */
+export interface Parse {
+  kind: string;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  year: number | null;
+  /** @nullable */
+  alternative_title: string | null;
+  /** @nullable */
+  season: number | null;
+  episodes: number[];
+  /** @nullable */
+  absolute_episode: number | null;
+  /** @nullable */
+  air_date: string | null;
+  /** @nullable */
+  episode_title: string | null;
+  /** @nullable */
+  edition: string | null;
+  /** @nullable */
+  part: number | null;
+  /** @nullable */
+  resolution: string | null;
+  /** @nullable */
+  source: string | null;
+  /** @nullable */
+  codec: string | null;
+  languages: string[];
+  subtitle_languages: string[];
+  provider_ids: ProviderIds;
+  /** @nullable */
+  container: string | null;
+  ambiguous: boolean;
+}
+
+export interface Review {
+  readonly id: string;
+  readonly kind: ReviewKind;
+  readonly reason: string;
+  readonly status: ReviewStatus;
+  readonly media_file: ReviewFile;
+  readonly parse_result: Parse;
+  readonly candidates: readonly Candidate[];
+  /** @nullable */
+  readonly chosen_provider_id: number | null;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly decided_by: string;
+  /** @nullable */
+  readonly decided_at: string | null;
+  readonly created_at: string;
+}
+
+export interface PaginatedReviewList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Review[];
+}
+
+export interface PaginatedScanJobList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: ScanJob[];
+}
+
+/**
+ * Poster and figures shared by the movie and series lists.
+ */
+export interface SeriesSummary {
+  readonly id: string;
+  readonly xc_id: number;
+  /** @nullable */
+  readonly tmdb_id: number | null;
+  readonly title: string;
+  readonly title_ar: string;
+  readonly original_title: string;
+  /** @nullable */
+  readonly year: number | null;
+  readonly status: TitleStatus;
+  /** @nullable */
+  readonly rating: number | null;
+  readonly popularity: number;
+  readonly metadata_source: MetadataSource;
+  /** Metadata from the offline sample fixtures (no TMDB key), not from TMDB. */
+  readonly synthetic: boolean;
+  readonly poster: Image | null;
+  readonly categories: readonly CategoryBrief[];
+  /** Files present on disk. */
+  readonly file_count: number;
+  readonly has_arabic_overview: boolean;
+  readonly created_at: string;
+  readonly updated_at: string;
+  /** Episodes with a file present on disk. */
+  readonly episode_count: number;
+}
+
+export interface PaginatedSeriesSummaryList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: SeriesSummary[];
+}
+
+/**
+ * A customer's access profile. Empty `category_ids` means every category.
+ */
+export interface PatchedAccessProfileRequest {
+  /** @nullable */
+  expires_at?: string | null;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_streams?: number;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_devices?: number;
+  /**
+   * @minimum 0
+   * @maximum 32767
+   */
+  max_quality?: MaxQuality;
+  concurrency_policy?: ConcurrencyPolicy;
+  allow_movies?: boolean;
+  allow_series?: boolean;
+  allow_live?: boolean;
+  /** @maxItems 500 */
+  category_ids?: string[];
+}
+
+/**
+ * Suspended or disabled admins cannot sign in, and open sessions lose all access.
+ */
+export interface PatchedAdminUpdateRequest {
+  /** @maxLength 150 */
+  name?: string;
+  email?: string;
+  status?: UserStatus;
+  role_ids?: string[];
+}
+
+/**
+ * Create (kind and names required; the slug defaults to one made from name_en) or
+ * change a category. The kind cannot change once titles may use the category.
+ */
+export interface PatchedCategoryWriteRequest {
+  kind?: CategoryKind;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name_en?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name_ar?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   * @pattern ^[-a-zA-Z0-9_]+$
+   */
+  slug?: string;
+  /**
+   * @minimum -2147483648
+   * @maximum 2147483647
+   */
+  sort?: number;
+  is_adult?: boolean;
+  visible_in_xtream?: boolean;
+  /** @maxLength 64 */
+  icon?: string;
+  /** @nullable */
+  parent?: string | null;
+}
+
+/**
+ * Writable profile fields. Phones are stored in E.164 (+966 when no prefix is typed).
+ */
+export interface PatchedCustomerProfileRequest {
+  /**
+   * @minLength 1
+   * @maxLength 150
+   */
+  name?: string;
+  email?: string;
+  /** @maxLength 16 */
+  phone?: string;
+  locale?: Locale;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  timezone?: string;
+  notes?: string;
+  marketing_opt_in?: boolean;
+}
+
+/**
+ * Create or change a library. `path` is a folder under the media root, given as an
+ * absolute container path (/media/movies) or relative to the root (movies).
+ */
+export interface PatchedLibraryWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  kind?: LibraryKind;
+  /**
+   * @minLength 1
+   * @maxLength 500
+   */
+  path?: string;
+  processing_policy?: ProcessingPolicy;
+  default_categories?: string[];
+  /**
+   * @minimum 1
+   * @maximum 10080
+   */
+  scan_interval_min?: number;
+  enabled?: boolean;
+}
+
+/**
+ * * `hidden` - Hide the title
+ * * `ready` - Show it again (its files decide the status)
+ */
+export type TitleVisibility = (typeof TitleVisibility)[keyof typeof TitleVisibility];
+
+export const TitleVisibility = {
+  hidden: "hidden",
+  ready: "ready",
+} as const;
+
+/**
+ * An admin edit. Each metadata field given is locked against refreshes; `status`
+ * hides or shows the title; `metadata_locked_fields` sets the locks explicitly.
+ */
+export interface PatchedMovieUpdateRequest {
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  title?: string;
+  /** @maxLength 255 */
+  title_ar?: string;
+  /** @maxLength 255 */
+  original_title?: string;
+  overview?: string;
+  overview_ar?: string;
+  /** @maxLength 500 */
+  tagline?: string;
+  /** @maxLength 500 */
+  tagline_ar?: string;
+  /**
+   * @minimum 1870
+   * @maximum 2200
+   * @nullable
+   */
+  year?: number | null;
+  /**
+   * @minimum 0
+   * @maximum 10
+   * @nullable
+   */
+  rating?: number | null;
+  /** @maxLength 16 */
+  certification?: string;
+  /** @maxLength 32 */
+  trailer_youtube_key?: string;
+  featured?: boolean;
+  /** @maxLength 255 */
+  rights_holder?: string;
+  /** @maxLength 255 */
+  license_ref?: string;
+  /** @nullable */
+  license_expires_at?: string | null;
+  status?: TitleVisibility;
+  categories?: string[];
+  /**
+   * @maxItems 64
+   * @items.minLength 1
+   * @items.maxLength 64
+   */
+  metadata_locked_fields?: string[];
+  /** @nullable */
+  release_date?: string | null;
+  /**
+   * @minimum 1
+   * @maximum 2000
+   * @nullable
+   */
+  runtime_min?: number | null;
+}
+
+/**
+ * A role and its permission codes. The owner role always lists every permission.
+ */
+export interface PatchedRoleRequest {
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name?: string;
+  /** @maxLength 200 */
+  description?: string;
+  /**
+   * @maxItems 18
+   * @items.minLength 1
+   * @items.maxLength 64
+   */
+  permissions?: string[];
+}
+
+/**
+ * An admin edit. Each metadata field given is locked against refreshes; `status`
+ * hides or shows the title; `metadata_locked_fields` sets the locks explicitly.
+ */
+export interface PatchedSeriesUpdateRequest {
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  title?: string;
+  /** @maxLength 255 */
+  title_ar?: string;
+  /** @maxLength 255 */
+  original_title?: string;
+  overview?: string;
+  overview_ar?: string;
+  /** @maxLength 500 */
+  tagline?: string;
+  /** @maxLength 500 */
+  tagline_ar?: string;
+  /**
+   * @minimum 1870
+   * @maximum 2200
+   * @nullable
+   */
+  year?: number | null;
+  /**
+   * @minimum 0
+   * @maximum 10
+   * @nullable
+   */
+  rating?: number | null;
+  /** @maxLength 16 */
+  certification?: string;
+  /** @maxLength 32 */
+  trailer_youtube_key?: string;
+  featured?: boolean;
+  /** @maxLength 255 */
+  rights_holder?: string;
+  /** @maxLength 255 */
+  license_ref?: string;
+  /** @nullable */
+  license_expires_at?: string | null;
+  status?: TitleVisibility;
+  categories?: string[];
+  /**
+   * @maxItems 64
+   * @items.minLength 1
+   * @items.maxLength 64
+   */
+  metadata_locked_fields?: string[];
+  /** @nullable */
+  first_air_date?: string | null;
+  /**
+   * @minimum 1
+   * @maximum 600
+   * @nullable
+   */
+  episode_run_time?: number | null;
+}
+
 /**
  * PATCH body. Partial like any PATCH: without `value` nothing changes.
  */
 export interface PatchedSettingRequest {
   value?: boolean | number | string;
+}
+
+export interface Permission {
+  readonly code: string;
+  readonly description: string;
+}
+
+export interface Queued {
+  queued: boolean;
+}
+
+export interface ResolveRequest {
+  /** @minimum 1 */
+  tmdb_id: number;
+  /**
+   * Override the review's kind (a file that is a movie, not an episode).
+   *
+   * * `movie` - Movie
+   * * `tv` - Series
+   */
+  kind?: ReviewKind;
+}
+
+/**
+ * A role and its permission codes. The owner role always lists every permission.
+ */
+export interface Role {
+  readonly id: string;
+  /** @maxLength 64 */
+  name: string;
+  /** @maxLength 200 */
+  description?: string;
+  /**
+   * @maxItems 18
+   * @items.maxLength 64
+   */
+  permissions?: string[];
+  readonly is_system: boolean;
+  readonly admin_count: number;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+/**
+ * A role and its permission codes. The owner role always lists every permission.
+ */
+export interface RoleRequest {
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name: string;
+  /** @maxLength 200 */
+  description?: string;
+  /**
+   * @maxItems 18
+   * @items.minLength 1
+   * @items.maxLength 64
+   */
+  permissions?: string[];
+}
+
+export interface ScanStarted {
+  job: ScanJob;
+  /** False when a scan of the library was already queued or running. */
+  created: boolean;
+}
+
+export interface Season {
+  readonly id: string;
+  readonly number: number;
+  readonly name: string;
+  readonly name_ar: string;
+  readonly overview: string;
+  readonly overview_ar: string;
+  /** @nullable */
+  readonly air_date: string | null;
+  readonly episode_count: number;
+  readonly poster: Image | null;
+  readonly episodes: readonly Episode[];
+}
+
+export interface SeriesDetail {
+  readonly id: string;
+  readonly xc_id: number;
+  /** @nullable */
+  readonly tmdb_id: number | null;
+  readonly imdb_id: string;
+  readonly title: string;
+  readonly title_ar: string;
+  readonly original_title: string;
+  /** @items.maxLength 255 */
+  readonly alt_titles: readonly string[];
+  readonly overview: string;
+  readonly overview_ar: string;
+  readonly tagline: string;
+  readonly tagline_ar: string;
+  /** @nullable */
+  readonly year: number | null;
+  /** @nullable */
+  readonly rating: number | null;
+  readonly vote_count: number;
+  readonly certification: string;
+  readonly original_language: string;
+  /** @items.maxLength 2 */
+  readonly countries: readonly string[];
+  readonly trailer_youtube_key: string;
+  readonly popularity: number;
+  readonly status: TitleStatus;
+  readonly featured: boolean;
+  readonly rights_holder: string;
+  readonly license_ref: string;
+  /** @nullable */
+  readonly license_expires_at: string | null;
+  readonly metadata_source: MetadataSource;
+  /** Metadata from the offline sample fixtures (no TMDB key), not from TMDB. */
+  readonly synthetic: boolean;
+  /** @items.maxLength 64 */
+  readonly metadata_locked_fields: readonly string[];
+  /** @nullable */
+  readonly metadata_refreshed_at: string | null;
+  readonly genres: readonly Genre[];
+  readonly categories: readonly CategoryBrief[];
+  readonly images: readonly Image[];
+  readonly credits: readonly Credit[];
+  readonly created_at: string;
+  readonly updated_at: string;
+  /** @nullable */
+  readonly tvdb_id: number | null;
+  /** @nullable */
+  readonly first_air_date: string | null;
+  /** @nullable */
+  readonly last_air_date: string | null;
+  /** @nullable */
+  readonly episode_run_time: number | null;
+  readonly episode_ordering: EpisodeOrderingEnum;
+  readonly seasons: readonly Season[];
 }
 
 /**
@@ -80,6 +1749,11 @@ export interface SettingEntry {
   readonly updated_by: string | null;
 }
 
+export interface SuspendRequest {
+  /** @maxLength 200 */
+  reason?: string;
+}
+
 /**
  * Stable machine-readable error code.
  */
@@ -105,6 +1779,7 @@ export const ErrorCode = {
   DEVICE_LIMIT: "DEVICE_LIMIT",
   TITLE_PREPARING: "TITLE_PREPARING",
   CONFLICT: "CONFLICT",
+  PROVIDER_UNAVAILABLE: "PROVIDER_UNAVAILABLE",
 } as const;
 
 /**
@@ -126,6 +1801,68 @@ export interface Problem {
   field_errors?: ProblemFieldErrors;
 }
 
+export type AccessRulesListParams = {
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * global: rules for everyone; customer: per-customer rules.
+   *
+   * * `global` - global
+   * * `customer` - customer
+   */
+  scope?: AccessRulesListScope;
+  /**
+   * * `ip_allow` - Allow IP address
+   * * `ip_deny` - Deny IP address
+   * * `cidr_deny` - Deny network (CIDR)
+   * * `country_allow` - Allow country
+   * * `country_deny` - Deny country
+   */
+  type?: AccessRulesListType;
+  /**
+   * Rules of one customer.
+   */
+  user?: string;
+};
+
+export type AccessRulesListScope = (typeof AccessRulesListScope)[keyof typeof AccessRulesListScope];
+
+export const AccessRulesListScope = {
+  customer: "customer",
+  global: "global",
+} as const;
+
+export type AccessRulesListType = (typeof AccessRulesListType)[keyof typeof AccessRulesListType];
+
+export const AccessRulesListType = {
+  cidr_deny: "cidr_deny",
+  country_allow: "country_allow",
+  country_deny: "country_deny",
+  ip_allow: "ip_allow",
+  ip_deny: "ip_deny",
+} as const;
+
+export type AdminsListParams = {
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * A search term.
+   */
+  search?: string;
+};
+
 export type AuditListParams = {
   action?: string;
   actor?: string;
@@ -146,3 +1883,362 @@ export type AuditListParams = {
   target_id?: string;
   target_type?: string;
 };
+
+export type CategoriesListParams = {
+  /**
+   * * `vod` - Movies
+   * * `series` - Series
+   * * `live` - Live TV
+   */
+  kind?: CategoriesListKind;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * A search term.
+   */
+  search?: string;
+};
+
+export type CategoriesListKind = (typeof CategoriesListKind)[keyof typeof CategoriesListKind];
+
+export const CategoriesListKind = {
+  live: "live",
+  series: "series",
+  vod: "vod",
+} as const;
+
+export type CustomersListParams = {
+  /**
+   * What the customer may do right now: active, expired, suspended, disabled.
+   *
+   * * `active` - ACTIVE
+   * * `expired` - EXPIRED
+   * * `suspended` - SUSPENDED
+   * * `disabled` - DISABLED
+   */
+  access_status?: CustomersListAccessStatus;
+  /**
+   * Active customers whose access ends within this many days.
+   */
+  expiring_within_days?: number;
+  /**
+   * Sort key; prefix with - for descending. Default: -created_at.
+   *
+   * * `created_at` - Created at
+   * * `-created_at` - Created at (descending)
+   * * `name` - Name
+   * * `-name` - Name (descending)
+   * * `username` - Username
+   * * `-username` - Username (descending)
+   * * `expires_at` - Expires at
+   * * `-expires_at` - Expires at (descending)
+   */
+  ordering?: CustomersListOrderingItem[];
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * A search term.
+   */
+  search?: string;
+  /**
+   * Account status.
+   *
+   * * `active` - Active
+   * * `suspended` - Suspended
+   * * `disabled` - Disabled
+   */
+  status?: CustomersListStatus;
+};
+
+export type CustomersListAccessStatus =
+  (typeof CustomersListAccessStatus)[keyof typeof CustomersListAccessStatus];
+
+export const CustomersListAccessStatus = {
+  active: "active",
+  disabled: "disabled",
+  expired: "expired",
+  suspended: "suspended",
+} as const;
+
+export type CustomersListOrderingItem =
+  (typeof CustomersListOrderingItem)[keyof typeof CustomersListOrderingItem];
+
+export const CustomersListOrderingItem = {
+  "-created_at": "-created_at",
+  "-expires_at": "-expires_at",
+  "-name": "-name",
+  "-username": "-username",
+  created_at: "created_at",
+  expires_at: "expires_at",
+  name: "name",
+  username: "username",
+} as const;
+
+export type CustomersListStatus = (typeof CustomersListStatus)[keyof typeof CustomersListStatus];
+
+export const CustomersListStatus = {
+  active: "active",
+  disabled: "disabled",
+  suspended: "suspended",
+} as const;
+
+export type CustomersDevicesListParams = {
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+};
+
+export type LibrariesListParams = {
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+};
+
+export type MetadataSearchParams = {
+  /**
+   * * `movie` - Movie
+   * * `tv` - Series
+   * @minLength 1
+   */
+  kind: MetadataSearchKind;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  query: string;
+  /**
+   * @minimum 1870
+   * @maximum 2200
+   */
+  year?: number;
+};
+
+export type MetadataSearchKind = (typeof MetadataSearchKind)[keyof typeof MetadataSearchKind];
+
+export const MetadataSearchKind = {
+  movie: "movie",
+  tv: "tv",
+} as const;
+
+export type MoviesListParams = {
+  category?: string;
+  featured?: boolean;
+  /**
+   * Library
+   */
+  library?: unknown;
+  /**
+   * * `tmdb` - TMDB
+   * * `synthetic` - Synthetic fixtures
+   * * `manual` - Manual
+   */
+  metadata_source?: MoviesListMetadataSource;
+  /**
+   * Arabic overview missing
+   */
+  missing_arabic?: boolean;
+  /**
+   * title, year, created_at, updated_at, rating or popularity; - for descending.
+   */
+  ordering?: string;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * Title, Arabic title or original title.
+   */
+  search?: string;
+  /**
+   * * `processing` - Processing
+   * * `review` - Needs review
+   * * `ready` - Ready
+   * * `hidden` - Hidden
+   * * `license_expired` - License expired
+   */
+  status?: MoviesListStatusItem[];
+  year?: number;
+  year_max?: number;
+  year_min?: number;
+};
+
+export type MoviesListMetadataSource =
+  (typeof MoviesListMetadataSource)[keyof typeof MoviesListMetadataSource];
+
+export const MoviesListMetadataSource = {
+  manual: "manual",
+  synthetic: "synthetic",
+  tmdb: "tmdb",
+} as const;
+
+export type MoviesListStatusItem = (typeof MoviesListStatusItem)[keyof typeof MoviesListStatusItem];
+
+export const MoviesListStatusItem = {
+  hidden: "hidden",
+  license_expired: "license_expired",
+  processing: "processing",
+  ready: "ready",
+  review: "review",
+} as const;
+
+export type ReviewQueueListParams = {
+  /**
+   * * `movie` - Movie
+   * * `tv` - Series
+   */
+  kind?: ReviewQueueListKind;
+  library?: string;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  reason?: string;
+  /**
+   * open (default), resolved or skipped.
+   */
+  status?: string;
+};
+
+export type ReviewQueueListKind = (typeof ReviewQueueListKind)[keyof typeof ReviewQueueListKind];
+
+export const ReviewQueueListKind = {
+  movie: "movie",
+  tv: "tv",
+} as const;
+
+export type ScansListParams = {
+  library?: string;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * * `queued` - Queued
+   * * `running` - Running
+   * * `done` - Done
+   * * `failed` - Failed
+   */
+  status?: ScansListStatus;
+  /**
+   * * `watcher` - File watcher
+   * * `schedule` - Schedule
+   * * `manual` - Manual
+   */
+  trigger?: ScansListTrigger;
+};
+
+export type ScansListStatus = (typeof ScansListStatus)[keyof typeof ScansListStatus];
+
+export const ScansListStatus = {
+  done: "done",
+  failed: "failed",
+  queued: "queued",
+  running: "running",
+} as const;
+
+export type ScansListTrigger = (typeof ScansListTrigger)[keyof typeof ScansListTrigger];
+
+export const ScansListTrigger = {
+  manual: "manual",
+  schedule: "schedule",
+  watcher: "watcher",
+} as const;
+
+export type SeriesListParams = {
+  category?: string;
+  featured?: boolean;
+  /**
+   * Library
+   */
+  library?: unknown;
+  /**
+   * * `tmdb` - TMDB
+   * * `synthetic` - Synthetic fixtures
+   * * `manual` - Manual
+   */
+  metadata_source?: SeriesListMetadataSource;
+  /**
+   * Arabic overview missing
+   */
+  missing_arabic?: boolean;
+  /**
+   * title, year, created_at, updated_at, rating or popularity; - for descending.
+   */
+  ordering?: string;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * Title, Arabic title or original title.
+   */
+  search?: string;
+  /**
+   * * `processing` - Processing
+   * * `review` - Needs review
+   * * `ready` - Ready
+   * * `hidden` - Hidden
+   * * `license_expired` - License expired
+   */
+  status?: SeriesListStatusItem[];
+  year?: number;
+  year_max?: number;
+  year_min?: number;
+};
+
+export type SeriesListMetadataSource =
+  (typeof SeriesListMetadataSource)[keyof typeof SeriesListMetadataSource];
+
+export const SeriesListMetadataSource = {
+  manual: "manual",
+  synthetic: "synthetic",
+  tmdb: "tmdb",
+} as const;
+
+export type SeriesListStatusItem = (typeof SeriesListStatusItem)[keyof typeof SeriesListStatusItem];
+
+export const SeriesListStatusItem = {
+  hidden: "hidden",
+  license_expired: "license_expired",
+  processing: "processing",
+  ready: "ready",
+  review: "review",
+} as const;

@@ -53,6 +53,7 @@ class ErrorCode(StrEnum):
     DEVICE_LIMIT = "DEVICE_LIMIT"
     TITLE_PREPARING = "TITLE_PREPARING"
     CONFLICT = "CONFLICT"
+    PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
 
 
 # Default HTTP status and RFC 9457 title per code; a raise site may override the status.
@@ -76,6 +77,7 @@ _DEFAULTS: dict[ErrorCode, tuple[int, str]] = {
     ErrorCode.DEVICE_LIMIT: (409, "Device limit reached"),
     ErrorCode.TITLE_PREPARING: (409, "Title is being prepared"),
     ErrorCode.CONFLICT: (409, "Conflict"),
+    ErrorCode.PROVIDER_UNAVAILABLE: (503, "Metadata provider unavailable"),
 }
 
 # Key for errors that belong to no single field (DRF's convention).

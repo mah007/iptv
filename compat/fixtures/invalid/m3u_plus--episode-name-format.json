@@ -1,0 +1,18 @@
+{
+  "description": "Episodes are named \"<Series> S01E02\" so M3U-only apps can group them.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "tvg-name=\"Breaking Bad S01E01\"",
+      "new": "tvg-name=\"Breaking Bad 1x01\""
+    },
+    {
+      "old": "\"Drama\",Breaking Bad S01E01",
+      "new": "\"Drama\",Breaking Bad 1x01"
+    }
+  ],
+  "expect": {
+    "at": "line 12",
+    "kind": "m3u:episode-name"
+  }
+}

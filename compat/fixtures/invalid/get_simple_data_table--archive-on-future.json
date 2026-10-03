@@ -1,0 +1,15 @@
+{
+  "description": "A programme that has not aired yet cannot be played from catch-up.",
+  "fixture": "get_simple_data_table.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/3/has_archive",
+      "value": 1
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[3].has_archive",
+    "kind": "invariant:archive"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "description": "Programmes reference declared channels.",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "channel=\"family-cinema.example\"",
+      "new": "channel=\"news.example\""
+    }
+  ],
+  "expect": {
+    "at": "/tv/programme[5]/@channel",
+    "kind": "xmltv:channel-ref"
+  }
+}

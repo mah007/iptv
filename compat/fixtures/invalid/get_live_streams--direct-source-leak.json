@@ -1,0 +1,15 @@
+{
+  "description": "direct_source is always \"\": the channel's source URL is encrypted at rest and never leaves the server.",
+  "fixture": "get_live_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/direct_source",
+      "value": "rtmp://origin.internal/live/showcase"
+    }
+  ],
+  "expect": {
+    "at": "$[0].direct_source",
+    "kind": "const"
+  }
+}

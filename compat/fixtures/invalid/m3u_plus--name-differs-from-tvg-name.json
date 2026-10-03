@@ -1,0 +1,14 @@
+{
+  "description": "The display name after the comma equals tvg-name.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "\"Science Fiction\",The Matrix",
+      "new": "\"Science Fiction\",The Matrix (1999)"
+    }
+  ],
+  "expect": {
+    "at": "line 6",
+    "kind": "m3u:name"
+  }
+}

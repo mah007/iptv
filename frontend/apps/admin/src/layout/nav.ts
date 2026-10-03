@@ -1,5 +1,14 @@
 import type { LinkProps } from "@tanstack/react-router";
-import { House, type LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  ScrollText,
+  Settings,
+  ShieldCheck,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+import type { PermissionRequirement } from "../lib/auth";
 
 export interface NavItem {
   /** Typed against the route tree, so only routes that exist can be listed. */
@@ -9,6 +18,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Active only on this exact path (needed for "/"). */
   exact?: boolean;
+  /** Shown only to admins holding this permission (any of several). */
+  permission: PermissionRequirement;
 }
 
 export interface NavSection {
@@ -25,6 +36,41 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   {
     id: "overview",
     titleKey: "nav.sections.overview",
-    items: [{ to: "/", labelKey: "nav.home", icon: House, exact: true }],
+    items: [
+      {
+        to: "/",
+        labelKey: "nav.dashboard",
+        icon: LayoutDashboard,
+        exact: true,
+        permission: "dashboard.view",
+      },
+    ],
+  },
+  {
+    id: "customers",
+    titleKey: "nav.sections.customers",
+    items: [
+      { to: "/customers", labelKey: "nav.customers", icon: Users, permission: "customers.view" },
+    ],
+  },
+  {
+    id: "security",
+    titleKey: "nav.sections.security",
+    items: [
+      {
+        to: "/admins",
+        labelKey: "nav.admins",
+        icon: ShieldCheck,
+        permission: ["admins.manage", "roles.manage"],
+      },
+      { to: "/audit", labelKey: "nav.audit", icon: ScrollText, permission: "audit.view" },
+    ],
+  },
+  {
+    id: "system",
+    titleKey: "nav.sections.system",
+    items: [
+      { to: "/settings", labelKey: "nav.settings", icon: Settings, permission: "settings.view" },
+    ],
   },
 ];

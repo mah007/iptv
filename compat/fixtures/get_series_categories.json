@@ -1,0 +1,12 @@
+[
+  {
+    "category_id": "21",
+    "category_name": "Drama",
+    "parent_id": 0
+  },
+  {
+    "category_id": "22",
+    "category_name": "Crime",
+    "parent_id": 0
+  }
+]

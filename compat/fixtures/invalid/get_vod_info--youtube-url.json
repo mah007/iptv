@@ -1,0 +1,15 @@
+{
+  "description": "youtube_trailer is the video id; apps build the watch URL themselves.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/info/youtube_trailer",
+      "value": "https://www.youtube.com/watch?v=vKQi3bBA1y8"
+    }
+  ],
+  "expect": {
+    "at": "$.info.youtube_trailer",
+    "kind": "pattern"
+  }
+}

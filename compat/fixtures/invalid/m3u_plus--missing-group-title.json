@@ -1,0 +1,14 @@
+{
+  "description": "Every entry has tvg-id, tvg-name, tvg-logo and group-title.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": " group-title=\"Science Fiction\",The Matrix",
+      "new": ",The Matrix"
+    }
+  ],
+  "expect": {
+    "at": "line 6",
+    "kind": "m3u:attributes"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "No internal identifiers leak into user_info: every field is listed in the schema.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "add",
+      "path": "/user_info/device_id",
+      "value": "0199a1b2-7c3d-7e4f-8a5b-6c7d8e9f0a1b"
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.device_id",
+    "kind": "additionalProperties"
+  }
+}

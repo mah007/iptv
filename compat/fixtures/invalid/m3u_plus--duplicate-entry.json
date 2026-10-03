@@ -1,0 +1,14 @@
+{
+  "description": "Each stream appears once.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "https://tv.example.com/movie/mah-7k3p9q/example-password/1002.mp4",
+      "new": "https://tv.example.com/movie/mah-7k3p9q/example-password/1001.mp4"
+    }
+  ],
+  "expect": {
+    "at": "line 9",
+    "kind": "m3u:duplicate"
+  }
+}

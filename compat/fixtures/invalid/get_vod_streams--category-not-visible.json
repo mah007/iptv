@@ -1,0 +1,19 @@
+{
+  "description": "Every category in category_ids is one the account can see.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/category_ids",
+      "value": [
+        12,
+        11,
+        99
+      ]
+    }
+  ],
+  "expect": {
+    "at": "get_vod_streams $[0].category_ids",
+    "kind": "invariant:category-visible"
+  }
+}

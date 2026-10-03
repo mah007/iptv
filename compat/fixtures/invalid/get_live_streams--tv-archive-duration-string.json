@@ -1,0 +1,15 @@
+{
+  "description": "tv_archive_duration is an integer (days).",
+  "fixture": "get_live_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/tv_archive_duration",
+      "value": "3"
+    }
+  ],
+  "expect": {
+    "at": "$[0].tv_archive_duration",
+    "kind": "type"
+  }
+}

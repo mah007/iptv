@@ -22,6 +22,9 @@ services:
 
   web:
     <<: *prod-app
+    volumes:
+      # Libraries, read-only; the admin only accepts folders under /media (ADR-0009).
+      - ${MEDIA_ROOT:-/srv/media}:/media:ro
     labels:
       traefik.http.routers.api.entrypoints: websecure
       traefik.http.routers.api.tls.certresolver: letsencrypt
@@ -32,9 +35,21 @@ services:
 
   worker:
     <<: *prod-app
+    volumes:
+      - ${MEDIA_ROOT:-/srv/media}:/media:ro
+
+  watcher:
+    <<: *prod-app
+    volumes:
+      - ${MEDIA_ROOT:-/srv/media}:/media:ro
 
   beat:
     <<: *prod-app
+
+  nginx-stream:
+    labels:
+      traefik.http.routers.media.entrypoints: websecure
+      traefik.http.routers.media.tls.certresolver: letsencrypt
 
   frontend:
     labels:
