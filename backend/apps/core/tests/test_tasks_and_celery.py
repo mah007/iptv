@@ -57,6 +57,16 @@ def test_beat_healthcheck_tracks_heartbeat_age(clean_heartbeat: None) -> None:
     assert healthcheck.check_beat() is False
 
 
+def test_watcher_healthcheck_tracks_its_heartbeat() -> None:
+    state_redis().delete("hb:watcher")
+    assert healthcheck.check_watcher() is False
+    state_redis().set("hb:watcher", int(time.time()))
+    assert healthcheck.check_watcher() is True
+    state_redis().set("hb:watcher", int(time.time()) - healthcheck.WATCHER_MAX_AGE_S - 5)
+    assert healthcheck.check_watcher() is False
+    state_redis().delete("hb:watcher")
+
+
 def test_web_healthcheck_reports_connection_failures() -> None:
     with mock.patch("apps.core.healthcheck.urllib.request.urlopen", side_effect=OSError):
         assert healthcheck.check_web() is False

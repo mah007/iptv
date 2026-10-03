@@ -6,6 +6,7 @@ declared here once with its type, default, constraints and group. The database
 `apps.core.services.get_setting`, change them with `set_setting`.
 """
 
+import json
 import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
@@ -101,6 +102,23 @@ def _optional(validator: Callable[[Any], None]) -> Callable[[Any], None]:
     return validate
 
 
+_SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+
+
+def genre_category_map(value: Any) -> None:
+    """A JSON object mapping TMDB genre ids to category slugs: {"28": "action", ...}."""
+    message = 'Enter a JSON object of TMDB genre ids to category slugs, e.g. {"28": "action"}.'
+    try:
+        data = json.loads(value)
+    except ValueError:
+        raise ValidationError(message, code="invalid") from None
+    if not isinstance(data, dict) or not all(
+        isinstance(key, str) and key.isdigit() and isinstance(slug, str) and _SLUG.fullmatch(slug)
+        for key, slug in data.items()
+    ):
+        raise ValidationError(message, code="invalid")
+
+
 hex_color = _pattern(_HEX_COLOR, "Enter a colour as #RRGGBB.")
 currency_code = _pattern(_CURRENCY, "Enter an ISO 4217 currency code, e.g. SAR.")
 country_code = _pattern(_COUNTRY, "Enter an ISO 3166-1 alpha-2 country code, e.g. SA.")
@@ -114,6 +132,7 @@ GROUPS: tuple[str, ...] = (
     "branding",
     "xtream",
     "playback",
+    "library",
     "metadata",
     "billing",
     "trials",
@@ -122,6 +141,20 @@ GROUPS: tuple[str, ...] = (
 )
 
 _K = SettingKind
+
+#: TMDB movie and TV genre ids -> category slugs (SPEC §7.2 step 5). Categories are
+#: created on first use; `apps.catalog.services.CATEGORY_NAMES` names the known slugs.
+DEFAULT_GENRE_CATEGORY_MAP: Mapping[str, str] = MappingProxyType(
+    {
+        "28": "action", "12": "adventure", "16": "animation", "35": "comedy", "80": "crime",
+        "99": "documentary", "18": "drama", "10751": "family", "14": "fantasy",
+        "36": "history", "27": "horror", "10402": "music", "9648": "mystery",
+        "10749": "romance", "878": "sci-fi", "53": "thriller", "10752": "war",
+        "37": "western", "10759": "action", "10762": "kids", "10763": "news",
+        "10764": "reality", "10765": "sci-fi", "10766": "drama", "10767": "talk",
+        "10768": "war",
+    }
+)  # fmt: skip
 
 _DEFINITIONS: tuple[SettingDef, ...] = (
     # Branding
@@ -141,6 +174,9 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                min_value=1, max_value=65535),
     SettingDef("xtream.https_port", _K.INT, 443, "HTTPS port reported to IPTV apps.", "xtream",
                min_value=1, max_value=65535),
+    SettingDef("xtream.password_min_length", _K.INT, 8,
+               "Shortest password an admin may choose for an IPTV app login.", "xtream",
+               min_value=6, max_value=64),
     # Playback (SPEC §7.4)
     SettingDef("playback.token_ttl_vod_s", _K.INT, 7200,
                "Lifetime of signed media URLs for movies and series, in seconds.", "playback",
@@ -155,6 +191,10 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("playback.realtime_transcode_max", _K.INT, 2,
                "Maximum concurrent real-time transcodes.", "playback",
                min_value=0, max_value=64),
+    # Library scanning (SPEC §7.1)
+    SettingDef("library.watcher_stable_s", _K.INT, 60,
+               "A new file is scanned once its size has not changed for this many seconds.",
+               "library", min_value=5, max_value=3600),
     # Metadata matching (SPEC §7.2)
     SettingDef("metadata.match_auto_accept", _K.FLOAT, 0.85,
                "Minimum confidence to accept a metadata match automatically.", "metadata",
@@ -165,6 +205,10 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("metadata.certification_country", _K.STR, "SA",
                "Country whose age certifications are shown (ISO 3166-1 alpha-2).", "metadata",
                country_code),
+    SettingDef("metadata.genre_category_map", _K.STR,
+               json.dumps(dict(DEFAULT_GENRE_CATEGORY_MAP), separators=(",", ":")),
+               "TMDB genre ids mapped to category slugs, as a JSON object.", "metadata",
+               genre_category_map),
     # Billing (SPEC §7.6)
     SettingDef("billing.vat_rate", _K.FLOAT, 0.15, "VAT rate applied to invoices.", "billing",
                min_value=0.0, max_value=1.0),

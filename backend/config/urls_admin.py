@@ -16,6 +16,8 @@ admin_api = [
     path("", include("apps.audit.urls_admin")),
     path("", include("apps.accounts.urls_admin")),
     path("", include("apps.catalog.urls_admin")),
+    path("", include("apps.library.urls_admin")),
+    path("", include("apps.playback.urls_admin")),
     path("", include("apps.dashboard.urls_admin")),
 ]
 

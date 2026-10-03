@@ -1,11 +1,23 @@
 # syntax=docker/dockerfile:1.7
 # Control-plane image: web (Gunicorn + Uvicorn workers), Celery worker and beat.
-# Targets: `dev` (dev dependencies, sources bind-mounted) and `runtime` (production).
+# Targets: `dev` (dev dependencies and FFmpeg, sources bind-mounted), `runtime`
+# (production web and beat) and `media` (runtime plus FFmpeg: worker, watcher, transcoder).
 
 ARG PYTHON_IMAGE=python:3.13.16-slim
 ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.22
+# FFmpeg (ADR-0009): jellyfin-ffmpeg's Debian 13 package, matching the python image's
+# Debian. GPL, so it only ever runs as a separate process (ffprobe/ffmpeg/vainfo), never
+# linked or imported. It bundles the Intel iHD VA-API driver and the oneVPL GPU runtime
+# (VAAPI and QSV); NVENC comes from the NVIDIA container runtime. amd64 only.
+ARG FFMPEG_DEB_URL=https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v8.1.3-1/jellyfin-ffmpeg8_8.1.3-1-trixie_amd64.deb
+ARG FFMPEG_DEB_SHA256=fbef9f81a53e175194e3f67832618a86111f7bd37197df21a5d748c34289f9c0
 
 FROM ${UV_IMAGE} AS uv
+
+# The package as downloaded; the stages that install it verify the checksum first.
+FROM scratch AS ffmpeg-deb
+ARG FFMPEG_DEB_URL
+ADD ${FFMPEG_DEB_URL} /jellyfin-ffmpeg.deb
 
 FROM ${PYTHON_IMAGE} AS deps
 COPY --from=uv /uv /usr/local/bin/uv
@@ -19,6 +31,17 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project
 
 FROM deps AS dev
+ARG FFMPEG_DEB_SHA256
+# FFmpeg in dev too: the worker probes media, and the FFmpeg integration tests run in
+# `make test` (apps/media/tests/test_integration.py).
+RUN --mount=type=bind,from=ffmpeg-deb,source=/jellyfin-ffmpeg.deb,target=/tmp/jellyfin-ffmpeg.deb \
+    echo "${FFMPEG_DEB_SHA256}  /tmp/jellyfin-ffmpeg.deb" | sha256sum -c - \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends /tmp/jellyfin-ffmpeg.deb \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/lib/jellyfin-ffmpeg/ffprobe \
+        /usr/lib/jellyfin-ffmpeg/vainfo /usr/local/bin/ \
+    && ffprobe -hide_banner -version > /dev/null
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-install-project
 # The dev container runs as the host user so files it writes stay editable.
@@ -62,3 +85,20 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
 # no control socket, no access log (RequestLogMiddleware logs redacted requests),
 # and the Prometheus multiprocess directory.
 CMD ["gunicorn", "--config", "config/gunicorn_conf.py", "config.asgi:application"]
+
+# Worker, watcher and (slice 3) transcoder: the runtime plus FFmpeg. Compose gives each
+# service its command and healthcheck.
+FROM runtime AS media
+ARG FFMPEG_DEB_SHA256
+USER root
+RUN --mount=type=bind,from=ffmpeg-deb,source=/jellyfin-ffmpeg.deb,target=/tmp/jellyfin-ffmpeg.deb \
+    echo "${FFMPEG_DEB_SHA256}  /tmp/jellyfin-ffmpeg.deb" | sha256sum -c - \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends /tmp/jellyfin-ffmpeg.deb \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/lib/jellyfin-ffmpeg/ffprobe \
+        /usr/lib/jellyfin-ffmpeg/vainfo /usr/local/bin/ \
+    && ffprobe -hide_banner -version > /dev/null
+USER 10001:10001
+HEALTHCHECK NONE
+CMD ["celery", "-A", "config", "worker", "--queues", "default,scan,metadata,images,notify", "--loglevel", "INFO"]

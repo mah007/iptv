@@ -15,16 +15,19 @@ APP_VERSION ?= $(or $(shell sed -n 's/^APP_VERSION=//p' .env 2>/dev/null),dev)
 export APP_VERSION
 
 COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml
+# Every backend container bind-mounts ./media (the libraries, git-ignored). Create it as
+# the host user, or Docker would create it owned by root.
+$(shell mkdir -p media)
 RUN_BACKEND := $(COMPOSE) run --rm --no-deps -T web
 RUN_FRONTEND := $(COMPOSE) run --rm --no-deps -T frontend
 
 # Trivy pinned by digest: a moved or compromised tag can't change what runs.
 TRIVY_IMAGE := aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
-IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION)
+IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/media:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION)
 # Extra docker build flags; before tagging a milestone use BUILD_FLAGS="--pull --no-cache".
 BUILD_FLAGS ?= --pull
 
-.PHONY: help secrets up down ps logs migrate seed shell smoke test test-backend test-frontend \
+.PHONY: help secrets up down ps logs migrate seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
 	api-client api-client-check build smoke-images scan licenses ci ci-steps
 
@@ -37,13 +40,17 @@ help: ## List available commands
 secrets: ## Create .env with generated dev secrets, or append keys new in .env.example
 	@scripts/secrets.sh
 
-up: .env ## Build and start the dev stack, wait for healthchecks, apply migrations
+# The media token keys (ADR-0007): the edge refuses to start without them.
+secrets/media_token_keys.json:
+	@scripts/secrets.sh
+
+up: .env secrets/media_token_keys.json ## Build and start the dev stack, wait for healthchecks, apply migrations
 	$(COMPOSE) up --build --detach --wait --wait-timeout 300
 	$(COMPOSE) exec -T web python manage.py migrate --noinput
 	@port=$$(grep -E '^HTTP_PORT=' .env | cut -d= -f2); domain=$$(grep -E '^DOMAIN=' .env | cut -d= -f2); \
 	  suffix=$$([ "$$port" = "80" ] || echo ":$$port"); \
 	  echo ""; echo "Smart IPTV is up:"; \
-	  for h in admin app api tv traefik; do echo "  http://$$h.$$domain$$suffix"; done
+	  for h in admin app api tv media traefik; do echo "  http://$$h.$$domain$$suffix"; done
 
 down: ## Stop the stack (data volumes are kept)
 	$(COMPOSE) down
@@ -59,6 +66,9 @@ migrate: ## Apply database migrations
 
 seed: ## Load demo data (idempotent); prints a new admin's password once. args=--reset-admin-password
 	$(COMPOSE) exec -T web python manage.py seed_demo $(args)
+
+sample-media: ## Generate legal synthetic test media into ./media (FFmpeg; idempotent)
+	@scripts/sample_media.sh media
 
 shell: ## Django shell in the web container
 	$(COMPOSE) exec web python manage.py shell
@@ -133,8 +143,9 @@ api-client-check: ## Fail if the schema or client in the tree differs from a fre
 	fi
 	@echo "API client is up to date."
 
-build: ## Build the production images (app, frontend), pulling fresh base images
+build: ## Build the production images (app, media, frontend), pulling fresh base images
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
+	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target media -t smart-iptv/media:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/frontend.Dockerfile --target runtime -t smart-iptv/frontend:$(APP_VERSION) .
 
 smoke-images: ## Start the production images (env from .env.example), check --deploy, wait for health

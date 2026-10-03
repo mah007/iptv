@@ -23,6 +23,9 @@
 #       H.264 480p, MP3 stereo, no colour tags
 #   series/Show/Season 02/Show.S02E01E02.mkv
 #       H.264 720p, English and Arabic AAC tracks, one chapter per episode
+#   movies/The Matrix.mp4
+#       H.264 720p, AAC stereo, faststart MP4 (direct play); no year, so the metadata match
+#       is ambiguous between the film and its sequels and goes to the review queue
 #
 # Clips run 30 s (the double episode 60 s); the whole set is about 20 MB.
 # Idempotent: files that exist are skipped. Each file is written in a hidden work folder and
@@ -184,7 +187,7 @@ account() {
 # the finished file into place. The first video and audio tracks are flagged default, as in
 # typical releases; subtitles are not (lavfi sources carry no dispositions of their own).
 produce() {
-	local out=$1 summary=$2 tmp
+	local out=$1 summary=$2 tmp muxer
 	shift 2
 	if [[ -e $out ]]; then
 		account "$out" exists
@@ -192,8 +195,15 @@ produce() {
 	fi
 	printf '  make    %s\n' "$out"
 	SEQ=$((SEQ + 1))
-	tmp="$WORK/$SEQ.mkv"
-	ff "$@" -default_mode infer_no_subs -f matroska "$tmp" || die "ffmpeg failed to make $out"
+	# .mp4 files get the moov atom first (faststart), as direct-play sources need.
+	if [[ $out == *.mp4 ]]; then
+		tmp="$WORK/$SEQ.mp4"
+		muxer=(-movflags +faststart -f mp4)
+	else
+		tmp="$WORK/$SEQ.mkv"
+		muxer=(-default_mode infer_no_subs -f matroska)
+	fi
+	ff "$@" "${muxer[@]}" "$tmp" || die "ffmpeg failed to make $out"
 	mkdir -p -- "$(dirname -- "$out")"
 	mv -f -- "$tmp" "$out"
 	account "$out" made "$summary"
@@ -318,6 +328,18 @@ make_breaking_bad() {
 		-c:a libmp3lame -b:a 128k -metadata:s:a:0 language=eng
 }
 
+# Deliberately ambiguous: no year, and "The Matrix" also names its sequels, so the metadata
+# match goes to the review queue. A faststart H.264/AAC MP4 that plays as is, so the title
+# becomes ready once the review is resolved.
+make_ambiguous() {
+	produce "movies/The Matrix.mp4" \
+		"H.264 High 720p23.976, AAC-LC stereo (eng), faststart MP4, 30 s" \
+		-filter_complex "testsrc2=size=1280x720:rate=24000/1001,format=yuv420p[v];${SINE_STEREO}[a]" \
+		-map '[v]' -map '[a]' -t 30 \
+		-c:v libx264 -preset veryfast -crf 34 -profile:v high -level:v 4.0 -g 48 -keyint_min 48 -sc_threshold 0 "${SDR_TAGS[@]}" \
+		-c:a aac -b:a 128k -metadata:s:a:0 language=eng
+}
+
 make_double_episode() {
 	local chapters="$WORK/show.ffmetadata"
 	cat >"$chapters" <<'EOF'
@@ -383,6 +405,7 @@ main() {
 	make_wadjda
 	make_breaking_bad
 	make_double_episode
+	make_ambiguous
 	printf 'Done: %d made, %d already there; %s in movies/ and series/.\n' \
 		"$MADE" "$SKIPPED" "$(human_size "$TOTAL_BYTES")"
 }

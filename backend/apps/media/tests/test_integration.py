@@ -9,6 +9,7 @@ works on this host. Skipped when ffmpeg/ffprobe are not installed.
 from __future__ import annotations
 
 import json
+import math
 import re
 import shutil
 import subprocess
@@ -178,7 +179,9 @@ def _stream_entries(path: Path, kind: str, entries: str) -> list[dict[str, objec
 
 
 def _assert_two_second_gops(times: Sequence[float], duration_s: float) -> None:
-    expected = [2.0 * n for n in range(int(duration_s // 2) + (duration_s % 2 > 0))]
+    # A keyframe every 2 s up to the last video frame. The container duration can run a
+    # few ms past it (audio frame padding: 6.021 s for a 6 s clip with AC-3), so round.
+    expected = [2.0 * n for n in range(math.ceil(round(duration_s, 1) / 2))]
     assert len(times) == len(expected), times
     for got, want in zip(times, expected, strict=True):
         assert abs(got - want) < 0.05, times
@@ -203,7 +206,9 @@ def test_compat_mp4_encode_with_progress(clips: Clips, out: Path, profiles: Prof
     assert updates[-1].percent == 100.0
     times = [u.out_time_ms for u in updates if u.out_time_ms is not None]
     assert times == sorted(times)
-    assert times[-1] >= 5_900
+    # Every frame of the 6 s, 30 fps clip was written. (The last block's out_time varies
+    # between FFmpeg versions: 5.93 s on 6.1, 5.0 s on 8.1.)
+    assert updates[-1].frame == 180
     assert result.progress == updates[-1]
 
     produced = verify_file(output, expected_compat(plan, source.duration_ms))

@@ -5,8 +5,8 @@ from pathlib import Path
 from kombu import Queue
 
 from apps.core.logs import configure_structlog, logging_config, parse_log_format
-from config.env import env, env_int, env_list
-from config.origins import origins
+from config.env import env, env_bool, env_int, env_list
+from config.origins import origin, origins
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -34,12 +34,16 @@ HOST_URLCONFS = {
     APP_HOST: "config.urls_portal",
 }
 ROOT_URLCONF = "config.urls_internal"
+# The media edge (nginx-stream) serves artwork, and from slice 3 media, on its own host.
+MEDIA_HOST = env("MEDIA_HOST", f"media.{DOMAIN}")
 
 # Where browsers load the admin SPA and the portal from. Dev: plain HTTP on
 # HTTP_PORT (8080 when port 80 is taken); prod.py switches to https on 443.
 PUBLIC_SCHEME = env("PUBLIC_SCHEME", "http")
 PUBLIC_PORT = env_int("PUBLIC_PORT", default=env_int("HTTP_PORT", default=80))
 CSRF_TRUSTED_ORIGINS = origins(PUBLIC_SCHEME, [ADMIN_HOST, APP_HOST], PUBLIC_PORT)
+# Public base URL of the edge: artwork is `{MEDIA_BASE_URL}/images/...`.
+MEDIA_BASE_URL = env("MEDIA_BASE_URL", origin(PUBLIC_SCHEME, MEDIA_HOST, PUBLIC_PORT))
 
 # --- Applications -------------------------------------------------------------
 INSTALLED_APPS = [
@@ -179,6 +183,24 @@ CACHES = {
 MEILI_URL = env("MEILI_URL", "http://meilisearch:7700")
 MEILI_MASTER_KEY = env("MEILI_MASTER_KEY")
 
+# --- Media storage (docs/plans/poc.md slice 2, ADR-0009) -------------------------------
+# Libraries are folders under the read-only media mount; the admin and the API only
+# ever show library-relative paths. The writable media volume holds artwork (images/)
+# and, from slice 3, renditions (renditions/); the edge serves it read-only.
+LIBRARY_ROOT = env("LIBRARY_ROOT", "/media")
+DATA_ROOT = env("DATA_ROOT", "/data")
+# inotify sees nothing on network shares (NFS, SMB): poll them instead.
+LIBRARY_WATCHER_POLLING = env_bool("LIBRARY_WATCHER_POLLING", default=False)
+
+# --- Metadata (SPEC §7.2) ------------------------------------------------------------
+# Without a TMDB credential the client runs in fixture mode: synthetic sample metadata,
+# offline (apps.metadata.tmdb.factory). A v4 read-access token is preferred over a key.
+TMDB_API_KEY = env("TMDB_API_KEY", "")
+TMDB_READ_ACCESS_TOKEN = env("TMDB_READ_ACCESS_TOKEN", "")
+TMDB_LANGUAGE = env("TMDB_LANGUAGE", "en-US")
+TMDB_RATE_LIMIT_PER_S = env_int("TMDB_RATE_LIMIT_PER_S", default=35)
+TMDB_CACHE_TTL_S = env_int("TMDB_CACHE_TTL_S", default=24 * 60 * 60)
+
 # --- Celery -------------------------------------------------------------------
 # Queues from SPEC §13. `worker` consumes the general queues; transcoders
 # subscribe only to the transcode.* queue matching their hardware (M8).
@@ -197,6 +219,13 @@ CELERY_TASK_QUEUES = tuple(
         "transcode.nvenc",
     )
 )
+# Ingest (SPEC §7.1-7.2): scans and probes on `scan`, matching and enrichment on
+# `metadata`, artwork on `images`; all on the `worker` service.
+CELERY_TASK_ROUTES = {
+    "apps.library.tasks.*": {"queue": "scan"},
+    "apps.metadata.tasks.fetch_*": {"queue": "images"},
+    "apps.metadata.tasks.*": {"queue": "metadata"},
+}
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
@@ -214,6 +243,18 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.accounts.tasks.expire_access",
         "schedule": 300.0,
         "options": {"expires": 280},
+    },
+    # Starts the reconciliation scan of every library whose scan_interval_min has passed.
+    "library-reconcile": {
+        "task": "apps.library.tasks.reconcile_libraries",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
+    # Closes playback sessions whose heartbeat stopped and records them (SPEC §7.4).
+    "playback-sweep-sessions": {
+        "task": "apps.playback.tasks.sweep_sessions",
+        "schedule": 60.0,
+        "options": {"expires": 55},
     },
 }
 
@@ -283,6 +324,19 @@ SPECTACULAR_SETTINGS = {
         "AppHint": "apps.accounts.models.AppHint",
         "AccessRuleType": "apps.accounts.models.AccessRuleType",
         "CategoryKind": "apps.catalog.models.CategoryKind",
+        "TitleStatus": "apps.catalog.models.TitleStatus",
+        "TitleVisibility": "apps.catalog.serializers.VISIBILITY_CHOICES",
+        "MetadataSource": "apps.catalog.models.MetadataSource",
+        "ImageKind": "apps.catalog.models.ImageKind",
+        "HdrKind": "apps.catalog.models.HdrKind",
+        "FileState": "apps.catalog.models.FileState",
+        "ReviewStatus": "apps.catalog.models.ReviewStatus",
+        "ReviewKind": "apps.catalog.models.ReviewKind",
+        "CreditRole": "apps.catalog.models.CreditRole",
+        "LibraryKind": "apps.library.models.LibraryKind",
+        "ProcessingPolicy": "apps.library.models.ProcessingPolicy",
+        "ScanTrigger": "apps.library.models.ScanTrigger",
+        "ScanStatus": "apps.library.models.ScanStatus",
         "AccessStatus": "apps.playback.entitlements.EntitlementStatus",
         "DeviceStatus": "apps.accounts.serializers.DeviceStatus",
         "LoginStatus": "apps.accounts.auth.LoginStatus",

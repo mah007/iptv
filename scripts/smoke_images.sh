@@ -7,6 +7,7 @@ cd "$(dirname "$0")/.."
 
 version="${APP_VERSION:-dev}"
 app_image="smart-iptv/app:$version"
+media_image="smart-iptv/media:$version"
 frontend_image="smart-iptv/frontend:$version"
 suffix="$$"
 app_name="smart-iptv-smoke-app-$suffix"
@@ -66,6 +67,15 @@ sys.exit(0 if ok else 1)
 else
   echo "  FAIL  /metrics; last logs:" >&2
   docker logs --tail 40 "$app_name" >&2 || true
+  exit 1
+fi
+# The media image (worker, watcher, transcoder) runs FFmpeg as a separate process.
+echo "FFmpeg in the media image:"
+if docker run --rm --entrypoint sh "$media_image" -c \
+  'ffprobe -hide_banner -version | head -1 && ffmpeg -hide_banner -encoders | grep -q libx264 && python -c "import watchdog"'; then
+  echo "  ok    ffprobe and ffmpeg (libx264) run as the app user"
+else
+  echo "  FAIL  FFmpeg in $media_image" >&2
   exit 1
 fi
 echo "Image smoke test passed."

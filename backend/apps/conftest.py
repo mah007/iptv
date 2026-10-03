@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Iterable, Iterator
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -14,6 +15,8 @@ from apps.accounts.models import Permission, Role, User
 from apps.accounts.rbac import OWNER_ROLE, sync_rbac
 from apps.catalog.models import Category, CategoryKind
 from apps.core.services import reset_settings_cache
+from apps.library.models import Library
+from apps.metadata.tmdb import TMDBClient
 
 type AdminFactory = Callable[..., User]
 type CustomerFactory = Callable[..., User]
@@ -133,3 +136,50 @@ def category(db: None) -> Category:
     return Category.objects.create(
         kind=CategoryKind.VOD, slug="action", name_en="Action", name_ar="أكشن"
     )
+
+
+# --- Libraries, media files and metadata (POC slice 2) -----------------------------------------
+
+
+@pytest.fixture
+def media_root(settings: Any, tmp_path: Path) -> Path:
+    """An empty media root with `movies` and `series` folders (settings.LIBRARY_ROOT)."""
+    root = tmp_path / "media"
+    (root / "movies").mkdir(parents=True)
+    (root / "series").mkdir()
+    settings.LIBRARY_ROOT = str(root)
+    return root
+
+
+@pytest.fixture
+def data_root(settings: Any, tmp_path: Path) -> Path:
+    """An empty media volume (settings.DATA_ROOT) for artwork."""
+    root = tmp_path / "data"
+    root.mkdir()
+    settings.DATA_ROOT = str(root)
+    return root
+
+
+@pytest.fixture
+def make_library(media_root: Path) -> Callable[..., Library]:
+    """Libraries over folders of the temporary media root."""
+
+    def factory(name: str = "Movies", kind: str = "movies", folder: str = "movies") -> Library:
+        path = media_root / folder
+        path.mkdir(parents=True, exist_ok=True)
+        return Library.objects.create(name=name, kind=kind, path=str(path))
+
+    return factory
+
+
+@pytest.fixture
+def offline_tmdb(monkeypatch: pytest.MonkeyPatch) -> Iterator[TMDBClient]:
+    """Fixture mode for the metadata services, whatever TMDB credential the env holds."""
+    from apps.metadata import services as metadata  # noqa: PLC0415
+
+    client = TMDBClient.offline()
+    metadata.reset_caches()
+    monkeypatch.setattr(metadata, "tmdb", lambda: client)
+    yield client
+    monkeypatch.undo()
+    metadata.reset_caches()

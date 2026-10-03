@@ -26,7 +26,9 @@ PERMISSIONS: Mapping[str, str] = MappingProxyType(
         "plans.view": "See plans.",
         "plans.edit": "Create and change plans.",
         "billing.refund": "Refund payments.",
-        "library.review": "Manage libraries, titles, categories and the review queue.",
+        "library.view": "See libraries, scans, titles, categories and the review queue.",
+        "library.manage": "Create and change libraries, run scans, edit titles and categories.",
+        "library.review": "Resolve or skip metadata matches in the review queue.",
         "settings.view": "See settings.",
         "settings.edit": "Change settings.",
         "audit.view": "See the audit log.",
@@ -65,7 +67,7 @@ ROLE_DEFAULTS: Mapping[str, tuple[str, frozenset[str]]] = MappingProxyType(
         ),
         "content_manager": (
             "Manages the library, categories and metadata review.",
-            frozenset({"dashboard.view", "library.review"}),
+            frozenset({"dashboard.view", "library.view", "library.manage", "library.review"}),
         ),
         "viewer": ("Read-only access.", _VIEW),
     }
