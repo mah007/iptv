@@ -159,11 +159,47 @@ class DeviceSerializer(serializers.ModelSerializer[Device]):
             return None
 
 
+def xtream_username_field() -> serializers.CharField:
+    return serializers.CharField(
+        max_length=32,
+        required=False,
+        allow_blank=True,
+        default="",
+        trim_whitespace=False,
+        help_text="Leave empty to generate one. 3 to 32 letters, digits, dots, hyphens or "
+        "underscores, unique regardless of case. IPTV apps compare it case-sensitively.",
+    )
+
+
+def xtream_password_field() -> serializers.CharField:
+    return serializers.CharField(
+        max_length=64,
+        required=False,
+        allow_blank=True,
+        default="",
+        write_only=True,
+        trim_whitespace=False,
+        style={"input_type": "password"},
+        help_text="Leave empty to generate one. At least the xtream.password_min_length setting "
+        "(8 by default) of letters, digits and . _ - ~ @ ! *",
+    )
+
+
 class DeviceCreateSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
     app_hint = serializers.ChoiceField(
         choices=AppHint.choices, required=False, default=AppHint.OTHER
     )
+    username = xtream_username_field()
+    password = xtream_password_field()
+
+
+class CredentialResetSerializer(serializers.Serializer[Any]):
+    """Optional admin choices for a reset: empty fields keep the username and generate a
+    password."""
+
+    username = xtream_username_field()
+    password = xtream_password_field()
 
 
 class DeviceBlockSerializer(serializers.Serializer[Any]):
@@ -273,11 +309,20 @@ class CustomerProfileSerializer(serializers.ModelSerializer[User]):
 class CustomerCreateSerializer(CustomerProfileSerializer):
     """The create-customer wizard: profile, access profile and an optional first device."""
 
+    username = serializers.CharField(
+        max_length=150,
+        required=False,
+        allow_blank=True,
+        default="",
+        trim_whitespace=False,
+        help_text="The customer's account username. Leave empty to generate one. 3 to 150 "
+        "letters, digits and . _ @ + -, unique regardless of case.",
+    )
     access = AccessProfileSerializer(required=False)
     device = DeviceCreateSerializer(required=False, allow_null=True)
 
     class Meta(CustomerProfileSerializer.Meta):
-        fields = (*CustomerProfileSerializer.Meta.fields, "access", "device")
+        fields = ("username", *CustomerProfileSerializer.Meta.fields, "access", "device")
 
 
 class CustomerSummarySerializer(serializers.ModelSerializer[User]):

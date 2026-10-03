@@ -30,6 +30,7 @@ from apps.accounts.serializers import (
     AdminCreateSerializer,
     AdminSerializer,
     AdminUpdateSerializer,
+    CredentialResetSerializer,
     CustomerCreatedSerializer,
     CustomerCreateSerializer,
     CustomerDetailSerializer,
@@ -316,6 +317,8 @@ class CustomerDeviceListView(generics.ListCreateAPIView[Device]):
             user,
             name=payload.validated_data["name"],
             app_hint=payload.validated_data["app_hint"],
+            username=payload.validated_data["username"],
+            password=payload.validated_data["password"],
             actor=acting_user(request),
             ip=client_ip(request),
         )
@@ -399,13 +402,21 @@ class DeviceResetCredentialsView(AdminView):
     @extend_schema(
         operation_id="devices_reset_credentials",
         summary="Issue a new password for the device; the old one stops working",
-        description="The response holds the new password; it is shown once.",
-        request=None,
-        responses={200: IssuedCredentialSerializer, **problems(401, 403, 404, 409)},
+        description="The response holds the new password; it is shown once. The body is "
+        "optional: a chosen password (else one is generated) and a new username (else it "
+        "stays).",
+        request=CredentialResetSerializer,
+        responses={200: IssuedCredentialSerializer, **problems(400, 401, 403, 404, 409)},
     )
     def post(self, request: Request, pk: UUID) -> Response:
+        payload = CredentialResetSerializer(data=request.data or {})
+        payload.is_valid(raise_exception=True)
         issued = services.reset_credential(
-            device_of(pk), actor=acting_user(request), ip=client_ip(request)
+            device_of(pk),
+            username=payload.validated_data["username"],
+            password=payload.validated_data["password"],
+            actor=acting_user(request),
+            ip=client_ip(request),
         )
         return secret_response(IssuedCredentialSerializer(issued_body(issued)).data)
 

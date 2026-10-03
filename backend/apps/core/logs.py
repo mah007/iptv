@@ -94,5 +94,7 @@ def logging_config(*, level: str, log_format: LogFormat) -> dict[str, Any]:
         "loggers": {
             "django": {"level": level, "propagate": True},
             "django.server": {"level": level, "propagate": True},
+            # Off (--no-access-log), but if it is ever enabled its lines are redacted too.
+            "uvicorn.access": {"handlers": [], "level": level, "propagate": True},
         },
     }
