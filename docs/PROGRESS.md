@@ -3,8 +3,63 @@
 | Milestone | Status | Tag |
 |---|---|---|
 | M1 Infrastructure & repo | Done | `m1-done` |
-| M2 Backend foundation | Next (built together with M3 as one slice, plan in `docs/plans/m2-m3.md`) | — |
-| M3–M15 | Planned | — |
+| M2 Backend foundation | Done | `m2-done` |
+| M3 Accounts (POC scope "M3-lite": access profiles instead of plans and subscriptions) | Done for the POC; plans, subscriptions and billing move to the final commercial slice | — |
+| POC slice 2: M4 library, M5 metadata, M6-lite catalog | Next (plan in `docs/plans/poc.md`) | — |
+| POC slice 3: M7 direct play, M8-lite transcoding | Planned | — |
+| POC slice 4: M9 Xtream API and the IPTV-app demo | Planned | — |
+| M10–M15, then the commercial slice | Planned | — |
+
+**Owner decision (2026-10-03): proof of concept first.** An admin creates a customer with device credentials, media is scanned, matched and transcoded, and an IPTV app logs in and plays. Everything commercial (plans, subscriptions, billing, payments, invoices, trials, notifications) is the last slice.
+
+## M2 + M3-lite: backend foundation, accounts, admin UI kit (2026-10-03)
+
+### Done
+- **M2 foundation** ([ADR-0005](adr/0005-m2-foundations.md)):
+  - structlog JSON logs with credential and token redaction;
+  - RFC 9457 problem+json errors;
+  - OpenAPI 3.1 (drf-spectacular) with a generated TanStack Query client in `frontend/packages/api` (`make api-client`; the gate fails on a stale client);
+  - a typed settings registry with feature flags, editable through the admin API;
+  - an append-only audit log (database trigger) with an admin API;
+  - Prometheus metrics; health endpoints.
+- **Admin API transport** ([ADR-0004](adr/0004-same-origin-api-session-auth.md)): same-origin at `admin.<DOMAIN>/api`, with session cookie and CSRF.
+- **Accounts, "M3-lite"** ([ADR-0006](adr/0006-accounts-and-authentication.md)):
+  - users, RBAC with seeded roles and permissions;
+  - a manual access profile per customer (`CustomerAccess`: expiry, streams, devices, quality, concurrency policy, content kinds, categories);
+  - devices with Xtream credentials (Argon2id, shown once on create and reset);
+  - IP, network and country access rules;
+  - admin sign-in with TOTP MFA (seeds Fernet-encrypted at rest) and django-axes lockout;
+  - entitlements cached in Redis, plus an expiry job;
+  - admin API for customers, devices, credentials, roles, admins, categories, audit, settings and dashboard KPIs;
+  - `seed_demo` and the DEBUG-only `totp_code` commands.
+- **Admin UI kit and shell** (`@smart-iptv/ui`):
+  - the component set for the admin pages;
+  - self-hosted Inter and IBM Plex Sans Arabic (OFL-1.1, now allowed by the licence gate);
+  - light and dark themes, Arabic RTL and English.
+- **POC groundwork, built ahead of its slices:**
+  - ingest cores: filename parsing (guessit, LGPL, unmodified), fingerprints, TMDB client with rate limit, cache and an offline fixture mode, match scoring, artwork pipeline, Arabic search normaliser, ffprobe parsing, transcode planner and `streaming/ffmpeg/profiles.yaml`, hardware detection;
+  - the Nginx media edge with njs token checks ([ADR-0007](adr/0007-media-token-and-edge.md));
+  - the Xtream contract kit in `compat/` (JSON Schemas, valid and invalid fixtures, a fixture server, the IPTVnator end-to-end driver);
+  - `backend/tests/data/filenames.csv` and `scripts/sample_media.sh`;
+  - client setup guides (ar/en), a STRIDE threat model draft, monitoring configuration.
+
+### Verify
+```bash
+make up
+make seed args=--reset-admin-password   # demo data; prints a new admin password once
+make ci
+```
+Admin API: `http://admin.localhost:<port>/api/v1/` (OpenAPI schema at `/api/v1/schema`).
+
+### Acceptance
+| Criterion (SPEC §16 M2) | Result | Evidence |
+|---|---|---|
+| Settings split, core models (UUIDv7, timestamps) | PASS | M1 settings; `BaseModel` |
+| structlog with redaction, problem+json, OpenAPI | PASS | `apps/core` tests; the gate's API-client check |
+| Celery queues, settings registry, feature flags, audit, health, metrics | PASS | `apps/core`, `apps/audit` tests |
+| Quality gate | PASS | `make ci` passed on this tree in 138 s: smoke, lint (including missing migrations), mypy on 194 files, API client up to date, 1413 backend tests (96.6% coverage; 11 skipped, needing FFmpeg or a standalone Redis), 183 frontend tests, both production images healthy with `check --deploy`, Trivy clean, licence gate (23 self-test cases; 61 Python and 145 npm packages) |
+
+M3 is accepted only for the POC scope: plans, `activate()`, grace jobs and the date property tests come with the commercial slice.
 
 ## M1: Infrastructure & repo (2026-10-03)
 
