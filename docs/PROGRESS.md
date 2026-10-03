@@ -2,7 +2,7 @@
 
 | Milestone | Status | Tag |
 |---|---|---|
-| M1 Infrastructure & repo | Built and verified locally; awaiting the first CI run on GitHub | — |
+| M1 Infrastructure & repo | Built and verified locally; GitHub CI blocked by an account billing lock | — |
 | M2 Backend foundation | Next | — |
 | M3–M15 | Planned | — |
 
@@ -49,11 +49,12 @@ Then open the admin and the portal: `http://admin.localhost:<port>` and `http://
 |---|---|---|
 | Monorepo scaffold | PASS | Layout per §5; 15 backend apps registered |
 | `make up` boots Traefik, Postgres, both Redis, Meilisearch, web (hello + health), worker, beat, frontend shells | PASS | All 9 services healthy; `make smoke` passes, including right after forced recreation |
-| CI green: lint, type, test, build, Trivy, licence gate | PASS locally / CI NOT VERIFIED | Every step passes locally with the same `make` targets. The first GitHub Actions run is pending |
+| CI green: lint, type, test, build, Trivy, licence gate | PASS locally / CI NOT VERIFIED | Every step passes locally with the same `make` targets. GitHub refused to start run #1 ("account is locked due to a billing issue"), so the workflow has not executed yet |
 | `.env.example` | PASS | Generated into `.env` (mode 600, git-ignored) by `make secrets` |
 | ADR-0001 stack | PASS | Versions verified 2026-10-03, with deviations explained |
 
 ### Known issues and notes
+- **GitHub Actions cannot start** until the account's billing lock is cleared (GitHub → Settings → Billing and plans). Then re-run CI, and tag `m1-done` once it's green.
 - `docs/SPEC.md` is kept out of git (via `.git/info/exclude`) until the owner decides whether the spec may be public, because the repository is public.
 - Dev runs plain HTTP on `*.localhost`; the production TLS entrypoint, ACME and HSTS arrive with the production overlay (M13–M15).
 - Traefik reads a read-only Docker socket in dev; a socket proxy replaces it in M14.
