@@ -579,7 +579,16 @@
       "auth_login": "تسجيل دخول",
       "auth_logout": "تسجيل خروج",
       "auth_mfa_enroll": "إعداد التحقق بخطوتين",
-      "system_expire": "انتهاء الوصول"
+      "system_expire": "انتهاء الوصول",
+      "customer_access_expire": "انتهاء الوصول",
+      "library_create": "إضافة مكتبة",
+      "library_update": "تعديل مكتبة",
+      "library_delete": "حذف مكتبة",
+      "library_scan": "فحص مكتبة",
+      "category_create": "إضافة تصنيف",
+      "category_update": "تعديل تصنيف",
+      "category_delete": "حذف تصنيف",
+      "category_reorder": "إعادة ترتيب التصنيفات"
     },
     "targets": {
       "accounts_user": "مستخدم",
@@ -587,7 +596,8 @@
       "accounts_role": "دور",
       "accounts_accessrule": "قاعدة وصول",
       "core_setting": "إعداد",
-      "catalog_category": "تصنيف"
+      "catalog_category": "تصنيف",
+      "library_library": "مكتبة"
     }
   },
   "settings": {
@@ -597,6 +607,7 @@
     "sections": "مجموعات الإعدادات",
     "saved": "حُفظ «{{name}}»",
     "invalid": "أدخل قيمة صحيحة.",
+    "range": "أدخل قيمة من {{min}} إلى {{max}}.",
     "isDefault": "القيمة الافتراضية",
     "default": "الافتراضي: {{value}}",
     "changed": "عُدّل",

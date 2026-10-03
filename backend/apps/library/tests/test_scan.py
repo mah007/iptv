@@ -95,7 +95,9 @@ def test_a_touched_file_with_the_same_content_only_updates_mtime(
     job, queued = scan(library)
     assert counts(job) == (1, 0, 0, 0, 0, 0)
     assert queued == []
-    assert MediaFile.objects.get().mtime.timestamp() == pytest.approx(stat.st_mtime + 100)
+    mtime = MediaFile.objects.get().mtime
+    assert mtime is not None
+    assert mtime.timestamp() == pytest.approx(stat.st_mtime + 100)
 
 
 def test_moved_files_keep_their_metadata(make_library: Callable[..., Library]) -> None:
@@ -218,7 +220,7 @@ def test_a_failing_scan_is_marked_failed(
     def explode(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError
 
-    monkeypatch.setattr(services.storage, "walk", explode)
+    monkeypatch.setattr("apps.library.services.storage.walk", explode)
     job, _ = scan(library)
     assert job.status == ScanStatus.FAILED
     assert "Scan failed: RuntimeError" in job.log
@@ -240,7 +242,7 @@ def test_progress_is_published(make_library: Callable[..., Library]) -> None:
             events.append(json.loads(message["data"]))
     finally:
         pubsub.close()
-    assert [event["status"] for event in events][0] == ScanStatus.RUNNING
+    assert events[0]["status"] == ScanStatus.RUNNING
     assert events[-1]["status"] == ScanStatus.DONE
     assert events[-1]["new"] == 1
     assert events[-1]["library_id"] == str(library.pk)
@@ -268,7 +270,7 @@ def test_request_scan_reuses_the_active_scan(
     assert watcher.pk != first.pk
     # A queued job that never started is replaced.
     ScanJob.objects.filter(pk=first.pk).update(created_at=timezone.now() - timedelta(hours=1))
-    fresh, created = services.request_scan(library)
+    _fresh, created = services.request_scan(library)
     assert created
     first.refresh_from_db()
     assert first.status == ScanStatus.FAILED

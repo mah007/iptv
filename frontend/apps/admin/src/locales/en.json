@@ -551,7 +551,16 @@
       "auth_login": "Signed in",
       "auth_logout": "Signed out",
       "auth_mfa_enroll": "Two-factor set up",
-      "system_expire": "Access expired"
+      "system_expire": "Access expired",
+      "customer_access_expire": "Access expired",
+      "library_create": "Library added",
+      "library_update": "Library changed",
+      "library_delete": "Library removed",
+      "library_scan": "Library scanned",
+      "category_create": "Category added",
+      "category_update": "Category changed",
+      "category_delete": "Category removed",
+      "category_reorder": "Categories reordered"
     },
     "targets": {
       "accounts_user": "User",
@@ -559,7 +568,8 @@
       "accounts_role": "Role",
       "accounts_accessrule": "Access rule",
       "core_setting": "Setting",
-      "catalog_category": "Category"
+      "catalog_category": "Category",
+      "library_library": "Library"
     }
   },
   "settings": {
@@ -569,6 +579,7 @@
     "sections": "Setting groups",
     "saved": "{{name}} saved",
     "invalid": "Enter a valid value.",
+    "range": "Enter a value from {{min}} to {{max}}.",
     "isDefault": "Default value",
     "default": "Default: {{value}}",
     "changed": "Changed",

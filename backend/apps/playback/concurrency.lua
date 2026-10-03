@@ -155,7 +155,7 @@ local function heartbeat()
     redis.call("HSET", sess, "edge", edge)
   end
   if bytes and bytes > 0 then
-    redis.call("HINCRBY", sess, "bytes", bytes)
+    redis.call("HINCRBY", sess, "bytes", ARGV[10]) -- the decimal string: exact
   end
   redis.call("ZADD", index, now_s, session)
   return {"allow", status}

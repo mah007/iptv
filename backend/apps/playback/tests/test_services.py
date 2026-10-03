@@ -459,3 +459,16 @@ def test_sweeper_closes_rows_that_lost_their_record(
     assert services.sweep(now=T0.timestamp() + 121).orphans == 1
     grant.session.refresh_from_db()
     assert (grant.session.end_reason, grant.session.ended_at) == (EndReason.IDLE, T0)
+
+
+def test_a_lapsed_session_of_the_device_ends_when_it_starts_another_title(
+    customer: User, make_title: TitleFactory
+) -> None:
+    first = start(customer, make_title())
+    # Five minutes of one long response: the slot lapsed, the record lives on.
+    second = start(customer, make_title(), now=T0 + timedelta(minutes=5))
+    first.session.refresh_from_db()
+    assert first.session.end_reason == EndReason.STOPPED
+    assert records.read_record(first.session_key) is None
+    assert state_redis().get(concurrency.kick_key(first.session_key)) == b"replaced"
+    assert second.session.ended_at is None

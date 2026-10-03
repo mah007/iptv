@@ -21,6 +21,7 @@ models and never sees a storage path.
 """
 
 import hashlib
+import ipaddress
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -206,6 +207,13 @@ def session_key(user_id: UUID | str, device_id: UUID | str, title_ref: str) -> s
     return digest[:32]
 
 
+def _valid_ip(value: str | None) -> str | None:
+    try:
+        return str(ipaddress.ip_address(value)) if value else None
+    except ValueError:
+        return None
+
+
 def _aware(seconds: float) -> datetime:
     return datetime.fromtimestamp(seconds, tz=UTC)
 
@@ -386,7 +394,7 @@ def _session_row(
                     last_seen=None,
                     bytes_sent=0,
                 )
-    row, _created = PlaybackSession.objects.get_or_create(
+    row, created = PlaybackSession.objects.get_or_create(
         session_key=key,
         ended_at=None,
         defaults={
@@ -404,7 +412,7 @@ def _session_row(
             "last_heartbeat_at": start.moment,
         },
     )
-    return row, False
+    return row, not created
 
 
 def _close_evicted(evicted: Iterable[concurrency.Eviction], moment: datetime) -> None:
@@ -483,6 +491,14 @@ def _open_session(start: _Start) -> PlaybackGrant:
         if slot.status is SlotStatus.ADDED:
             concurrency.release(start.user.pk, key, start.device.pk)
         raise
+    if slot.status is SlotStatus.ADDED:
+        # One stream per device: a session of this device whose slot had already
+        # lapsed (one long response) was not evicted by the script; end it too.
+        stop_sessions(
+            open_sessions().filter(device=start.device).exclude(session_key=key),
+            KickReason.REPLACED,
+            now=start.moment,
+        )
     url = f"{conf.media_base_url()}/v/{token}/{start.rendition.entry}"
     return PlaybackGrant(
         url=url,
@@ -512,6 +528,7 @@ def start_playback(  # noqa: PLR0913 (keyword-only request context)
     `country` describe the client as the caller saw it.
     """
     moment = now or timezone.now()
+    client_ip = _valid_ip(client_ip)
     try:
         entitlement = _check_account(user, moment)
         _check_device(user, device)

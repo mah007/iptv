@@ -5,10 +5,10 @@ import uuid
 from collections.abc import Iterator
 
 import pytest
-
-from apps.core.services import reset_settings_cache
 import redis
 from django.conf import settings
+
+from apps.core.services import reset_settings_cache
 
 
 @pytest.fixture(autouse=True)

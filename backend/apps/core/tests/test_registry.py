@@ -1,5 +1,7 @@
 """The typed settings registry (SPEC §8.3 Settings; plan §2.5 keys and defaults)."""
 
+import json
+
 import pytest
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 
@@ -29,6 +31,10 @@ EXPECTED_DEFAULTS = {
     "metadata.match_auto_accept": 0.85,
     "metadata.match_margin": 0.10,
     "metadata.certification_country": "SA",
+    "metadata.genre_category_map": json.dumps(
+        dict(registry.DEFAULT_GENRE_CATEGORY_MAP), separators=(",", ":")
+    ),
+    "library.watcher_stable_s": 60,
     "billing.vat_rate": 0.15,
     "billing.currency": "SAR",
     "billing.grace_days": 3,
@@ -101,6 +107,11 @@ def test_float_settings_store_floats() -> None:
         ("xtream.server_url", "ftp://tv.example.com", "valid URL"),
         ("billing.currency", "sar", "ISO 4217"),
         ("metadata.certification_country", "SAU", "ISO 3166-1"),
+        ("metadata.genre_category_map", "not json", "JSON object"),
+        ("metadata.genre_category_map", "[1, 2]", "JSON object"),
+        ("metadata.genre_category_map", '{"action": "action"}', "JSON object"),
+        ("metadata.genre_category_map", '{"28": "Not A Slug"}', "JSON object"),
+        ("library.watcher_stable_s", 1, "at least 5"),
     ],
 )
 def test_constraints_and_validators(key: str, value: object, message: str) -> None:
@@ -116,6 +127,8 @@ def test_constraints_and_validators(key: str, value: object, message: str) -> No
         ("xtream.server_url", ""),
         ("xtream.server_url", "https://tv.example.com"),
         ("branding.accent_color", "#a1b2c3"),
+        ("metadata.genre_category_map", '{"28": "action", "10765": "sci-fi"}'),
+        ("metadata.genre_category_map", "{}"),
     ],
 )
 def test_valid_values_pass(key: str, value: object) -> None:

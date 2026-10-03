@@ -53,6 +53,21 @@ import { applyFieldErrors, notifyError } from "../../lib/problems";
 import { permissionArea, permissionLabel, roleLabel } from "./labels";
 
 const OWNER = "owner";
+/** Permission areas in the order of the admin's navigation (SPEC §8.2). */
+const AREA_ORDER = [
+  "dashboard",
+  "customers",
+  "devices",
+  "sessions",
+  "subscriptions",
+  "plans",
+  "billing",
+  "library",
+  "settings",
+  "audit",
+  "roles",
+  "admins",
+];
 
 const roleSchema = z.object({
   name: z
@@ -197,8 +212,19 @@ export function RolesMatrix({ canManage }: { canManage: boolean }) {
       const area = permissionArea(permission.code);
       grouped.set(area, [...(grouped.get(area) ?? []), permission]);
     }
-    return [...grouped.entries()];
+    const rank = (area: string) => {
+      const index = AREA_ORDER.indexOf(area);
+      return index === -1 ? AREA_ORDER.length : index;
+    };
+    return [...grouped.entries()].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
   }, [permissions.data]);
+  const columns = useMemo(
+    () =>
+      [...(roles.data ?? [])].sort(
+        (a, b) => Number(b.name === OWNER) - Number(a.name === OWNER),
+      ),
+    [roles.data],
+  );
 
   if (roles.isPending || permissions.isPending) return <MatrixSkeleton />;
   if (roles.isError || permissions.isError) {
@@ -299,8 +325,8 @@ export function RolesMatrix({ canManage }: { canManage: boolean }) {
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="min-w-64">{t("roles.permission")}</TableHead>
-              {roles.data.map((role) => (
-                <TableHead key={role.id} className="min-w-28 text-center align-bottom">
+              {columns.map((role) => (
+                <TableHead key={role.id} className="min-w-28 text-center align-top">
                   <div className="grid justify-items-center gap-1 py-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -367,7 +393,7 @@ export function RolesMatrix({ canManage }: { canManage: boolean }) {
                         </code>
                       </div>
                     </TableCell>
-                    {roles.data.map((role) => {
+                    {columns.map((role) => {
                       const granted = grants(role).includes(permission.code);
                       return (
                         <TableCell key={role.id} className="text-center">

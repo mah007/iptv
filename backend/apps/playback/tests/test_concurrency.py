@@ -215,17 +215,18 @@ def test_heartbeat_refreshes_slot_and_record() -> None:
     record(1, 1)
     take(1, 1)
     result = beat(1, now=NOW + 40, ip="203.0.113.9", edge="edge-1", bytes_sent=1000)
+    assert beat(1, now=NOW + 41, bytes_sent=2**52).allowed
     assert result == HeartbeatResult(allowed=True, reason="refreshed")
     stored = records.read_record(session_id(1))
     assert stored is not None
     assert (stored.seen, stored.ip, stored.edge, stored.bytes) == (
-        NOW + 40,
+        NOW + 41,
         "203.0.113.9",
         "edge-1",
-        1000,
+        1000 + 2**52,
     )
-    assert score(conc_key(USER), member(1, 1)) == NOW + 40
-    assert score(concurrency.INDEX_KEY, session_id(1)) == NOW + 40
+    assert score(conc_key(USER), member(1, 1)) == NOW + 41
+    assert score(concurrency.INDEX_KEY, session_id(1)) == NOW + 41
 
 
 def test_heartbeat_refuses_kicked_and_ended_sessions() -> None:

@@ -181,4 +181,5 @@ def offline_tmdb(monkeypatch: pytest.MonkeyPatch) -> Iterator[TMDBClient]:
     metadata.reset_caches()
     monkeypatch.setattr(metadata, "tmdb", lambda: client)
     yield client
+    monkeypatch.undo()
     metadata.reset_caches()

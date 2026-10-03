@@ -58,6 +58,14 @@ function parseDraft(entry: SettingEntry, draft: string): Value | null {
   return number;
 }
 
+function outOfRange(entry: SettingEntry, value: Value | null): boolean {
+  if (typeof value !== "number") return false;
+  return (
+    (entry.min_value !== null && value < entry.min_value) ||
+    (entry.max_value !== null && value > entry.max_value)
+  );
+}
+
 /** One setting: label, description, a typed control, its default and who changed it last. */
 export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: boolean }) {
   const { t } = useTranslation();
@@ -107,7 +115,7 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
 
   const parsed = parseDraft(entry, draft);
   const dirty = entry.sensitive ? draft !== "" : draft !== displayValue(entry.value);
-  const invalid = dirty && parsed === null;
+  const invalid = dirty && (parsed === null || outOfRange(entry, parsed));
   const disabled = !canEdit || update.isPending;
 
   let control;
@@ -173,10 +181,11 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
     );
     control = (
       <form
+        noValidate
         className="flex flex-wrap items-start gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          if (parsed !== null && dirty) save(parsed);
+          if (parsed !== null && dirty && !invalid) save(parsed);
         }}
       >
         <div className="min-w-0 flex-1">{field}</div>
@@ -235,7 +244,11 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
           <div className="min-w-0 flex-1">{control}</div>
         </div>
         {invalid ? (
-          <p className="text-xs font-medium text-danger-text">{t("settings.invalid")}</p>
+          <p className="text-xs font-medium text-danger-text">
+            {parsed !== null && entry.min_value !== null && entry.max_value !== null
+              ? t("settings.range", { min: entry.min_value, max: entry.max_value })
+              : t("settings.invalid")}
+          </p>
         ) : null}
         {error ? (
           <p id={errorId} className="text-xs font-medium text-danger-text">
@@ -243,7 +256,7 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
           </p>
         ) : null}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {entry.is_default ? (
+          {entry.is_default || entry.value === entry.default ? (
             <span>{t("settings.isDefault")}</span>
           ) : (
             <>

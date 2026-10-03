@@ -46,7 +46,7 @@ POLL_S: Final = 5.0
 SYNC_S: Final = 60.0
 HEARTBEAT_S: Final = 30.0
 
-type Enqueue = Callable[[str, str], None]
+type Enqueue = Callable[[str, str], object]
 
 
 @dataclass
@@ -86,7 +86,7 @@ class LibraryWatcher:
         self.watched: dict[str, tuple[str, ObservedWatch]] = {}
         self.pending: dict[tuple[str, str], _Pending] = {}
 
-    # --- libraries ---------------------------------------------------------------------------
+    # --- libraries --------------------------------------------------------------------------------
 
     def sync_libraries(self) -> None:
         """Watch exactly the enabled libraries whose folder exists."""
@@ -113,7 +113,7 @@ class LibraryWatcher:
             self.watched[library_id] = (path, watch)
             logger.info("library watched", extra={"library": library_id})
 
-    # --- events ------------------------------------------------------------------------------------
+    # --- events -----------------------------------------------------------------------------------
 
     def _key(self, library_id: str, raw: bytes | str) -> str | None:
         """The library-relative path, or None for paths outside it or hidden ones."""
@@ -197,7 +197,7 @@ class LibraryWatcher:
                 del self.pending[(library_id, key)]
                 self.enqueue(library_id, key)
 
-    # --- the loop -----------------------------------------------------------------------------------
+    # --- the loop ---------------------------------------------------------------------------------
 
     def run(self, *, heartbeat: Callable[[], None], stop: Callable[[], bool]) -> None:
         self.sync_libraries()

@@ -2,7 +2,7 @@
 categories). Files are shown by their library-relative path; storage paths never leave
 the server. Artwork URLs point at the media edge (`MEDIA_BASE_URL/images/...`)."""
 
-from typing import Any
+from typing import Any, ClassVar
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -25,6 +25,7 @@ from apps.catalog.models import (
     TitleStatus,
 )
 from apps.catalog.services import media_url
+from apps.library.parsing import ParseResult
 
 #: The size shown by default (poster grids, detail pages).
 DISPLAY_SIZES = ("w500", "w780", "original", "w1280", "w185")
@@ -75,6 +76,9 @@ class CategoryWriteSerializer(serializers.ModelSerializer[Category]):
             "icon",
             "parent",
         )
+        # The (kind, slug) uniqueness is the service's: 409 CONFLICT, and the slug is
+        # optional (made from name_en).
+        validators: ClassVar[list[Any]] = []
 
     def validate_kind(self, value: str) -> str:
         if self.instance is not None and value != self.instance.kind:
@@ -591,7 +595,7 @@ class ReviewFileSerializer(serializers.ModelSerializer[MediaFile]):
 
 class ReviewSerializer(serializers.ModelSerializer[MatchReview]):
     media_file = ReviewFileSerializer(read_only=True)
-    parse_result = ParseSerializer(read_only=True)
+    parse_result = serializers.SerializerMethodField()
     candidates = serializers.SerializerMethodField()
     decided_by: serializers.SlugRelatedField[User] = serializers.SlugRelatedField(
         slug_field="username", read_only=True
@@ -613,6 +617,13 @@ class ReviewSerializer(serializers.ModelSerializer[MatchReview]):
             "created_at",
         )
         read_only_fields = fields
+
+    @extend_schema_field(ParseSerializer(allow_null=True))
+    def get_parse_result(self, review: MatchReview) -> dict[str, Any] | None:
+        data = review.parse_result
+        if not isinstance(data, dict) or "kind" not in data:
+            return None
+        return ParseResult.from_json(data).to_json()
 
     @extend_schema_field(CandidateSerializer(many=True))
     def get_candidates(self, review: MatchReview) -> list[dict[str, Any]]:

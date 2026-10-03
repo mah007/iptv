@@ -49,6 +49,7 @@ const KNOWN_ACTIONS = [
   "customer.access.update",
   "customer.suspend",
   "customer.reactivate",
+  "customer.access.expire",
   "device.create",
   "device.reset_credentials",
   "device.block",
@@ -65,12 +66,27 @@ const KNOWN_ACTIONS = [
   "role.update",
   "role.delete",
   "setting.update",
+  "library.create",
+  "library.update",
+  "library.delete",
+  "library.scan",
+  "category.create",
+  "category.update",
+  "category.delete",
+  "category.reorder",
   "auth.login",
   "auth.logout",
   "auth.mfa_enroll",
   "system.expire",
 ];
-const KNOWN_TARGETS = ["accounts.user", "accounts.device", "accounts.role", "core.setting"];
+const KNOWN_TARGETS = [
+  "accounts.user",
+  "accounts.device",
+  "accounts.role",
+  "core.setting",
+  "library.library",
+  "catalog.category",
+];
 
 /** i18next reads "." as nesting; action names use it too, so they are stored with "_". */
 function actionKey(action: string): string {
@@ -83,15 +99,18 @@ function targetKey(type: string): string {
 
 function ActionBadge({ action }: { action: string }) {
   const { t } = useTranslation();
-  return (
+  const label = t(actionKey(action), { defaultValue: "" });
+  return label ? (
     <span className="grid min-w-0">
-      <span className="truncate text-foreground">
-        {t(actionKey(action), { defaultValue: action })}
-      </span>
+      <span className="truncate text-foreground">{label}</span>
       <code className="truncate font-mono text-[11px] text-muted-foreground" dir="ltr">
         {action}
       </code>
     </span>
+  ) : (
+    <code className="truncate font-mono text-xs text-foreground" dir="ltr">
+      {action}
+    </code>
   );
 }
 

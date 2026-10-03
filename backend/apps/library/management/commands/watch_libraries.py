@@ -31,7 +31,7 @@ class Command(BaseCommand):
             state_redis().set(HEARTBEAT_KEY, int(time.time()), ex=HEARTBEAT_TTL_S)
 
         watcher = LibraryWatcher(
-            lambda library_id, path: tasks.scan_path.delay(library_id, path),
+            tasks.scan_path.delay,
             stable_s=lambda: float(get_setting("library.watcher_stable_s")),
             observer=make_observer(polling=settings.LIBRARY_WATCHER_POLLING),
         )
