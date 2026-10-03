@@ -21,6 +21,7 @@ from apps.xtream_api.dto import TitleKind
 from apps.xtream_api.playback import PlayStarted
 
 JSON_CONTENT_TYPE = "application/json"
+USER_AGENT_MAX = 256  # PlaybackSession.user_agent
 
 
 def _params(request: HttpRequest) -> dict[str, str]:
@@ -120,7 +121,14 @@ def _play(
     account = auth.authenticate(*credentials, ip=ip)
     if account is None:
         return _empty(404)
-    outcome = services.start_play(account, kind=kind, xc_id=xc_id, extension=ext, ip=ip)
+    outcome = services.start_play(
+        account,
+        kind=kind,
+        xc_id=xc_id,
+        extension=ext,
+        ip=ip,
+        user_agent=request.META.get("HTTP_USER_AGENT", "")[:USER_AGENT_MAX],
+    )
     if isinstance(outcome, PlayStarted):
         response = HttpResponse(status=302)
         response["Location"] = outcome.url

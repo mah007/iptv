@@ -5,7 +5,8 @@ constant-time part: one query for the credential, Argon2id (or a 5-minute cached
 success in redis-state under an HMAC of the pair), and one verification's worth
 of work for unknown usernames. Every refusal (unknown user, wrong password,
 revoked credential or device) returns None, which every endpoint turns into the
-same response.
+same response. Failures are counted per IP and per username, and past the limit
+the answer is the same None without verifying (ratelimit.py).
 
 A known account always signs in, so the app can say why it may not watch:
 - `status` is "Active", "Expired" or "Disabled" (suspended or disabled accounts,
@@ -35,6 +36,7 @@ from apps.core.services import get_setting
 from apps.core.stores import state_redis
 from apps.playback import entitlements
 from apps.playback.entitlements import Entitlement, EntitlementStatus
+from apps.xtream_api import ratelimit
 from apps.xtream_api.dto import Locale
 from apps.xtream_api.payloads import AccountStatus, ServerInfo
 from apps.xtream_api.source import CatalogScope
@@ -68,12 +70,19 @@ def authenticate(username: str, password: str, *, ip: str | None) -> XtreamAccou
     """The account behind an Xtream username and password, or None (always the same None)."""
     if not username or not password:
         return None
+    counted = ratelimit.failures(username, ip)
+    if counted.blocked:  # the same refusal, without verifying (ratelimit.py)
+        return None
     if "\x00" in username:  # Postgres rejects NUL; spend the same time as any unknown user
         creds.burn_verify(password)
+        ratelimit.record_failure(username, ip)
         return None
     login = account_services.authenticate_xtream(username, password)
     if login is None:
+        ratelimit.record_failure(username, ip)
         return None
+    if counted.username:
+        ratelimit.clear_username(username)
     _touch(login.credential, login.device, ip)
     user, device = login.user, login.device
     return account(user, device, entitlements.get(user.pk))

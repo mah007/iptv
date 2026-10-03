@@ -135,6 +135,33 @@ services:
       start_period: 30s
       retries: 3
 
+  # Compat MP4 jobs (SPEC §7.3, ADR-0010): detects its encoders at start and consumes
+  # only the matching transcode.<backend> queues. CPU only unless a GPU overlay adds
+  # devices (docker/compose.gpu-nvidia.yml, docker/compose.gpu-intel.yml).
+  transcoder:
+    <<: *app
+    image: smart-iptv/media:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      target: media
+    command: ["python", "manage.py", "run_transcoder"]
+    volumes:
+      # Writes renditions/; the overlays add /media (read-only).
+      - media-data:/data
+    stop_grace_period: 30s
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis-state: { condition: service_healthy }
+      media-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping --destination transcoder@$$HOSTNAME --timeout 5 > /dev/null"]
+      interval: 30s
+      timeout: 15s
+      # Hardware detection test-encodes every candidate encoder first.
+      start_period: 120s
+      retries: 3
+
   # Gives the media volume's folders to the user the app runs as, once per start.
   media-init:
     image: smart-iptv/app:${APP_VERSION:-dev}
@@ -153,8 +180,10 @@ services:
     restart: "no"
     logging: *logging
 
-  # The media edge (streaming/, ADR-0007): public artwork at media.<DOMAIN>/images/ now,
-  # signed /v/<token>/ media from slice 3. Plain HTTP behind Traefik.
+  # The media edge (streaming/, ADR-0007): public artwork at media.<DOMAIN>/images/ and
+  # signed /v/<token>/ media from /data/renditions (ADR-0010). Direct-play sources are
+  # symlinks into /media, which the overlays mount read-only at the same path.
+  # Plain HTTP behind Traefik.
   nginx-stream:
     image: nginx:1.30.5-alpine
     restart: unless-stopped

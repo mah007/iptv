@@ -223,6 +223,10 @@ CELERY_TASK_QUEUES = tuple(
 # `metadata`, artwork on `images`; all on the `worker` service.
 CELERY_TASK_ROUTES = {
     "apps.library.tasks.*": {"queue": "scan"},
+    # Media (ADR-0010): planning probes the source, so it runs with the scans; jobs are
+    # sent to their backend's transcode.* queue explicitly (CPU if anyone forgets).
+    "apps.media.tasks.prepare_media_file": {"queue": "scan"},
+    "apps.media.tasks.run_transcode_job": {"queue": "transcode.cpu"},
     "apps.metadata.tasks.fetch_*": {"queue": "images"},
     "apps.metadata.tasks.*": {"queue": "metadata"},
 }
@@ -249,6 +253,12 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.library.tasks.reconcile_libraries",
         "schedule": 60.0,
         "options": {"expires": 55},
+    },
+    # Plans matched files that were missed and requeues jobs of dead transcoders (M8).
+    "media-reconcile": {
+        "task": "apps.media.tasks.reconcile_media",
+        "schedule": 300.0,
+        "options": {"expires": 280},
     },
     # Closes playback sessions whose heartbeat stopped and records them (SPEC §7.4).
     "playback-sweep-sessions": {

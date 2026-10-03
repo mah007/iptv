@@ -43,6 +43,15 @@ services:
     <<: *app-dev
     command: ["watchfiles", "--filter", "python", "python manage.py watch_libraries", "/app"]
 
+  transcoder:
+    <<: *app-dev
+    command: ["watchfiles", "--filter", "python", "python manage.py run_transcoder", "/app"]
+
+  nginx-stream:
+    volumes:
+      # Direct-play renditions are symlinks to library files (ADR-0010).
+      - ./media:/media:ro
+
   media-init:
     <<: *app-dev
     user: "0:0"

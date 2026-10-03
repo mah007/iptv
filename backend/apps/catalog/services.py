@@ -33,6 +33,7 @@ from apps.catalog.signals import notify_catalog_changed
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.registry import DEFAULT_GENRE_CATEGORY_MAP
 from apps.core.services import get_setting
+from apps.media.models import PLAYABLE_KINDS, RenditionStatus
 
 #: English and Arabic names of the categories the default genre map creates.
 CATEGORY_NAMES: Final[Mapping[str, tuple[str, str]]] = {
@@ -97,9 +98,14 @@ def media_url(key: str) -> str:
 
 
 def playable_files() -> Q:
-    """Active files that play now. Slice 2: sources that play directly in every client;
-    slice 3 adds files with a ready compat MP4 rendition."""
-    return Q(removed_at__isnull=True, direct_play=True)
+    """Active files that play now: sources that play directly in every client, and
+    files with a ready progressive rendition (compat MP4 or direct-play source;
+    ADR-0010). Filter with `.distinct()` when the rows matter, since it joins
+    renditions."""
+    return Q(removed_at__isnull=True) & (
+        Q(direct_play=True)
+        | Q(renditions__status=RenditionStatus.READY, renditions__kind__in=PLAYABLE_KINDS)
+    )
 
 
 def _derived_status(title: Title, active: QuerySet[MediaFile], now: datetime) -> str:

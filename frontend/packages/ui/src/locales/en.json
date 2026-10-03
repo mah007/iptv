@@ -212,6 +212,11 @@
     "open": "Open",
     "resolved": "Resolved",
     "skipped": "Skipped",
-    "sent": "Sent"
+    "sent": "Sent",
+    "done": "Done",
+    "matched": "Matched",
+    "matching": "Matching",
+    "error": "Error",
+    "enabled": "Enabled"
   }
 }

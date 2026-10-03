@@ -14,7 +14,12 @@ export HOST_GID := $(shell id -g)
 APP_VERSION ?= $(or $(shell sed -n 's/^APP_VERSION=//p' .env 2>/dev/null),dev)
 export APP_VERSION
 
-COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml
+# Optional transcoder GPU overlays (ADR-0010): GPU=nvidia, GPU=intel or GPU=nvidia,intel,
+# on the command line or in .env. Without them the transcoder encodes on the CPU.
+GPU ?= $(shell sed -n 's/^GPU=//p' .env 2>/dev/null)
+comma := ,
+GPU_FILES := $(foreach g,$(subst $(comma), ,$(GPU)),-f docker/compose.gpu-$(g).yml)
+COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml $(GPU_FILES)
 # Every backend container bind-mounts ./media (the libraries, git-ignored). Create it as
 # the host user, or Docker would create it owned by root.
 $(shell mkdir -p media)

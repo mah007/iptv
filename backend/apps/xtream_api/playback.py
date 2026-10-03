@@ -3,9 +3,9 @@
 `/movie|series/{u}/{p}/{xc_id}.{ext}` authenticates, resolves the title and asks
 a `PlaybackStarter` for a signed edge URL, then answers 302. The starter runs the
 entitlement checks in SPEC §7.4 order and takes the concurrency slot; it answers
-with the URL or a stable error code. `playback.services.start_playback` is wired
-in behind this protocol with the catalog (POC slice 4); until then playback
-answers 503 PLAYBACK_UNAVAILABLE.
+with the URL or a stable error code. XtreamApiConfig.ready() installs the one over
+`playback.services.start_playback` (starter.py); `UnavailablePlayback` (503
+PLAYBACK_UNAVAILABLE) is the default before that.
 
 Responses to apps carry no body: players only look at the status. `X-Reason`
 names the refusal for support and debugging.
@@ -38,6 +38,7 @@ class PlayRequest:
     title: TitleRef
     extension: str  # as requested, lower case; apps request container_extension (mp4)
     client_ip: str | None
+    user_agent: str = ""
 
 
 @dataclass(frozen=True, slots=True)

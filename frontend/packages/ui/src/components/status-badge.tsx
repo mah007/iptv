@@ -33,6 +33,11 @@ export const STATUS_TONES = {
   resolved: "success",
   skipped: "neutral",
   sent: "success",
+  done: "success",
+  matched: "success",
+  matching: "info",
+  error: "danger",
+  enabled: "success",
 } as const satisfies Record<string, BadgeTone>;
 
 export type KnownStatus = keyof typeof STATUS_TONES;
