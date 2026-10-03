@@ -5,12 +5,47 @@
 | M1 Infrastructure & repo | Done | `m1-done` |
 | M2 Backend foundation | Done | `m2-done` |
 | M3 Accounts (POC scope "M3-lite": access profiles instead of plans and subscriptions) | Done for the POC; plans, subscriptions and billing move to the final commercial slice | — |
-| POC slice 2: M4 library, M5 metadata, M6-lite catalog | Next (plan in `docs/plans/poc.md`) | — |
-| POC slice 3: M7 direct play, M8-lite transcoding | Planned | — |
-| POC slice 4: M9 Xtream API and the IPTV-app demo | Planned | — |
+| POC slice 2: M4 library, M5 metadata, M6-lite catalog | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)) | — |
+| POC slice 3: M7 direct play, M8-lite transcoding | In progress: the playback core is done, transcoding and edge wiring are being built | — |
+| POC slice 4: M9 Xtream API and the IPTV-app demo | In progress: the Xtream core is done ([ADR-0008](adr/0008-xtream-api.md)), catalog and playback wiring are being built | — |
 | M10–M15, then the commercial slice | Planned | — |
 
 **Owner decision (2026-10-03): proof of concept first.** An admin creates a customer with device credentials, media is scanned, matched and transcoded, and an IPTV app logs in and plays. Everything commercial (plans, subscriptions, billing, payments, invoices, trials, notifications) is the last slice.
+
+## POC phase 1: ingest, playback and Xtream cores, admin pages (2026-10-04)
+
+### Done
+- **Slice 2: library → metadata → catalog** ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)):
+  - libraries over `/media` (read-only), with a watcher and reconciliation scans;
+  - the scan, probe, parse, match and enrich pipeline as Celery tasks, with Redis locks and SSE progress;
+  - TMDB matching with auto-accept or a review queue, plus an offline fixture mode labelled synthetic;
+  - artwork served by the nginx-stream edge on `media.<DOMAIN>` with immutable caching;
+  - catalog models with `xc_id`, categories, and the admin API.
+- **Playback core (M7):**
+  - signed media tokens with key rotation;
+  - an atomic Lua concurrency script (reject or kick the oldest);
+  - sessions and the SPEC §7.4 checks in order;
+  - the Redis-only `/internal/stream-auth`;
+  - the sweeper;
+  - admin sessions with kill and an SSE feed.
+- **Xtream API core (M9)** ([ADR-0008](adr/0008-xtream-api.md)):
+  - login and catalog actions, M3U, XMLTV and play redirects, built from DTOs and validated against `compat/`;
+  - constant-time authentication;
+  - a scope-keyed catalog cache;
+  - no credentials in any log.
+- **Admin pages:**
+  - MFA sign-in, dashboard, customers, the create-customer wizard with a one-time credential and QR, devices, admins and roles, audit, settings;
+  - Arabic and English, light and dark, mobile.
+- **Admin-chosen credentials** (owner request): admins may type the customer's account username and each device's Xtream username and password, or leave them generated.
+  - Characters are limited to those that need no URL encoding inside IPTV apps.
+  - Usernames are unique regardless of case.
+  - The minimum password length is a setting.
+
+### Evidence
+- 1881 backend tests pass, 96.35% coverage.
+- Ruff, mypy, `makemigrations --check` clean.
+- 229 frontend tests pass; ESLint and Prettier clean.
+- Slice 2 end to end on the dev stack: The Matrix, Breaking Bad, Inception and Wadjda matched with Arabic overviews; the ambiguous file resolved from the review queue; the poster served with `Cache-Control: public, max-age=31536000, immutable`.
 
 ## M2 + M3-lite: backend foundation, accounts, admin UI kit (2026-10-03)
 
