@@ -1,0 +1,25 @@
+# Traefik static configuration (SPEC §13). Routers come from container labels.
+# Dev serves plain HTTP on *.localhost. The production TLS entrypoint, ACME and
+# HTTP→HTTPS redirect are added with the production overlay.
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: smart-iptv-edge
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+api:
+  dashboard: true
+
+ping: {}
+
+log:
+  level: INFO
+
+# Access logging stays off: Xtream URLs carry credentials in the path, and the
+# redacting log pipeline (Traefik, Nginx, Alloy) arrives in M2/M13.

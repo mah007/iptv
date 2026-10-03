@@ -1,0 +1,9 @@
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: strict-origin-when-cross-origin
+        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+        # Plain HTTP in dev; prod adds HSTS (stsSeconds, stsIncludeSubdomains, stsPreload).

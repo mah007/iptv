@@ -1,0 +1,68 @@
+# Development overlay: hot reload with sources bind-mounted from the host.
+# Containers run as the host user (HOST_UID/HOST_GID, exported by the Makefile)
+# so files they write, like caches and node_modules, stay editable.
+
+x-app-dev: &app-dev
+  image: smart-iptv/app:dev-tools
+  build:
+    context: .
+    dockerfile: docker/app.Dockerfile
+    target: dev
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  environment:
+    DJANGO_SETTINGS_MODULE: config.settings.dev
+  volumes:
+    - ./backend:/app
+  working_dir: /app
+
+services:
+  traefik:
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.dashboard.rule: Host(`traefik.${DOMAIN:-localhost}`)
+      traefik.http.routers.dashboard.entrypoints: web
+      traefik.http.routers.dashboard.service: api@internal
+
+  web:
+    <<: *app-dev
+    command: ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app"]
+
+  worker:
+    <<: *app-dev
+    command: ["watchfiles", "--filter", "python", "celery -A config worker --queues default,scan,metadata,images,notify --concurrency 2 --loglevel INFO", "/app"]
+
+  beat:
+    <<: *app-dev
+    command: ["watchfiles", "--filter", "python", "celery -A config beat --schedule /tmp/celerybeat-schedule --loglevel INFO", "/app"]
+
+  meilisearch:
+    environment:
+      MEILI_ENV: development
+
+  frontend:
+    image: smart-iptv/frontend:dev-tools
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      target: dev
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      VITE_HMR_CLIENT_PORT: ${HTTP_PORT:-80}
+      HOME: /tmp
+      COREPACK_HOME: /pnpm-store/corepack
+    volumes:
+      - ./frontend:/app
+      - pnpm-store:/pnpm-store
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"Promise.all([5173,5174].map(p=>fetch('http://127.0.0.1:'+p))).then(r=>process.exit(r.every(x=>x.ok)?0:1),()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      start_period: 120s
+      retries: 5
+    labels:
+      traefik.http.services.admin.loadbalancer.server.port: "5173"
+      traefik.http.services.portal.loadbalancer.server.port: "5174"
+
+volumes:
+  pnpm-store:
