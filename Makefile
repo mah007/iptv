@@ -70,8 +70,8 @@ test: test-backend test-frontend ## Run all tests
 
 PYTEST_COVERAGE := --cov=apps --cov-report=term-missing:skip-covered --cov-fail-under=85
 
-test-backend: ## pytest on the running stack's stores; full run enforces 85% coverage, t="..." runs a subset
-	$(COMPOSE) run --rm -T web pytest $(if $(t),$(t),$(PYTEST_COVERAGE))
+test-backend: ## pytest on the running stack's stores; full run enforces 85% coverage, t="..." runs a subset, lane=1..3 isolates parallel runs
+	$(COMPOSE) run --rm -T $(if $(lane),-e TEST_LANE=$(lane) )web pytest $(if $(t),$(t),$(PYTEST_COVERAGE))
 
 test-frontend: ## Vitest for every frontend package
 	$(RUN_FRONTEND) pnpm test
