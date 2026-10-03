@@ -389,6 +389,23 @@ export interface CategoryWriteRequest {
   parent?: string | null;
 }
 
+/**
+ * Optional admin choices for a reset: empty fields keep the username and generate a
+ * password.
+ */
+export interface CredentialResetRequest {
+  /**
+   * Leave empty to generate one. 3 to 32 letters, digits, dots, hyphens or underscores, unique regardless of case. IPTV apps compare it case-sensitively.
+   * @maxLength 32
+   */
+  username?: string;
+  /**
+   * Leave empty to generate one. At least the xtream.password_min_length setting (8 by default) of letters, digits and . _ - ~ @ ! *
+   * @maxLength 64
+   */
+  password?: string;
+}
+
 export interface Person {
   readonly id: string;
   /** @nullable */
@@ -434,12 +451,27 @@ export interface DeviceCreateRequest {
   /** @maxLength 100 */
   name?: string;
   app_hint?: AppHint;
+  /**
+   * Leave empty to generate one. 3 to 32 letters, digits, dots, hyphens or underscores, unique regardless of case. IPTV apps compare it case-sensitively.
+   * @maxLength 32
+   */
+  username?: string;
+  /**
+   * Leave empty to generate one. At least the xtream.password_min_length setting (8 by default) of letters, digits and . _ - ~ @ ! *
+   * @maxLength 64
+   */
+  password?: string;
 }
 
 /**
  * The create-customer wizard: profile, access profile and an optional first device.
  */
 export interface CustomerCreateRequest {
+  /**
+   * The customer's account username. Leave empty to generate one. 3 to 150 letters, digits and . _ @ + -, unique regardless of case.
+   * @maxLength 150
+   */
+  username?: string;
   /**
    * @minLength 1
    * @maxLength 150
@@ -1220,7 +1252,7 @@ export interface Review {
   readonly reason: string;
   readonly status: ReviewStatus;
   readonly media_file: ReviewFile;
-  readonly parse_result: Parse;
+  readonly parse_result: Parse | null;
   readonly candidates: readonly Candidate[];
   /** @nullable */
   readonly chosen_provider_id: number | null;

@@ -174,6 +174,9 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                min_value=1, max_value=65535),
     SettingDef("xtream.https_port", _K.INT, 443, "HTTPS port reported to IPTV apps.", "xtream",
                min_value=1, max_value=65535),
+    SettingDef("xtream.password_min_length", _K.INT, 8,
+               "Shortest password an admin may choose for an IPTV app login.", "xtream",
+               min_value=6, max_value=64),
     # Playback (SPEC §7.4)
     SettingDef("playback.token_ttl_vod_s", _K.INT, 7200,
                "Lifetime of signed media URLs for movies and series, in seconds.", "playback",

@@ -40,9 +40,9 @@ export function dateParam(value: unknown): string | undefined {
 export function compact<T extends Record<string, unknown>>(
   values: T,
 ): { [K in keyof T]?: Exclude<T[K], undefined> } {
-  return Object.fromEntries(
-    Object.entries(values).filter(([, value]) => value !== undefined),
-  ) as { [K in keyof T]?: Exclude<T[K], undefined> };
+  return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)) as {
+    [K in keyof T]?: Exclude<T[K], undefined>;
+  };
 }
 
 /** Changes to a search object: a key set to undefined removes that param. */

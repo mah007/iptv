@@ -181,6 +181,7 @@ CACHES = {
 }
 
 MEILI_URL = env("MEILI_URL", "http://meilisearch:7700")
+MEILI_MASTER_KEY = env("MEILI_MASTER_KEY")
 
 # --- Media storage (docs/plans/poc.md slice 2, ADR-0009) -------------------------------
 # Libraries are folders under the read-only media mount; the admin and the API only
@@ -199,7 +200,6 @@ TMDB_READ_ACCESS_TOKEN = env("TMDB_READ_ACCESS_TOKEN", "")
 TMDB_LANGUAGE = env("TMDB_LANGUAGE", "en-US")
 TMDB_RATE_LIMIT_PER_S = env_int("TMDB_RATE_LIMIT_PER_S", default=35)
 TMDB_CACHE_TTL_S = env_int("TMDB_CACHE_TTL_S", default=24 * 60 * 60)
-MEILI_MASTER_KEY = env("MEILI_MASTER_KEY")
 
 # --- Celery -------------------------------------------------------------------
 # Queues from SPEC §13. `worker` consumes the general queues; transcoders

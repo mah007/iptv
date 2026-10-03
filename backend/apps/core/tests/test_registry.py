@@ -23,6 +23,7 @@ EXPECTED_DEFAULTS = {
     "xtream.server_url": "",
     "xtream.port": 80,
     "xtream.https_port": 443,
+    "xtream.password_min_length": 8,
     "playback.token_ttl_vod_s": 7200,
     "playback.token_ttl_live_s": 21600,
     "playback.ip_binding": False,

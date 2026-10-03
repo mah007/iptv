@@ -19,7 +19,9 @@ export function ExpiryText({
 }) {
   const { t } = useTranslation();
   if (!expiresAt) {
-    return <span className={cn("text-muted-foreground", className)}>{t("customers.noExpiry")}</span>;
+    return (
+      <span className={cn("text-muted-foreground", className)}>{t("customers.noExpiry")}</span>
+    );
   }
   const days = daysUntil(expiresAt);
   return (

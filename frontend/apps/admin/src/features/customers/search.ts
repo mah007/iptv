@@ -1,13 +1,7 @@
 import { AccessStatus, CustomersListOrderingItem, UserStatus } from "@smart-iptv/api";
 import { parseTableSearch } from "@smart-iptv/ui";
 
-import {
-  booleanParam,
-  compact,
-  enumParam,
-  intParam,
-  stringParam,
-} from "../../lib/search";
+import { booleanParam, compact, enumParam, intParam, stringParam } from "../../lib/search";
 
 /** "Expires within" choices of the customers list, in days. */
 export const EXPIRING_WINDOWS = [7, 14, 30] as const;

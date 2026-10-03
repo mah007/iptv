@@ -17,6 +17,8 @@ x-app-dev: &app-dev
     - ./streaming/ffmpeg:/streaming/ffmpeg:ro
     # Media libraries, read-only (make sample-media fills ./media; ADR-0009).
     - ./media:/media:ro
+    # Xtream contract kit: JSON Schemas and golden fixtures for the contract tests.
+    - ./compat:/compat:ro
   working_dir: /app
 
 services:

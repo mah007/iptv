@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { generatePassword } from "../features/customers/credentials";
 import {
   accessPatch,
   createCustomerRequest,
   expiresAt,
+  resetFormSchema,
+  resetRequest,
   wizardSchema,
   type WizardInput,
 } from "../features/customers/schemas";
@@ -88,7 +91,14 @@ describe("URL search params", () => {
 
 describe("customer forms", () => {
   const input: WizardInput = {
-    profile: { name: " Sara ", email: "", phone: "050-123 4567", locale: "ar", notes: "" },
+    profile: {
+      username: "",
+      name: " Sara ",
+      email: "",
+      phone: "050-123 4567",
+      locale: "ar",
+      notes: "",
+    },
     access: {
       expiry: "custom",
       expiryDate: "2026-12-31",
@@ -102,7 +112,14 @@ describe("customer forms", () => {
       limitCategories: true,
       category_ids: ["cat-1"],
     },
-    device: { create: true, name: "", app_hint: "smarters" },
+    device: {
+      create: true,
+      name: "",
+      app_hint: "smarters",
+      credentials: "generate",
+      username: "",
+      password: "",
+    },
   };
 
   it("builds the create request: typed numbers, end-of-day expiry, no blank device name", () => {
@@ -158,5 +175,73 @@ describe("customer forms", () => {
       expires_at: "2026-12-31T20:59:59.000Z",
     });
     expect(accessPatch(values, {}, "Asia/Riyadh")).toEqual({});
+  });
+
+  it("sends the chosen account username and device login only when the admin set them", () => {
+    const values = wizardSchema.parse({
+      ...input,
+      profile: { ...input.profile, username: " sara.ahmed " },
+      device: {
+        ...input.device,
+        credentials: "manual",
+        username: "sara-tv",
+        password: "Tv.pass~123",
+      },
+    });
+    expect(createCustomerRequest(values, "Asia/Riyadh")).toMatchObject({
+      username: "sara.ahmed",
+      device: { app_hint: "smarters", username: "sara-tv", password: "Tv.pass~123" },
+    });
+  });
+
+  it("checks manual logins by the API's rules, and only when they are manual", () => {
+    const manual = (username: string, password: string) =>
+      wizardSchema.safeParse({
+        ...input,
+        device: { ...input.device, credentials: "manual", username, password },
+      });
+    const messages = (result: ReturnType<typeof manual>) =>
+      result.error?.issues.map((issue) => issue.message) ?? [];
+    expect(manual("sara-tv", "Tv.pass~123").success).toBe(true);
+    expect(messages(manual("sa", "Tv.pass~123"))).toContain("credential.validation.username");
+    expect(messages(manual("sara tv", "Tv.pass~123"))).toContain("credential.validation.username");
+    expect(messages(manual("sara-tv", "short"))).toContain("credential.validation.passwordLength");
+    expect(messages(manual("sara-tv", "has space 123"))).toContain(
+      "credential.validation.passwordCharacters",
+    );
+    expect(messages(manual("Sara-TV-1", "sara-tv-1"))).toContain(
+      "credential.validation.passwordIsUsername",
+    );
+    // Generated logins ignore whatever is left in the hidden inputs.
+    expect(
+      wizardSchema.safeParse({ ...input, device: { ...input.device, username: "x" } }).success,
+    ).toBe(true);
+    expect(
+      messages(
+        wizardSchema.safeParse({ ...input, profile: { ...input.profile, username: "a b" } }),
+      ),
+    ).toContain("customers.validation.username");
+  });
+
+  it("resets with an empty body, or the chosen password and a renamed username", () => {
+    const parse = (device: object) =>
+      resetFormSchema.parse({
+        device: { credentials: "manual", username: "sar-q7k2pa", password: "", ...device },
+      });
+    expect(resetRequest(parse({ credentials: "generate" }), "sar-q7k2pa")).toEqual({});
+    expect(resetRequest(parse({ password: "n3w-pass!" }), "sar-q7k2pa")).toEqual({
+      password: "n3w-pass!",
+    });
+    expect(
+      resetRequest(parse({ username: "sara-tv", password: "n3w-pass!" }), "sar-q7k2pa"),
+    ).toEqual({ username: "sara-tv", password: "n3w-pass!" });
+  });
+});
+
+describe("generated passwords", () => {
+  it("are 16 characters from the API's alphabet, without look-alikes", () => {
+    const passwords = Array.from({ length: 50 }, () => generatePassword());
+    for (const password of passwords) expect(password).toMatch(/^[2-9a-hjkmnp-z]{16}$/u);
+    expect(new Set(passwords).size).toBe(passwords.length);
   });
 });

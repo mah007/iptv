@@ -101,11 +101,13 @@ def test_session_row_helpers(make_customer: CustomerFactory) -> None:
 
 
 def test_media_origin_follows_the_public_hosts(settings: Settings) -> None:
-    settings.MEDIA_BASE_URL = None
+    settings.MEDIA_BASE_URL = settings.MEDIA_HOST = None
     settings.DOMAIN, settings.PUBLIC_SCHEME, settings.PUBLIC_PORT = "example.com", "https", 443
     assert conf.media_base_url() == "https://media.example.com"
     settings.DOMAIN, settings.PUBLIC_SCHEME, settings.PUBLIC_PORT = "localhost", "http", 8080
     assert conf.media_base_url() == "http://media.localhost:8080"
+    settings.MEDIA_HOST = "stream.example.org"
+    assert conf.media_base_url() == "http://stream.example.org:8080"
     settings.MEDIA_BASE_URL = "https://cdn.example.net/"
     assert conf.media_base_url() == "https://cdn.example.net"
 

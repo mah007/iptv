@@ -1538,7 +1538,9 @@ paths:
   /api/v1/admin/devices/{id}/reset-credentials:
     post:
       operationId: devices_reset_credentials
-      description: The response holds the new password; it is shown once.
+      description: "The response holds the new password; it is shown once. The body
+        is optional: a chosen password (else one is generated) and a new username
+        (else it stays)."
       summary: Issue a new password for the device; the old one stops working
       parameters:
         - in: path
@@ -1549,6 +1551,11 @@ paths:
           required: true
       tags:
         - devices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialResetRequest"
       security:
         - sessionAuth: []
       responses:
@@ -1558,6 +1565,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/IssuedCredential"
           description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
         "401":
           content:
             application/problem+json:
@@ -4087,6 +4100,26 @@ components:
       description: |-
         * `reject` - Reject new streams
         * `kick_oldest` - Stop the oldest stream
+    CredentialResetRequest:
+      type: object
+      description: |-
+        Optional admin choices for a reset: empty fields keep the username and generate a
+        password.
+      properties:
+        username:
+          type: string
+          default: ""
+          description: Leave empty to generate one. 3 to 32 letters, digits, dots,
+            hyphens or underscores, unique regardless of case. IPTV apps compare it
+            case-sensitively.
+          maxLength: 32
+        password:
+          type: string
+          writeOnly: true
+          default: ""
+          description: Leave empty to generate one. At least the xtream.password_min_length
+            setting (8 by default) of letters, digits and . _ - ~ @ ! *
+          maxLength: 64
     Credit:
       type: object
       properties:
@@ -4126,6 +4159,12 @@ components:
       description: "The create-customer wizard: profile, access profile and an optional
         first device."
       properties:
+        username:
+          type: string
+          default: ""
+          description: The customer's account username. Leave empty to generate one.
+            3 to 150 letters, digits and . _ @ + -, unique regardless of case.
+          maxLength: 150
         name:
           type: string
           minLength: 1
@@ -4422,6 +4461,20 @@ components:
           allOf:
             - $ref: "#/components/schemas/AppHint"
           default: other
+        username:
+          type: string
+          default: ""
+          description: Leave empty to generate one. 3 to 32 letters, digits, dots,
+            hyphens or underscores, unique regardless of case. IPTV apps compare it
+            case-sensitively.
+          maxLength: 32
+        password:
+          type: string
+          writeOnly: true
+          default: ""
+          description: Leave empty to generate one. At least the xtream.password_min_length
+            setting (8 by default) of letters, digits and . _ - ~ @ ! *
+          maxLength: 64
     DeviceKind:
       enum:
         - xtream
@@ -6257,8 +6310,9 @@ components:
             - $ref: "#/components/schemas/ReviewFile"
           readOnly: true
         parse_result:
-          allOf:
+          oneOf:
             - $ref: "#/components/schemas/Parse"
+            - type: "null"
           readOnly: true
         candidates:
           type: array

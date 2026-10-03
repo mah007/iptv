@@ -187,10 +187,10 @@ M9 must confirm these, or change the schemas and fixtures first. Anything alread
 9. **EPG.** `get_short_epg` carries `now_playing` and `has_archive` too, because the spec gives both EPG actions one shape. It starts at the programme on air, and `has_archive` is 1 only for finished programmes.
 10. **M3U.** The four attributes, the `"<Series> SxxEyy"` episode names and `output=mp4` keeping `.ts` for live are all defined in [m3u.md](m3u.md). The media type is `audio/x-mpegurl`.
 11. **XMLTV.** Before M12, `xmltv.php` returns a valid empty `<tv>` ([xmltv.md](xmltv.md)).
-12. **Open questions for M9:**
-    - What `get_vod_info` and `get_series_info` return for an unknown or hidden id.
-    - The status and body of a failed login on `get.php` and `xmltv.php`.
-    - Whether `type=m3u` and `output=hls` (an alias some apps send for m3u8) are accepted.
+12. **Questions M9 answered** ([ADR-0008](../docs/adr/0008-xtream-api.md)):
+    - `get_vod_info` and `get_series_info` return `{}` with HTTP 404 for an unknown or hidden id.
+    - A failed login on `get.php` or `xmltv.php` gets an empty HTTP 403.
+    - `type=m3u` is accepted, and `output=hls` is an alias of `m3u8`.
 
 ## Add or change an action
 

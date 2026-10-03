@@ -4,7 +4,9 @@ import type {
   AppHint,
   ConcurrencyPolicy,
   CustomerCreateRequest,
+  CredentialResetRequest,
   CustomerDetail,
+  DeviceCreateRequest,
   Locale,
   MaxQuality,
   PatchedAccessProfileRequest,
@@ -13,6 +15,13 @@ import type {
 import { z } from "zod";
 
 import { addMonths, endOfDayIn, isoDateIn } from "../../lib/time";
+import {
+  ACCOUNT_USERNAME_PATTERN,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_PATTERN,
+  USERNAME_PATTERN,
+} from "./credentials";
 
 /*
  * Forms of the create-customer wizard and the customer editors. Messages are
@@ -116,15 +125,61 @@ export const accessSchema = z
     }
   });
 
-export const deviceSchema = z.object({
-  /** Issue the first Xtream credential with the customer. */
-  create: z.boolean(),
-  name: z.string().trim().max(100, "customers.validation.deviceNameTooLong"),
-  app_hint: z.enum(APP_HINTS),
+/** How an IPTV app login gets its username and password. */
+export const CREDENTIAL_MODES = ["generate", "manual"] as const;
+export type CredentialMode = (typeof CREDENTIAL_MODES)[number];
+
+const credentialShape = {
+  credentials: z.enum(CREDENTIAL_MODES),
+  username: z.string().trim(),
+  password: z.string(),
+};
+
+/** "Set manually" needs both values, valid by the API's rules (it checks uniqueness). */
+function checkCredentials(
+  login: { credentials: CredentialMode; username: string; password: string },
+  context: z.RefinementCtx,
+): void {
+  if (login.credentials !== "manual") return;
+  const issue = (path: string, message: string) => {
+    context.addIssue({ code: "custom", path: [path], message });
+  };
+  if (!USERNAME_PATTERN.test(login.username)) issue("username", "credential.validation.username");
+  const { password } = login;
+  if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+    issue("password", "credential.validation.passwordLength");
+  } else if (!PASSWORD_PATTERN.test(password)) {
+    issue("password", "credential.validation.passwordCharacters");
+  } else if (password.toLowerCase() === login.username.toLowerCase()) {
+    issue("password", "credential.validation.passwordIsUsername");
+  }
+}
+
+export const deviceSchema = z
+  .object({
+    /** Issue the first Xtream credential with the customer. */
+    create: z.boolean(),
+    name: z.string().trim().max(100, "customers.validation.deviceNameTooLong"),
+    app_hint: z.enum(APP_HINTS),
+    ...credentialShape,
+  })
+  .superRefine((device, context) => {
+    if (device.create) checkCredentials(device, context);
+  });
+
+/** The wizard's profile adds the optional account username (generated when empty). */
+const wizardProfileSchema = profileSchema.extend({
+  username: z
+    .string()
+    .trim()
+    .refine(
+      (value) => value === "" || ACCOUNT_USERNAME_PATTERN.test(value),
+      "customers.validation.username",
+    ),
 });
 
 export const wizardSchema = z.object({
-  profile: profileSchema,
+  profile: wizardProfileSchema,
   access: accessSchema,
   device: deviceSchema,
 });
@@ -144,6 +199,16 @@ type ProfileValues = ProfileFormValues["profile"];
 export const deviceFormSchema = z.object({ device: deviceSchema });
 export type DeviceFormInput = z.input<typeof deviceFormSchema>;
 export type DeviceFormValues = z.output<typeof deviceFormSchema>;
+type DeviceValues = DeviceFormValues["device"];
+
+/** Resetting a login: generate a new password, or set it (and optionally a new username). */
+export const resetFormSchema = z.object({
+  device: z.object(credentialShape).superRefine(checkCredentials),
+});
+export type ResetFormInput = z.input<typeof resetFormSchema>;
+export type ResetFormValues = z.output<typeof resetFormSchema>;
+/** The fields `CredentialFields` edits, shared by the device and reset forms. */
+export type CredentialFormInput = ResetFormInput;
 
 export const ACCESS_DEFAULTS: AccessFormInput["access"] = {
   expiry: "1m",
@@ -163,11 +228,18 @@ export const DEVICE_DEFAULTS: DeviceFormInput["device"] = {
   create: true,
   name: "",
   app_hint: "other",
+  credentials: "generate",
+  username: "",
+  password: "",
 };
+
+export function resetDefaults(username: string): ResetFormInput {
+  return { device: { credentials: "generate", username, password: "" } };
+}
 
 export function wizardDefaults(locale: Locale): WizardInput {
   return {
-    profile: { name: "", email: "", phone: "", locale, notes: "" },
+    profile: { username: "", name: "", email: "", phone: "", locale, notes: "" },
     access: ACCESS_DEFAULTS,
     device: DEVICE_DEFAULTS,
   };
@@ -266,18 +338,41 @@ function profileFields(profile: ProfileValues) {
   };
 }
 
+/** A new device login; the API generates the username and password unless set manually. */
+export function deviceRequest(device: DeviceValues): DeviceCreateRequest {
+  return {
+    app_hint: device.app_hint,
+    ...(device.name ? { name: device.name } : {}),
+    ...(device.credentials === "manual"
+      ? { username: device.username, password: device.password }
+      : {}),
+  };
+}
+
+/** Empty body: a generated password. Manual: the chosen password, and the username if renamed. */
+export function resetRequest(
+  values: ResetFormValues,
+  currentUsername: string | null,
+): CredentialResetRequest {
+  const { device } = values;
+  if (device.credentials === "generate") return {};
+  return {
+    password: device.password,
+    ...(device.username === currentUsername ? {} : { username: device.username }),
+  };
+}
+
 export function createCustomerRequest(
   values: WizardValues,
   timeZone: string,
 ): CustomerCreateRequest {
-  const { device } = values;
+  const { device, profile } = values;
   return {
-    ...profileFields(values.profile),
+    ...(profile.username ? { username: profile.username } : {}),
+    ...profileFields(profile),
     timezone: timeZone,
     access: accessRequest(values.access, timeZone),
-    device: device.create
-      ? { app_hint: device.app_hint, ...(device.name ? { name: device.name } : {}) }
-      : null,
+    device: device.create ? deviceRequest(device) : null,
   };
 }
 
@@ -299,6 +394,7 @@ export function profilePatch(values: ProfileFormValues): PatchedCustomerProfileR
 
 /** API field paths of the create request → wizard form paths (for problem field_errors). */
 export const WIZARD_FIELD_PATHS = {
+  username: "profile.username",
   name: "profile.name",
   email: "profile.email",
   phone: "profile.phone",
@@ -312,6 +408,20 @@ export const WIZARD_FIELD_PATHS = {
   "access.category_ids": "access.category_ids",
   "device.name": "device.name",
   "device.app_hint": "device.app_hint",
+  "device.username": "device.username",
+  "device.password": "device.password",
+} as const;
+
+export const DEVICE_FIELD_PATHS = {
+  name: "device.name",
+  app_hint: "device.app_hint",
+  username: "device.username",
+  password: "device.password",
+} as const;
+
+export const RESET_FIELD_PATHS = {
+  username: "device.username",
+  password: "device.password",
 } as const;
 
 export const ACCESS_FIELD_PATHS = {

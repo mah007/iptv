@@ -10,12 +10,14 @@
   entitlement, refreshes the slot (or takes a lapsed one back when there is room)
   and records the activity. It never evicts.
 - `finish` stops a session (kill, expiry, ...) and `reap` closes an idle one.
+- `active_streams` counts the slots a user holds now (Xtream `active_cons`).
 
 Every operation is one atomic script call, so concurrent starts can never hand
 out more slots than `max_streams`.
 """
 
 import asyncio
+import time
 import weakref
 from dataclasses import dataclass
 from enum import StrEnum
@@ -168,6 +170,14 @@ def acquire(  # noqa: PLR0913 (keyword-only: each is one input of the slot decis
         for index in range(1, len(reply), 4)
     )
     return SlotResult(status, evicted)
+
+
+def active_streams(user_id: UUID | str, *, now: float | None = None) -> int:
+    """The streams `user_id` plays now: members of `conc:{user}` active within the slot
+    window (90 s), the ones `acquire` would count. Read-only: one ZCOUNT."""
+    moment = time.time() if now is None else now
+    since = moment - conf.slot_window_s()
+    return cast("int", state_redis().zcount(conc_key(user_id), repr(since), "+inf"))
 
 
 def release(user_id: UUID | str, session: str, device_id: UUID | str) -> None:

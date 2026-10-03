@@ -31,6 +31,7 @@ from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.catalog.models import FileState, MediaFile, Movie, Series
 from apps.catalog.services import refresh_status_of_files
+from apps.catalog.signals import notify_catalog_changed
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.stores import state_redis
 from apps.library import storage
@@ -179,6 +180,11 @@ def delete_library(library: Library, *, actor: User | None, ip: str | None) -> N
             refresh_movie_status(movie)
         for series in Series.objects.filter(pk__in=series_ids):
             refresh_series_status(series)
+        # Episodes and files vanished even where a title's status stayed.
+        if movie_ids:
+            notify_catalog_changed("movie", movie_ids)
+        if series_ids:
+            notify_catalog_changed("series", series_ids)
 
 
 def library_stats(library: Library) -> dict[str, int]:

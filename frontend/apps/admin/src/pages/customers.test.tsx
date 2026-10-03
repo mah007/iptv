@@ -155,6 +155,46 @@ describe("create-customer wizard", () => {
     expect(within(sheet).getByLabelText("Full name")).toBeTruthy();
   });
 
+  it("sends the account username and first device login the admin chose", async () => {
+    const api = mockApi(
+      createRoutes((request) => {
+        const body = request.body as { device?: { username?: string } };
+        return body.device?.username === "taken"
+          ? problem(400, "VALIDATION_ERROR", {
+              "device.username": ["This username is already taken."],
+            })
+          : { status: 201, body: { customer: customerDetail(), credential: credential() } };
+      }),
+    );
+    const { user } = renderApp("/customers?new=true");
+    const sheet = await screen.findByRole("dialog", { name: "New customer" });
+    await user.type(within(sheet).getByLabelText("Full name"), "Sara Ahmed");
+    await user.type(within(sheet).getByLabelText("Account username (optional)"), "a b");
+    await user.click(within(sheet).getByRole("button", { name: "Next" }));
+    expect(
+      await within(sheet).findByText("Use 3 to 150 letters, digits and . _ @ + -"),
+    ).toBeTruthy();
+    await user.clear(within(sheet).getByLabelText("Account username (optional)"));
+    await user.type(within(sheet).getByLabelText("Account username (optional)"), "sara.ahmed");
+    await user.click(within(sheet).getByRole("button", { name: "Next" }));
+    await user.click(await within(sheet).findByRole("button", { name: "Next" }));
+
+    await user.click(await within(sheet).findByRole("radio", { name: /Set manually/ }));
+    await user.type(within(sheet).getByLabelText("Username"), "taken");
+    await user.type(within(sheet).getByLabelText("Password"), "Tv.pass~123");
+    await user.click(within(sheet).getByRole("button", { name: "Create customer" }));
+    expect(await within(sheet).findByText("This username is already taken.")).toBeTruthy();
+
+    await user.clear(within(sheet).getByLabelText("Username"));
+    await user.type(within(sheet).getByLabelText("Username"), "sara-tv");
+    await user.click(within(sheet).getByRole("button", { name: "Create customer" }));
+    expect(await screen.findByRole("dialog", { name: "Customer created" })).toBeTruthy();
+    expect(api.sent("POST", "/api/v1/admin/customers").at(-1)?.body).toMatchObject({
+      username: "sara.ahmed",
+      device: { app_hint: "other", username: "sara-tv", password: "Tv.pass~123" },
+    });
+  });
+
   it("can create the customer without a device credential", async () => {
     const api = mockApi(
       createRoutes(() => ({ status: 201, body: { customer: customerDetail(), credential: null } })),

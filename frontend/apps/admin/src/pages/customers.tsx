@@ -325,4 +325,3 @@ export function CustomersPage() {
     </RequirePermission>
   );
 }
-

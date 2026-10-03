@@ -109,6 +109,9 @@
     },
     "fields": {
       "name": "Full name",
+      "username": "Account username (optional)",
+      "usernamePlaceholder": "Generated when left empty",
+      "usernameHelp": "3 to 150 letters, digits or . _ @ + -. For the customer's account, not for IPTV apps.",
       "email": "Email",
       "phone": "Phone",
       "phoneHelp": "Saudi numbers can be typed without +966.",
@@ -183,7 +186,8 @@
       "limitRange": "Enter a number from 1 to 50.",
       "expiryDate": "Pick the last day of access.",
       "categories": "Pick at least one category, or turn this off.",
-      "deviceNameTooLong": "Use at most 100 characters."
+      "deviceNameTooLong": "Use at most 100 characters.",
+      "username": "Use 3 to 150 letters, digits and . _ @ + -"
     },
     "create": {
       "title": "New customer",
@@ -268,7 +272,29 @@
     "qrLabel": "QR code with the server, username and password",
     "qrHint": "Scan to copy the login",
     "qrGone": "Hidden with the password",
-    "copyAll": "Copy all details"
+    "copyAll": "Copy all details",
+    "mode": {
+      "label": "Username and password",
+      "generate": {
+        "title": "Generate automatically",
+        "create": "A username and a 16-character password are created. The password is shown once.",
+        "reset": "Keeps the username and creates a new 16-character password."
+      },
+      "manual": {
+        "title": "Set manually",
+        "create": "Choose the username and password the customer types in the app.",
+        "reset": "Choose the new password, and change the username if needed."
+      }
+    },
+    "usernameHelp": "3 to 32 letters, digits, dots, hyphens or underscores. Apps treat upper and lower case as different.",
+    "passwordHelp": "8 to 64 letters, digits or . _ - ~ @ ! *",
+    "generate": "Generate",
+    "validation": {
+      "username": "Use 3 to 32 letters, digits, dots, hyphens or underscores.",
+      "passwordLength": "Use 8 to 64 characters.",
+      "passwordCharacters": "Use only letters, digits and . _ - ~ @ ! *",
+      "passwordIsUsername": "The password must differ from the username."
+    }
   },
   "devices": {
     "title": "Devices & credentials",
@@ -311,8 +337,7 @@
       "name": "Device name",
       "namePlaceholder": "e.g. Living room TV",
       "app": "IPTV app",
-      "appHelp": "Only a label: any Xtream-compatible app works.",
-      "generated": "A username and a 16-character password are generated. The password is shown once."
+      "appHelp": "Only a label: any Xtream-compatible app works."
     },
     "add": {
       "button": "Add device",

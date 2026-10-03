@@ -11,6 +11,7 @@ reset or revoke invalidates it at once.
 
 import hashlib
 import hmac
+import re
 import secrets
 import string
 from dataclasses import dataclass
@@ -42,6 +43,32 @@ PASSWORD_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"  # noqa: S105 (an alphabet
 PASSWORD_LENGTH = 16
 
 AUTH_CACHE_TTL_S = 300
+
+# Admin-chosen credentials. IPTV apps put them in URLs (`/movie/<u>/<p>/…`,
+# `?username=…&password=…`) and many don't percent-encode, so only characters that
+# need no encoding in a URL path segment or query value are allowed.
+USERNAME_PATTERN = re.compile(r"[A-Za-z0-9._-]{3,32}")
+PASSWORD_CHARACTERS = frozenset(string.ascii_letters + string.digits + "._-~@!*")
+PASSWORD_MAX_LENGTH = 64
+USERNAME_RULE = "Use 3 to 32 letters, digits, dots, hyphens or underscores."
+PASSWORD_CHARACTERS_RULE = "Use only letters, digits and . _ - ~ @ ! *"  # noqa: S105 (a message)
+
+
+def username_problems(username: str) -> list[str]:
+    """Why an admin-chosen Xtream username is refused; empty when it's acceptable."""
+    return [] if USERNAME_PATTERN.fullmatch(username) else [USERNAME_RULE]
+
+
+def password_problems(password: str, *, min_length: int, username: str = "") -> list[str]:
+    """Why an admin-chosen Xtream password is refused; empty when it's acceptable."""
+    problems = []
+    if not min_length <= len(password) <= PASSWORD_MAX_LENGTH:
+        problems.append(f"Use {min_length} to {PASSWORD_MAX_LENGTH} characters.")
+    if any(char not in PASSWORD_CHARACTERS for char in password):
+        problems.append(PASSWORD_CHARACTERS_RULE)
+    if username and password.lower() == username.lower():
+        problems.append("The password must differ from the username.")
+    return problems
 
 
 def username_prefix(*candidates: str) -> str:

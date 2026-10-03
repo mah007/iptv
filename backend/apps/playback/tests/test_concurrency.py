@@ -202,6 +202,20 @@ def test_no_slot_without_a_limit() -> None:
     assert held() == []
 
 
+def test_active_streams_counts_slots_active_within_the_window() -> None:
+    assert concurrency.active_streams(USER, now=NOW) == 0
+    take(1, 1, max_streams=3)
+    take(2, 2, now=NOW + 30, max_streams=3)
+    assert concurrency.active_streams(USER, now=NOW + 30) == 2
+    # The window is inclusive, as in acquire: at +90 s the first slot still counts.
+    assert concurrency.active_streams(USER, now=NOW + 90) == 2
+    assert concurrency.active_streams(USER, now=NOW + 90.5) == 1
+    assert concurrency.active_streams(USER, now=NOW + 121) == 0
+    assert concurrency.active_streams(str(uuid.UUID(int=77)), now=NOW) == 0
+    # Read-only: a lapsed member stays until a start or heartbeat prunes it.
+    assert len(held()) == 2
+
+
 def test_release_gives_the_slot_back() -> None:
     take(1, 1)
     concurrency.release(USER, session_id(1), device_id(1))

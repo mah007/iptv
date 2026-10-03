@@ -33,19 +33,90 @@ describe("customer detail", () => {
     const { user } = renderApp("/customers/cust-1?tab=devices");
     await user.click(await screen.findByRole("button", { name: "Actions for Living room TV" }));
     await user.click(await screen.findByRole("menuitem", { name: "Reset password" }));
-    const confirm = await screen.findByRole("alertdialog", {
+    const confirm = await screen.findByRole("dialog", {
       name: "Reset the password of Living room TV?",
     });
+    expect(within(confirm).getByRole("radio", { name: /Generate automatically/ })).toBeTruthy();
     await user.click(within(confirm).getByRole("button", { name: "Reset password" }));
 
     const issued = await screen.findByRole("dialog", { name: "New password issued" });
     expect(api.sent("POST", "/api/v1/admin/devices/dev-1/reset-credentials")).toHaveLength(1);
+    expect(api.sent("POST", "/api/v1/admin/devices/dev-1/reset-credentials")[0]?.body).toEqual({});
     expect(within(issued).getByDisplayValue("sar-q7k2pa")).toBeTruthy();
     expect(within(issued).getByRole("img", { name: /QR code/ })).toBeTruthy();
     await user.click(within(issued).getByRole("button", { name: "Reveal" }));
     expect(within(issued).getByText("Nw4pQ8zLm2xV7cRt")).toBeTruthy();
     await user.click(within(issued).getByRole("button", { name: "Done" }));
     expect(screen.queryByText("Nw4pQ8zLm2xV7cRt")).toBeNull();
+  });
+
+  it("resets to a password the admin sets, renaming the login, with the API's field errors inline", async () => {
+    let attempts = 0;
+    const api = mockApi(
+      signedIn({
+        [`GET ${DETAIL}`]: { body: customerDetail() },
+        "POST /api/v1/admin/devices/dev-1/reset-credentials": () => {
+          attempts += 1;
+          return attempts === 1
+            ? problem(400, "VALIDATION_ERROR", { username: ["This username is already taken."] })
+            : { body: credential({ username: "sara-tv", password: "Tv.pass~123" }) };
+        },
+      }),
+    );
+    const { user } = renderApp("/customers/cust-1?tab=devices");
+    await user.click(await screen.findByRole("button", { name: "Actions for Living room TV" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Reset password" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Reset the password of Living room TV?",
+    });
+    await user.click(within(dialog).getByRole("radio", { name: /Set manually/ }));
+    const username = within(dialog).getByLabelText("Username");
+    expect((username as HTMLInputElement).value).toBe("sar-q7k2pa");
+
+    await user.click(within(dialog).getByRole("button", { name: "Reset password" }));
+    expect(await within(dialog).findByText("Use 8 to 64 characters.")).toBeTruthy();
+    expect(api.sent("POST", "/api/v1/admin/devices/dev-1/reset-credentials")).toHaveLength(0);
+
+    await user.clear(username);
+    await user.type(username, "sara-tv");
+    await user.type(within(dialog).getByLabelText("Password"), "Tv.pass~123");
+    await user.click(within(dialog).getByRole("button", { name: "Reset password" }));
+    expect(await within(dialog).findByText("This username is already taken.")).toBeTruthy();
+
+    await user.click(within(dialog).getByRole("button", { name: "Reset password" }));
+    expect(await screen.findByRole("dialog", { name: "New password issued" })).toBeTruthy();
+    expect(api.sent("POST", "/api/v1/admin/devices/dev-1/reset-credentials").at(-1)?.body).toEqual({
+      username: "sara-tv",
+      password: "Tv.pass~123",
+    });
+  });
+
+  it("adds a device with a login the admin chose, and a generated password", async () => {
+    const api = mockApi(
+      signedIn({
+        [`GET ${DETAIL}`]: { body: customerDetail() },
+        [`POST ${DETAIL}/devices`]: { status: 201, body: credential() },
+      }),
+    );
+    const { user } = renderApp("/customers/cust-1?tab=devices");
+    await user.click(await screen.findByRole("button", { name: "Add device" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add a device" });
+    await user.click(within(dialog).getByRole("radio", { name: /Set manually/ }));
+    await user.type(within(dialog).getByLabelText("Username"), "sara-phone");
+    const password = within(dialog).getByLabelText("Password");
+    expect(password.getAttribute("type")).toBe("password");
+    await user.click(within(dialog).getByRole("button", { name: "Generate" }));
+    // The generated password is shown so the admin can read it out.
+    expect(password.getAttribute("type")).toBe("text");
+    const generated = (password as HTMLInputElement).value;
+    expect(generated).toMatch(/^[2-9a-hjkmnp-z]{16}$/u);
+    await user.click(within(dialog).getByRole("button", { name: "Create login" }));
+    expect(await screen.findByRole("dialog", { name: "Device login created" })).toBeTruthy();
+    expect(api.sent("POST", `${DETAIL}/devices`)[0]?.body).toEqual({
+      app_hint: "other",
+      username: "sara-phone",
+      password: generated,
+    });
   });
 
   it("adds a device until the access profile's limit, then disables adding", async () => {

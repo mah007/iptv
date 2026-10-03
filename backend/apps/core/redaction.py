@@ -26,6 +26,15 @@ _MAX_DEPTH = 32
 _XTREAM_PATH = re.compile(
     r"/(?P<kind>movie|series|live|timeshift)/[^/?#\s]+/[^/?#\s]+(?=[/?#\s]|$)", re.IGNORECASE
 )
+# The same, when the path ends in a numeric id (`.../123.mp4`): Django decodes the path, so
+# a typed (wrong) password may hold `?`, `#`, spaces or `/`. Everything between the kind
+# and the id is masked, wherever the segments seem to end.
+_XTREAM_PLAY_PATH = re.compile(
+    r"/(?P<kind>movie|series|live|timeshift)/[^\n]+?/"
+    r"(?=\d+(?:\.[A-Za-z0-9]{1,5})?(?:[\s\"'?#]|$)"  # the id: `123.mp4`
+    r"|\d+/\d{4}-\d{2}-\d{2}:\d{2}-\d{2}/)",  # timeshift: duration/start/
+    re.IGNORECASE,
+)
 # Signed media URLs from the edge: /v/<token>/...
 _EDGE_TOKEN = re.compile(r"/v/[^/?#\s]+/")
 # Query-string and form parameters that carry credentials (names, not secrets).
@@ -73,6 +82,7 @@ def _mask_quoted_pair(match: re.Match[str]) -> str:
 
 def redact_text(text: str) -> str:
     """Mask credentials and tokens that appear inside free text such as paths or messages."""
+    text = _XTREAM_PLAY_PATH.sub(lambda m: f"/{m['kind']}/{MASK}/{MASK}/", text)
     text = _XTREAM_PATH.sub(lambda m: f"/{m['kind']}/{MASK}/{MASK}", text)
     text = _EDGE_TOKEN.sub(f"/v/{MASK}/", text)
     text = _URL_USERINFO.sub(lambda m: f"{m['scheme']}{MASK}:{MASK}@", text)

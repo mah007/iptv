@@ -29,6 +29,16 @@ from apps.core.redaction import (
         ("GET /MOVIE/Alice/S3cr3t/1.mp4", "GET /MOVIE/***/***/1.mp4"),
         ("/movie/alice/s3cr3t", "/movie/***/***"),
         ("/movie/alice/s3cr3t?x=1", "/movie/***/***?x=1"),
+        # Decoded paths: a typed password may hold ? # spaces or slashes, or be numeric.
+        ("/movie/alice/pa?ss word#x/1.mp4", "/movie/***/***/1.mp4"),
+        ("Not Found: /series/bob/with space/55.mkv", "Not Found: /series/***/***/55.mkv"),
+        ("/live/u/a/b/c/7.ts", "/live/***/***/7.ts"),
+        ("/movie/alice/123/1.mp4", "/movie/***/***/1.mp4"),
+        ("/movie/alice/s3cr3t/1.mp4?token=x", "/movie/***/***/1.mp4?token=***"),
+        (
+            "/timeshift/alice/p w#?/60/2026-10-03:12-00/7.ts",
+            "/timeshift/***/***/60/2026-10-03:12-00/7.ts",
+        ),
         # Signed media URLs.
         ("/v/eyJhbGciOi.abc-def/master.m3u8", "/v/***/master.m3u8"),
         # Query-string and form parameters.

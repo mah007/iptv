@@ -7,6 +7,7 @@ passwords exist only in the returned `IssuedCredential`/`IssuedPassword`.
 """
 
 import logging
+import re
 import secrets
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -64,6 +65,8 @@ ACCESS_FIELDS = (
 ADMIN_FIELDS = ("name", "email", "status")
 CUSTOMER_USERNAME_PREFIX = "cus"
 CUSTOMER_USERNAME_SUFFIX_LENGTH = 8
+CUSTOMER_USERNAME_PATTERN = re.compile(r"[A-Za-z0-9._@+-]{3,150}")
+USERNAME_TAKEN = "This username is already taken."
 ADMIN_PASSWORD_BYTES = 15  # token_urlsafe: 20 characters
 _UNIQUE_ATTEMPTS = 8
 EXPIRY_BATCH_SIZE = 500
@@ -158,6 +161,20 @@ def _new_customer_username() -> str:
     raise RuntimeError(msg)
 
 
+def _customer_username(wanted: str) -> str:
+    """The admin's choice when given and free, else a generated `cus-…` username."""
+    if not wanted:
+        return _new_customer_username()
+    if not CUSTOMER_USERNAME_PATTERN.fullmatch(wanted):
+        raise ProblemError(
+            ErrorCode.VALIDATION_ERROR,
+            field_errors={"username": ["Use 3 to 150 letters, digits and . _ @ + -"]},
+        )
+    if User.objects.filter(username__iexact=wanted).exists():
+        raise ProblemError(ErrorCode.VALIDATION_ERROR, field_errors={"username": [USERNAME_TAKEN]})
+    return wanted
+
+
 def _categories(category_ids: Sequence[UUID | str]) -> list[Category]:
     wanted = {str(category_id) for category_id in category_ids}
     found = list(Category.objects.filter(pk__in=wanted))
@@ -192,17 +209,29 @@ def create_customer(
 ) -> tuple[User, IssuedCredential | None]:
     """Create a customer, their access profile and optionally their first device.
 
-    `access` holds CustomerAccess fields plus `category_ids`; `device` holds
-    `name` and `app_hint`. Customers have no usable password until the portal
-    (M11b) lets them set one.
+    `profile` may hold the admin's choice of `username` (else one is generated).
+    `access` holds CustomerAccess fields plus `category_ids`; `device` holds `name`,
+    `app_hint` and optionally the admin's choice of Xtream `username` and
+    `password`. Customers have no usable password until the portal (M11b) lets
+    them set one.
     """
     access_values = dict(access or {})
     category_ids = access_values.pop("category_ids", None) or []
+    if device is not None:
+        _check_chosen_credentials(
+            str(device.get("username") or ""), str(device.get("password") or ""), prefix="device."
+        )
     with transaction.atomic():
-        user = User(username=_new_customer_username(), is_staff=False)
+        user = User(username=_customer_username(str(profile.get("username") or "")), is_staff=False)
         _apply(user, profile, PROFILE_FIELDS)
         user.set_unusable_password()
-        user.save()
+        try:
+            with transaction.atomic():
+                user.save()
+        except IntegrityError:
+            raise ProblemError(
+                ErrorCode.VALIDATION_ERROR, field_errors={"username": [USERNAME_TAKEN]}
+            ) from None
         profile_row = CustomerAccess(user=user)
         _apply(profile_row, access_values, ACCESS_FIELDS)
         profile_row.save()
@@ -220,7 +249,9 @@ def create_customer(
         )
         issued = None
         if device is not None:
-            issued = _issue_device(user, profile_row, device, actor=actor, ip=ip)
+            issued = _issue_device(
+                user, profile_row, device, actor=actor, ip=ip, field_prefix="device."
+            )
         entitlements.schedule_refresh(user.pk)
     return user, issued
 
@@ -336,15 +367,67 @@ def _save_credential(credential: XtreamCredential, prefix: str) -> None:
         return
 
 
-def _issue_device(
+def _username_taken(username: str, *, exclude: XtreamCredential | None = None) -> bool:
+    rows = XtreamCredential.objects.filter(username__iexact=username)
+    if exclude is not None:
+        rows = rows.exclude(pk=exclude.pk)
+    return rows.exists()
+
+
+def _check_chosen_credentials(
+    username: str,
+    password: str,
+    *,
+    prefix: str = "",
+    current: XtreamCredential | None = None,
+) -> None:
+    """Refuse an admin-chosen Xtream username or password, field by field.
+
+    Usernames are unique regardless of case (revoked devices keep theirs), so two
+    logins never differ only in case. `current` is the credential being reset.
+    """
+    errors: dict[str, list[str]] = {}
+    if username:
+        problems = creds.username_problems(username)
+        if not problems and _username_taken(username, exclude=current):
+            problems = [USERNAME_TAKEN]
+        if problems:
+            errors[f"{prefix}username"] = problems
+    if password:
+        problems = creds.password_problems(
+            password,
+            min_length=int(get_setting("xtream.password_min_length")),
+            username=username or (current.username if current is not None else ""),
+        )
+        if problems:
+            errors[f"{prefix}password"] = problems
+    if errors:
+        raise ProblemError(ErrorCode.VALIDATION_ERROR, field_errors=errors)
+
+
+def _save_chosen_username(credential: XtreamCredential, username: str, *, field: str) -> None:
+    """Save with the admin's username; a concurrent taker of the same name loses cleanly."""
+    credential.username = username
+    try:
+        with transaction.atomic():
+            credential.save()
+    except IntegrityError:
+        raise ProblemError(
+            ErrorCode.VALIDATION_ERROR, field_errors={field: [USERNAME_TAKEN]}
+        ) from None
+
+
+def _issue_device(  # noqa: PLR0913 (all but the first three are keyword-only)
     user: User,
     access: CustomerAccess,
     device: Mapping[str, Any],
     *,
     actor: User | None,
     ip: str | None,
+    field_prefix: str = "",
 ) -> IssuedCredential:
-    """Caller holds the user's row lock (or created the user in this transaction)."""
+    """Caller holds the user's row lock (or created the user in this transaction) and has
+    checked any chosen credentials with `_check_chosen_credentials`."""
     active = Device.objects.filter(user=user, revoked_at__isnull=True).count()
     if active >= access.max_devices:
         raise ProblemError(
@@ -358,9 +441,13 @@ def _issue_device(
         app_hint=device.get("app_hint") or AppHint.OTHER,
         approved=True,
     )
-    password = creds.generate_password()
+    password = str(device.get("password") or "") or creds.generate_password()
     credential = XtreamCredential(device=row, password_hash=creds.hash_password(password))
-    _save_credential(credential, creds.username_prefix(user.name, user.email, user.username))
+    chosen_username = str(device.get("username") or "")
+    if chosen_username:
+        _save_chosen_username(credential, chosen_username, field=f"{field_prefix}username")
+    else:
+        _save_credential(credential, creds.username_prefix(user.name, user.email, user.username))
     audit.record(
         "device.create",
         actor=actor,
@@ -371,21 +458,26 @@ def _issue_device(
     return IssuedCredential(device=row, username=credential.username, password=password)
 
 
-def create_device_credential(
+def create_device_credential(  # noqa: PLR0913 (all but the first are keyword-only)
     user: User,
     *,
     name: str = "",
     app_hint: str = "",
+    username: str = "",
+    password: str = "",
     actor: User | None,
     ip: str | None = None,
 ) -> IssuedCredential:
-    """Add an Xtream device with a fresh credential, within the profile's max_devices."""
+    """Add an Xtream device within the profile's max_devices. The credential uses the
+    admin's `username` and `password` when given, else generated ones."""
     if app_hint and app_hint not in AppHint.values:
         raise ProblemError(ErrorCode.VALIDATION_ERROR, field_errors={"app_hint": ["Unknown app."]})
+    _check_chosen_credentials(username, password)
     with transaction.atomic():
         user = User.objects.select_for_update().get(pk=user.pk)
         access = ensure_access(user)
-        return _issue_device(user, access, {"name": name, "app_hint": app_hint}, actor=actor, ip=ip)
+        values = {"name": name, "app_hint": app_hint, "username": username, "password": password}
+        return _issue_device(user, access, values, actor=actor, ip=ip)
 
 
 def _locked_device(device: Device) -> Device:
@@ -410,32 +502,58 @@ def _username_of(device: Device) -> str | None:
 
 
 def reset_credential(
-    device: Device, *, actor: User | None, ip: str | None = None
+    device: Device,
+    *,
+    username: str = "",
+    password: str = "",
+    actor: User | None,
+    ip: str | None = None,
 ) -> IssuedCredential:
-    """A new password for the device (same username); the old one stops working at once."""
+    """A new password for the device; the old one stops working at once.
+
+    The admin may choose the new `password` (else one is generated) and rename the
+    login with `username` (else it stays). Cached logins end too: the auth cache is
+    keyed by the username and bound to the stored hash.
+    """
     with transaction.atomic():
         device = _locked_device(device)
         if device.revoked_at is not None:
             raise ProblemError(ErrorCode.CONFLICT, "Revoked devices cannot get new credentials.")
         if device.kind != DeviceKind.XTREAM:
             raise ProblemError(ErrorCode.CONFLICT, "Only IPTV app devices have Xtream credentials.")
-        password = creds.generate_password()
         credential = _credential_of(device)
+        _check_chosen_credentials(username, password, current=credential)
+        password = password or creds.generate_password()
+        before = credential.username if credential is not None else None
         if credential is None:
             owner = device.user
             credential = XtreamCredential(
                 device=device, password_hash=creds.hash_password(password)
             )
-            _save_credential(
-                credential, creds.username_prefix(owner.name, owner.email, owner.username)
-            )
+            if username:
+                _save_chosen_username(credential, username, field="username")
+            else:
+                _save_credential(
+                    credential, creds.username_prefix(owner.name, owner.email, owner.username)
+                )
         else:
             credential.password_hash = creds.hash_password(password)
-            credential.save(update_fields=["password_hash", "updated_at"])
+            fields = ["password_hash", "updated_at"]
+            if username and username != credential.username:
+                credential.username = username
+                fields.append("username")
+            try:
+                with transaction.atomic():
+                    credential.save(update_fields=fields)
+            except IntegrityError:
+                raise ProblemError(
+                    ErrorCode.VALIDATION_ERROR, field_errors={"username": [USERNAME_TAKEN]}
+                ) from None
         audit.record(
             "device.reset_credentials",
             actor=actor,
             target=device,
+            before={"xtream_username": before},
             after={"xtream_username": credential.username},
             ip=ip,
         )
@@ -546,11 +664,12 @@ def authenticate_xtream(username: str, password: str) -> XtreamLogin | None:
         .first()
     )
     cache_key = creds.auth_cache_key(username, password)
+    # Read before the unknown-user branch, so both paths make the same Redis round trip.
+    cached_raw = cast("bytes | None", state_redis().get(cache_key))
     if credential is None:
         creds.burn_verify(password)
         return None
     fingerprint = creds.hash_fingerprint(credential.password_hash)
-    cached_raw = cast("bytes | None", state_redis().get(cache_key))
     cached = creds.CachedAuth.decode(cached_raw) if cached_raw else None
     verified = (
         cached is not None

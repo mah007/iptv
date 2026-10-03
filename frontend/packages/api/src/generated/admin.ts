@@ -36,6 +36,7 @@ import type {
   Category,
   CategoryReorderRequest,
   CategoryWriteRequest,
+  CredentialResetRequest,
   CustomerCreateRequest,
   CustomerCreated,
   CustomerDetail,
@@ -3193,16 +3194,38 @@ export const getDevicesResetCredentialsUrl = (id: string) => {
 };
 
 /**
- * The response holds the new password; it is shown once.
+ * The response holds the new password; it is shown once. The body is optional: a chosen password (else one is generated) and a new username (else it stays).
  * @summary Issue a new password for the device; the old one stops working
  */
 export const devicesResetCredentials = async (
   id: string,
+  credentialResetRequest?: CredentialResetRequest,
   options?: Parameters<typeof apiFetch>[1],
 ): Promise<IssuedCredential> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
   return apiFetch<IssuedCredential>(getDevicesResetCredentialsUrl(id), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(credentialResetRequest),
   });
 };
 
@@ -3236,9 +3259,9 @@ export const getDevicesResetCredentialsMutationOptions = <
     Awaited<ReturnType<typeof devicesResetCredentials>>,
     DevicesResetCredentialsMutationVariables
   > = (props) => {
-    const { id } = props ?? {};
+    const { id, data } = props ?? {};
 
-    return devicesResetCredentials(id, requestOptions);
+    return devicesResetCredentials(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -3247,9 +3270,12 @@ export const getDevicesResetCredentialsMutationOptions = <
 export type DevicesResetCredentialsMutationResult = NonNullable<
   Awaited<ReturnType<typeof devicesResetCredentials>>
 >;
-
+export type DevicesResetCredentialsMutationBody = CredentialResetRequest | undefined;
 export type DevicesResetCredentialsMutationError = ErrorType<Problem>;
-export type DevicesResetCredentialsMutationVariables = { id: string };
+export type DevicesResetCredentialsMutationVariables = {
+  id: string;
+  data?: CredentialResetRequest;
+};
 
 /**
  * @summary Issue a new password for the device; the old one stops working

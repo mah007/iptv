@@ -137,7 +137,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
     else revealFirstError();
   }
 
-  const submit = form.handleSubmit(async (values) => {
+  async function submit(values: WizardValues): Promise<void> {
     try {
       const result = await create.mutateAsync({ data: createCustomerRequest(values, timeZone) });
       setCreated(result);
@@ -152,7 +152,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
         revealFirstError();
       }
     }
-  });
+  }
 
   if (created) {
     return (
@@ -175,7 +175,8 @@ function Wizard({ onClose }: { onClose: () => void }) {
         className="flex min-h-0 flex-1 flex-col"
         onSubmit={(event) => {
           event.preventDefault();
-          if (last) void submit(event);
+          // handleSubmit runs inside the event handler: the submit path reads the body ref.
+          if (last) void form.handleSubmit(submit)(event);
           else void goNext();
         }}
       >
@@ -193,7 +194,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
           />
         </SheetHeader>
         <SheetBody ref={body}>
-          {current === "profile" ? <ProfileFields /> : null}
+          {current === "profile" ? <ProfileFields withUsername /> : null}
           {current === "access" ? <AccessFields timeZone={timeZone} /> : null}
           {current === "device" ? <DeviceFields optional /> : null}
         </SheetBody>

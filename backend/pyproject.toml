@@ -47,6 +47,8 @@ dev = [
     "djangorestframework-stubs>=3.16.9,<3.17",
     "hypothesis>=6.168.3,<7",
     "types-pyyaml>=6.0.12.20260906",
+    # The Xtream contract tests validate live payloads against compat/ JSON Schemas.
+    "jsonschema==4.26.0",
 ]
 
 [tool.uv]

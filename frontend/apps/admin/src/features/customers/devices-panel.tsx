@@ -71,13 +71,21 @@ import { useTranslation } from "react-i18next";
 import { useCan } from "../../lib/auth";
 import { applyFieldErrors, notifyError } from "../../lib/problems";
 import { invalidateCustomer } from "./cache";
-import { DeviceFields } from "./form-fields";
+import { CredentialFields, DeviceFields } from "./form-fields";
 import { IssuedCredentialPanel } from "./issued-credential";
 import {
   DEVICE_DEFAULTS,
+  DEVICE_FIELD_PATHS,
+  RESET_FIELD_PATHS,
   deviceFormSchema,
+  deviceRequest,
+  resetDefaults,
+  resetFormSchema,
+  resetRequest,
   type DeviceFormInput,
   type DeviceFormValues,
+  type ResetFormInput,
+  type ResetFormValues,
 } from "./schemas";
 
 interface Issued {
@@ -176,19 +184,13 @@ function AddDeviceDialog({
 
   const submit = form.handleSubmit(async ({ device }) => {
     try {
-      const credential = await create.mutateAsync({
-        id: customerId,
-        data: { app_hint: device.app_hint, ...(device.name ? { name: device.name } : {}) },
-      });
+      const credential = await create.mutateAsync({ id: customerId, data: deviceRequest(device) });
       form.reset();
       onOpenChange(false);
       onIssued(credential);
       void invalidateCustomer(queryClient, customerId);
     } catch (error) {
-      const fields = applyFieldErrors(error, form.setError, {
-        name: "device.name",
-        app_hint: "device.app_hint",
-      });
+      const fields = applyFieldErrors(error, form.setError, DEVICE_FIELD_PATHS);
       if (fields.length === 0) notifyError(t, error);
     }
   });
@@ -231,6 +233,100 @@ function AddDeviceDialog({
             </DialogFooter>
           </form>
         </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The reset form of one device, mounted fresh each time the dialog opens. */
+function ResetForm({
+  device,
+  onClose,
+  onIssued,
+}: {
+  device: Device;
+  onClose: () => void;
+  onIssued: (credential: IssuedCredential) => void;
+}) {
+  const { t } = useTranslation();
+  const reset = useDevicesResetCredentials();
+  const form = useForm<ResetFormInput, unknown, ResetFormValues>({
+    resolver: zodResolver(resetFormSchema),
+    defaultValues: resetDefaults(device.xtream_username ?? ""),
+  });
+
+  async function submit(values: ResetFormValues): Promise<void> {
+    try {
+      const credential = await reset.mutateAsync({
+        id: device.id,
+        data: resetRequest(values, device.xtream_username),
+      });
+      onClose();
+      onIssued(credential);
+    } catch (error) {
+      const fields = applyFieldErrors(error, form.setError, RESET_FIELD_PATHS);
+      if (fields.length === 0) notifyError(t, error);
+    }
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {t("devices.reset.title", { name: deviceName(device, t("devices.unnamed")) })}
+        </DialogTitle>
+        <DialogDescription>{t("devices.reset.description")}</DialogDescription>
+      </DialogHeader>
+      <Form {...form}>
+        <form
+          noValidate
+          className="grid gap-4"
+          onSubmit={(event) => {
+            void form.handleSubmit(submit)(event);
+          }}
+        >
+          <CredentialFields resetting />
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={onClose}>
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" pending={form.formState.isSubmitting}>
+              {t("devices.reset.confirm")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Form>
+    </>
+  );
+}
+
+/** "Reset password": a generated one, or one the admin sets (optionally renaming the login). */
+function ResetDialog({
+  device,
+  onOpenChange,
+  onIssued,
+}: {
+  device: Device | null;
+  onOpenChange: (open: boolean) => void;
+  onIssued: (credential: IssuedCredential) => void;
+}) {
+  return (
+    <Dialog open={device !== null} onOpenChange={onOpenChange}>
+      <DialogContent
+        onInteractOutside={(event) => {
+          event.preventDefault();
+        }}
+      >
+        {device ? (
+          <ResetForm
+            key={device.id}
+            device={device}
+            onClose={() => {
+              onOpenChange(false);
+            }}
+            onIssued={onIssued}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );
@@ -403,7 +499,6 @@ export function DevicesPanel({ customer }: { customer: CustomerDetail }) {
   const [reason, setReason] = useState("");
   const [showRevoked, setShowRevoked] = useState(false);
 
-  const reset = useDevicesResetCredentials();
   const block = useDevicesBlock();
   const unblock = useDevicesUnblock();
   const approve = useDevicesApprove();
@@ -581,20 +676,18 @@ export function DevicesPanel({ customer }: { customer: CustomerDetail }) {
         }}
       />
 
-      <ConfirmDialog
-        open={action?.kind === "reset"}
-        onOpenChange={closeAction}
-        title={t("devices.reset.title", { name })}
-        description={t("devices.reset.description")}
-        confirmLabel={t("devices.reset.confirm")}
-        onConfirm={() =>
-          confirm(async () => {
-            if (!action) return;
-            const credential = await reset.mutateAsync({ id: action.device.id });
+      {manage ? (
+        <ResetDialog
+          device={action?.kind === "reset" ? action.device : null}
+          onOpenChange={(open) => {
+            closeAction(open);
+            if (!open) refresh();
+          }}
+          onIssued={(credential) => {
             setIssued({ credential, kind: "reset" });
-          })
-        }
-      />
+          }}
+        />
+      ) : null}
       <ConfirmDialog
         open={action?.kind === "block"}
         onOpenChange={closeAction}
@@ -648,4 +741,3 @@ export function DevicesPanel({ customer }: { customer: CustomerDetail }) {
     </>
   );
 }
-

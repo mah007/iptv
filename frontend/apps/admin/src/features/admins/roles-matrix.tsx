@@ -220,9 +220,7 @@ export function RolesMatrix({ canManage }: { canManage: boolean }) {
   }, [permissions.data]);
   const columns = useMemo(
     () =>
-      [...(roles.data ?? [])].sort(
-        (a, b) => Number(b.name === OWNER) - Number(a.name === OWNER),
-      ),
+      [...(roles.data ?? [])].sort((a, b) => Number(b.name === OWNER) - Number(a.name === OWNER)),
     [roles.data],
   );
 

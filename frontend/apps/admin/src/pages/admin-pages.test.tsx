@@ -167,11 +167,17 @@ describe("admins and roles", () => {
     const { user } = renderApp("/admins?tab=roles");
     const matrix = await screen.findByRole("table", { name: "Permissions of each role" });
     // The owner column comes first and can't be changed.
-    const owner = within(matrix).getByRole("checkbox", { name: "Owner: Create and change customers and their access profiles" });
+    const owner = within(matrix).getByRole("checkbox", {
+      name: "Owner: Create and change customers and their access profiles",
+    });
     expect(owner.getAttribute("data-state")).toBe("checked");
     expect(owner.hasAttribute("disabled")).toBe(true);
 
-    await user.click(within(matrix).getByRole("checkbox", { name: "Support: Create and change customers and their access profiles" }));
+    await user.click(
+      within(matrix).getByRole("checkbox", {
+        name: "Support: Create and change customers and their access profiles",
+      }),
+    );
     await user.click(screen.getByRole("button", { name: "Save changes to 1 role" }));
     await waitFor(() => {
       expect(api.sent("PATCH", "/api/v1/admin/roles/r-support")[0]?.body).toEqual({

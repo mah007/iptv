@@ -207,9 +207,7 @@ describe("FilterBar", () => {
 
 describe("Stepper", () => {
   it("marks the current step and ticks the finished ones", () => {
-    renderWithUi(
-      <Stepper label="Steps" steps={["Profile", "Access", "Device"]} current={1} />,
-    );
+    renderWithUi(<Stepper label="Steps" steps={["Profile", "Access", "Device"]} current={1} />);
     const nav = screen.getByRole("navigation", { name: "Steps" });
     const items = nav.querySelectorAll("li");
     expect(items).toHaveLength(3);

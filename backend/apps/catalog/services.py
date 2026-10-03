@@ -143,14 +143,21 @@ def refresh_series_status(series: Series) -> bool:
 
 
 def refresh_status_of_files(file_ids: Iterable[UUID]) -> None:
-    """Recompute the status of every title these files belong to."""
+    """Recompute the status of every title these files belong to, and announce the change
+    even when the status stays: a series gains or loses playable episodes either way."""
     ids = list(file_ids)
     if not ids:
         return
-    for movie in Movie.objects.filter(files__id__in=ids).distinct():
+    movies = list(Movie.objects.filter(files__id__in=ids).distinct())
+    for movie in movies:
         refresh_movie_status(movie)
-    for series in Series.objects.filter(seasons__episodes__files__id__in=ids).distinct():
+    series_list = list(Series.objects.filter(seasons__episodes__files__id__in=ids).distinct())
+    for series in series_list:
         refresh_series_status(series)
+    if movies:
+        notify_catalog_changed("movie", [movie.pk for movie in movies])
+    if series_list:
+        notify_catalog_changed("series", [series.pk for series in series_list])
 
 
 def series_of_episodes(episodes: Iterable[Episode]) -> list[Series]:

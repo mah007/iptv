@@ -15,7 +15,8 @@ from django.conf import settings
 
 from config.origins import origin
 
-DEFAULT_KEYS_FILE = "/run/secrets/media_token_keys.json"
+# Where Docker mounts the `media_token_keys` secret (docker/compose.yml), as on the edge.
+DEFAULT_KEYS_FILE = "/run/secrets/media_token_keys"
 
 
 def _int(name: str, default: int) -> int:
@@ -42,15 +43,15 @@ def media_token_keys_file() -> Path:
 def media_base_url() -> str:
     """Public origin of the media edge, e.g. https://media.example.com (no trailing /).
 
-    Defaults to `media.<DOMAIN>` on the public scheme and port.
+    Defaults to MEDIA_HOST (else `media.<DOMAIN>`) on the public scheme and port.
     """
     explicit = _str("MEDIA_BASE_URL", "")
     if explicit:
         return explicit.rstrip("/")
-    domain = getattr(settings, "DOMAIN", "localhost")
+    host = _str("MEDIA_HOST", f"media.{getattr(settings, 'DOMAIN', 'localhost')}")
     scheme = getattr(settings, "PUBLIC_SCHEME", "http")
     port = int(getattr(settings, "PUBLIC_PORT", 80))
-    return origin(scheme, f"media.{domain}", port)
+    return origin(scheme, host, port)
 
 
 def slot_window_s() -> int:
