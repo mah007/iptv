@@ -8,9 +8,207 @@
     "toLight": "Switch to light theme",
     "toDark": "Switch to dark theme"
   },
+  "density": {
+    "toCompact": "Switch to compact density",
+    "toComfortable": "Switch to comfortable density"
+  },
   "environment": {
     "development": "DEV",
     "staging": "STAGING",
-    "production": "PROD"
+    "production": "PROD",
+    "developmentLong": "Development environment",
+    "stagingLong": "Staging environment",
+    "productionLong": "Production environment: changes affect real customers"
+  },
+  "sidebar": {
+    "open": "Open navigation",
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar"
+  },
+  "dialog": {
+    "close": "Close"
+  },
+  "toast": {
+    "region": "Notifications"
+  },
+  "breadcrumb": {
+    "label": "Breadcrumb"
+  },
+  "copy": {
+    "copy": "Copy",
+    "copied": "Copied to clipboard",
+    "failed": "Couldn't copy automatically. Select the text and copy it manually."
+  },
+  "secret": {
+    "reveal": "Reveal",
+    "hide": "Hide",
+    "masked": "Hidden",
+    "onceHint": "Shown only once. Copy it before you leave this page.",
+    "goneHint": "Hidden for good. It can't be shown again."
+  },
+  "password": {
+    "show": "Show password",
+    "hide": "Hide password"
+  },
+  "confirm": {
+    "cancel": "Cancel",
+    "typeToConfirm": "Type <code>{{text}}</code> to confirm."
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "This part of the page couldn't load. Try again, and if it keeps failing, contact support.",
+    "retry": "Try again",
+    "details": "Technical details"
+  },
+  "dataTable": {
+    "columns": "Columns",
+    "toggleColumns": "Show columns",
+    "selectPage": "Select all rows on this page",
+    "selectRow": "Select row",
+    "bulkActions": "Actions for selected rows",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "clearSelection": "Clear selection",
+    "rowsPerPage": "Rows per page",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "noRows": "No results",
+    "page": "Page {{page}} of {{pages}}",
+    "firstPage": "First page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "lastPage": "Last page",
+    "empty": {
+      "title": "No results",
+      "description": "Nothing matches these filters yet."
+    },
+    "error": {
+      "title": "Couldn't load this list",
+      "description": "Check your connection and try again."
+    }
+  },
+  "filter": {
+    "search": "Search…",
+    "clearSearch": "Clear search",
+    "selectedCount_one": "{{count}} selected",
+    "selectedCount_other": "{{count}} selected",
+    "clear": "Clear",
+    "clearAll": "Clear all filters",
+    "remove": "Remove filter",
+    "active": "Active filters",
+    "from": "From",
+    "to": "To",
+    "range": "{{from}} → {{to}}",
+    "open": "…"
+  },
+  "statTile": {
+    "up": "Up {{value}} on the previous period",
+    "down": "Down {{value}} on the previous period",
+    "flat": "No change on the previous period"
+  },
+  "diff": {
+    "added": "Added: {{n}}",
+    "removed": "Removed: {{n}}",
+    "changed": "Changed: {{n}}",
+    "showUnchanged": "Show unchanged fields ({{n}})",
+    "hideUnchanged": "Hide unchanged fields",
+    "noChanges": "No changes recorded.",
+    "field": "Field",
+    "before": "Before",
+    "after": "After",
+    "value": "(value)",
+    "kind": {
+      "added": "added",
+      "removed": "removed",
+      "changed": "changed",
+      "unchanged": "unchanged"
+    }
+  },
+  "separator": ", ",
+  "quality": {
+    "label": "Quality",
+    "short": {
+      "uhd": "4K",
+      "fhd": "1080p",
+      "hd": "720p",
+      "sd": "SD",
+      "hdr10": "HDR10",
+      "hlg": "HLG",
+      "dv": "DV",
+      "surround71": "7.1",
+      "surround51": "5.1",
+      "atmos": "Atmos",
+      "hevc": "HEVC",
+      "av1": "AV1"
+    },
+    "long": {
+      "uhd": "4K Ultra HD",
+      "fhd": "Full HD 1080p",
+      "hd": "HD 720p",
+      "sd": "Standard definition",
+      "hdr10": "HDR10 high dynamic range",
+      "hlg": "HLG high dynamic range",
+      "dv": "Dolby Vision",
+      "surround71": "7.1 surround sound",
+      "surround51": "5.1 surround sound",
+      "atmos": "Dolby Atmos",
+      "hevc": "HEVC video",
+      "av1": "AV1 video"
+    }
+  },
+  "posterCard": {
+    "rating": "Rated {{value}} out of 10",
+    "subtitles": "Subtitles: {{languages}}"
+  },
+  "progress": {
+    "eta": "{{duration}} left",
+    "speed": "{{value}}×"
+  },
+  "live": {
+    "streams_one": "{{count}} live stream",
+    "streams_other": "{{count}} live streams"
+  },
+  "country": {
+    "unknown": "Unknown country"
+  },
+  "device": {
+    "tv": "TV",
+    "smartphone": "Phone",
+    "tablet": "Tablet",
+    "monitor": "Computer",
+    "unknown": "Unknown device"
+  },
+  "timeline": {
+    "system": "System",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details"
+  },
+  "description": {
+    "empty": "—",
+    "notSet": "Not set"
+  },
+  "status": {
+    "active": "Active",
+    "grace": "Grace",
+    "expired": "Expired",
+    "suspended": "Suspended",
+    "trial": "Trial",
+    "processing": "Processing",
+    "review": "Review",
+    "ready": "Ready",
+    "hidden": "Hidden",
+    "pending": "Pending",
+    "cancelled": "Cancelled",
+    "disabled": "Disabled",
+    "license_expired": "Licence expired",
+    "running": "Running",
+    "queued": "Queued",
+    "failed": "Failed",
+    "blocked": "Blocked",
+    "approved": "Approved",
+    "revoked": "Revoked",
+    "open": "Open",
+    "resolved": "Resolved",
+    "skipped": "Skipped",
+    "sent": "Sent"
   }
 }

@@ -2,43 +2,117 @@
  * Smart IPTV design tokens (SPEC §8.1). Apps import this right after
  * `@import "tailwindcss";` and add `@source` for this package.
  *
- * One brand accent (teal), a zinc neutral scale, semantic colours, and themes
- * switched with <html data-theme="light|dark">.
+ * Zinc neutrals, one brand accent (teal), semantic and status colours, a 4 px
+ * grid, hairline borders and a single elevation shadow. Themes switch with
+ * <html data-theme="light|dark">, density with <html data-density="compact">.
  */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
   --background: #ffffff;
-  --foreground: #18181b;
+  --foreground: #09090b;
   --card: #ffffff;
-  --card-foreground: #18181b;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
   --muted: #f4f4f5;
-  --muted-foreground: #71717a;
+  /* Darker than zinc-500 so small text keeps 4.5:1 on muted surfaces. */
+  --muted-foreground: #696970;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --sidebar: #fafafa;
   --border: #e4e4e7;
+  --input: #d4d4d8;
   --primary: #0f766e;
   --primary-foreground: #ffffff;
   --ring: #0f766e;
-  --success: #15803d;
-  --warning: #b45309;
+  --overlay: rgb(9 9 11 / 0.45);
+
+  /* Solid tones for dots, icons and borders; *-text tones read on tinted fills. */
+  --success: #16a34a;
+  --success-text: #166534;
+  --warning: #d97706;
+  --warning-text: #92400e;
   --danger: #dc2626;
+  --danger-text: #b91c1c;
+  /* Fill behind white text (danger buttons): the same red in both themes keeps AA contrast. */
+  --danger-solid: #dc2626;
   --info: #2563eb;
+  --info-text: #1d4ed8;
+  --violet: #7c3aed;
+  --violet-text: #6d28d9;
+  --neutral: #71717a;
+  --neutral-text: #52525b;
+
+  --elevation: 0 1px 2px rgb(0 0 0 / 0.04), 0 10px 32px -8px rgb(0 0 0 / 0.16);
+
+  /* Density (comfortable by default). */
+  --density-row: 2.75rem;
+  --density-control: 2.25rem;
+  --density-nav: 2rem;
+  --density-page: 1.5rem;
+  --density-card: 1.25rem;
+  /* Narrowest poster column in library grids. */
+  --density-poster: 10rem;
+
+  /* Inter for Latin, IBM Plex Sans Arabic for Arabic (self-hosted, see fonts.ts). */
+  --font-family-sans:
+    "Inter Variable", "Inter", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-family-arabic:
+    "IBM Plex Sans Arabic", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono:
+    ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* +1 in LTR, -1 in RTL: lets keyframes slide from the inline start edge. */
+  --dir-sign: 1;
 }
 
 [data-theme="dark"] {
   --background: #09090b;
   --foreground: #fafafa;
-  --card: #18181b;
+  --card: #111113;
   --card-foreground: #fafafa;
-  --muted: #27272a;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --muted: #1c1c1f;
   --muted-foreground: #a1a1aa;
+  --accent: #1f1f23;
+  --accent-foreground: #fafafa;
+  --sidebar: #0c0c0e;
   --border: #27272a;
+  --input: #3f3f46;
   --primary: #2dd4bf;
   --primary-foreground: #042f2e;
   --ring: #2dd4bf;
+  --overlay: rgb(0 0 0 / 0.65);
+
   --success: #22c55e;
+  --success-text: #4ade80;
   --warning: #f59e0b;
-  --danger: #f87171;
-  --info: #60a5fa;
+  --warning-text: #fbbf24;
+  --danger: #ef4444;
+  --danger-text: #f87171;
+  --info: #3b82f6;
+  --info-text: #60a5fa;
+  --violet: #8b5cf6;
+  --violet-text: #a78bfa;
+  --neutral: #a1a1aa;
+  --neutral-text: #a1a1aa;
+
+  --elevation: 0 0 0 1px rgb(255 255 255 / 0.04), 0 12px 32px -8px rgb(0 0 0 / 0.7);
+}
+
+[data-density="compact"] {
+  --density-row: 2.25rem;
+  --density-control: 2rem;
+  --density-nav: 1.75rem;
+  --density-page: 1rem;
+  --density-card: 1rem;
+  --density-poster: 8.5rem;
+}
+
+[dir="rtl"] {
+  --dir-sign: -1;
 }
 
 @theme inline {
@@ -46,44 +120,142 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-sidebar: var(--sidebar);
   --color-border: var(--border);
+  --color-input: var(--input);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-ring: var(--ring);
+  --color-overlay: var(--overlay);
   --color-success: var(--success);
+  --color-success-text: var(--success-text);
   --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
   --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-danger-solid: var(--danger-solid);
   --color-info: var(--info);
+  --color-info-text: var(--info-text);
+  --color-violet: var(--violet);
+  --color-violet-text: var(--violet-text);
+  --color-neutral: var(--neutral);
+  --color-neutral-text: var(--neutral-text);
 
-  /* Fonts are self-hosted in M11; system fallbacks cover both scripts until then. */
-  --font-sans: "Inter", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-family-sans);
+  --font-arabic: var(--font-family-arabic);
+  --font-mono: var(--font-family-mono);
+
+  /* Type scale 12/13/14/16/20/24/30: Tailwind's xs/sm/base/xl/2xl/3xl plus 13 px. */
+  --text-ui: 0.8125rem;
+  --text-ui--line-height: 1.25rem;
 
   --radius-card: 10px;
   --radius-input: 8px;
   --radius-badge: 6px;
+
+  --shadow-elevation: var(--elevation);
+
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-fade-out: fade-out 150ms ease-out;
+  --animate-pop-in: pop-in 150ms ease-out;
+  --animate-pop-out: pop-out 120ms ease-out;
+  --animate-sheet-in: sheet-in 200ms ease-out;
+  --animate-sheet-out: sheet-out 180ms ease-out;
+  --animate-sheet-in-end: sheet-in-end 200ms ease-out;
+  --animate-sheet-out-end: sheet-out-end 180ms ease-out;
+  --animate-indeterminate: indeterminate 1.2s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+
+  @keyframes pop-out {
+    to {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+
+  @keyframes sheet-in {
+    from {
+      transform: translateX(calc(var(--dir-sign) * -100%));
+    }
+  }
+
+  @keyframes sheet-out {
+    to {
+      transform: translateX(calc(var(--dir-sign) * -100%));
+    }
+  }
+
+  @keyframes sheet-in-end {
+    from {
+      transform: translateX(calc(var(--dir-sign) * 100%));
+    }
+  }
+
+  @keyframes sheet-out-end {
+    to {
+      transform: translateX(calc(var(--dir-sign) * 100%));
+    }
+  }
+
+  @keyframes indeterminate {
+    from {
+      transform: translateX(calc(var(--dir-sign) * -100%));
+    }
+    to {
+      transform: translateX(calc(var(--dir-sign) * 300%));
+    }
+  }
 }
 
 @layer base {
   html {
     color-scheme: light;
+    scrollbar-width: thin;
+    scrollbar-color: var(--input) transparent;
+    -webkit-text-size-adjust: 100%;
   }
 
   html[data-theme="dark"] {
     color-scheme: dark;
   }
 
-  :lang(ar) {
-    font-family: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
-  }
-
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: var(--font-sans);
+    font-family: var(--font-family-sans);
     font-variant-numeric: tabular-nums;
+    text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Arabic pages use Plex Arabic throughout (it has matching Latin glyphs). */
+  html:lang(ar) body {
+    font-family: var(--font-family-arabic);
   }
 
   *,
@@ -92,12 +264,52 @@
     border-color: var(--border);
   }
 
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-family-mono);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     ::before,
     ::after {
       transition-duration: 0ms !important;
       animation-duration: 0ms !important;
+      animation-iteration-count: 1 !important;
+    }
+
+    /* A still bar instead of a sliding one. */
+    .animate-indeterminate {
+      animation: none !important;
+      width: 100%;
+      opacity: 0.5;
     }
   }
+}
+
+/* Skeleton shimmer, travelling from the inline start edge (SPEC §8.1). */
+@keyframes skeleton-shimmer {
+  from {
+    background-position: calc(var(--dir-sign) * 100%) 0;
+  }
+  to {
+    background-position: calc(var(--dir-sign) * -100%) 0;
+  }
+}
+
+@utility skeleton-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--muted) 0%,
+    color-mix(in oklab, var(--muted) 40%, var(--background)) 50%,
+    var(--muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }

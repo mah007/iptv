@@ -8,9 +8,219 @@
     "toLight": "التبديل إلى الوضع الفاتح",
     "toDark": "التبديل إلى الوضع الداكن"
   },
+  "density": {
+    "toCompact": "التبديل إلى العرض المضغوط",
+    "toComfortable": "التبديل إلى العرض المريح"
+  },
   "environment": {
     "development": "تطوير",
     "staging": "تجريبي",
-    "production": "إنتاج"
+    "production": "إنتاج",
+    "developmentLong": "بيئة التطوير",
+    "stagingLong": "البيئة التجريبية",
+    "productionLong": "بيئة الإنتاج: التغييرات تمسّ العملاء الفعليين"
+  },
+  "sidebar": {
+    "open": "فتح قائمة التنقل",
+    "expand": "توسيع الشريط الجانبي",
+    "collapse": "طيّ الشريط الجانبي"
+  },
+  "dialog": {
+    "close": "إغلاق"
+  },
+  "toast": {
+    "region": "الإشعارات"
+  },
+  "breadcrumb": {
+    "label": "مسار التنقل"
+  },
+  "copy": {
+    "copy": "نسخ",
+    "copied": "نُسخ إلى الحافظة",
+    "failed": "تعذّر النسخ تلقائيًا. حدّد النص وانسخه يدويًا."
+  },
+  "secret": {
+    "reveal": "إظهار",
+    "hide": "إخفاء",
+    "masked": "مخفي",
+    "onceHint": "يظهر مرة واحدة فقط. انسخه قبل مغادرة هذه الصفحة.",
+    "goneHint": "أُخفي نهائيًا ولا يمكن عرضه مرة أخرى."
+  },
+  "password": {
+    "show": "إظهار كلمة المرور",
+    "hide": "إخفاء كلمة المرور"
+  },
+  "confirm": {
+    "cancel": "إلغاء",
+    "typeToConfirm": "اكتب <code>{{text}}</code> للتأكيد."
+  },
+  "error": {
+    "title": "حدث خطأ ما",
+    "description": "تعذّر تحميل هذا الجزء من الصفحة. أعد المحاولة، وإن تكرر الخطأ فتواصل مع الدعم.",
+    "retry": "إعادة المحاولة",
+    "details": "التفاصيل التقنية"
+  },
+  "dataTable": {
+    "columns": "الأعمدة",
+    "toggleColumns": "إظهار الأعمدة",
+    "selectPage": "تحديد كل صفوف هذه الصفحة",
+    "selectRow": "تحديد الصف",
+    "bulkActions": "إجراءات الصفوف المحددة",
+    "selected_zero": "لا صفوف محددة",
+    "selected_one": "صف واحد محدد",
+    "selected_two": "صفّان محددان",
+    "selected_few": "{{count}} صفوف محددة",
+    "selected_many": "{{count}} صفًا محددًا",
+    "selected_other": "{{count}} صف محدد",
+    "clearSelection": "إلغاء التحديد",
+    "rowsPerPage": "صفوف في الصفحة",
+    "range": "{{from}}–{{to}} من {{total}}",
+    "noRows": "لا نتائج",
+    "page": "صفحة {{page}} من {{pages}}",
+    "firstPage": "الصفحة الأولى",
+    "previousPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "lastPage": "الصفحة الأخيرة",
+    "empty": {
+      "title": "لا نتائج",
+      "description": "لا يوجد ما يطابق عوامل التصفية هذه حتى الآن."
+    },
+    "error": {
+      "title": "تعذّر تحميل هذه القائمة",
+      "description": "تحقق من اتصالك ثم أعد المحاولة."
+    }
+  },
+  "filter": {
+    "search": "بحث…",
+    "clearSearch": "مسح البحث",
+    "selectedCount_zero": "لا شيء محدد",
+    "selectedCount_one": "واحد محدد",
+    "selectedCount_two": "اثنان محددان",
+    "selectedCount_few": "{{count}} محددة",
+    "selectedCount_many": "{{count}} محددًا",
+    "selectedCount_other": "{{count}} محدد",
+    "clear": "مسح",
+    "clearAll": "مسح كل عوامل التصفية",
+    "remove": "إزالة عامل التصفية",
+    "active": "عوامل التصفية النشطة",
+    "from": "من",
+    "to": "إلى",
+    "range": "{{from}} → {{to}}",
+    "open": "…"
+  },
+  "statTile": {
+    "up": "ارتفاع بنسبة {{value}} عن الفترة السابقة",
+    "down": "انخفاض بنسبة {{value}} عن الفترة السابقة",
+    "flat": "دون تغيير عن الفترة السابقة"
+  },
+  "diff": {
+    "added": "مضاف: {{n}}",
+    "removed": "محذوف: {{n}}",
+    "changed": "معدّل: {{n}}",
+    "showUnchanged": "إظهار الحقول غير المتغيرة ({{n}})",
+    "hideUnchanged": "إخفاء الحقول غير المتغيرة",
+    "noChanges": "لا تغييرات مسجلة.",
+    "field": "الحقل",
+    "before": "قبل",
+    "after": "بعد",
+    "value": "(القيمة)",
+    "kind": {
+      "added": "مضاف",
+      "removed": "محذوف",
+      "changed": "معدّل",
+      "unchanged": "دون تغيير"
+    }
+  },
+  "separator": "، ",
+  "quality": {
+    "label": "الجودة",
+    "short": {
+      "uhd": "4K",
+      "fhd": "1080p",
+      "hd": "720p",
+      "sd": "SD",
+      "hdr10": "HDR10",
+      "hlg": "HLG",
+      "dv": "DV",
+      "surround71": "7.1",
+      "surround51": "5.1",
+      "atmos": "Atmos",
+      "hevc": "HEVC",
+      "av1": "AV1"
+    },
+    "long": {
+      "uhd": "دقة 4K فائقة الوضوح",
+      "fhd": "دقة عالية كاملة 1080p",
+      "hd": "دقة عالية 720p",
+      "sd": "دقة قياسية",
+      "hdr10": "نطاق ديناميكي عالٍ HDR10",
+      "hlg": "نطاق ديناميكي عالٍ HLG",
+      "dv": "Dolby Vision",
+      "surround71": "صوت محيطي 7.1",
+      "surround51": "صوت محيطي 5.1",
+      "atmos": "Dolby Atmos",
+      "hevc": "فيديو HEVC",
+      "av1": "فيديو AV1"
+    }
+  },
+  "posterCard": {
+    "rating": "التقييم {{value}} من 10",
+    "subtitles": "الترجمات: {{languages}}"
+  },
+  "progress": {
+    "eta": "المتبقي {{duration}}",
+    "speed": "{{value}}×"
+  },
+  "live": {
+    "streams_zero": "لا توجد عمليات بث نشطة",
+    "streams_one": "عملية بث نشطة واحدة",
+    "streams_two": "عمليتا بث نشطتان",
+    "streams_few": "{{count}} عمليات بث نشطة",
+    "streams_many": "{{count}} عملية بث نشطة",
+    "streams_other": "{{count}} عملية بث نشطة"
+  },
+  "country": {
+    "unknown": "دولة غير معروفة"
+  },
+  "device": {
+    "tv": "تلفاز",
+    "smartphone": "هاتف",
+    "tablet": "جهاز لوحي",
+    "monitor": "حاسوب",
+    "unknown": "جهاز غير معروف"
+  },
+  "timeline": {
+    "system": "النظام",
+    "showDetails": "إظهار التفاصيل",
+    "hideDetails": "إخفاء التفاصيل"
+  },
+  "description": {
+    "empty": "—",
+    "notSet": "غير محدد"
+  },
+  "status": {
+    "active": "نشط",
+    "grace": "فترة سماح",
+    "expired": "منتهٍ",
+    "suspended": "موقوف",
+    "trial": "تجريبي",
+    "processing": "قيد المعالجة",
+    "review": "بانتظار المراجعة",
+    "ready": "جاهز",
+    "hidden": "مخفي",
+    "pending": "معلّق",
+    "cancelled": "ملغى",
+    "disabled": "معطّل",
+    "license_expired": "انتهى الترخيص",
+    "running": "قيد التشغيل",
+    "queued": "في الانتظار",
+    "failed": "فشل",
+    "blocked": "محظور",
+    "approved": "معتمد",
+    "revoked": "ملغى",
+    "open": "مفتوح",
+    "resolved": "محلول",
+    "skipped": "متجاوز",
+    "sent": "أُرسل"
   }
 }

@@ -1,3 +1,4 @@
+import "@smart-iptv/ui/fonts";
 import "./styles.css";
 
 import { StrictMode } from "react";
