@@ -13,8 +13,9 @@ x-app-dev: &app-dev
     DJANGO_SETTINGS_MODULE: config.settings.dev
   volumes:
     - ./backend:/app
-    # Transcoding profiles live outside backend/ (apps/media/profiles.py finds them here).
-    - ./streaming/ffmpeg:/streaming/ffmpeg:ro
+    # The streaming plane: transcoding profiles (apps/media/profiles.py finds them under
+    # /streaming/ffmpeg) and the token test vectors the playback tests cross-check.
+    - ./streaming:/streaming:ro
     # Media libraries, read-only (make sample-media fills ./media; ADR-0009).
     - ./media:/media:ro
     # Xtream contract kit: JSON Schemas and golden fixtures for the contract tests.

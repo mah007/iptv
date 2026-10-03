@@ -3246,6 +3246,257 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/sessions:
+    get:
+      operationId: sessions_list
+      description: "`active=true` lists the sessions still open."
+      summary: List playback sessions, newest first
+      parameters:
+        - in: query
+          name: active
+          schema:
+            type: boolean
+          description: "true: sessions still open; false: ended ones."
+        - in: query
+          name: device
+          schema:
+            type: string
+            format: uuid
+          description: Sessions of one device.
+        - in: query
+          name: end_reason
+          schema:
+            type: string
+            enum:
+              - error
+              - expired
+              - idle
+              - kicked
+              - limit
+              - stopped
+          description: |-
+            * `stopped` - Stopped
+            * `kicked` - Kicked
+            * `expired` - Access expired
+            * `limit` - Stream limit
+            * `idle` - Idle
+            * `error` - Error
+        - in: query
+          name: ordering
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - -bytes_sent
+                - -ended_at
+                - -last_heartbeat_at
+                - -started_at
+                - bytes_sent
+                - ended_at
+                - last_heartbeat_at
+                - started_at
+          description: |-
+            Sort key; prefix with - for descending. Default: -started_at.
+
+            * `started_at` - Started at
+            * `-started_at` - Started at (descending)
+            * `last_heartbeat_at` - Last heartbeat at
+            * `-last_heartbeat_at` - Last heartbeat at (descending)
+            * `ended_at` - Ended at
+            * `-ended_at` - Ended at (descending)
+            * `bytes_sent` - Bytes sent
+            * `-bytes_sent` - Bytes sent (descending)
+          explode: false
+          style: form
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: started_after
+          schema:
+            type: string
+            format: date-time
+          description: Started at or after (ISO 8601).
+        - in: query
+          name: started_before
+          schema:
+            type: string
+            format: date-time
+          description: Started before (ISO 8601).
+        - in: query
+          name: title_id
+          schema:
+            type: string
+            format: uuid
+          description: Sessions of one movie or episode.
+        - in: query
+          name: title_kind
+          schema:
+            type: string
+            enum:
+              - episode
+              - movie
+          description: |-
+            * `movie` - Movie
+            * `episode` - Episode
+        - in: query
+          name: user
+          schema:
+            type: string
+            format: uuid
+          description: Sessions of one customer.
+      tags:
+        - sessions
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedSessionList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/sessions/{id}/kill:
+    post:
+      operationId: sessions_kill
+      description: Playback stops on the player's next request, within the edge's
+        60 s stream-auth cache. 409 when the session has already ended.
+      summary: Stop a playback session
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - sessions
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/sessions/stream:
+    get:
+      operationId: sessions_stream
+      description: 'Server-sent events, polled every 2 s from redis-state: first `snapshot`
+        `{"sessions": [Session]}`, then `diff` `{"added": [Session], "updated": [Session],
+        "removed": [id]}` whenever something changed, and a keep-alive comment every
+        15 s otherwise. A Session is `{id, user{id,name}, device{id,name}, title{kind,id,name},
+        rendition, ip, country, edge, started_at, last_seen_at, bytes_sent}`; `id`
+        is what sessions/{id}/kill takes.'
+      summary: Live sessions as server-sent events
+      parameters:
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum:
+              - json
+              - sse
+      tags:
+        - sessions
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            text/event-stream:
+              schema:
+                type: string
+          description: An endless text/event-stream.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/settings:
     get:
       operationId: settings_list
@@ -4497,6 +4748,22 @@ components:
         * `pending` - PENDING
         * `blocked` - BLOCKED
         * `revoked` - REVOKED
+    EndReasonEnum:
+      enum:
+        - stopped
+        - kicked
+        - expired
+        - limit
+        - idle
+        - error
+      type: string
+      description: |-
+        * `stopped` - Stopped
+        * `kicked` - Kicked
+        * `expired` - Access expired
+        * `limit` - Stream limit
+        * `idle` - Idle
+        * `error` - Error
     Episode:
       type: object
       properties:
@@ -5755,6 +6022,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SeriesSummary"
+    PaginatedSessionList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Session"
     Parse:
       type: object
       description: What the file name says (P2 `ParseResult.to_json`).
@@ -6985,6 +7277,140 @@ components:
         - updated_at
         - xc_id
         - year
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          allOf:
+            - $ref: "#/components/schemas/SessionUser"
+          readOnly: true
+        device:
+          oneOf:
+            - $ref: "#/components/schemas/SessionDevice"
+            - type: "null"
+          readOnly: true
+        title_kind:
+          allOf:
+            - $ref: "#/components/schemas/TitleKindEnum"
+          readOnly: true
+        title_id:
+          type: string
+          format: uuid
+          readOnly: true
+        title_name:
+          type: string
+          readOnly: true
+        rendition:
+          type: string
+          readOnly: true
+        ip:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        country:
+          type: string
+          readOnly: true
+        user_agent:
+          type: string
+          readOnly: true
+        player:
+          type: string
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_heartbeat_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ended_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        bytes_sent:
+          type: integer
+          readOnly: true
+        end_reason:
+          allOf:
+            - $ref: "#/components/schemas/EndReasonEnum"
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+          description: Not ended yet.
+        log_ref:
+          type: string
+          readOnly: true
+          description: The session id prefix the media edge's access log shows.
+      required:
+        - bytes_sent
+        - country
+        - device
+        - end_reason
+        - ended_at
+        - id
+        - ip
+        - is_active
+        - last_heartbeat_at
+        - log_ref
+        - player
+        - rendition
+        - started_at
+        - title_id
+        - title_kind
+        - title_name
+        - user
+        - user_agent
+    SessionDevice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/DeviceKind"
+          readOnly: true
+        app_hint:
+          allOf:
+            - $ref: "#/components/schemas/AppHint"
+          readOnly: true
+      required:
+        - app_hint
+        - id
+        - kind
+        - name
+    SessionUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        name:
+          type: string
+          readOnly: true
+      required:
+        - id
+        - name
+        - username
     SettingEntry:
       type: object
       description: A registered setting with its effective value. Sensitive values
@@ -7118,6 +7544,14 @@ components:
           type: string
           default: ""
           maxLength: 200
+    TitleKindEnum:
+      enum:
+        - movie
+        - episode
+      type: string
+      description: |-
+        * `movie` - Movie
+        * `episode` - Episode
     TitleStatus:
       enum:
         - processing
@@ -7173,6 +7607,13 @@ components:
         - TITLE_PREPARING
         - CONFLICT
         - PROVIDER_UNAVAILABLE
+        - ACCOUNT_SUSPENDED
+        - DEVICE_NOT_APPROVED
+        - IP_BLOCKED
+        - GEO_BLOCKED
+        - CONTENT_TYPE_NOT_ALLOWED
+        - QUALITY_NOT_ALLOWED
+        - LICENSE_EXPIRED
       description: Stable machine-readable error code.
     Problem:
       type: object

@@ -218,7 +218,7 @@ function CustomerRows({
               <span className="truncate text-ui font-medium text-foreground">
                 {customer.name || customer.username}
               </span>
-              <span className="truncate text-xs text-muted-foreground" dir="ltr">
+              <span className="ltr-value truncate text-xs text-muted-foreground" dir="ltr">
                 {customer.phone || customer.email || customer.username}
               </span>
             </span>

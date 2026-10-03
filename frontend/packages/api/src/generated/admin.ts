@@ -68,6 +68,7 @@ import type {
   PaginatedReviewList,
   PaginatedScanJobList,
   PaginatedSeriesSummaryList,
+  PaginatedSessionList,
   PatchedAccessProfileRequest,
   PatchedAdminUpdateRequest,
   PatchedCategoryWriteRequest,
@@ -90,6 +91,9 @@ import type {
   ScansListParams,
   SeriesDetail,
   SeriesListParams,
+  Session,
+  SessionsListParams,
+  SessionsStreamParams,
   SettingEntry,
   SuspendRequest,
 } from "./admin.schemas";
@@ -6514,6 +6518,358 @@ export const useSeriesRefreshMetadata = <TError = ErrorType<Problem>, TContext =
 > => {
   return useMutation(getSeriesRefreshMetadataMutationOptions(options), queryClient);
 };
+
+export const getSessionsListUrl = (params?: SessionsListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/sessions?${stringifiedParams}`
+    : `/api/v1/admin/sessions`;
+};
+
+/**
+ * `active=true` lists the sessions still open.
+ * @summary List playback sessions, newest first
+ */
+export const sessionsList = async (
+  params?: SessionsListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedSessionList> => {
+  return apiFetch<PaginatedSessionList>(getSessionsListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSessionsListQueryKey = (params?: SessionsListParams) => {
+  return [`/api/v1/admin/sessions`, ...(params ? [params] : [])] as const;
+};
+
+export const getSessionsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSessionsListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof sessionsList>>> = ({ signal }) =>
+    sessionsList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof sessionsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SessionsListQueryResult = NonNullable<Awaited<ReturnType<typeof sessionsList>>>;
+export type SessionsListQueryError = ErrorType<Problem>;
+
+export function useSessionsList<
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | SessionsListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sessionsList>>,
+          TError,
+          Awaited<ReturnType<typeof sessionsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSessionsList<
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sessionsList>>,
+          TError,
+          Awaited<ReturnType<typeof sessionsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSessionsList<
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List playback sessions, newest first
+ */
+
+export function useSessionsList<
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSessionsListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getSessionsKillUrl = (id: string) => {
+  return `/api/v1/admin/sessions/${encodeURIComponent(String(id))}/kill`;
+};
+
+/**
+ * Playback stops on the player's next request, within the edge's 60 s stream-auth cache. 409 when the session has already ended.
+ * @summary Stop a playback session
+ */
+export const sessionsKill = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Session> => {
+  return apiFetch<Session>(getSessionsKillUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSessionsKillMutationKey = () => ["sessionsKill"] as const;
+
+export const getSessionsKillMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sessionsKill>>,
+    TError,
+    SessionsKillMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sessionsKill>>,
+  TError,
+  SessionsKillMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSessionsKillMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sessionsKill>>,
+    SessionsKillMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return sessionsKill(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SessionsKillMutationResult = NonNullable<Awaited<ReturnType<typeof sessionsKill>>>;
+
+export type SessionsKillMutationError = ErrorType<Problem>;
+export type SessionsKillMutationVariables = { id: string };
+
+/**
+ * @summary Stop a playback session
+ */
+export const useSessionsKill = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof sessionsKill>>,
+      TError,
+      SessionsKillMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof sessionsKill>>,
+  TError,
+  SessionsKillMutationVariables,
+  TContext
+> => {
+  return useMutation(getSessionsKillMutationOptions(options), queryClient);
+};
+
+export const getSessionsStreamUrl = (params?: SessionsStreamParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/sessions/stream?${stringifiedParams}`
+    : `/api/v1/admin/sessions/stream`;
+};
+
+/**
+ * Server-sent events, polled every 2 s from redis-state: first `snapshot` `{"sessions": [Session]}`, then `diff` `{"added": [Session], "updated": [Session], "removed": [id]}` whenever something changed, and a keep-alive comment every 15 s otherwise. A Session is `{id, user{id,name}, device{id,name}, title{kind,id,name}, rendition, ip, country, edge, started_at, last_seen_at, bytes_sent}`; `id` is what sessions/{id}/kill takes.
+ * @summary Live sessions as server-sent events
+ */
+export const sessionsStream = async (
+  params?: SessionsStreamParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<string> => {
+  return apiFetch<string>(getSessionsStreamUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSessionsStreamQueryKey = (params?: SessionsStreamParams) => {
+  return [`/api/v1/admin/sessions/stream`, ...(params ? [params] : [])] as const;
+};
+
+export const getSessionsStreamQueryOptions = <
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsStreamParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSessionsStreamQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof sessionsStream>>> = ({ signal }) =>
+    sessionsStream(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof sessionsStream>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SessionsStreamQueryResult = NonNullable<Awaited<ReturnType<typeof sessionsStream>>>;
+export type SessionsStreamQueryError = ErrorType<Problem>;
+
+export function useSessionsStream<
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | SessionsStreamParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sessionsStream>>,
+          TError,
+          Awaited<ReturnType<typeof sessionsStream>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSessionsStream<
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsStreamParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sessionsStream>>,
+          TError,
+          Awaited<ReturnType<typeof sessionsStream>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSessionsStream<
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsStreamParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Live sessions as server-sent events
+ */
+
+export function useSessionsStream<
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsStreamParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSessionsStreamQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export const getSettingsListUrl = () => {
   return `/api/v1/admin/settings`;

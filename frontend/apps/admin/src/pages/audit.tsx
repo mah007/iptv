@@ -103,12 +103,12 @@ function ActionBadge({ action }: { action: string }) {
   return label ? (
     <span className="grid min-w-0">
       <span className="truncate text-foreground">{label}</span>
-      <code className="truncate font-mono text-[11px] text-muted-foreground" dir="ltr">
+      <code className="ltr-value truncate font-mono text-[11px] text-muted-foreground" dir="ltr">
         {action}
       </code>
     </span>
   ) : (
-    <code className="truncate font-mono text-xs text-foreground" dir="ltr">
+    <code className="ltr-value truncate font-mono text-xs text-foreground" dir="ltr">
       {action}
     </code>
   );
@@ -120,7 +120,7 @@ function TargetText({ entry }: { entry: AuditLog }) {
     return <span className="text-muted-foreground">{t("audit.noTarget")}</span>;
   const label = t(targetKey(entry.target_type), { defaultValue: entry.target_type });
   const id = (
-    <code className="truncate font-mono text-[11px] text-muted-foreground" dir="ltr">
+    <code className="ltr-value truncate font-mono text-[11px] text-muted-foreground" dir="ltr">
       {entry.target_id}
     </code>
   );

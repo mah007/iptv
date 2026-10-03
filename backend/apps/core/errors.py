@@ -54,6 +54,14 @@ class ErrorCode(StrEnum):
     TITLE_PREPARING = "TITLE_PREPARING"
     CONFLICT = "CONFLICT"
     PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
+    # Playback refusals (SPEC §7.4), in check order alongside the codes above.
+    ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED"
+    DEVICE_NOT_APPROVED = "DEVICE_NOT_APPROVED"
+    IP_BLOCKED = "IP_BLOCKED"
+    GEO_BLOCKED = "GEO_BLOCKED"
+    CONTENT_TYPE_NOT_ALLOWED = "CONTENT_TYPE_NOT_ALLOWED"
+    QUALITY_NOT_ALLOWED = "QUALITY_NOT_ALLOWED"
+    LICENSE_EXPIRED = "LICENSE_EXPIRED"
 
 
 # Default HTTP status and RFC 9457 title per code; a raise site may override the status.
@@ -78,6 +86,13 @@ _DEFAULTS: dict[ErrorCode, tuple[int, str]] = {
     ErrorCode.TITLE_PREPARING: (409, "Title is being prepared"),
     ErrorCode.CONFLICT: (409, "Conflict"),
     ErrorCode.PROVIDER_UNAVAILABLE: (503, "Metadata provider unavailable"),
+    ErrorCode.ACCOUNT_SUSPENDED: (403, "Account suspended"),
+    ErrorCode.DEVICE_NOT_APPROVED: (403, "Device not approved"),
+    ErrorCode.IP_BLOCKED: (403, "Address blocked"),
+    ErrorCode.GEO_BLOCKED: (403, "Not available in this country"),
+    ErrorCode.CONTENT_TYPE_NOT_ALLOWED: (403, "Content type not in plan"),
+    ErrorCode.QUALITY_NOT_ALLOWED: (403, "Quality not in plan"),
+    ErrorCode.LICENSE_EXPIRED: (403, "Title no longer available"),
 }
 
 # Key for errors that belong to no single field (DRF's convention).

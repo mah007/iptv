@@ -47,6 +47,8 @@ services:
   web:
     <<: *app
     networks: [edge, backend]
+    # Signs media URLs and re-verifies them in /internal/stream-auth (ADR-0007).
+    secrets: [media_token_keys]
     healthcheck:
       test: ["CMD", "python", "-m", "apps.core.healthcheck", "web"]
       interval: 10s

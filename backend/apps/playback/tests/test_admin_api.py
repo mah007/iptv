@@ -26,7 +26,7 @@ from apps.playback.models import EndReason, PlaybackSession, TitleKind
 from apps.playback.records import SessionRecord
 from apps.playback.services import PlayableRendition, PlayableTitle, RenditionKind
 
-pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("admin_routes")]
+pytestmark = pytest.mark.django_db
 
 ADMIN = {"host": settings.ADMIN_HOST}
 SESSIONS = "/api/v1/admin/sessions"
@@ -287,7 +287,7 @@ def test_schema_has_no_warnings_and_stable_ids() -> None:
     call_command(
         "spectacular",
         "--urlconf",
-        "apps.playback.tests.urls",
+        "config.urls_admin",
         "--validate",
         "--fail-on-warn",
         stdout=out,

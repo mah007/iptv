@@ -107,7 +107,6 @@ function AccountUsernameField() {
               spellCheck={false}
               dir="ltr"
               className="font-mono"
-              placeholder={t("customers.fields.usernamePlaceholder")}
               {...field}
             />
           </FormControl>
@@ -528,7 +527,8 @@ export function CredentialFields({ resetting = false }: { resetting?: boolean })
         )}
       />
       {mode === "manual" ? (
-        <div className="grid items-start gap-4 sm:grid-cols-2">
+        // Stacked: the rule hints under each input stay on one or two lines.
+        <div className="grid gap-4">
           <FormField
             control={form.control}
             name="device.username"

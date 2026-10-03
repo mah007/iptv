@@ -63,7 +63,7 @@ function useColumns() {
                   >
                     {customer.name || customer.username}
                   </Link>
-                  <span className="truncate text-xs text-muted-foreground" dir="ltr">
+                  <span className="ltr-value truncate text-xs text-muted-foreground" dir="ltr">
                     {customer.email || customer.username}
                   </span>
                 </div>

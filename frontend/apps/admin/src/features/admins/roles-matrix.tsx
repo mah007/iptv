@@ -386,7 +386,10 @@ export function RolesMatrix({ canManage }: { canManage: boolean }) {
                         <span className="text-foreground">
                           {permissionLabel(t, permission.code, permission.description)}
                         </span>
-                        <code className="font-mono text-[11px] text-muted-foreground" dir="ltr">
+                        <code
+                          className="ltr-value font-mono text-[11px] text-muted-foreground"
+                          dir="ltr"
+                        >
                           {permission.code}
                         </code>
                       </div>

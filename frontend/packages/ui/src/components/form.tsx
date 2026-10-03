@@ -112,12 +112,15 @@ export function FormMessage({ className, children, ...props }: ComponentProps<"p
   // Schema messages are translation keys; errors of type "server" carry the
   // API's own wording (problem+json field_errors) and are shown as sent.
   let body: ReactNode = children;
-  if (error?.message) body = error.type === "server" ? error.message : t(error.message);
+  const server = error?.type === "server";
+  if (error?.message) body = server ? error.message : t(error.message);
   if (!body) return null;
   return (
     <p
       id={messageId}
       data-slot="form-message"
+      // The API's wording may not be in the page's language: keep its punctuation in place.
+      dir={server ? "auto" : undefined}
       className={cn("text-xs font-medium text-danger-text", className)}
       {...props}
     >

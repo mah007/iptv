@@ -250,6 +250,12 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 60.0,
         "options": {"expires": 55},
     },
+    # Closes playback sessions whose heartbeat stopped and records them (SPEC §7.4).
+    "playback-sweep-sessions": {
+        "task": "apps.playback.tasks.sweep_sessions",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
 }
 
 # --- I18n -----------------------------------------------------------------------

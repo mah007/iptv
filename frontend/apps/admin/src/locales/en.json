@@ -110,8 +110,7 @@
     "fields": {
       "name": "Full name",
       "username": "Account username (optional)",
-      "usernamePlaceholder": "Generated when left empty",
-      "usernameHelp": "3 to 150 letters, digits or . _ @ + -. For the customer's account, not for IPTV apps.",
+      "usernameHelp": "Leave empty to generate one. Letters, digits and . _ @ + - (3 to 150). Not the IPTV app login.",
       "email": "Email",
       "phone": "Phone",
       "phoneHelp": "Saudi numbers can be typed without +966.",
@@ -585,7 +584,12 @@
       "category_create": "Category added",
       "category_update": "Category changed",
       "category_delete": "Category removed",
-      "category_reorder": "Categories reordered"
+      "category_reorder": "Categories reordered",
+      "movie_update": "Movie changed",
+      "series_update": "Series changed",
+      "review_resolve": "Match review resolved",
+      "review_skip": "Match review skipped",
+      "session_kill": "Playback stopped"
     },
     "targets": {
       "accounts_user": "User",
@@ -594,7 +598,11 @@
       "accounts_accessrule": "Access rule",
       "core_setting": "Setting",
       "catalog_category": "Category",
-      "library_library": "Library"
+      "library_library": "Library",
+      "catalog_movie": "Movie",
+      "catalog_series": "Series",
+      "catalog_matchreview": "Match review",
+      "playback_playbacksession": "Playback session"
     }
   },
   "settings": {

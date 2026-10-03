@@ -604,6 +604,25 @@ export interface DeviceBlockRequest {
 }
 
 /**
+ * * `stopped` - Stopped
+ * * `kicked` - Kicked
+ * * `expired` - Access expired
+ * * `limit` - Stream limit
+ * * `idle` - Idle
+ * * `error` - Error
+ */
+export type EndReasonEnum = (typeof EndReasonEnum)[keyof typeof EndReasonEnum];
+
+export const EndReasonEnum = {
+  stopped: "stopped",
+  kicked: "kicked",
+  expired: "expired",
+  limit: "limit",
+  idle: "idle",
+  error: "error",
+} as const;
+
+/**
  * * `poster` - Poster
  * * `backdrop` - Backdrop
  * * `logo` - Logo
@@ -1321,6 +1340,65 @@ export interface PaginatedSeriesSummaryList {
   results: SeriesSummary[];
 }
 
+export interface SessionUser {
+  readonly id: string;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly username: string;
+  readonly name: string;
+}
+
+export interface SessionDevice {
+  readonly id: string;
+  readonly name: string;
+  readonly kind: DeviceKind;
+  readonly app_hint: AppHint;
+}
+
+/**
+ * * `movie` - Movie
+ * * `episode` - Episode
+ */
+export type TitleKindEnum = (typeof TitleKindEnum)[keyof typeof TitleKindEnum];
+
+export const TitleKindEnum = {
+  movie: "movie",
+  episode: "episode",
+} as const;
+
+export interface Session {
+  readonly id: string;
+  readonly user: SessionUser;
+  readonly device: SessionDevice | null;
+  readonly title_kind: TitleKindEnum;
+  readonly title_id: string;
+  readonly title_name: string;
+  readonly rendition: string;
+  /** @nullable */
+  readonly ip: string | null;
+  readonly country: string;
+  readonly user_agent: string;
+  readonly player: string;
+  readonly started_at: string;
+  readonly last_heartbeat_at: string;
+  /** @nullable */
+  readonly ended_at: string | null;
+  readonly bytes_sent: number;
+  readonly end_reason: EndReasonEnum;
+  /** Not ended yet. */
+  readonly is_active: boolean;
+  /** The session id prefix the media edge's access log shows. */
+  readonly log_ref: string;
+}
+
+export interface PaginatedSessionList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Session[];
+}
+
 /**
  * A customer's access profile. Empty `category_ids` means every category.
  */
@@ -1812,6 +1890,13 @@ export const ErrorCode = {
   TITLE_PREPARING: "TITLE_PREPARING",
   CONFLICT: "CONFLICT",
   PROVIDER_UNAVAILABLE: "PROVIDER_UNAVAILABLE",
+  ACCOUNT_SUSPENDED: "ACCOUNT_SUSPENDED",
+  DEVICE_NOT_APPROVED: "DEVICE_NOT_APPROVED",
+  IP_BLOCKED: "IP_BLOCKED",
+  GEO_BLOCKED: "GEO_BLOCKED",
+  CONTENT_TYPE_NOT_ALLOWED: "CONTENT_TYPE_NOT_ALLOWED",
+  QUALITY_NOT_ALLOWED: "QUALITY_NOT_ALLOWED",
+  LICENSE_EXPIRED: "LICENSE_EXPIRED",
 } as const;
 
 /**
@@ -2273,4 +2358,115 @@ export const SeriesListStatusItem = {
   processing: "processing",
   ready: "ready",
   review: "review",
+} as const;
+
+export type SessionsListParams = {
+  /**
+   * true: sessions still open; false: ended ones.
+   */
+  active?: boolean;
+  /**
+   * Sessions of one device.
+   */
+  device?: string;
+  /**
+   * * `stopped` - Stopped
+   * * `kicked` - Kicked
+   * * `expired` - Access expired
+   * * `limit` - Stream limit
+   * * `idle` - Idle
+   * * `error` - Error
+   */
+  end_reason?: SessionsListEndReason;
+  /**
+   * Sort key; prefix with - for descending. Default: -started_at.
+   *
+   * * `started_at` - Started at
+   * * `-started_at` - Started at (descending)
+   * * `last_heartbeat_at` - Last heartbeat at
+   * * `-last_heartbeat_at` - Last heartbeat at (descending)
+   * * `ended_at` - Ended at
+   * * `-ended_at` - Ended at (descending)
+   * * `bytes_sent` - Bytes sent
+   * * `-bytes_sent` - Bytes sent (descending)
+   */
+  ordering?: SessionsListOrderingItem[];
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * A search term.
+   */
+  search?: string;
+  /**
+   * Started at or after (ISO 8601).
+   */
+  started_after?: string;
+  /**
+   * Started before (ISO 8601).
+   */
+  started_before?: string;
+  /**
+   * Sessions of one movie or episode.
+   */
+  title_id?: string;
+  /**
+   * * `movie` - Movie
+   * * `episode` - Episode
+   */
+  title_kind?: SessionsListTitleKind;
+  /**
+   * Sessions of one customer.
+   */
+  user?: string;
+};
+
+export type SessionsListEndReason =
+  (typeof SessionsListEndReason)[keyof typeof SessionsListEndReason];
+
+export const SessionsListEndReason = {
+  error: "error",
+  expired: "expired",
+  idle: "idle",
+  kicked: "kicked",
+  limit: "limit",
+  stopped: "stopped",
+} as const;
+
+export type SessionsListOrderingItem =
+  (typeof SessionsListOrderingItem)[keyof typeof SessionsListOrderingItem];
+
+export const SessionsListOrderingItem = {
+  "-bytes_sent": "-bytes_sent",
+  "-ended_at": "-ended_at",
+  "-last_heartbeat_at": "-last_heartbeat_at",
+  "-started_at": "-started_at",
+  bytes_sent: "bytes_sent",
+  ended_at: "ended_at",
+  last_heartbeat_at: "last_heartbeat_at",
+  started_at: "started_at",
+} as const;
+
+export type SessionsListTitleKind =
+  (typeof SessionsListTitleKind)[keyof typeof SessionsListTitleKind];
+
+export const SessionsListTitleKind = {
+  episode: "episode",
+  movie: "movie",
+} as const;
+
+export type SessionsStreamParams = {
+  format?: SessionsStreamFormat;
+};
+
+export type SessionsStreamFormat = (typeof SessionsStreamFormat)[keyof typeof SessionsStreamFormat];
+
+export const SessionsStreamFormat = {
+  json: "json",
+  sse: "sse",
 } as const;

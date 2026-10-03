@@ -77,7 +77,7 @@ function AdminsTable() {
                       </Badge>
                     ) : null}
                   </span>
-                  <span className="truncate text-xs text-muted-foreground" dir="ltr">
+                  <span className="ltr-value truncate text-xs text-muted-foreground" dir="ltr">
                     {admin.email ? `${admin.username} · ${admin.email}` : admin.username}
                   </span>
                 </div>
@@ -136,7 +136,7 @@ function AdminsTable() {
               <span className="grid">
                 <RelativeTime value={row.original.last_login} />
                 {row.original.last_login_ip ? (
-                  <span className="font-mono text-xs text-muted-foreground" dir="ltr">
+                  <span className="ltr-value font-mono text-xs text-muted-foreground" dir="ltr">
                     {row.original.last_login_ip}
                   </span>
                 ) : null}

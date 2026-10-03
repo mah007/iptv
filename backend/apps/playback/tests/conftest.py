@@ -6,7 +6,6 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from django.conf import settings as django_settings
 from pytest_django import Settings
 
 from apps.core.stores import state_redis
@@ -35,12 +34,3 @@ def media_keys(settings: Settings, tmp_path: Path) -> Iterator[tokens.KeySet]:
     tokens.reset_keyring()
     yield tokens.parse_keyset(keys)
     tokens.reset_keyring()
-
-
-@pytest.fixture
-def admin_routes(settings: Settings) -> None:
-    """Serve admin.<domain> from the test URLconf that mounts the playback routes."""
-    settings.HOST_URLCONFS = {
-        **django_settings.HOST_URLCONFS,
-        django_settings.ADMIN_HOST: "apps.playback.tests.urls",
-    }
