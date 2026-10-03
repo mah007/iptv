@@ -1,0 +1,30 @@
+# Secrets: only .env.example is committed
+.env
+.env.*
+!.env.example
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+backend/staticfiles/
+
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.pnpm-store/
+
+# Tooling
+.claude/settings.local.json
+.DS_Store
+*.log
