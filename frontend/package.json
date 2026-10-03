@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
     "build": "pnpm -r build",
-    "lint": "eslint . && prettier --check .",
+    "lint": "eslint --max-warnings 0 . && prettier --check .",
     "fmt": "prettier --write . && eslint --fix .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
