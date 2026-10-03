@@ -1,9 +1,9 @@
 # Runbook: deploy to a single host
 
-The small tier from SPEC §13: one server runs the whole stack behind Traefik, which gets TLS certificates from Let's Encrypt. This runbook is first used for `tv.mah007.net`.
+The small tier from SPEC §13: one server runs the whole stack behind Traefik, which gets TLS certificates from Let's Encrypt. Examples use the base name `tv.example.com`; the real server's details are kept out of the repository.
 
 ## Prerequisites
-- **DNS:** an A record for the base name **and** a wildcard, both pointing at the server. For example `tv.mah007.net` and `*.tv.mah007.net` → `62.84.182.71`.
+- **DNS:** an A record for the base name **and** a wildcard, both pointing at the server. For example `tv.example.com` and `*.tv.example.com` → the server's IP.
 - **Server:** Ubuntu 24.04 with ports 80 and 443 reachable from the internet (Let's Encrypt validates on port 80).
 - **Packages:** `git`, `make`, `openssl`, `python3`, `curl`, plus Docker Engine with the Compose plugin from Docker's apt repository (see "Install Docker").
 - **Code:** a clone of the repository in `/opt/iptv`.
@@ -13,17 +13,17 @@ The small tier from SPEC §13: one server runs the whole stack behind Traefik, w
 
 | Host | Serves |
 |---|---|
-| `tv.mah007.net` (`TV_HOST`) | Xtream API for IPTV apps |
-| `admin.tv.mah007.net` | Admin SPA (its `/api` goes to Django from M2) |
-| `app.tv.mah007.net` | Customer portal |
-| `api.tv.mah007.net` | REST API for external clients |
+| `tv.example.com` (`TV_HOST`) | Xtream API for IPTV apps |
+| `admin.tv.example.com` | Admin SPA (its `/api` goes to Django from M2) |
+| `app.tv.example.com` | Customer portal |
+| `api.tv.example.com` | REST API for external clients |
 
 ## First deployment
 ```bash
 cd /opt/iptv
 scripts/secrets.sh                                   # .env with fresh secrets, generated on the server
-sed -i 's/^DOMAIN=.*/DOMAIN=tv.mah007.net/' .env
-grep -q '^TV_HOST=' .env || echo 'TV_HOST=tv.mah007.net' >> .env
+sed -i 's/^DOMAIN=.*/DOMAIN=tv.example.com/' .env
+grep -q '^TV_HOST=' .env || echo 'TV_HOST=tv.example.com' >> .env
 docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
   up -d --build --wait --wait-timeout 600
 docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
@@ -45,10 +45,10 @@ There's a single web replica, so an update causes a few seconds of downtime. Zer
 
 ## Verify
 ```bash
-curl -fsS https://tv.mah007.net/health                     # {"status": "ok"}
-curl -sI http://tv.mah007.net/health | head -3            # 308 redirect to https
-curl -sI https://admin.tv.mah007.net/ | grep -i strict    # HSTS header present
-curl -s -o /dev/null -w '%{http_code}\n' https://tv.mah007.net/internal/health/ready   # 404: internal stays internal
+curl -fsS https://tv.example.com/health                    # {"status": "ok"}
+curl -sI http://tv.example.com/health | head -3           # 308 Permanent Redirect to https
+curl -sI https://admin.tv.example.com/ | grep -i strict   # HSTS header present
+curl -s -o /dev/null -w '%{http_code}\n' https://tv.example.com/internal/health/ready  # 404: internal stays internal
 ```
 On the server, `docker compose ... ps` shows every service as `healthy`.
 
@@ -63,6 +63,10 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
   > /etc/apt/sources.list.d/docker.list
 apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
+
+## Troubleshooting
+- **A new hostname doesn't resolve on one network but works elsewhere:** a resolver (often the home router) cached "no such host" from before the DNS record existed. Check with a public resolver (`https://dns.google/resolve?name=<host>`), then wait for the negative cache to expire or restart that resolver.
+- **A host serves `TRAEFIK DEFAULT CERT`:** no router matches it. Check the router rules in `docker compose ... config` and the ACME lines in `docker compose ... logs traefik`.
 
 ## Not covered yet
 - Monitoring and alerting (M13).
