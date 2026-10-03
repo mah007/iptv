@@ -182,6 +182,9 @@
     "showDetails": "Show details",
     "hideDetails": "Hide details"
   },
+  "stepper": {
+    "done": "(completed)"
+  },
   "description": {
     "empty": "—",
     "notSet": "Not set"

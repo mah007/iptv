@@ -1,4 +1,5 @@
 import { act, screen } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -7,6 +8,7 @@ import { nth, renderWithUi } from "../test-utils";
 import { initTheme, setTheme } from "../theme";
 import { DensityToggle } from "./density-toggle";
 import { LanguageToggle } from "./language-toggle";
+import { PasswordInput } from "./password-input";
 import { ThemeToggle } from "./theme-toggle";
 
 beforeEach(() => {
@@ -74,5 +76,44 @@ describe("DensityToggle", () => {
     await user.click(screen.getByRole("button", { name: "Switch to comfortable density" }));
     expect(document.documentElement.dataset.density).toBe("comfortable");
     expect(initDensity()).toBe("comfortable");
+  });
+});
+
+describe("PasswordInput", () => {
+  it("shows and hides the password on its own", async () => {
+    const user = userEvent.setup();
+    renderWithUi(<PasswordInput aria-label="Password" defaultValue="s3cret-pass" />);
+    const input = screen.getByLabelText("Password");
+    expect(input.getAttribute("type")).toBe("password");
+    await user.click(screen.getByRole("button", { name: "Show password" }));
+    expect(input.getAttribute("type")).toBe("text");
+    await user.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(input.getAttribute("type")).toBe("password");
+  });
+
+  it("can be revealed by its owner (e.g. after generating a password)", async () => {
+    const user = userEvent.setup();
+    function Owner() {
+      const [revealed, setRevealed] = useState(false);
+      return (
+        <>
+          <PasswordInput aria-label="Password" revealed={revealed} onRevealedChange={setRevealed} />
+          <button
+            type="button"
+            onClick={() => {
+              setRevealed(true);
+            }}
+          >
+            Generate
+          </button>
+        </>
+      );
+    }
+    renderWithUi(<Owner />);
+    const input = screen.getByLabelText("Password");
+    await user.click(screen.getByRole("button", { name: "Generate" }));
+    expect(input.getAttribute("type")).toBe("text");
+    await user.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(input.getAttribute("type")).toBe("password");
   });
 });

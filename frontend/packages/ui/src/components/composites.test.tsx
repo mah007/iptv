@@ -9,6 +9,7 @@ import { ErrorBoundary } from "./error-boundary";
 import { FacetFilter, FilterBar, SearchInput } from "./filter-bar";
 import { QRCodeCard } from "./qr-code-card";
 import { StatTile } from "./stat-tile";
+import { Stepper } from "./stepper";
 
 describe("DiffViewer", () => {
   it("lists changes and hides unchanged fields until asked", async () => {
@@ -174,5 +175,44 @@ describe("FilterBar", () => {
 
     await user.click(screen.getByRole("button", { name: "Remove filter" }));
     expect(onRemove).toHaveBeenCalledOnce();
+  });
+
+  it("replaces the choice of a single-value facet and can clear it", async () => {
+    const user = userEvent.setup();
+    const onSelectedChange = vi.fn();
+    renderWithUi(
+      <FacetFilter
+        single
+        title="Access"
+        options={[
+          { value: "active", label: "Active" },
+          { value: "expired", label: "Expired" },
+        ]}
+        selected={["active"]}
+        onSelectedChange={onSelectedChange}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Access/ }));
+    const group = await screen.findByRole("radiogroup", { name: "Access" });
+    expect(screen.getByRole("radio", { name: "Active" }).getAttribute("aria-checked")).toBe("true");
+    expect(group.querySelectorAll("[role=checkbox]")).toHaveLength(0);
+
+    await user.click(screen.getByRole("radio", { name: "Expired" }));
+    expect(onSelectedChange).toHaveBeenLastCalledWith(["expired"]);
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    expect(onSelectedChange).toHaveBeenLastCalledWith([]);
+  });
+});
+
+describe("Stepper", () => {
+  it("marks the current step and ticks the finished ones", () => {
+    renderWithUi(<Stepper label="Steps" steps={["Profile", "Access", "Device"]} current={1} />);
+    const nav = screen.getByRole("navigation", { name: "Steps" });
+    const items = nav.querySelectorAll("li");
+    expect(items).toHaveLength(3);
+    expect(items[1]?.getAttribute("aria-current")).toBe("step");
+    expect(items[0]?.textContent).toContain("Profile (completed)");
+    expect(items[2]?.textContent).toBe("3Device");
   });
 });

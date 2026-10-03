@@ -313,3 +313,15 @@
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
+
+/*
+ * A left-to-right value (email, IP, code) in a block of its own: it keeps its
+ * own direction but lines up with the page's start edge, so on an Arabic page
+ * it sits under the right-aligned text above it. Use with dir="ltr".
+ */
+@layer components {
+  /* `text-align: match-parent` would say this, but Chromium doesn't support it. */
+  :dir(rtl) > .ltr-value {
+    text-align: right;
+  }
+}

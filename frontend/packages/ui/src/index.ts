@@ -170,6 +170,7 @@ export {
 export { QRCodeCard, type QRCodeCardProps } from "./components/qr-code-card";
 export { SecretReveal, type SecretRevealProps } from "./components/secret-reveal";
 export { StatTile, type StatTileProps } from "./components/stat-tile";
+export { Stepper, type StepperProps } from "./components/stepper";
 export {
   isKnownStatus,
   STATUS_TONES,

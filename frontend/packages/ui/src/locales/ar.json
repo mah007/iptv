@@ -194,6 +194,9 @@
     "showDetails": "إظهار التفاصيل",
     "hideDetails": "إخفاء التفاصيل"
   },
+  "stepper": {
+    "done": "(مكتملة)"
+  },
   "description": {
     "empty": "—",
     "notSet": "غير محدد"

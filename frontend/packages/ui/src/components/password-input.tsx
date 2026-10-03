@@ -5,10 +5,23 @@ import { useTranslation } from "react-i18next";
 import { cn } from "../lib/cn";
 import { Input } from "./input";
 
+interface PasswordInputProps extends Omit<ComponentProps<"input">, "type"> {
+  /** Controlled visibility (e.g. to show a password the app just generated); uncontrolled when omitted. */
+  revealed?: boolean;
+  onRevealedChange?: (revealed: boolean) => void;
+}
+
 /** Password field with a show/hide toggle at the inline end. */
-export function PasswordInput({ className, dir, ...props }: Omit<ComponentProps<"input">, "type">) {
+export function PasswordInput({
+  className,
+  dir,
+  revealed,
+  onRevealedChange,
+  ...props
+}: PasswordInputProps) {
   const { t } = useTranslation("ui");
-  const [visible, setVisible] = useState(false);
+  const [ownVisible, setOwnVisible] = useState(false);
+  const visible = revealed ?? ownVisible;
   return (
     // The wrapper shares the input's direction, so the toggle sits on the same
     // side as the input's end padding (e.g. an LTR password on an Arabic page).
@@ -28,7 +41,8 @@ export function PasswordInput({ className, dir, ...props }: Omit<ComponentProps<
         aria-pressed={visible}
         disabled={props.disabled}
         onClick={() => {
-          setVisible((value) => !value);
+          setOwnVisible(!visible);
+          onRevealedChange?.(!visible);
         }}
       >
         {visible ? (

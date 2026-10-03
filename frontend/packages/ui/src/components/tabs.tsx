@@ -10,7 +10,7 @@ export function TabsList({ className, ...props }: ComponentProps<typeof TabsPrim
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "flex h-10 items-stretch gap-4 overflow-x-auto border-b border-border text-muted-foreground",
+        "flex h-10 items-stretch gap-4 overflow-x-auto overflow-y-hidden border-b border-border text-muted-foreground",
         className,
       )}
       {...props}

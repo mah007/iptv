@@ -2,12 +2,24 @@
   "title": "Smart IPTV Admin",
   "brand": "Smart IPTV",
   "area": "Admin",
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "done": "Done"
+  },
   "nav": {
     "label": "Main navigation",
     "homeLink": "Smart IPTV Admin home",
-    "home": "Home",
+    "dashboard": "Dashboard",
+    "customers": "Customers",
+    "admins": "Admins & roles",
+    "audit": "Audit log",
+    "settings": "Settings",
     "sections": {
-      "overview": "Overview"
+      "overview": "Overview",
+      "customers": "Customers",
+      "security": "Security",
+      "system": "System"
     }
   },
   "layout": {
@@ -18,12 +30,763 @@
     "label": "Account menu",
     "signOut": "Sign out"
   },
-  "home": {
-    "title": "Welcome to Smart IPTV",
-    "subtitle": "The platform foundation is running. Admin features arrive milestone by milestone.",
-    "statusTitle": "Platform status",
-    "statusDescription": "Core services are up. Customer and subscription management comes next.",
-    "status": "Foundation ready"
+  "states": {
+    "denied": {
+      "title": "You don't have access to this",
+      "description": "Your role doesn't include this page. Ask an owner for the permission if you need it."
+    },
+    "notFound": {
+      "title": "Not found",
+      "description": "It may have been deleted, or the link is wrong."
+    }
+  },
+  "errors": {
+    "VALIDATION_ERROR": "Some details aren't valid. Check the form and try again.",
+    "NOT_AUTHENTICATED": "Your session ended. Sign in again.",
+    "PERMISSION_DENIED": "You don't have permission to do that.",
+    "NOT_FOUND": "It no longer exists. Refresh the page.",
+    "RATE_LIMITED": "Too many requests. Wait a moment, then try again.",
+    "CONFLICT": "That can't be done right now.",
+    "DEVICE_LIMIT": "This customer has reached their device limit.",
+    "NETWORK_ERROR": "The server couldn't be reached. Check your connection.",
+    "UNEXPECTED": "Something went wrong. Try again."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "description": "Customers and devices at a glance.",
+    "asOf": "Updated",
+    "kpis": {
+      "label": "Key figures",
+      "customers": "Customers",
+      "active": "Active access",
+      "activeShare": "{{share}} of all customers",
+      "expiring": "Expiring in 7 days",
+      "expiringDetail": "Renew before access ends",
+      "expired": "Expired",
+      "suspended": "Suspended",
+      "devices": "Devices",
+      "devicesBlocked_one": "{{formatted}} blocked",
+      "devicesBlocked_other": "{{formatted}} blocked"
+    },
+    "expiringSoon": "Expiring soon",
+    "newest": "Newest customers",
+    "viewAll": "View all",
+    "noneExpiring": "No access ends in the next 7 days.",
+    "noCustomers": "No customers yet.",
+    "panelError": "Couldn't load this list"
+  },
+  "customers": {
+    "title": "Customers",
+    "description": "Everyone with access to the service, with their access profile and devices.",
+    "new": "New customer",
+    "noExpiry": "No expiry",
+    "never": "Never",
+    "deviceCount": "{{count}} / {{max}}",
+    "columns": {
+      "customer": "Customer",
+      "phone": "Phone",
+      "access": "Access",
+      "expires": "Expires",
+      "devices": "Devices",
+      "lastSeen": "Last seen",
+      "created": "Created"
+    },
+    "filters": {
+      "search": "Search name, email, phone or username…",
+      "access": "Access",
+      "status": "Account",
+      "expiring": "Expires within",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "chipAccess": "Access: {{value}}",
+      "chipStatus": "Account: {{value}}",
+      "expiringWithin_one": "Expires within {{count}} day",
+      "expiringWithin_other": "Expires within {{count}} days"
+    },
+    "empty": {
+      "title": "No customers yet",
+      "description": "Create the first customer to issue their IPTV app login."
+    },
+    "fields": {
+      "name": "Full name",
+      "username": "Account username (optional)",
+      "usernameHelp": "Leave empty to generate one. Letters, digits and . _ @ + - (3 to 150). Not the IPTV app login.",
+      "email": "Email",
+      "phone": "Phone",
+      "phoneHelp": "Saudi numbers can be typed without +966.",
+      "locale": "Language for messages",
+      "localeHelp": "Used for emails and the customer portal.",
+      "notes": "Notes",
+      "notesHelp": "Only admins see these.",
+      "expires": "Access ends"
+    },
+    "locales": {
+      "ar": "العربية",
+      "en": "English"
+    },
+    "categoryKinds": {
+      "vod": "Movies",
+      "series": "Series",
+      "live": "Live TV"
+    },
+    "quality": {
+      "480": "SD 480p",
+      "720": "HD 720p",
+      "1080": "Full HD 1080p",
+      "2160": "4K 2160p"
+    },
+    "policy": {
+      "reject": {
+        "title": "Refuse new streams",
+        "description": "At the limit, a new stream is refused."
+      },
+      "kick_oldest": {
+        "title": "Stop the oldest stream",
+        "description": "At the limit, the oldest stream stops and the new one plays."
+      }
+    },
+    "access": {
+      "length": "Access length",
+      "expiry": {
+        "1m": "1 month",
+        "3m": "3 months",
+        "6m": "6 months",
+        "12m": "1 year",
+        "none": "No expiry",
+        "custom": "Pick a date"
+      },
+      "endDate": "Last day of access",
+      "endsOn": "Access ends on {{date}}.",
+      "neverEnds": "Access never ends; suspend the customer to stop it.",
+      "pickDate": "Pick the last day of access.",
+      "limits": "Limits",
+      "maxStreams": "Streams at once",
+      "maxStreamsHelp": "How many videos can play at the same time.",
+      "maxDevices": "Devices",
+      "maxDevicesHelp": "How many IPTV app logins the customer can have.",
+      "maxQuality": "Best quality",
+      "policy": "When the stream limit is reached",
+      "content": "Content",
+      "allow_movies": "Movies",
+      "allow_series": "Series",
+      "allow_live": "Live TV",
+      "limitCategories": "Only selected categories",
+      "limitCategoriesHelp": "Off: every category, including ones added later.",
+      "categoriesError": "Categories couldn't load. Try again later.",
+      "noCategories": "There are no categories yet."
+    },
+    "validation": {
+      "nameRequired": "Enter the customer's name.",
+      "nameTooLong": "Use at most 150 characters.",
+      "email": "Enter a valid email address, or leave it empty.",
+      "phone": "Use digits only, optionally starting with +.",
+      "notesTooLong": "Notes can be at most 2,000 characters.",
+      "wholeNumber": "Enter a whole number.",
+      "limitRange": "Enter a number from 1 to 50.",
+      "expiryDate": "Pick the last day of access.",
+      "categories": "Pick at least one category, or turn this off.",
+      "deviceNameTooLong": "Use at most 100 characters.",
+      "username": "Use 3 to 150 letters, digits and . _ @ + -"
+    },
+    "create": {
+      "title": "New customer",
+      "stepsLabel": "Steps to create a customer",
+      "steps": {
+        "profile": {
+          "title": "Profile",
+          "description": "Who the customer is and how to reach them."
+        },
+        "access": {
+          "title": "Access",
+          "description": "How long they can watch, on how many screens, and what."
+        },
+        "device": {
+          "title": "First device",
+          "description": "The login for their IPTV app, created with the account."
+        }
+      },
+      "back": "Back",
+      "next": "Next",
+      "cancel": "Cancel",
+      "submit": "Create customer",
+      "doneTitle": "Customer created",
+      "doneDescription": "{{name}}'s account and access profile are ready.",
+      "credentialTitle": "IPTV app login",
+      "noCredential": "No device login was created. Add one from the customer's Devices tab.",
+      "another": "Create another",
+      "close": "Close",
+      "open": "Open customer"
+    },
+    "detail": {
+      "title": "Customer",
+      "tabs": {
+        "overview": "Overview",
+        "devices": "Devices & credentials"
+      },
+      "accessTitle": "Access profile",
+      "profileTitle": "Profile",
+      "editAccess": "Edit",
+      "editProfile": "Edit profile",
+      "suspend": "Suspend",
+      "reactivate": "Reactivate",
+      "accessStatus": "Status",
+      "policy": "At the stream limit",
+      "expires": "Access ends",
+      "expired": "Access ended",
+      "neverExpires": "Access never ends",
+      "noAccess": "No access profile yet.",
+      "noContent": "Nothing allowed",
+      "categories": "Categories",
+      "allCategories": "All categories",
+      "account": "Account",
+      "created": "Created"
+    },
+    "edit": {
+      "profileTitle": "Edit profile",
+      "profileDescription": "Contact details, language and notes.",
+      "saved": "Profile saved",
+      "accessTitle": "Edit access profile",
+      "accessDescription": "Changes apply at once, including to streams already playing.",
+      "accessSaved": "Access profile saved"
+    },
+    "suspend": {
+      "title": "Suspend {{name}}?",
+      "description": "Playback stops at once on every device. The account and its devices are kept, and you can reactivate it later.",
+      "reason": "Reason (optional)",
+      "confirm": "Suspend customer",
+      "done": "Customer suspended"
+    },
+    "reactivate": {
+      "title": "Reactivate {{name}}?",
+      "description": "The customer can watch again, within their access profile.",
+      "confirm": "Reactivate",
+      "done": "Customer reactivated"
+    }
+  },
+  "credential": {
+    "server": "Server URL",
+    "username": "Username",
+    "password": "Password",
+    "onceWarning": "Copy or share these details now: the password is shown only once.",
+    "qrLabel": "QR code with the server, username and password",
+    "qrHint": "Scan to copy the login",
+    "qrGone": "Hidden with the password",
+    "copyAll": "Copy all details",
+    "mode": {
+      "label": "Username and password",
+      "generate": {
+        "title": "Generate automatically",
+        "create": "A username and a 16-character password are created. The password is shown once.",
+        "reset": "Keeps the username and creates a new 16-character password."
+      },
+      "manual": {
+        "title": "Set manually",
+        "create": "Choose the username and password the customer types in the app.",
+        "reset": "Choose the new password, and change the username if needed."
+      }
+    },
+    "usernameHelp": "3 to 32 letters, digits, dots, hyphens or underscores. Apps treat upper and lower case as different.",
+    "passwordHelp": "8 to 64 letters, digits or . _ - ~ @ ! *",
+    "generate": "Generate",
+    "validation": {
+      "username": "Use 3 to 32 letters, digits, dots, hyphens or underscores.",
+      "passwordLength": "Use 8 to 64 characters.",
+      "passwordCharacters": "Use only letters, digits and . _ - ~ @ ! *",
+      "passwordIsUsername": "The password must differ from the username."
+    }
+  },
+  "devices": {
+    "title": "Devices & credentials",
+    "usage": "{{used}} of {{max}} devices in use",
+    "usageNoLimit_one": "{{count}} device",
+    "usageNoLimit_other": "{{count}} devices",
+    "unnamed": "Unnamed device",
+    "noCredential": "No login",
+    "neverUsed": "Not used yet",
+    "copyUsername": "Copy username",
+    "showRevoked_one": "Show {{count}} revoked device",
+    "showRevoked_other": "Show {{count}} revoked devices",
+    "hideRevoked": "Hide revoked devices",
+    "columns": {
+      "device": "Device",
+      "username": "Username",
+      "status": "Status",
+      "lastSeen": "Last used",
+      "added": "Added",
+      "actions": "Actions"
+    },
+    "empty": {
+      "title": "No devices yet",
+      "description": "Add a device to create an IPTV app login for this customer."
+    },
+    "apps": {
+      "smarters": "IPTV Smarters",
+      "tivimate": "TiviMate",
+      "ibo": "IBO Player",
+      "xciptv": "XCIPTV",
+      "ott_navigator": "OTT Navigator",
+      "smartone": "SmartOne",
+      "iptvnator": "IPTVnator",
+      "uhf": "UHF",
+      "other": "Other or not sure"
+    },
+    "form": {
+      "createNow": "Create the first device login now",
+      "createNowHelp": "You can also add devices later from the customer's page.",
+      "name": "Device name",
+      "namePlaceholder": "e.g. Living room TV",
+      "app": "IPTV app",
+      "appHelp": "Only a label: any Xtream-compatible app works."
+    },
+    "add": {
+      "button": "Add device",
+      "title": "Add a device",
+      "description": "Creates a new login for an IPTV app.",
+      "submit": "Create login",
+      "atLimit": "The device limit is reached. Raise it in the access profile, or revoke a device first."
+    },
+    "issued": {
+      "addedTitle": "Device login created",
+      "addedDescription": "Enter these details in the IPTV app.",
+      "resetTitle": "New password issued",
+      "resetDescription": "The old password no longer works. Enter the new one in the IPTV app.",
+      "done": "Done"
+    },
+    "actions": {
+      "label": "Actions for {{name}}",
+      "reset": "Reset password",
+      "approve": "Approve",
+      "block": "Block",
+      "unblock": "Unblock",
+      "revoke": "Revoke"
+    },
+    "reset": {
+      "title": "Reset the password of {{name}}?",
+      "description": "The current password stops working at once; the app must sign in again with the new one.",
+      "confirm": "Reset password"
+    },
+    "block": {
+      "title": "Block {{name}}?",
+      "description": "Its playback stops, and it can't play until you unblock it.",
+      "reason": "Reason (optional)",
+      "confirm": "Block device"
+    },
+    "revoke": {
+      "title": "Revoke {{name}}?",
+      "description": "Its login is deleted for good and playback stops. This can't be undone.",
+      "confirm": "Revoke device"
+    },
+    "toasts": {
+      "approved": "Device approved",
+      "blocked": "Device blocked",
+      "unblocked": "Device unblocked",
+      "revoked": "Device revoked"
+    }
+  },
+  "admins": {
+    "title": "Admins & roles",
+    "description": "Who can sign in to this admin, and what each role allows.",
+    "tabs": {
+      "admins": "Admins",
+      "roles": "Roles & permissions"
+    },
+    "search": "Search admins…",
+    "you": "You",
+    "noRoles": "No roles",
+    "mfaOn": "On",
+    "mfaPending": "Not set up",
+    "neverSignedIn": "Never",
+    "rolesError": "Roles couldn't load. Try again later.",
+    "columns": {
+      "admin": "Admin",
+      "roles": "Roles",
+      "mfa": "Two-factor",
+      "status": "Status",
+      "lastLogin": "Last sign-in",
+      "actions": "Actions"
+    },
+    "fields": {
+      "username": "Username",
+      "usernameHelp": "Letters, digits and @ . + - _ only.",
+      "name": "Name",
+      "email": "Email",
+      "roles": "Roles",
+      "rolesHelp": "An admin can do whatever any of their roles allows.",
+      "status": "Status"
+    },
+    "create": {
+      "button": "Add admin",
+      "title": "Add an admin",
+      "description": "A password is generated and shown once.",
+      "submit": "Create admin",
+      "doneTitle": "Admin created",
+      "doneDescription": "Give {{username}} these sign-in details.",
+      "password": "Temporary password",
+      "passwordOnce": "Copy the password now: it is shown only once.",
+      "mfaNote": "At their first sign-in they set up two-factor authentication with an authenticator app."
+    },
+    "edit": {
+      "label": "Edit {{name}}",
+      "title": "Edit {{name}}",
+      "description": "Profile, status and roles.",
+      "statusHelp": "Suspended or disabled admins can't sign in, and their open sessions lose access.",
+      "selfStatus": "You can't change your own status.",
+      "saved": "Admin saved"
+    },
+    "validation": {
+      "usernameRequired": "Enter a username.",
+      "usernameTooLong": "Use at most 150 characters.",
+      "usernameFormat": "Use letters, digits and @ . + - _ only.",
+      "nameTooLong": "Use at most 150 characters.",
+      "email": "Enter a valid email address, or leave it empty."
+    }
+  },
+  "roles": {
+    "permission": "Permission",
+    "matrixLabel": "Permissions of each role",
+    "matrixHelp": "Tick what each role may do, then save. The owner role always has every permission.",
+    "readOnly": "You can see the roles; changing them needs the roles permission.",
+    "grant": "{{role}}: {{permission}}",
+    "adminCount_one": "{{formatted}} admin",
+    "adminCount_other": "{{formatted}} admins",
+    "save_one": "Save changes to {{count}} role",
+    "save_other": "Save changes to {{count}} roles",
+    "discard": "Discard",
+    "saved": "Roles saved",
+    "unsaved": "Unsaved",
+    "created": "Role {{name}} created",
+    "deleted": "Role deleted",
+    "new": {
+      "button": "New role",
+      "title": "New role",
+      "description": "Give it a name, then tick its permissions in the table.",
+      "submit": "Create role"
+    },
+    "fields": {
+      "name": "Name",
+      "description": "Description"
+    },
+    "delete": {
+      "label": "Delete the {{name}} role",
+      "title": "Delete the {{name}} role?",
+      "description": "No admin holds this role. Deleting it can't be undone.",
+      "confirm": "Delete role"
+    },
+    "validation": {
+      "nameRequired": "Enter a name.",
+      "nameTooLong": "Use at most 64 characters.",
+      "descriptionTooLong": "Use at most 200 characters."
+    },
+    "names": {
+      "owner": "Owner",
+      "admin": "Administrator",
+      "support": "Support",
+      "content_manager": "Content manager",
+      "viewer": "Viewer"
+    },
+    "descriptions": {
+      "owner": "Full access, including admins and roles.",
+      "admin": "Runs the service day to day; can't manage admins or roles.",
+      "support": "Helps customers: profiles, access, devices and sessions.",
+      "content_manager": "Manages the library, categories and metadata review.",
+      "viewer": "Read-only access."
+    },
+    "areas": {
+      "dashboard": "Dashboard",
+      "customers": "Customers",
+      "devices": "Devices",
+      "sessions": "Sessions",
+      "subscriptions": "Subscriptions",
+      "plans": "Plans",
+      "billing": "Billing",
+      "library": "Library",
+      "settings": "Settings",
+      "audit": "Audit",
+      "roles": "Roles",
+      "admins": "Admins"
+    },
+    "permissions": {
+      "dashboard_view": "See the dashboard and its figures",
+      "customers_view": "See customers, their access profiles and devices",
+      "customers_edit": "Create and change customers and their access profiles",
+      "devices_manage": "Add, approve, block and revoke devices; reset their passwords",
+      "sessions_kill": "Stop a customer's playback",
+      "subscriptions_view": "See subscriptions",
+      "subscriptions_edit": "Create, extend and change subscriptions",
+      "plans_view": "See plans",
+      "plans_edit": "Create and change plans",
+      "billing_refund": "Refund payments",
+      "library_review": "Manage libraries, titles, categories and the review queue",
+      "settings_view": "See settings",
+      "settings_edit": "Change settings",
+      "audit_view": "See the audit log",
+      "roles_manage": "Create and change roles",
+      "admins_manage": "Create admins and assign their roles"
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Every change made by admins and by the system. Entries can't be edited or deleted.",
+    "system": "System",
+    "noTarget": "—",
+    "changes": "Changes",
+    "columns": {
+      "when": "When",
+      "actor": "By",
+      "action": "Action",
+      "target": "Target",
+      "ip": "IP address"
+    },
+    "filters": {
+      "action": "Action",
+      "target": "Target",
+      "dates": "Dates",
+      "chipAction": "Action: {{value}}",
+      "chipTarget": "Target: {{value}}",
+      "chipTargetId": "Target ID: {{value}}",
+      "chipDates": "{{from}} → {{to}}"
+    },
+    "empty": {
+      "title": "Nothing recorded yet",
+      "description": "Changes made in the admin appear here."
+    },
+    "actions": {
+      "customer_create": "Customer created",
+      "customer_update": "Customer profile changed",
+      "customer_access_update": "Access profile changed",
+      "customer_suspend": "Customer suspended",
+      "customer_reactivate": "Customer reactivated",
+      "device_create": "Device added",
+      "device_reset_credentials": "Device password reset",
+      "device_block": "Device blocked",
+      "device_unblock": "Device unblocked",
+      "device_approve": "Device approved",
+      "device_revoke": "Device revoked",
+      "access_rule_create": "Access rule added",
+      "access_rule_delete": "Access rule removed",
+      "admin_create": "Admin created",
+      "admin_update": "Admin changed",
+      "admin_password_reset": "Admin password reset",
+      "admin_mfa_reset": "Admin two-factor reset",
+      "role_create": "Role created",
+      "role_update": "Role changed",
+      "role_delete": "Role deleted",
+      "setting_update": "Setting changed",
+      "auth_login": "Signed in",
+      "auth_logout": "Signed out",
+      "auth_mfa_enroll": "Two-factor set up",
+      "system_expire": "Access expired",
+      "customer_access_expire": "Access expired",
+      "library_create": "Library added",
+      "library_update": "Library changed",
+      "library_delete": "Library removed",
+      "library_scan": "Library scanned",
+      "category_create": "Category added",
+      "category_update": "Category changed",
+      "category_delete": "Category removed",
+      "category_reorder": "Categories reordered",
+      "movie_update": "Movie changed",
+      "series_update": "Series changed",
+      "review_resolve": "Match review resolved",
+      "review_skip": "Match review skipped",
+      "session_kill": "Playback stopped"
+    },
+    "targets": {
+      "accounts_user": "User",
+      "accounts_device": "Device",
+      "accounts_role": "Role",
+      "accounts_accessrule": "Access rule",
+      "core_setting": "Setting",
+      "catalog_category": "Category",
+      "library_library": "Library",
+      "catalog_movie": "Movie",
+      "catalog_series": "Series",
+      "catalog_matchreview": "Match review",
+      "playback_playbacksession": "Playback session"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Changes apply everywhere within seconds, without a restart, and are recorded in the audit log.",
+    "readOnly": "You can see the settings; changing them needs the settings permission.",
+    "sections": "Setting groups",
+    "saved": "{{name}} saved",
+    "invalid": "Enter a valid value.",
+    "range": "Enter a value from {{min}} to {{max}}.",
+    "isDefault": "Default value",
+    "default": "Default: {{value}}",
+    "changed": "Changed",
+    "changedBy": "Changed by {{name}}",
+    "reset": "Reset to default",
+    "newSecret": "Enter a new value",
+    "secretSet": "Set",
+    "secretNotSet": "Not set",
+    "groups": {
+      "branding": {
+        "title": "Branding",
+        "description": "How the service presents itself to customers."
+      },
+      "xtream": {
+        "title": "Xtream server",
+        "description": "What IPTV apps are told about this server."
+      },
+      "playback": {
+        "title": "Playback",
+        "description": "Signed media links and real-time transcoding."
+      },
+      "library": {
+        "title": "Library",
+        "description": "How new media files are picked up."
+      },
+      "metadata": {
+        "title": "Metadata",
+        "description": "Matching files to TMDB, and what is shown."
+      },
+      "security": {
+        "title": "Security",
+        "description": "Admin sessions."
+      },
+      "features": {
+        "title": "Feature flags",
+        "description": "Optional features, off unless needed."
+      },
+      "billing": {
+        "title": "Billing",
+        "description": "Used once payments arrive in a later release."
+      },
+      "trials": {
+        "title": "Trials",
+        "description": "Used once self-service trials arrive in a later release."
+      }
+    },
+    "keys": {
+      "branding": {
+        "service_name_en": {
+          "label": "Service name (English)",
+          "description": "Shown to customers in English."
+        },
+        "service_name_ar": {
+          "label": "Service name (Arabic)",
+          "description": "Shown to customers in Arabic."
+        },
+        "accent_color": {
+          "label": "Accent colour",
+          "description": "The brand colour, as #RRGGBB."
+        },
+        "support_email": {
+          "label": "Support email",
+          "description": "Where customers write for help."
+        }
+      },
+      "xtream": {
+        "server_url": {
+          "label": "Server URL",
+          "description": "The public address IPTV apps use as the server, e.g. https://tv.example.com."
+        },
+        "port": {
+          "label": "HTTP port",
+          "description": "The HTTP port reported to IPTV apps."
+        },
+        "https_port": {
+          "label": "HTTPS port",
+          "description": "The HTTPS port reported to IPTV apps."
+        }
+      },
+      "playback": {
+        "token_ttl_vod_s": {
+          "label": "Movie and series link lifetime",
+          "description": "How long a signed media link works, in seconds."
+        },
+        "token_ttl_live_s": {
+          "label": "Live link lifetime",
+          "description": "How long a signed live link works, in seconds."
+        },
+        "ip_binding": {
+          "label": "Bind links to the viewer's IP",
+          "description": "A signed link works only from the IP address it was issued to."
+        },
+        "realtime_transcode_enabled": {
+          "label": "Real-time transcoding",
+          "description": "Allow converting on the fly, as a capped fallback."
+        },
+        "realtime_transcode_max": {
+          "label": "Real-time transcodes at once",
+          "description": "The cap on real-time transcoding."
+        }
+      },
+      "library": {
+        "watcher_stable_s": {
+          "label": "Wait before scanning a new file",
+          "description": "A new file is scanned once its size hasn't changed for this many seconds."
+        }
+      },
+      "metadata": {
+        "match_auto_accept": {
+          "label": "Auto-accept confidence",
+          "description": "The minimum confidence (0 to 1) to accept a match automatically."
+        },
+        "match_margin": {
+          "label": "Required lead",
+          "description": "How far (0 to 1) the best match must lead the runner-up."
+        },
+        "certification_country": {
+          "label": "Age-rating country",
+          "description": "Whose age ratings are shown (ISO country code, e.g. SA)."
+        },
+        "genre_category_map": {
+          "label": "Genres to categories",
+          "description": "TMDB genre ids mapped to category slugs, as a JSON object."
+        }
+      },
+      "billing": {
+        "vat_rate": {
+          "label": "VAT rate",
+          "description": "Applied to invoices (0.15 is 15%)."
+        },
+        "currency": {
+          "label": "Currency",
+          "description": "The default currency (ISO 4217, e.g. SAR)."
+        },
+        "grace_days": {
+          "label": "Grace days",
+          "description": "Days a subscription keeps working after it ends."
+        }
+      },
+      "trials": {
+        "duration_hours": {
+          "label": "Trial length",
+          "description": "The length of a free trial, in hours."
+        },
+        "limit_per_phone": {
+          "label": "Trials per phone number",
+          "description": "Free trials allowed per phone number."
+        }
+      },
+      "security": {
+        "admin_idle_timeout_min": {
+          "label": "Admin idle timeout",
+          "description": "Admins are signed out after this many idle minutes."
+        }
+      },
+      "features": {
+        "subtitle_download": {
+          "label": "Download subtitles",
+          "description": "Fetch subtitles from external providers."
+        },
+        "machine_translation": {
+          "label": "Machine translation",
+          "description": "Translate missing Arabic metadata automatically."
+        },
+        "include_vod_in_m3u": {
+          "label": "Movies and series in M3U",
+          "description": "Include them in the M3U playlist, not only live channels."
+        },
+        "approve_new_devices": {
+          "label": "Approve new devices",
+          "description": "New devices wait for an admin's approval before they can play."
+        }
+      }
+    }
   },
   "notFound": {
     "code": "404",
