@@ -1,0 +1,287 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "adult": false,
+  "backdrop_path": "/synthetic-movie-335984-backdrop-1280x720.jpg",
+  "belongs_to_collection": null,
+  "budget": 150000000,
+  "genres": [
+    {
+      "id": 878,
+      "name": "Science Fiction"
+    },
+    {
+      "id": 18,
+      "name": "Drama"
+    }
+  ],
+  "homepage": "",
+  "id": 335984,
+  "imdb_id": "tt1856101",
+  "origin_country": [
+    "US"
+  ],
+  "original_language": "en",
+  "original_title": "Blade Runner 2049",
+  "overview": "Synthetic overview of Blade Runner 2049 for offline testing; not TMDB text.",
+  "popularity": 60.3,
+  "poster_path": "/synthetic-movie-335984-poster-en-600x900.jpg",
+  "production_companies": [
+    {
+      "id": 1645,
+      "logo_path": null,
+      "name": "Scott Free Productions",
+      "origin_country": "GB"
+    },
+    {
+      "id": 1088,
+      "logo_path": null,
+      "name": "Alcon Entertainment",
+      "origin_country": "US"
+    }
+  ],
+  "production_countries": [
+    {
+      "iso_3166_1": "US",
+      "name": "United States of America"
+    },
+    {
+      "iso_3166_1": "CA",
+      "name": "Canada"
+    }
+  ],
+  "release_date": "2017-10-04",
+  "revenue": 259239658,
+  "runtime": 164,
+  "spoken_languages": [
+    {
+      "english_name": "English",
+      "iso_639_1": "en",
+      "name": "English"
+    }
+  ],
+  "status": "Released",
+  "tagline": "Synthetic tagline.",
+  "title": "Blade Runner 2049",
+  "video": false,
+  "vote_average": 7.6,
+  "vote_count": 14000,
+  "credits": {
+    "cast": [
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 30614,
+        "known_for_department": "Acting",
+        "name": "Ryan Gosling",
+        "original_name": "Ryan Gosling",
+        "popularity": 40.0,
+        "profile_path": "/synthetic-person-30614-profile-400x600.jpg",
+        "cast_id": 100,
+        "character": "K",
+        "credit_id": "synthetic-credit-30614-cast",
+        "order": 0
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 3,
+        "known_for_department": "Acting",
+        "name": "Harrison Ford",
+        "original_name": "Harrison Ford",
+        "popularity": 34.5,
+        "profile_path": "/synthetic-person-3-profile-400x600.jpg",
+        "cast_id": 101,
+        "character": "Rick Deckard",
+        "credit_id": "synthetic-credit-3-cast",
+        "order": 1
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 224513,
+        "known_for_department": "Acting",
+        "name": "Ana de Armas",
+        "original_name": "Ana de Armas",
+        "popularity": 29.0,
+        "profile_path": "/synthetic-person-224513-profile-400x600.jpg",
+        "cast_id": 102,
+        "character": "Joi",
+        "credit_id": "synthetic-credit-224513-cast",
+        "order": 2
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 131,
+        "known_for_department": "Acting",
+        "name": "Jared Leto",
+        "original_name": "Jared Leto",
+        "popularity": 23.5,
+        "profile_path": "/synthetic-person-131-profile-400x600.jpg",
+        "cast_id": 103,
+        "character": "Niander Wallace",
+        "credit_id": "synthetic-credit-131-cast",
+        "order": 3
+      }
+    ],
+    "crew": [
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 137427,
+        "known_for_department": "Directing",
+        "name": "Denis Villeneuve",
+        "original_name": "Denis Villeneuve",
+        "popularity": 9.5,
+        "profile_path": "/synthetic-person-137427-profile-400x600.jpg",
+        "credit_id": "synthetic-credit-137427-director",
+        "department": "Directing",
+        "job": "Director"
+      }
+    ]
+  },
+  "videos": {
+    "results": []
+  },
+  "images": {
+    "backdrops": [
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": null,
+        "file_path": "/synthetic-movie-335984-backdrop-1280x720.jpg",
+        "vote_average": 5.5,
+        "vote_count": 12,
+        "width": 1280
+      },
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-movie-335984-backdrop-en-1280x720.jpg",
+        "vote_average": 5.2,
+        "vote_count": 12,
+        "width": 1280
+      }
+    ],
+    "logos": [
+      {
+        "aspect_ratio": 2.5,
+        "height": 200,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-movie-335984-logo-en-500x200.png",
+        "vote_average": 5.4,
+        "vote_count": 12,
+        "width": 500
+      }
+    ],
+    "posters": [
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-movie-335984-poster-en-600x900.jpg",
+        "vote_average": 5.6,
+        "vote_count": 12,
+        "width": 600
+      },
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "ar",
+        "file_path": "/synthetic-movie-335984-poster-ar-600x900.jpg",
+        "vote_average": 5.3,
+        "vote_count": 12,
+        "width": 600
+      }
+    ]
+  },
+  "release_dates": {
+    "results": [
+      {
+        "iso_3166_1": "US",
+        "release_dates": [
+          {
+            "certification": "R",
+            "descriptors": [],
+            "iso_639_1": "",
+            "note": "",
+            "release_date": "2017-10-04T00:00:00.000Z",
+            "type": 3
+          }
+        ]
+      },
+      {
+        "iso_3166_1": "SA",
+        "release_dates": [
+          {
+            "certification": "R18",
+            "descriptors": [],
+            "iso_639_1": "",
+            "note": "",
+            "release_date": "2017-10-04T00:00:00.000Z",
+            "type": 3
+          }
+        ]
+      }
+    ]
+  },
+  "keywords": {
+    "keywords": [
+      {
+        "id": 4565,
+        "name": "dystopia"
+      },
+      {
+        "id": 310,
+        "name": "artificial intelligence (a.i.)"
+      },
+      {
+        "id": 14909,
+        "name": "replicant"
+      }
+    ]
+  },
+  "alternative_titles": {
+    "titles": [
+      {
+        "iso_3166_1": "SA",
+        "title": "بليد رانر 2049",
+        "type": ""
+      }
+    ]
+  },
+  "translations": {
+    "translations": [
+      {
+        "iso_3166_1": "US",
+        "iso_639_1": "en",
+        "name": "English",
+        "english_name": "English",
+        "data": {
+          "homepage": "",
+          "overview": "Synthetic overview of Blade Runner 2049 for offline testing; not TMDB text.",
+          "runtime": 164,
+          "tagline": "Synthetic tagline.",
+          "title": "Blade Runner 2049"
+        }
+      },
+      {
+        "iso_3166_1": "SA",
+        "iso_639_1": "ar",
+        "name": "العربية",
+        "english_name": "Arabic",
+        "data": {
+          "homepage": "",
+          "overview": "ملخص اصطناعي للاختبار دون اتصال؛ ليس نصًا من TMDB.",
+          "runtime": 164,
+          "tagline": "شعار اصطناعي للاختبار.",
+          "title": "بليد رانر 2049"
+        }
+      }
+    ]
+  }
+}

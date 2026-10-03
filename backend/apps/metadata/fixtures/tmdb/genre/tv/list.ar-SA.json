@@ -1,0 +1,72 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "genres": [
+    {
+      "id": 10759,
+      "name": "أكشن ومغامرة"
+    },
+    {
+      "id": 16,
+      "name": "رسوم متحركة"
+    },
+    {
+      "id": 35,
+      "name": "كوميديا"
+    },
+    {
+      "id": 80,
+      "name": "جريمة"
+    },
+    {
+      "id": 99,
+      "name": "وثائقي"
+    },
+    {
+      "id": 18,
+      "name": "دراما"
+    },
+    {
+      "id": 10751,
+      "name": "عائلي"
+    },
+    {
+      "id": 10762,
+      "name": "أطفال"
+    },
+    {
+      "id": 9648,
+      "name": "غموض"
+    },
+    {
+      "id": 10763,
+      "name": "أخبار"
+    },
+    {
+      "id": 10764,
+      "name": "واقع"
+    },
+    {
+      "id": 10765,
+      "name": "خيال علمي وفانتازيا"
+    },
+    {
+      "id": 10766,
+      "name": "مسلسل درامي"
+    },
+    {
+      "id": 10767,
+      "name": "حواري"
+    },
+    {
+      "id": 10768,
+      "name": "حرب وسياسة"
+    },
+    {
+      "id": 37,
+      "name": "غربي"
+    }
+  ]
+}

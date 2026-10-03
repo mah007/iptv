@@ -1,0 +1,319 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "adult": false,
+  "backdrop_path": "/synthetic-tv-1396-backdrop-1280x720.jpg",
+  "created_by": [
+    {
+      "id": 66633,
+      "credit_id": "synthetic-credit-66633-creator",
+      "name": "Vince Gilligan",
+      "original_name": "Vince Gilligan",
+      "gender": 2,
+      "profile_path": "/synthetic-person-66633-profile-400x600.jpg"
+    }
+  ],
+  "episode_run_time": [
+    47
+  ],
+  "first_air_date": "2008-01-20",
+  "genres": [
+    {
+      "id": 18,
+      "name": "Drama"
+    },
+    {
+      "id": 80,
+      "name": "Crime"
+    }
+  ],
+  "homepage": "",
+  "id": 1396,
+  "in_production": false,
+  "languages": [
+    "en"
+  ],
+  "last_air_date": "2013-09-29",
+  "last_episode_to_air": {
+    "id": 99140116,
+    "name": "Felina",
+    "overview": "Synthetic overview of Breaking Bad S05E16 for offline testing; not TMDB text.",
+    "vote_average": 9.0,
+    "vote_count": 100,
+    "air_date": "2013-09-29",
+    "episode_number": 16,
+    "episode_type": "finale",
+    "production_code": "",
+    "runtime": 55,
+    "season_number": 5,
+    "show_id": 1396,
+    "still_path": "/synthetic-tv-1396-s05e16-still-1280x720.jpg"
+  },
+  "name": "Breaking Bad",
+  "next_episode_to_air": null,
+  "networks": [
+    {
+      "id": 174,
+      "logo_path": null,
+      "name": "AMC",
+      "origin_country": "US"
+    }
+  ],
+  "number_of_episodes": 62,
+  "number_of_seasons": 5,
+  "origin_country": [
+    "US"
+  ],
+  "original_language": "en",
+  "original_name": "Breaking Bad",
+  "overview": "Synthetic overview of Breaking Bad for offline testing; not TMDB text.",
+  "popularity": 300.4,
+  "poster_path": "/synthetic-tv-1396-poster-en-600x900.jpg",
+  "production_companies": [],
+  "production_countries": [
+    {
+      "iso_3166_1": "US",
+      "name": "United States of America"
+    }
+  ],
+  "seasons": [
+    {
+      "air_date": "2008-01-20",
+      "episode_count": 7,
+      "id": 99139601,
+      "name": "Season 1",
+      "overview": "",
+      "poster_path": "/synthetic-tv-1396-s01-poster-en-600x900.jpg",
+      "season_number": 1,
+      "vote_average": 7.5
+    },
+    {
+      "air_date": "2009-03-08",
+      "episode_count": 13,
+      "id": 99139602,
+      "name": "Season 2",
+      "overview": "",
+      "poster_path": "/synthetic-tv-1396-s02-poster-en-600x900.jpg",
+      "season_number": 2,
+      "vote_average": 7.5
+    },
+    {
+      "air_date": "2010-03-21",
+      "episode_count": 13,
+      "id": 99139603,
+      "name": "Season 3",
+      "overview": "",
+      "poster_path": "/synthetic-tv-1396-s03-poster-en-600x900.jpg",
+      "season_number": 3,
+      "vote_average": 7.5
+    },
+    {
+      "air_date": "2011-07-17",
+      "episode_count": 13,
+      "id": 99139604,
+      "name": "Season 4",
+      "overview": "",
+      "poster_path": "/synthetic-tv-1396-s04-poster-en-600x900.jpg",
+      "season_number": 4,
+      "vote_average": 7.5
+    },
+    {
+      "air_date": "2012-07-15",
+      "episode_count": 16,
+      "id": 99139605,
+      "name": "Season 5",
+      "overview": "",
+      "poster_path": "/synthetic-tv-1396-s05-poster-en-600x900.jpg",
+      "season_number": 5,
+      "vote_average": 7.5
+    }
+  ],
+  "spoken_languages": [
+    {
+      "english_name": "English",
+      "iso_639_1": "en",
+      "name": "English"
+    }
+  ],
+  "status": "Ended",
+  "tagline": "",
+  "type": "Scripted",
+  "vote_average": 8.9,
+  "vote_count": 15000,
+  "credits": {
+    "cast": [
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 17419,
+        "known_for_department": "Acting",
+        "name": "Bryan Cranston",
+        "original_name": "Bryan Cranston",
+        "popularity": 40.0,
+        "profile_path": "/synthetic-person-17419-profile-400x600.jpg",
+        "character": "Walter White",
+        "credit_id": "synthetic-credit-17419-cast",
+        "order": 0
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 84497,
+        "known_for_department": "Acting",
+        "name": "Aaron Paul",
+        "original_name": "Aaron Paul",
+        "popularity": 34.5,
+        "profile_path": "/synthetic-person-84497-profile-400x600.jpg",
+        "character": "Jesse Pinkman",
+        "credit_id": "synthetic-credit-84497-cast",
+        "order": 1
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 134531,
+        "known_for_department": "Acting",
+        "name": "Anna Gunn",
+        "original_name": "Anna Gunn",
+        "popularity": 29.0,
+        "profile_path": "/synthetic-person-134531-profile-400x600.jpg",
+        "character": "Skyler White",
+        "credit_id": "synthetic-credit-134531-cast",
+        "order": 2
+      }
+    ],
+    "crew": []
+  },
+  "videos": {
+    "results": []
+  },
+  "images": {
+    "backdrops": [
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": null,
+        "file_path": "/synthetic-tv-1396-backdrop-1280x720.jpg",
+        "vote_average": 5.5,
+        "vote_count": 12,
+        "width": 1280
+      },
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-tv-1396-backdrop-en-1280x720.jpg",
+        "vote_average": 5.2,
+        "vote_count": 12,
+        "width": 1280
+      }
+    ],
+    "logos": [
+      {
+        "aspect_ratio": 2.5,
+        "height": 200,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-tv-1396-logo-en-500x200.png",
+        "vote_average": 5.4,
+        "vote_count": 12,
+        "width": 500
+      }
+    ],
+    "posters": [
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-tv-1396-poster-en-600x900.jpg",
+        "vote_average": 5.6,
+        "vote_count": 12,
+        "width": 600
+      },
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "ar",
+        "file_path": "/synthetic-tv-1396-poster-ar-600x900.jpg",
+        "vote_average": 5.3,
+        "vote_count": 12,
+        "width": 600
+      }
+    ]
+  },
+  "content_ratings": {
+    "results": [
+      {
+        "descriptors": [],
+        "iso_3166_1": "US",
+        "rating": "TV-MA"
+      }
+    ]
+  },
+  "keywords": {
+    "results": [
+      {
+        "id": 15484,
+        "name": "drug dealer"
+      },
+      {
+        "id": 6149,
+        "name": "cancer"
+      },
+      {
+        "id": 1568,
+        "name": "new mexico"
+      }
+    ]
+  },
+  "alternative_titles": {
+    "results": [
+      {
+        "iso_3166_1": "SA",
+        "title": "بريكنج باد",
+        "type": ""
+      }
+    ]
+  },
+  "translations": {
+    "translations": [
+      {
+        "iso_3166_1": "US",
+        "iso_639_1": "en",
+        "name": "English",
+        "english_name": "English",
+        "data": {
+          "name": "Breaking Bad",
+          "overview": "Synthetic overview of Breaking Bad for offline testing; not TMDB text.",
+          "homepage": "",
+          "tagline": ""
+        }
+      },
+      {
+        "iso_3166_1": "SA",
+        "iso_639_1": "ar",
+        "name": "العربية",
+        "english_name": "Arabic",
+        "data": {
+          "name": "بريكنج باد",
+          "overview": "ملخص اصطناعي للاختبار دون اتصال؛ ليس نصًا من TMDB.",
+          "homepage": "",
+          "tagline": ""
+        }
+      }
+    ]
+  },
+  "external_ids": {
+    "id": 1396,
+    "imdb_id": "tt0903747",
+    "freebase_mid": null,
+    "freebase_id": null,
+    "tvdb_id": 81189,
+    "tvrage_id": null,
+    "wikidata_id": null,
+    "facebook_id": null,
+    "instagram_id": null,
+    "twitter_id": null
+  }
+}

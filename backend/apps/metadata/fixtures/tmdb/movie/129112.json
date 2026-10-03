@@ -1,0 +1,236 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "adult": false,
+  "backdrop_path": "/synthetic-movie-129112-backdrop-1280x720.jpg",
+  "belongs_to_collection": null,
+  "budget": 0,
+  "genres": [
+    {
+      "id": 18,
+      "name": "Drama"
+    }
+  ],
+  "homepage": "",
+  "id": 129112,
+  "imdb_id": "tt2258858",
+  "origin_country": [
+    "SA"
+  ],
+  "original_language": "ar",
+  "original_title": "وجدة",
+  "overview": "Synthetic overview of Wadjda for offline testing; not TMDB text.",
+  "popularity": 9.1,
+  "poster_path": "/synthetic-movie-129112-poster-ar-600x900.jpg",
+  "production_companies": [
+    {
+      "id": 5001,
+      "logo_path": null,
+      "name": "Razor Film",
+      "origin_country": "DE"
+    }
+  ],
+  "production_countries": [
+    {
+      "iso_3166_1": "SA",
+      "name": "Saudi Arabia"
+    },
+    {
+      "iso_3166_1": "DE",
+      "name": "Germany"
+    }
+  ],
+  "release_date": "2012-08-31",
+  "revenue": 0,
+  "runtime": 98,
+  "spoken_languages": [
+    {
+      "english_name": "Arabic",
+      "iso_639_1": "ar",
+      "name": "العربية"
+    }
+  ],
+  "status": "Released",
+  "tagline": "Synthetic tagline.",
+  "title": "Wadjda",
+  "video": false,
+  "vote_average": 7.2,
+  "vote_count": 520,
+  "credits": {
+    "cast": [
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 1153106,
+        "known_for_department": "Acting",
+        "name": "Waad Mohammed",
+        "original_name": "Waad Mohammed",
+        "popularity": 40.0,
+        "profile_path": "/synthetic-person-1153106-profile-400x600.jpg",
+        "cast_id": 100,
+        "character": "Wadjda",
+        "credit_id": "synthetic-credit-1153106-cast",
+        "order": 0
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 1153105,
+        "known_for_department": "Acting",
+        "name": "Reem Abdullah",
+        "original_name": "Reem Abdullah",
+        "popularity": 34.5,
+        "profile_path": "/synthetic-person-1153105-profile-400x600.jpg",
+        "cast_id": 101,
+        "character": "Mother",
+        "credit_id": "synthetic-credit-1153105-cast",
+        "order": 1
+      }
+    ],
+    "crew": []
+  },
+  "videos": {
+    "results": []
+  },
+  "images": {
+    "backdrops": [
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": null,
+        "file_path": "/synthetic-movie-129112-backdrop-1280x720.jpg",
+        "vote_average": 5.5,
+        "vote_count": 12,
+        "width": 1280
+      },
+      {
+        "aspect_ratio": 1.778,
+        "height": 720,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-movie-129112-backdrop-en-1280x720.jpg",
+        "vote_average": 5.2,
+        "vote_count": 12,
+        "width": 1280
+      }
+    ],
+    "logos": [
+      {
+        "aspect_ratio": 2.5,
+        "height": 200,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-movie-129112-logo-en-500x200.png",
+        "vote_average": 5.4,
+        "vote_count": 12,
+        "width": 500
+      }
+    ],
+    "posters": [
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "ar",
+        "file_path": "/synthetic-movie-129112-poster-ar-600x900.jpg",
+        "vote_average": 5.6,
+        "vote_count": 12,
+        "width": 600
+      },
+      {
+        "aspect_ratio": 0.667,
+        "height": 900,
+        "iso_639_1": "en",
+        "file_path": "/synthetic-movie-129112-poster-en-600x900.jpg",
+        "vote_average": 5.3,
+        "vote_count": 12,
+        "width": 600
+      }
+    ]
+  },
+  "release_dates": {
+    "results": [
+      {
+        "iso_3166_1": "SA",
+        "release_dates": [
+          {
+            "certification": "G",
+            "descriptors": [],
+            "iso_639_1": "",
+            "note": "",
+            "release_date": "2012-08-31T00:00:00.000Z",
+            "type": 3
+          }
+        ]
+      },
+      {
+        "iso_3166_1": "US",
+        "release_dates": [
+          {
+            "certification": "PG",
+            "descriptors": [],
+            "iso_639_1": "",
+            "note": "",
+            "release_date": "2012-08-31T00:00:00.000Z",
+            "type": 3
+          }
+        ]
+      }
+    ]
+  },
+  "keywords": {
+    "keywords": [
+      {
+        "id": 9840,
+        "name": "bicycle"
+      },
+      {
+        "id": 1415,
+        "name": "saudi arabia"
+      }
+    ]
+  },
+  "alternative_titles": {
+    "titles": [
+      {
+        "iso_3166_1": "SA",
+        "title": "وجدة",
+        "type": ""
+      },
+      {
+        "iso_3166_1": "DE",
+        "title": "Das Mädchen Wadjda",
+        "type": ""
+      }
+    ]
+  },
+  "translations": {
+    "translations": [
+      {
+        "iso_3166_1": "US",
+        "iso_639_1": "en",
+        "name": "English",
+        "english_name": "English",
+        "data": {
+          "homepage": "",
+          "overview": "Synthetic overview of Wadjda for offline testing; not TMDB text.",
+          "runtime": 98,
+          "tagline": "Synthetic tagline.",
+          "title": "Wadjda"
+        }
+      },
+      {
+        "iso_3166_1": "SA",
+        "iso_639_1": "ar",
+        "name": "العربية",
+        "english_name": "Arabic",
+        "data": {
+          "homepage": "",
+          "overview": "ملخص اصطناعي للاختبار دون اتصال؛ ليس نصًا من TMDB.",
+          "runtime": 98,
+          "tagline": "شعار اصطناعي للاختبار.",
+          "title": "وجدة"
+        }
+      }
+    ]
+  }
+}

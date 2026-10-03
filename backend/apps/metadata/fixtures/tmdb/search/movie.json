@@ -1,0 +1,219 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "queries": {
+    "matrix": {
+      "page": 1,
+      "results": [
+        {
+          "adult": false,
+          "backdrop_path": "/synthetic-movie-603-backdrop-1280x720.jpg",
+          "genre_ids": [
+            28,
+            878
+          ],
+          "id": 603,
+          "original_language": "en",
+          "original_title": "The Matrix",
+          "overview": "Synthetic overview of The Matrix for offline testing; not TMDB text.",
+          "popularity": 80.5,
+          "poster_path": "/synthetic-movie-603-poster-en-600x900.jpg",
+          "release_date": "1999-03-31",
+          "title": "The Matrix",
+          "video": false,
+          "vote_average": 7.0,
+          "vote_count": 1000
+        },
+        {
+          "adult": false,
+          "backdrop_path": "/synthetic-movie-604-backdrop-1280x720.jpg",
+          "genre_ids": [
+            12,
+            28,
+            53,
+            878
+          ],
+          "id": 604,
+          "original_language": "en",
+          "original_title": "The Matrix Reloaded",
+          "overview": "Synthetic overview of The Matrix Reloaded for offline testing; not TMDB text.",
+          "popularity": 40.2,
+          "poster_path": "/synthetic-movie-604-poster-en-600x900.jpg",
+          "release_date": "2003-05-15",
+          "title": "The Matrix Reloaded",
+          "video": false,
+          "vote_average": 7.0,
+          "vote_count": 1000
+        },
+        {
+          "adult": false,
+          "backdrop_path": "/synthetic-movie-605-backdrop-1280x720.jpg",
+          "genre_ids": [
+            12,
+            28,
+            53,
+            878
+          ],
+          "id": 605,
+          "original_language": "en",
+          "original_title": "The Matrix Revolutions",
+          "overview": "Synthetic overview of The Matrix Revolutions for offline testing; not TMDB text.",
+          "popularity": 35.7,
+          "poster_path": "/synthetic-movie-605-poster-en-600x900.jpg",
+          "release_date": "2003-11-05",
+          "title": "The Matrix Revolutions",
+          "video": false,
+          "vote_average": 7.0,
+          "vote_count": 1000
+        },
+        {
+          "adult": false,
+          "backdrop_path": "/synthetic-movie-624860-backdrop-1280x720.jpg",
+          "genre_ids": [
+            878,
+            28,
+            12
+          ],
+          "id": 624860,
+          "original_language": "en",
+          "original_title": "The Matrix Resurrections",
+          "overview": "Synthetic overview of The Matrix Resurrections for offline testing; not TMDB text.",
+          "popularity": 60.1,
+          "poster_path": "/synthetic-movie-624860-poster-en-600x900.jpg",
+          "release_date": "2021-12-16",
+          "title": "The Matrix Resurrections",
+          "video": false,
+          "vote_average": 7.0,
+          "vote_count": 1000
+        }
+      ],
+      "total_pages": 1,
+      "total_results": 4
+    },
+    "inception": {
+      "page": 1,
+      "results": [
+        {
+          "adult": false,
+          "backdrop_path": "/synthetic-movie-27205-backdrop-1280x720.jpg",
+          "genre_ids": [
+            28,
+            878,
+            12
+          ],
+          "id": 27205,
+          "original_language": "en",
+          "original_title": "Inception",
+          "overview": "Synthetic overview of Inception for offline testing; not TMDB text.",
+          "popularity": 95.2,
+          "poster_path": "/synthetic-movie-27205-poster-en-600x900.jpg",
+          "release_date": "2010-07-15",
+          "title": "Inception",
+          "video": false,
+          "vote_average": 7.0,
+          "vote_count": 1000
+        }
+      ],
+      "total_pages": 1,
+      "total_results": 1
+    },
+    "blade runner 2049": {
+      "page": 1,
+      "results": [
+        {
+          "adult": false,
+          "backdrop_path": "/synthetic-movie-335984-backdrop-1280x720.jpg",
+          "genre_ids": [
+            878,
+            18
+          ],
+          "id": 335984,
+          "original_language": "en",
+          "original_title": "Blade Runner 2049",
+          "overview": "Synthetic overview of Blade Runner 2049 for offline testing; not TMDB text.",
+          "popularity": 60.3,
+          "poster_path": "/synthetic-movie-335984-poster-en-600x900.jpg",
+          "release_date": "2017-10-04",
+          "title": "Blade Runner 2049",
+          "video": false,
+          "vote_average": 7.0,
+          "vote_count": 1000
+        },
+        {
+          "adult": false,
+          "backdrop_path": "/synthetic-movie-78-backdrop-1280x720.jpg",
+          "genre_ids": [
+            878,
+            18,
+            53
+          ],
+          "id": 78,
+          "original_language": "en",
+          "original_title": "Blade Runner",
+          "overview": "Synthetic overview of Blade Runner for offline testing; not TMDB text.",
+          "popularity": 45.8,
+          "poster_path": "/synthetic-movie-78-poster-en-600x900.jpg",
+          "release_date": "1982-06-25",
+          "title": "Blade Runner",
+          "video": false,
+          "vote_average": 7.0,
+          "vote_count": 1000
+        }
+      ],
+      "total_pages": 1,
+      "total_results": 2
+    },
+    "وجده": {
+      "page": 1,
+      "results": [
+        {
+          "adult": false,
+          "backdrop_path": "/synthetic-movie-129112-backdrop-1280x720.jpg",
+          "genre_ids": [
+            18
+          ],
+          "id": 129112,
+          "original_language": "ar",
+          "original_title": "وجدة",
+          "overview": "Synthetic overview of Wadjda for offline testing; not TMDB text.",
+          "popularity": 9.1,
+          "poster_path": "/synthetic-movie-129112-poster-ar-600x900.jpg",
+          "release_date": "2012-08-31",
+          "title": "Wadjda",
+          "video": false,
+          "vote_average": 7.0,
+          "vote_count": 1000
+        }
+      ],
+      "total_pages": 1,
+      "total_results": 1
+    },
+    "wadjda": {
+      "page": 1,
+      "results": [
+        {
+          "adult": false,
+          "backdrop_path": "/synthetic-movie-129112-backdrop-1280x720.jpg",
+          "genre_ids": [
+            18
+          ],
+          "id": 129112,
+          "original_language": "ar",
+          "original_title": "وجدة",
+          "overview": "Synthetic overview of Wadjda for offline testing; not TMDB text.",
+          "popularity": 9.1,
+          "poster_path": "/synthetic-movie-129112-poster-ar-600x900.jpg",
+          "release_date": "2012-08-31",
+          "title": "Wadjda",
+          "video": false,
+          "vote_average": 7.0,
+          "vote_count": 1000
+        }
+      ],
+      "total_pages": 1,
+      "total_results": 1
+    }
+  }
+}

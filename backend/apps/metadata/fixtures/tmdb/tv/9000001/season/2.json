@@ -1,0 +1,50 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-authored SYNTHETIC fixture shaped like a TMDB v3 response, for offline development and tests (fixture mode). Titles, years, runtimes and the TMDB, IMDb and TVDB IDs of real works are public facts; overviews, taglines, translations, ratings, popularity, image paths, credit IDs and episode IDs are made up. This is not TMDB data."
+  },
+  "_id": "synthetic-season-9000001-2",
+  "air_date": "2021-01-03",
+  "episodes": [
+    {
+      "air_date": "2021-01-03",
+      "episode_number": 1,
+      "episode_type": "standard",
+      "id": 99000301,
+      "name": "Episode 1",
+      "overview": "Synthetic overview of Show S02E01 for offline testing; not TMDB text.",
+      "production_code": "",
+      "runtime": 30,
+      "season_number": 2,
+      "show_id": 9000001,
+      "still_path": "/synthetic-tv-9000001-s02e01-still-1280x720.jpg",
+      "vote_average": 8.0,
+      "vote_count": 50,
+      "crew": [],
+      "guest_stars": []
+    },
+    {
+      "air_date": "2021-01-10",
+      "episode_number": 2,
+      "episode_type": "finale",
+      "id": 99000302,
+      "name": "Episode 2",
+      "overview": "Synthetic overview of Show S02E02 for offline testing; not TMDB text.",
+      "production_code": "",
+      "runtime": 30,
+      "season_number": 2,
+      "show_id": 9000001,
+      "still_path": "/synthetic-tv-9000001-s02e02-still-1280x720.jpg",
+      "vote_average": 8.0,
+      "vote_count": 50,
+      "crew": [],
+      "guest_stars": []
+    }
+  ],
+  "name": "Season 2",
+  "overview": "",
+  "id": 99000102,
+  "poster_path": "/synthetic-tv-9000001-s02-poster-en-600x900.jpg",
+  "season_number": 2,
+  "vote_average": 7.5
+}
