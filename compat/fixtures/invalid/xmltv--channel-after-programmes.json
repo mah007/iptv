@@ -1,0 +1,14 @@
+{
+  "description": "Channels come before programmes (XMLTV DTD order).",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "</tv>",
+      "new": "  <channel id=\"showcase-hd.example\">\n    <display-name>Showcase HD</display-name>\n  </channel>\n</tv>"
+    }
+  ],
+  "expect": {
+    "at": "/tv/channel[3]",
+    "kind": "xmltv:order"
+  }
+}

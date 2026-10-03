@@ -1,0 +1,14 @@
+{
+  "description": "Every programme has a title.",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "<title lang=\"en\">Evening Showcase</title>",
+      "new": "<title lang=\"en\"></title>"
+    }
+  ],
+  "expect": {
+    "at": "/tv/programme[4]",
+    "kind": "xmltv:title"
+  }
+}

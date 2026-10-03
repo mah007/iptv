@@ -1,0 +1,32 @@
+{
+  "description": "Listings are ordered by start time.",
+  "fixture": "get_short_epg.json",
+  "patch": [
+    {
+      "op": "remove",
+      "path": "/epg_listings/0"
+    },
+    {
+      "op": "add",
+      "path": "/epg_listings/-",
+      "value": {
+        "id": "900102",
+        "epg_id": "1",
+        "title": "SW5zaWRlIHRoZSBTdHVkaW8=",
+        "lang": "en",
+        "start": "2026-10-03 15:30:00",
+        "end": "2026-10-03 16:30:00",
+        "description": "SG93IGEgdGl0bGUgcmVhY2hlcyB5b3VyIHNjcmVlbiwgZnJvbSB0aGUgbGlicmFyeSBmb2xkZXIgdG8gZGlyZWN0IHBsYXku",
+        "channel_id": "showcase.example",
+        "start_timestamp": "1791041400",
+        "stop_timestamp": "1791045000",
+        "now_playing": 1,
+        "has_archive": 0
+      }
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[2].start_timestamp",
+    "kind": "invariant:epg-order"
+  }
+}

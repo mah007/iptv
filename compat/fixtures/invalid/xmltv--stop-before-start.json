@@ -1,0 +1,14 @@
+{
+  "description": "A programme ends after it starts.",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "stop=\"20261003170000 +0000\"",
+      "new": "stop=\"20261003160000 +0000\""
+    }
+  ],
+  "expect": {
+    "at": "/tv/programme[3]/@stop",
+    "kind": "xmltv:time"
+  }
+}

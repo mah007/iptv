@@ -1,0 +1,14 @@
+{
+  "description": "XMLTV times are YYYYMMDDhhmmss +0000.",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "start=\"20261003140000 +0000\"",
+      "new": "start=\"2026-10-03 14:00:00\""
+    }
+  ],
+  "expect": {
+    "at": "/tv/programme[1]/@start",
+    "kind": "xmltv:time"
+  }
+}

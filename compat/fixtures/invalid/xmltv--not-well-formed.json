@@ -1,0 +1,14 @@
+{
+  "description": "The guide is well-formed XML.",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "<title lang=\"en\">Behind the Scenes</title>",
+      "new": "<title lang=\"en\">Behind the Scenes</titel>"
+    }
+  ],
+  "expect": {
+    "at": "line 19, column 40",
+    "kind": "xmltv:well-formed"
+  }
+}

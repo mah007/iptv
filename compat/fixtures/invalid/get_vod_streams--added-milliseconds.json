@@ -1,0 +1,15 @@
+{
+  "description": "added is in seconds; 13 digits means milliseconds.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/added",
+      "value": "1791032700000"
+    }
+  ],
+  "expect": {
+    "at": "$[0].added",
+    "kind": "pattern"
+  }
+}

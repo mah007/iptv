@@ -1,0 +1,145 @@
+// Credential and token redaction for every log line before it reaches Loki
+// (SPEC §11, ADR-0008). Django already redacts at the source (apps/core/redaction.py);
+// this is the second layer, and the only one for Traefik, the Nginx edge and
+// third-party containers.
+//
+// Each stage.replace masks only its capture groups with "***"; everything outside
+// them, including non-capturing (?:...) groups, is kept. Expressions are RE2
+// (no lookaround or backreferences) in raw strings, so backslashes are literal.
+// Masking errs on the side of hiding too much.
+//
+// monitoring/tests/test_log_pipeline.py runs real log lines through this module
+// inside Alloy and fails if any secret survives. Add a fixture line there with
+// every new rule.
+declare "redact" {
+	argument "forward_to" {
+		comment = "Receivers for the redacted entries."
+	}
+
+	loki.process "lines" {
+		forward_to = argument.forward_to.value
+
+		// user:password@ in URLs, e.g. a DSN in an exception message:
+		// redis://:secret@redis-state:6379 -> redis://***:***@redis-state:6379
+		stage.replace {
+			expression = `(?i)\b[a-z][a-z0-9+.-]*://([^/\s:@"'\\]*):([^/\s@"'\\]+)@`
+			replace    = "***"
+		}
+
+		// Xtream play URLs carry the credentials in the path (also JSON-escaped \/):
+		// /movie/<user>/<pass>/1.mp4 -> /movie/***/***/1.mp4 (series, live, timeshift too).
+		stage.replace {
+			expression = `(?i)(?:/|\\/)(?:movie|series|live|timeshift)(?:/|\\/)((?:[^/?#\s"'\\]|\\[^/"])+)(?:/|\\/)((?:[^/?#\s"'\\]|\\[^/"])+)`
+			replace    = "***"
+		}
+
+		// Xtream's short live form: a whole path of /<user>/<pass>/<stream id>[.ext].
+		// It must start the path (after a quote, a space or the line start), so longer
+		// paths that merely end in a number are not matched.
+		stage.replace {
+			expression = `(?:^|["\s])/((?:[^/?#\s"'\\]|\\[^/"])+)/((?:[^/?#\s"'\\]|\\[^/"])+)/[0-9]+(?:\.[A-Za-z0-9]{1,5})?(?:[?#"\s]|$)`
+			replace    = "***"
+		}
+
+		// Signed media URLs: /v/<token>/... -> /v/***/...
+		stage.replace {
+			expression = `(?:/|\\/)v(?:/|\\/)((?:[^/?#\s"'\\]|\\[^/"])+)`
+			replace    = "***"
+		}
+
+		// Telegram Bot API URLs embed the bot token: /bot<id>:<secret>/sendMessage
+		stage.replace {
+			expression = `(?i)/bot([0-9]{5,}:[A-Za-z0-9_-]{20,})`
+			replace    = "***"
+		}
+
+		// JSON Web Tokens anywhere in the line (app access and refresh tokens).
+		stage.replace {
+			expression = `\b(eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*)`
+			replace    = "***"
+		}
+
+		// Authorization: Bearer <token>
+		stage.replace {
+			expression = `(?i)\bbearer\s+([A-Za-z0-9._~+/=-]{8,})`
+			replace    = "***"
+		}
+
+		// Raw header lines: "Authorization: Basic ...", "Cookie: ...", "X-Api-Key: ...".
+		// JSON keys have a quote before the colon and are handled further down.
+		stage.replace {
+			expression = `(?i)\b(?:proxy-authorization|authorization|set-cookie|cookie|x-api-key|x-auth-token|x-csrftoken|x-meili-api-key)\s*:\s*([^\r\n"]+)`
+			replace    = "***"
+		}
+
+		// JSON pairs whose key names a secret, string values: "password": "..." -> "password": "***".
+		// Same key list as Django's redaction (apps/core/redaction.py); `otp` must start a
+		// word segment so "footprint" is spared.
+		stage.replace {
+			expression = `(?i)"(?:[^"\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf)[^"\\]*|(?:[^"\\]*[^"\\a-z])?otp[^"\\]*)"\s*:\s*"((?:[^"\\]|\\.)*)"`
+			replace    = "***"
+		}
+
+		// The same keys with numeric values ("otp": 123456); the number becomes a string
+		// so the line stays valid JSON.
+		stage.replace {
+			expression = `(?i)"(?:[^"\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf)[^"\\]*|(?:[^"\\]*[^"\\a-z])?otp[^"\\]*)"\s*:\s*(-?[0-9][0-9.eE+-]*)`
+			replace    = "\"***\""
+		}
+
+		// The same keys inside an escaped JSON string (a JSON body logged as a string).
+		stage.replace {
+			expression = `(?i)\\"(?:[^"\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf)[^"\\]*|(?:[^"\\]*[^"\\a-z])?otp[^"\\]*)\\"\s*:\s*\\"((?:[^"\\]|\\[^"])*)\\"`
+			replace    = "***"
+		}
+
+		// Python reprs: {'password': '...'}
+		stage.replace {
+			expression = `(?i)'(?:[^'\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf)[^'\\]*|(?:[^'\\]*[^'\\a-z])?otp[^'\\]*)'\s*:\s*'((?:[^'\\]|\\.)*)'`
+			replace    = "***"
+		}
+
+		// Query-string, form and key=value parameters (Django's list plus common
+		// aliases): ?username=...&password=... -> ?username=***&password=***.
+		// Go's JSON encoder writes & as \u0026 (Traefik's access log), so that also
+		// starts a parameter and ends a value.
+		stage.replace {
+			expression = `(?i)(?:^|[^A-Za-z0-9_]|\\u0026)(?:password|passwd|pass|pwd|username|token|access_token|refresh_token|id_token|secret|client_secret|api_key|apikey|key|code|sig|signature)=((?:[^&\s#;"'\\]|\\[^u]|\\u(?:[^0]|0[^0]|00[^2]|002[^6]))+)`
+			replace    = "***"
+		}
+
+		// The same parameters percent-encoded inside another URL: next=%2Fget.php%3Fpassword%3D...
+		stage.replace {
+			expression = `(?i)(?:^|[^A-Za-z0-9_]|%26|%3F)(?:password|passwd|pass|pwd|username|token|access_token|refresh_token|secret|api_key|apikey|key|code)%3D((?:[^%&\s"'\\]|%(?:[013-9a-fA-F][0-9a-fA-F]|2[0-57-9a-fA-F]))+)`
+			replace    = "***"
+		}
+
+		// Quoted key=value pairs (logfmt): password="a b" and, inside JSON, password=\"a b\".
+		stage.replace {
+			expression = `(?i)(?:^|[^A-Za-z0-9_])(?:password|passwd|pass|pwd|token|access_token|refresh_token|secret|client_secret|api_key|apikey|key|authorization|cookie)=(?:"((?:[^"\\]|\\.)*)"|\\"((?:[^"\\]|\\[^"])*)\\")`
+			replace    = "***"
+		}
+
+		// Environment-style assignments: POSTGRES_PASSWORD=..., MEILI_MASTER_KEY=..., any *_KEY=...
+		stage.replace {
+			expression = `(?i)(?:^|[^A-Za-z0-9_]|\\u0026)[A-Za-z0-9_]*(?:password|passwd|secret|token|apikey|_key)[A-Za-z0-9_]*=((?:[^&\s"'\\]|\\[^u"])+)`
+			replace    = "***"
+		}
+
+		// Prose and YAML-style "password: value" (not JSON, which has a quote before the colon).
+		stage.replace {
+			expression = `(?i)\b(?:password|passwd|secret|token|api[_-]?key)\s*:\s*([^\s"',;}\]]+)`
+			replace    = "***"
+		}
+
+		// Command-line flags: --requirepass "...", --password=...
+		stage.replace {
+			expression = `(?i)--?(?:requirepass|masterauth|password|passwd|pass|token|secret|api-key)(?:=|\s+)(\\"(?:[^"\\]|\\[^"])*\\"|"[^"]*"|'[^']*'|[^\s"'\\]+)`
+			replace    = "***"
+		}
+	}
+
+	export "receiver" {
+		value = loki.process.lines.receiver
+	}
+}

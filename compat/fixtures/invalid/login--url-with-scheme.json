@@ -1,0 +1,15 @@
+{
+  "description": "server_info.url is the host name only; apps add the scheme and port.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/server_info/url",
+      "value": "https://tv.example.com"
+    }
+  ],
+  "expect": {
+    "at": "$.server_info.url",
+    "kind": "pattern"
+  }
+}

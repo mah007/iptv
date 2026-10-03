@@ -1,0 +1,60 @@
+{
+  "epg_listings": [
+    {
+      "id": "900101",
+      "epg_id": "1",
+      "title": "U3R1ZGlvIE5vdGVz",
+      "lang": "en",
+      "start": "2026-10-03 14:00:00",
+      "end": "2026-10-03 15:30:00",
+      "description": "U2hvcnQgaW50ZXJ2aWV3cyB3aXRoIHRoZSBwcm9kdWN0aW9uIHRlYW0u",
+      "channel_id": "showcase.example",
+      "start_timestamp": "1791036000",
+      "stop_timestamp": "1791041400",
+      "now_playing": 0,
+      "has_archive": 1
+    },
+    {
+      "id": "900102",
+      "epg_id": "1",
+      "title": "SW5zaWRlIHRoZSBTdHVkaW8=",
+      "lang": "en",
+      "start": "2026-10-03 15:30:00",
+      "end": "2026-10-03 16:30:00",
+      "description": "SG93IGEgdGl0bGUgcmVhY2hlcyB5b3VyIHNjcmVlbiwgZnJvbSB0aGUgbGlicmFyeSBmb2xkZXIgdG8gZGlyZWN0IHBsYXku",
+      "channel_id": "showcase.example",
+      "start_timestamp": "1791041400",
+      "stop_timestamp": "1791045000",
+      "now_playing": 1,
+      "has_archive": 0
+    },
+    {
+      "id": "900103",
+      "epg_id": "1",
+      "title": "QmVoaW5kIHRoZSBTY2VuZXM=",
+      "lang": "en",
+      "start": "2026-10-03 16:30:00",
+      "end": "2026-10-03 17:00:00",
+      "description": "",
+      "channel_id": "showcase.example",
+      "start_timestamp": "1791045000",
+      "stop_timestamp": "1791046800",
+      "now_playing": 0,
+      "has_archive": 0
+    },
+    {
+      "id": "900104",
+      "epg_id": "1",
+      "title": "RXZlbmluZyBTaG93Y2FzZQ==",
+      "lang": "en",
+      "start": "2026-10-03 17:00:00",
+      "end": "2026-10-03 18:00:00",
+      "description": "QSBjdXJhdGVkIHNlbGVjdGlvbiBvZiB0aGUgcGxhdGZvcm0ncyBvd24gcHJvZHVjdGlvbnMu",
+      "channel_id": "showcase.example",
+      "start_timestamp": "1791046800",
+      "stop_timestamp": "1791050400",
+      "now_playing": 0,
+      "has_archive": 0
+    }
+  ]
+}

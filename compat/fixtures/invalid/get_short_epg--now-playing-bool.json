@@ -1,0 +1,15 @@
+{
+  "description": "now_playing is the integer 0 or 1, not a boolean.",
+  "fixture": "get_short_epg.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/now_playing",
+      "value": true
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[0].now_playing",
+    "kind": "type"
+  }
+}

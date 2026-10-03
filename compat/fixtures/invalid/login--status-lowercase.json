@@ -1,0 +1,15 @@
+{
+  "description": "status is exactly Active, Expired or Disabled.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/status",
+      "value": "active"
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.status",
+    "kind": "enum"
+  }
+}

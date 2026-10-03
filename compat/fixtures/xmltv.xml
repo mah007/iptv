@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv generator-info-name="Smart IPTV">
+  <channel id="showcase.example">
+    <display-name lang="en">Showcase 24/7</display-name>
+    <icon src="https://media.example.com/images/channel-3001/logo/w185.eccbc87e.webp"/>
+  </channel>
+  <channel id="family-cinema.example">
+    <display-name lang="ar">سينما العائلة</display-name>
+  </channel>
+  <programme start="20261003140000 +0000" stop="20261003153000 +0000" channel="showcase.example">
+    <title lang="en">Studio Notes</title>
+    <desc lang="en">Short interviews with the production team.</desc>
+  </programme>
+  <programme start="20261003153000 +0000" stop="20261003163000 +0000" channel="showcase.example">
+    <title lang="en">Inside the Studio</title>
+    <desc lang="en">How a title reaches your screen, from the library folder to direct play.</desc>
+  </programme>
+  <programme start="20261003163000 +0000" stop="20261003170000 +0000" channel="showcase.example">
+    <title lang="en">Behind the Scenes</title>
+  </programme>
+  <programme start="20261003170000 +0000" stop="20261003180000 +0000" channel="showcase.example">
+    <title lang="en">Evening Showcase</title>
+    <desc lang="en">A curated selection of the platform's own productions.</desc>
+  </programme>
+  <programme start="20261003160000 +0000" stop="20261003180000 +0000" channel="family-cinema.example">
+    <title lang="ar">فيلم السهرة</title>
+    <desc lang="ar">فيلم عائلي من إنتاج المنصة.</desc>
+  </programme>
+</tv>

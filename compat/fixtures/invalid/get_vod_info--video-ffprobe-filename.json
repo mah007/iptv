@@ -1,0 +1,15 @@
+{
+  "description": "video summarizes the stream; raw ffprobe output would expose the storage path.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "add",
+      "path": "/info/video/filename",
+      "value": "/media/movies/The.Matrix.1999.1080p.BluRay.x265.mkv"
+    }
+  ],
+  "expect": {
+    "at": "$.info.video.filename",
+    "kind": "additionalProperties"
+  }
+}

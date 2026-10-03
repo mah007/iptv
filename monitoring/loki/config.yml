@@ -1,0 +1,79 @@
+# Loki, single process with filesystem storage (SPEC §14, ADR-0008).
+# Logs arrive from Alloy already redacted. Loki is reachable only on the internal
+# `monitoring` network, so it runs single-tenant without auth; Grafana queries it.
+# Retention: 30 days, enforced by the compactor.
+
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: info
+  log_format: json
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+
+schema_config:
+  configs:
+    - from: "2026-01-01"
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/tsdb-index
+    cache_location: /loki/tsdb-cache
+
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: filesystem
+
+limits_config:
+  # 30 days. Must stay a multiple of the 24h index period.
+  retention_period: 720h
+  max_query_lookback: 720h
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+  per_stream_rate_limit: 4MB
+  per_stream_rate_limit_burst: 8MB
+  max_label_names_per_series: 15
+  allow_structured_metadata: true
+  # Adds `detected_level` (structured metadata) so Grafana colours and filters by level.
+  discover_log_levels: true
+  volume_enabled: true
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+
+pattern_ingester:
+  enabled: false
+
+ruler:
+  enable_api: false
+
+analytics:
+  # No usage reporting to Grafana Labs.
+  reporting_enabled: false

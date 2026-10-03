@@ -1,0 +1,18 @@
+{
+  "description": "The guide covers only the account's channels.",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "id=\"family-cinema.example\"",
+      "new": "id=\"other.example\""
+    },
+    {
+      "old": "channel=\"family-cinema.example\"",
+      "new": "channel=\"other.example\""
+    }
+  ],
+  "expect": {
+    "at": "/tv/channel[@id='other.example']",
+    "kind": "xmltv:catalog"
+  }
+}

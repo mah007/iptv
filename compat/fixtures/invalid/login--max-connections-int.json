@@ -1,0 +1,15 @@
+{
+  "description": "max_connections is a string (\"2\"), not an integer.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/max_connections",
+      "value": 2
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.max_connections",
+    "kind": "type"
+  }
+}

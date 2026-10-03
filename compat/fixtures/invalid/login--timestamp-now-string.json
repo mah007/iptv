@@ -1,0 +1,15 @@
+{
+  "description": "timestamp_now is an integer, not a string.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/server_info/timestamp_now",
+      "value": "1791043200"
+    }
+  ],
+  "expect": {
+    "at": "$.server_info.timestamp_now",
+    "kind": "type"
+  }
+}

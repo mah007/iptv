@@ -1,0 +1,15 @@
+{
+  "description": "Episodes always play the compatible MP4 rendition.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/episodes/1/0/container_extension",
+      "value": "mkv"
+    }
+  ],
+  "expect": {
+    "at": "$.episodes[\"1\"][0].container_extension",
+    "kind": "const"
+  }
+}

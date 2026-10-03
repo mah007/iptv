@@ -1,0 +1,14 @@
+{
+  "description": "The header points apps at the guide with url-tvg.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "#EXTM3U url-tvg=\"https://tv.example.com/xmltv.php?username=mah-7k3p9q&password=example-password\"",
+      "new": "#EXTM3U"
+    }
+  ],
+  "expect": {
+    "at": "line 1",
+    "kind": "m3u:url-tvg"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "num counts the items of the response from 1.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/1/num",
+      "value": 3
+    }
+  ],
+  "expect": {
+    "at": "$[1].num",
+    "kind": "invariant:numbering"
+  }
+}

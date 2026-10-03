@@ -1,0 +1,14 @@
+{
+  "description": "Series carry both releaseDate and release_date.",
+  "fixture": "get_series.json",
+  "patch": [
+    {
+      "op": "remove",
+      "path": "/0/releaseDate"
+    }
+  ],
+  "expect": {
+    "at": "$[0].releaseDate",
+    "kind": "required"
+  }
+}

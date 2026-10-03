@@ -1,0 +1,14 @@
+{
+  "description": "With output=ts, live URLs end in .ts.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "3001.ts",
+      "new": "3001.m3u8"
+    }
+  ],
+  "expect": {
+    "at": "line 3",
+    "kind": "m3u:url"
+  }
+}

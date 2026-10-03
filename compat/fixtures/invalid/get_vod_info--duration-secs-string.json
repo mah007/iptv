@@ -1,0 +1,15 @@
+{
+  "description": "duration_secs is an integer, not a string.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/info/duration_secs",
+      "value": "8160"
+    }
+  ],
+  "expect": {
+    "at": "$.info.duration_secs",
+    "kind": "type"
+  }
+}

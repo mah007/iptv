@@ -1,0 +1,15 @@
+{
+  "description": "bitrate is an integer (kbit/s), not a string.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/info/bitrate",
+      "value": "4573"
+    }
+  ],
+  "expect": {
+    "at": "$.info.bitrate",
+    "kind": "type"
+  }
+}

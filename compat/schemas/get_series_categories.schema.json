@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-iptv.invalid/compat/schemas/get_series_categories.schema.json",
+  "title": "player_api.php?action=get_series_categories",
+  "description": "Series categories the user's plan allows, ordered by sort, names in the user's locale (SPEC §7.5).",
+  "$ref": "common.schema.json#/$defs/categoryList"
+}

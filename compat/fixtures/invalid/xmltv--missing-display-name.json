@@ -1,0 +1,14 @@
+{
+  "description": "Every channel has a display name.",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "<display-name lang=\"ar\">سينما العائلة</display-name>",
+      "new": ""
+    }
+  ],
+  "expect": {
+    "at": "/tv/channel[2]",
+    "kind": "xmltv:channel"
+  }
+}

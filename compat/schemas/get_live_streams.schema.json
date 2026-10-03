@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-iptv.invalid/compat/schemas/get_live_streams.schema.json",
+  "title": "player_api.php?action=get_live_streams[&category_id=]",
+  "description": "The live channels the user's plan allows, optionally filtered to one category (SPEC §6 live, §7.5; built in M12). [] when there is none, never {}.",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/liveStream"
+  },
+  "$defs": {
+    "liveStream": {
+      "type": "object",
+      "properties": {
+        "num": {
+          "$ref": "common.schema.json#/$defs/num"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "stream_type": {
+          "type": "string",
+          "const": "live"
+        },
+        "stream_id": {
+          "$ref": "common.schema.json#/$defs/xcId"
+        },
+        "stream_icon": {
+          "$ref": "common.schema.json#/$defs/imageUrl",
+          "description": "The channel logo."
+        },
+        "epg_channel_id": {
+          "$ref": "common.schema.json#/$defs/epgChannelId"
+        },
+        "added": {
+          "$ref": "common.schema.json#/$defs/unixTime"
+        },
+        "is_adult": {
+          "$ref": "common.schema.json#/$defs/flag"
+        },
+        "category_id": {
+          "$ref": "common.schema.json#/$defs/categoryId"
+        },
+        "category_ids": {
+          "$ref": "common.schema.json#/$defs/categoryIds"
+        },
+        "custom_sid": {
+          "$ref": "common.schema.json#/$defs/alwaysEmpty"
+        },
+        "tv_archive": {
+          "$ref": "common.schema.json#/$defs/flagInt",
+          "description": "1 when the channel offers catch-up (catchup_days > 0)."
+        },
+        "direct_source": {
+          "$ref": "common.schema.json#/$defs/alwaysEmpty",
+          "description": "Always \"\": the channel's source URL is encrypted at rest and never leaves the server."
+        },
+        "tv_archive_duration": {
+          "description": "Catch-up window in days (catchup_days); 0 without catch-up.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 365
+        }
+      },
+      "required": [
+        "num",
+        "name",
+        "stream_type",
+        "stream_id",
+        "stream_icon",
+        "epg_channel_id",
+        "added",
+        "is_adult",
+        "category_id",
+        "category_ids",
+        "custom_sid",
+        "tv_archive",
+        "direct_source",
+        "tv_archive_duration"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

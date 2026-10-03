@@ -1,0 +1,20 @@
+{
+  "description": "A series without playable episodes has episodes {}, never [].",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/episodes",
+      "value": []
+    },
+    {
+      "op": "replace",
+      "path": "/seasons",
+      "value": []
+    }
+  ],
+  "expect": {
+    "at": "$.episodes",
+    "kind": "type"
+  }
+}

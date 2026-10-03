@@ -1,0 +1,15 @@
+{
+  "description": "An episode is listed under the key of its own season.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/episodes/1/1/season",
+      "value": 2
+    }
+  ],
+  "expect": {
+    "at": "$.episodes[\"1\"][1].season",
+    "kind": "invariant:episode-season"
+  }
+}

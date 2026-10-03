@@ -1,0 +1,15 @@
+{
+  "description": "stream_type is \"live\" for get_live_streams.",
+  "fixture": "get_live_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/stream_type",
+      "value": "movie"
+    }
+  ],
+  "expect": {
+    "at": "$[0].stream_type",
+    "kind": "const"
+  }
+}

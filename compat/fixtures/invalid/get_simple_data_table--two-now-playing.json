@@ -1,0 +1,15 @@
+{
+  "description": "Only one programme plays now.",
+  "fixture": "get_simple_data_table.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/now_playing",
+      "value": 1
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings",
+    "kind": "invariant:now-playing"
+  }
+}

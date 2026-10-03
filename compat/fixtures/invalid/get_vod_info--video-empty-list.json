@@ -1,0 +1,15 @@
+{
+  "description": "video is always an object, never [] (the PHP empty-array trap).",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/info/video",
+      "value": []
+    }
+  ],
+  "expect": {
+    "at": "$.info.video",
+    "kind": "type"
+  }
+}

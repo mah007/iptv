@@ -1,0 +1,15 @@
+{
+  "description": "A movie appears once.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/1/stream_id",
+      "value": 1001
+    }
+  ],
+  "expect": {
+    "at": "$[1].stream_id",
+    "kind": "invariant:unique-ids"
+  }
+}

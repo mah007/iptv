@@ -1,0 +1,486 @@
+path,kind,title,year,season,episodes,absolute_episode,air_date,edition,tmdb_id_hint,imdb_id_hint,tvdb_id_hint,notes
+The.Matrix.1999.1080p.BluRay.x265.mkv,movie,The Matrix,1999,,,,,,,,,sample_media.sh (movies library); the north-star example in SPEC §0
+Breaking Bad/Season 01/Breaking.Bad.S01E01.720p.mkv,episode,Breaking Bad,,1,1,,,,,,,sample_media.sh (series library)
+Breaking Bad/Season 01/Breaking.Bad.1x02.mkv,episode,Breaking Bad,,1,2,,,,,,,sample_media.sh (series library); NxMM marker
+وجدة (2012)/وجدة.2012.1080p.WEB-DL.mkv,movie,وجدة,2012,,,,,,,,,sample_media.sh (movies library); Arabic-script title (Wadjda)
+Blade.Runner.2049.2017.2160p.UHD.BluRay.x265.10bit.HDR.mkv,movie,Blade Runner 2049,2017,,,,,,,,,sample_media.sh (movies library); 4K HEVC Main10 HDR10; 2049 belongs to the title and 2017 is the year
+Inception (2010)/Inception.2010.1080p.BluRay.DTS.x264.mkv,movie,Inception,2010,,,,,,,,,sample_media.sh (movies library); DTS 5.1 audio
+Inception (2010)/Inception.2010.1080p.BluRay.DTS.x264.ar.srt,ignore,,,,,,,,,,,"sample_media.sh (movies library); Arabic cp1256 sidecar subtitle: the subtitle pipeline attaches it to the video, it is never a title"
+Show/Season 02/Show.S02E01E02.mkv,episode,Show,,2,1;2,,,,,,,sample_media.sh (series library); multi-episode file
+The.Shawshank.Redemption.1994.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,The Shawshank Redemption,1994,,,,,,,,,
+The.Godfather.1972.REMASTERED.1080p.BluRay.x265.10bit.AAC5.1-INHOUSE.mkv,movie,The Godfather,1972,,,,,Remastered,,,,
+The.Dark.Knight.2008.IMAX.2160p.UHD.BluRay.x265.10bit.HDR.DTS-HD.MA.5.1-NOGRP.mkv,movie,The Dark Knight,2008,,,,,IMAX,,,,
+Pulp.Fiction.1994.720p.BluRay.x264-NOGRP.mkv,movie,Pulp Fiction,1994,,,,,,,,,
+Fight.Club.1999.1080p.BluRay.DD5.1.x264-NOGRP.mkv,movie,Fight Club,1999,,,,,,,,,
+Forrest.Gump.1994.2160p.UHD.BluRay.x265.HDR.Atmos-NOGRP.mkv,movie,Forrest Gump,1994,,,,,,,,,
+Interstellar.2014.IMAX.1080p.WEB-DL.DDP5.1.H.264-NOGRP.mkv,movie,Interstellar,2014,,,,,IMAX,,,,
+Gladiator.2000.EXTENDED.REMASTERED.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Gladiator,2000,,,,,Extended;Remastered,,,,"two editions, in the order written"
+Memento.2000.1080p.BluRay.x264.mkv,movie,Memento,2000,,,,,,,,,no release group
+Parasite.2019.KOREAN.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Parasite,2019,,,,,,,,,language tag after the year
+Whiplash.2014.1080p.BluRay.x265.HEVC.10bit.AAC.5.1-NOGRP.mkv,movie,Whiplash,2014,,,,,,,,,
+The.Social.Network.2010.720p.BluRay.x264.AC3-NOGRP.mkv,movie,The Social Network,2010,,,,,,,,,
+Mad.Max.Fury.Road.2015.2160p.UHD.BluRay.REMUX.HDR.HEVC.Atmos-NOGRP.mkv,movie,Mad Max Fury Road,2015,,,,,,,,,
+Arrival.2016.1080p.WEBRip.x264.AAC2.0-NOGRP.mp4,movie,Arrival,2016,,,,,,,,,
+La.La.Land.2016.1080p.BluRay.x264.DTS-HD.MA.7.1-NOGRP.mkv,movie,La La Land,2016,,,,,,,,,"'La' is part of the title, not a language tag"
+Get.Out.2017.PROPER.1080p.WEB-DL.DD5.1.H264-NOGRP.mkv,movie,Get Out,2017,,,,,,,,,PROPER is a release flag
+Joker.2019.2160p.WEB-DL.DDP5.1.Atmos.HDR10Plus.HEVC-NOGRP.mkv,movie,Joker,2019,,,,,,,,,
+Tenet.2020.IMAX.2160p.WEB-DL.x265.10bit.HDR.DDP5.1-NOGRP.mkv,movie,Tenet,2020,,,,,IMAX,,,,
+Dune.2021.1080p.HMAX.WEB-DL.DDP5.1.Atmos.H.264-NOGRP.mkv,movie,Dune,2021,,,,,,,,,
+Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-NOGRP.mkv,movie,Dune Part Two,2024,,,,,,,,,'Part Two' belongs to the title
+Oppenheimer.2023.IMAX.2160p.UHD.BluRay.x265.10bit.HDR.DTS-HD.MA.5.1-NOGRP.mkv,movie,Oppenheimer,2023,,,,,IMAX,,,,
+Barbie.2023.1080p.AMZN.WEB-DL.DDP5.1.H.264-NOGRP.mkv,movie,Barbie,2023,,,,,,,,,AMZN is a source tag
+Top.Gun.Maverick.2022.1080p.BluRay.x264.TrueHD.7.1.Atmos-NOGRP.mkv,movie,Top Gun Maverick,2022,,,,,,,,,
+Everything.Everywhere.All.at.Once.2022.1080p.WEB-DL.H264.AAC-NOGRP.mp4,movie,Everything Everywhere All at Once,2022,,,,,,,,,
+The.Batman.2022.2160p.HMAX.WEB-DL.x265.10bit.HDR.DDP5.1.Atmos-NOGRP.mkv,movie,The Batman,2022,,,,,,,,,
+Avatar.2009.EXTENDED.COLLECTORS.EDITION.1080p.BluRay.x264-NOGRP.mkv,movie,Avatar,2009,,,,,Extended;Collector's Edition,,,,
+Avatar.The.Way.of.Water.2022.3D.1080p.BluRay.Half-SBS.x264.DTS-NOGRP.mkv,movie,Avatar The Way of Water,2022,,,,,,,,,3D and Half-SBS are format tags
+Titanic.1997.REMASTERED.2160p.UHD.BluRay.x265.10bit.HDR-NOGRP.mkv,movie,Titanic,1997,,,,,Remastered,,,,
+Jurassic.Park.1993.1080p.BluRay.x264.DTS-X.7.1-NOGRP.mkv,movie,Jurassic Park,1993,,,,,,,,,
+Back.to.the.Future.1985.720p.BluRay.x264.mkv,movie,Back to the Future,1985,,,,,,,,,
+Raiders.of.the.Lost.Ark.1981.REMASTERED.1080p.BluRay.x264-NOGRP.mkv,movie,Raiders of the Lost Ark,1981,,,,,Remastered,,,,
+Alien.1979.Directors.Cut.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Alien,1979,,,,,Director's Cut,,,,'Directors Cut' maps to the canonical label
+Aliens.1986.Special.Edition.REMASTERED.1080p.BluRay.x264-NOGRP.mkv,movie,Aliens,1986,,,,,Special Edition;Remastered,,,,
+The.Terminator.1984.REMASTERED.1080p.BluRay.x265-NOGRP.mkv,movie,The Terminator,1984,,,,,Remastered,,,,
+Terminator.2.Judgment.Day.1991.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Terminator 2 Judgment Day,1991,,,,,,,,,sequel number inside the title
+Heat.1995.1080p.BluRay.x264-NOGRP.mkv,movie,Heat,1995,,,,,,,,,
+Se7en.1995.REMASTERED.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Se7en,1995,,,,,Remastered,,,,digit inside a word
+The.Silence.of.the.Lambs.1991.1080p.BluRay.x264-NOGRP.mkv,movie,The Silence of the Lambs,1991,,,,,,,,,
+Goodfellas.1990.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Goodfellas,1990,,,,,,,,,
+Schindlers.List.1993.1080p.BluRay.x264-NOGRP.mkv,movie,Schindlers List,1993,,,,,,,,,an apostrophe missing from the name stays missing
+Saving.Private.Ryan.1998.1080p.BluRay.DTS.x264-NOGRP.mkv,movie,Saving Private Ryan,1998,,,,,,,,,
+The.Green.Mile.1999.720p.BluRay.x264.mkv,movie,The Green Mile,1999,,,,,,,,,
+No.Country.for.Old.Men.2007.1080p.BluRay.x264-NOGRP.mkv,movie,No Country for Old Men,2007,,,,,,,,,
+There.Will.Be.Blood.2007.1080p.BluRay.x264-NOGRP.mkv,movie,There Will Be Blood,2007,,,,,,,,,
+Spirited.Away.2001.JAPANESE.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Spirited Away,2001,,,,,,,,,
+Sen.to.Chihiro.no.Kamikakushi.2001.1080p.BluRay.x265.10bit.FLAC-NOGRP.mkv,movie,Sen to Chihiro no Kamikakushi,2001,,,,,,,,,romanised Japanese original title
+Your.Name.2016.1080p.BluRay.x264.DUAL.AAC-NOGRP.mkv,movie,Your Name,2016,,,,,,,,,DUAL means two audio languages
+Pans.Labyrinth.2006.SPANISH.1080p.BluRay.x264-NOGRP.mkv,movie,Pans Labyrinth,2006,,,,,,,,,
+City.of.God.2002.PORTUGUESE.1080p.BluRay.x264-NOGRP.mkv,movie,City of God,2002,,,,,,,,,
+Oldboy.2003.KOREAN.REMASTERED.1080p.BluRay.x264-NOGRP.mkv,movie,Oldboy,2003,,,,,Remastered,,,,
+Crouching.Tiger.Hidden.Dragon.2000.CHINESE.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Crouching Tiger Hidden Dragon,2000,,,,,,,,,
+The.Lion.King.1994.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,The Lion King,1994,,,,,,,,,
+The.Lion.King.2019.1080p.DSNP.WEB-DL.DDP5.1.Atmos.H.264-NOGRP.mkv,movie,The Lion King,2019,,,,,,,,,same title as the 1994 film; only the year differs
+Toy.Story.1995.1080p.BluRay.x264-NOGRP.mkv,movie,Toy Story,1995,,,,,,,,,
+Toy.Story.4.2019.2160p.UHD.BluRay.x265.10bit.HDR.Atmos-NOGRP.mkv,movie,Toy Story 4,2019,,,,,,,,,sequel number inside the title
+Up.2009.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Up,2009,,,,,,,,,two-letter title
+WALL-E.2008.1080p.BluRay.x264-NOGRP.mkv,movie,WALL-E,2008,,,,,,,,,hyphen inside the title
+Inside.Out.2015.1080p.BluRay.x264.mkv,movie,Inside Out,2015,,,,,,,,,
+Coco.2017.1080p.BluRay.x264.DUAL.mkv,movie,Coco,2017,,,,,,,,,
+Finding.Nemo.2003.1080p.BluRay.x264.mkv,movie,Finding Nemo,2003,,,,,,,,,
+Frozen.2013.1080p.BluRay.x264.ARABIC.DUBBED.mkv,movie,Frozen,2013,,,,,,,,,Arabic dub tag
+Spider-Man.No.Way.Home.2021.1080p.WEB-DL.DDP5.1.H.264-NOGRP.mkv,movie,Spider-Man No Way Home,2021,,,,,,,,,
+Spider-Man.Across.the.Spider-Verse.2023.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-NOGRP.mkv,movie,Spider-Man Across the Spider-Verse,2023,,,,,,,,,
+Avengers.Endgame.2019.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Avengers Endgame,2019,,,,,,,,,
+Black.Panther.2018.1080p.BluRay.x264-NOGRP.mkv,movie,Black Panther,2018,,,,,,,,,
+Guardians.of.the.Galaxy.2014.720p.BluRay.x264.mkv,movie,Guardians of the Galaxy,2014,,,,,,,,,
+Mission.Impossible.Fallout.2018.2160p.UHD.BluRay.x265.10bit.HDR.mkv,movie,Mission Impossible Fallout,2018,,,,,,,,,
+Mission.Impossible.Dead.Reckoning.Part.One.2023.1080p.WEB-DL.DDP5.1.H.264-NOGRP.mkv,movie,Mission Impossible Dead Reckoning Part One,2023,,,,,,,,,'Part One' belongs to the title
+John.Wick.2014.1080p.BluRay.x264-NOGRP.mkv,movie,John Wick,2014,,,,,,,,,
+John.Wick.Chapter.4.2023.1080p.WEB-DL.DDP5.1.Atmos.H.264-NOGRP.mkv,movie,John Wick Chapter 4,2023,,,,,,,,,'Chapter 4' belongs to the title
+The.Matrix.Reloaded.2003.1080p.BluRay.x264-NOGRP.mkv,movie,The Matrix Reloaded,2003,,,,,,,,,
+The.Matrix.Revolutions.2003.1080p.BluRay.x264-NOGRP.mkv,movie,The Matrix Revolutions,2003,,,,,,,,,
+The.Matrix.Resurrections.2021.1080p.HMAX.WEB-DL.DDP5.1.Atmos.x264-NOGRP.mkv,movie,The Matrix Resurrections,2021,,,,,,,,,
+The.Message.1976.1080p.BluRay.x264-NOGRP.mkv,movie,The Message,1976,,,,,,,,,
+Lawrence.of.Arabia.1962.1080p.BluRay.x264-NOGRP.mkv,movie,Lawrence of Arabia,1962,,,,,,,,,
+Casablanca.1942.1080p.BluRay.x264.mkv,movie,Casablanca,1942,,,,,,,,,
+Glass.Onion.A.Knives.Out.Mystery.2022.1080p.NF.WEB-DL.DDP5.1.x264-NOGRP.mkv,movie,Glass Onion A Knives Out Mystery,2022,,,,,,,,,NF is a source tag
+The.Irishman.2019.1080p.NF.WEB-DL.DDP5.1.x264-NOGRP.mkv,movie,The Irishman,2019,,,,,,,,,
+Roma.2018.SPANISH.1080p.NF.WEB-DL.DDP5.1.x264-NOGRP.mkv,movie,Roma,2018,,,,,,,,,
+Life.of.Pi.2012.1080p.BluRay.x264.mkv,movie,Life of Pi,2012,,,,,,,,,
+Gravity.2013.3D.1080p.BluRay.Half-OU.x264.mkv,movie,Gravity,2013,,,,,,,,,3D and Half-OU are format tags
+2001.A.Space.Odyssey.1968.2160p.UHD.BluRay.x265.10bit.HDR-NOGRP.mkv,movie,2001 A Space Odyssey,1968,,,,,,,,,title starts with a year-like number; the year is 1968
+1917.2019.1080p.BluRay.x264-NOGRP.mkv,movie,1917,2019,,,,,,,,,year-like title followed by the real year
+2012.2009.1080p.BluRay.x264.mkv,movie,2012,2009,,,,,,,,,year-like title followed by the real year
+Apollo.13.1995.1080p.BluRay.x264.mkv,movie,Apollo 13,1995,,,,,,,,,a number in the title is not an episode
+District.9.2009.1080p.BluRay.x264.mkv,movie,District 9,2009,,,,,,,,,
+300.2006.1080p.BluRay.x264.mkv,movie,300,2006,,,,,,,,,number-only title
+21.Jump.Street.2012.1080p.BluRay.x264.mkv,movie,21 Jump Street,2012,,,,,,,,,
+10.Things.I.Hate.About.You.1999.1080p.BluRay.x264.mkv,movie,10 Things I Hate About You,1999,,,,,,,,,
+Oceans.Eleven.2001.1080p.BluRay.x264.mkv,movie,Oceans Eleven,2001,,,,,,,,,
+Oceans.8.2018.1080p.BluRay.x264.mkv,movie,Oceans 8,2018,,,,,,,,,
+Halloween.1978.REMASTERED.1080p.BluRay.x264.mkv,movie,Halloween,1978,,,,,Remastered,,,,
+Halloween.2018.1080p.BluRay.x264.mkv,movie,Halloween,2018,,,,,,,,,same title as the 1978 film
+It.2017.1080p.BluRay.x264-NOGRP.mkv,movie,It,2017,,,,,,,,,the title is also a language code (it)
+Us.2019.1080p.BluRay.x264-NOGRP.mkv,movie,Us,2019,,,,,,,,,the title is also a country code (US)
+Her.2013.1080p.BluRay.x264.mkv,movie,Her,2013,,,,,,,,,
+Rush.2013.1080p.BluRay.x264.mkv,movie,Rush,2013,,,,,,,,,
+Sicario.2015.1080p.BluRay.x264.mkv,movie,Sicario,2015,,,,,,,,,
+Nope.2022.1080p.WEB-DL.DDP5.1.H.264-NOGRP.mkv,movie,Nope,2022,,,,,,,,,
+Elf.2003.1080p.BluRay.x264.mkv,movie,Elf,2003,,,,,,,,,three-letter title
+M3GAN.2022.1080p.WEB-DL.DDP5.1.H.264-NOGRP.mkv,movie,M3GAN,2022,,,,,,,,,digit inside a word
+Room.2015.1080p.BluRay.x264.mkv,movie,Room,2015,,,,,,,,,
+Cars.2006.1080p.BluRay.x264.mkv,movie,Cars,2006,,,,,,,,,
+Cars.2.2011.1080p.BluRay.x264.mkv,movie,Cars 2,2011,,,,,,,,,sequel number right before the year
+Cars.3.2017.1080p.BluRay.x264.mkv,movie,Cars 3,2017,,,,,,,,,
+2.Fast.2.Furious.2003.1080p.BluRay.x264.mkv,movie,2 Fast 2 Furious,2003,,,,,,,,,numbers inside the title
+13.Hours.2016.1080p.BluRay.x264.mkv,movie,13 Hours,2016,,,,,,,,,
+F9.The.Fast.Saga.2021.Directors.Cut.1080p.BluRay.x264.mkv,movie,F9 The Fast Saga,2021,,,,,Director's Cut,,,,
+Fast.&.Furious.2009.1080p.BluRay.x264.mkv,movie,Fast & Furious,2009,,,,,,,,,ampersand in the title
+Saw.X.2023.1080p.WEB-DL.DDP5.1.H.264-NOGRP.mkv,movie,Saw X,2023,,,,,,,,,the Roman numeral X belongs to the title
+Rocky.IV.1985.Directors.Cut.1080p.BluRay.x264.mkv,movie,Rocky IV,1985,,,,,Director's Cut,,,,Roman numeral in the title
+Godzilla.Minus.One.2023.JAPANESE.1080p.BluRay.x264.mkv,movie,Godzilla Minus One,2023,,,,,,,,,
+Godzilla.x.Kong.The.New.Empire.2024.1080p.WEB-DL.DDP5.1.H.264-NOGRP.mkv,movie,Godzilla x Kong The New Empire,2024,,,,,,,,,' x ' in a title is not an NxMM marker
+Alien.vs.Predator.2004.1080p.BluRay.x264.mkv,movie,Alien vs Predator,2004,,,,,,,,,
+Ad.Astra.2019.1080p.BluRay.x264.mkv,movie,Ad Astra,2019,,,,,,,,,
+Star.Wars.Episode.IV.A.New.Hope.1977.1080p.BluRay.x264-NOGRP.mkv,movie,Star Wars Episode IV A New Hope,1977,,,,,,,,,"'Episode IV' is part of a movie title, not an episode marker"
+Star.Wars.Episode.V.The.Empire.Strikes.Back.1980.1080p.BluRay.x264-NOGRP.mkv,movie,Star Wars Episode V The Empire Strikes Back,1980,,,,,,,,,"'Episode V' is part of a movie title, not an episode marker"
+The.Godfather.Part.II.1974.1080p.BluRay.x264-NOGRP.mkv,movie,The Godfather Part II,1974,,,,,,,,,'Part II' belongs to the title
+Harry.Potter.and.the.Deathly.Hallows.Part.1.2010.1080p.BluRay.x264-NOGRP.mkv,movie,Harry Potter and the Deathly Hallows Part 1,2010,,,,,,,,,'Part 1' belongs to the title
+Harry.Potter.and.the.Deathly.Hallows.Part.2.2011.1080p.BluRay.x264-NOGRP.mkv,movie,Harry Potter and the Deathly Hallows Part 2,2011,,,,,,,,,'Part 2' belongs to the title
+Kill.Bill.Vol.1.2003.1080p.BluRay.x264-NOGRP.mkv,movie,Kill Bill Vol 1,2003,,,,,,,,,'Vol 1' belongs to the title
+E.T.the.Extra-Terrestrial.1982.1080p.BluRay.x264-NOGRP.mkv,movie,E.T. the Extra-Terrestrial,1982,,,,,,,,,dotted acronym; 'Extra' inside a word is not an extras marker
+Free.Samples.2012.720p.WEB-DL.H264.mkv,movie,Free Samples,2012,,,,,,,,,'Samples' in a title does not make a sample file
+Season.of.the.Witch.2011.1080p.BluRay.x264.mkv,movie,Season of the Witch,2011,,,,,,,,,'Season' in a movie title is not a season marker
+Blade.Runner.1982.The.Final.Cut.1080p.BluRay.x264-NOGRP.mkv,movie,Blade Runner,1982,,,,,Final Cut,,,,"'The Final Cut' is the edition, not part of the title"
+Apocalypse.Now.1979.Final.Cut.2160p.UHD.BluRay.x265.10bit.HDR-NOGRP.mkv,movie,Apocalypse Now,1979,,,,,Final Cut,,,,
+Kingdom.of.Heaven.2005.Directors.Cut.1080p.BluRay.x264.DTS-NOGRP.mkv,movie,Kingdom of Heaven,2005,,,,,Director's Cut,,,,
+The.Lord.of.the.Rings.The.Fellowship.of.the.Ring.2001.EXTENDED.1080p.BluRay.x264-NOGRP.mkv,movie,The Lord of the Rings The Fellowship of the Ring,2001,,,,,Extended,,,,
+The.Lord.of.the.Rings.The.Return.of.the.King.2003.EXTENDED.REMASTERED.2160p.UHD.BluRay.x265.10bit.HDR.DTS-X-NOGRP.mkv,movie,The Lord of the Rings The Return of the King,2003,,,,,Extended;Remastered,,,,
+The.Hobbit.An.Unexpected.Journey.2012.Extended.Edition.1080p.BluRay.x264.mkv,movie,The Hobbit An Unexpected Journey,2012,,,,,Extended,,,,'Extended Edition' maps to Extended
+Harry.Potter.and.the.Sorcerers.Stone.2001.EXTENDED.1080p.BluRay.x264.mkv,movie,Harry Potter and the Sorcerers Stone,2001,,,,,Extended,,,,
+Watchmen.2009.Ultimate.Cut.1080p.BluRay.x264.mkv,movie,Watchmen,2009,,,,,Ultimate Cut,,,,
+Batman.v.Superman.Dawn.of.Justice.2016.Ultimate.Edition.1080p.BluRay.x264-NOGRP.mkv,movie,Batman v Superman Dawn of Justice,2016,,,,,Ultimate Edition,,,,' v ' belongs to the title
+Zack.Snyders.Justice.League.2021.2160p.HMAX.WEB-DL.x265.10bit.HDR.DDP5.1-NOGRP.mkv,movie,Zack Snyders Justice League,2021,,,,,,,,,
+Justice.League.2017.Theatrical.Cut.1080p.BluRay.x264.mkv,movie,Justice League,2017,,,,,Theatrical,,,,'Theatrical Cut' maps to Theatrical
+Amadeus.1984.Directors.Cut.1080p.BluRay.x264.mkv,movie,Amadeus,1984,,,,,Director's Cut,,,,
+Das.Boot.1981.Directors.Cut.GERMAN.1080p.BluRay.x264.mkv,movie,Das Boot,1981,,,,,Director's Cut,,,,'Das' is a German article and part of the title
+Dances.with.Wolves.1990.EXTENDED.1080p.BluRay.x264.mkv,movie,Dances with Wolves,1990,,,,,Extended,,,,
+Close.Encounters.of.the.Third.Kind.1977.Directors.Cut.REMASTERED.2160p.UHD.BluRay.x265.10bit.HDR.mkv,movie,Close Encounters of the Third Kind,1977,,,,,Director's Cut;Remastered,,,,
+Dunkirk.2017.IMAX.1080p.BluRay.x264.mkv,movie,Dunkirk,2017,,,,,IMAX,,,,
+The.Wizard.of.Oz.1939.REMASTERED.1080p.BluRay.x264.mkv,movie,The Wizard of Oz,1939,,,,,Remastered,,,,
+Seven.Samurai.1954.Criterion.1080p.BluRay.x264.JAPANESE.mkv,movie,Seven Samurai,1954,,,,,Criterion,,,,
+Anchorman.The.Legend.of.Ron.Burgundy.2004.UNRATED.1080p.BluRay.x264.mkv,movie,Anchorman The Legend of Ron Burgundy,2004,,,,,Unrated,,,,
+Superbad.2007.UNRATED.EXTENDED.1080p.BluRay.x264.mkv,movie,Superbad,2007,,,,,Unrated;Extended,,,,
+Dawn.of.the.Dead.2004.UNRATED.DIRECTORS.CUT.1080p.BluRay.x264.mkv,movie,Dawn of the Dead,2004,,,,,Unrated;Director's Cut,,,,
+The.Hateful.Eight.2015.EXTENDED.1080p.WEB-DL.DD5.1.H264-NOGRP.mkv,movie,The Hateful Eight,2015,,,,,Extended,,,,
+Leon.The.Professional.1994.EXTENDED.1080p.BluRay.x264.mkv,movie,Leon The Professional,1994,,,,,Extended,,,,
+The.Shining.1980.UNCUT.1080p.BluRay.x264.mkv,movie,The Shining,1980,,,,,Uncut,,,,
+The.Exorcist.1973.Extended.Directors.Cut.1080p.BluRay.x264.m2ts,movie,The Exorcist,1973,,,,,Extended;Director's Cut,,,,a phrase made of known labels splits into them; .m2ts is an accepted extension
+Superman II (1980)/Superman II (1980) {edition-The Richard Donner Cut}.mkv,movie,Superman II,1980,,,,,The Richard Donner Cut,,,,explicit Plex {edition-...} tag: value taken verbatim
+Apocalypse Now (1979)/Apocalypse Now (1979) {edition-Redux}.mkv,movie,Apocalypse Now,1979,,,,,Redux,,,,explicit Plex {edition-...} tag: value taken verbatim
+The Lord of the Rings - The Two Towers (2002)/The Lord of the Rings - The Two Towers (2002) {edition-Extended}.mkv,movie,The Lord of the Rings - The Two Towers,2002,,,,,Extended,,,,spaced hyphen inside the title; Plex edition tag
+Blade Runner (1982)/Blade Runner (1982) {edition-Final Cut}.mkv,movie,Blade Runner,1982,,,,,Final Cut,,,,Plex edition tag
+Aliens (1986)/Aliens (1986) - Theatrical.mkv,movie,Aliens,1986,,,,,Theatrical,,,,Jellyfin version suffix ' - label'
+Aliens (1986)/Aliens (1986) - Special Edition.mkv,movie,Aliens,1986,,,,,Special Edition,,,,Jellyfin version suffix ' - label'
+Dune (1984)/Dune (1984) - Extended.mkv,movie,Dune,1984,,,,,Extended,,,,Jellyfin version suffix ' - label'
+Kingdom of Heaven (2005)/Kingdom of Heaven (2005) - Director's Cut.mkv,movie,Kingdom of Heaven,2005,,,,,Director's Cut,,,,Jellyfin version suffix ' - label'
+The Matrix (1999)/The Matrix (1999).mkv,movie,The Matrix,1999,,,,,,,,,Title (Year) folder and file
+Interstellar (2014)/movie.mkv,movie,Interstellar,2014,,,,,,,,,generic filename: the folder carries the identity
+The Prestige (2006)/The Prestige.mkv,movie,The Prestige,2006,,,,,,,,,year only in the folder
+Arrival/Arrival.2016.1080p.BluRay.x264.mkv,movie,Arrival,2016,,,,,,,,,year only in the filename
+Gladiator (2000)/Gladiator (2000) - 1080p.mkv,movie,Gladiator,2000,,,,,,,,,"Jellyfin version label that is a resolution, not an edition"
+Gladiator (2000)/Gladiator (2000) - 2160p.mkv,movie,Gladiator,2000,,,,,,,,,second version of the same movie
+The.Prestige.2006.1080p.BluRay.x264-NOGRP/nogrp-prestige-1080p.mkv,movie,The Prestige,2006,,,,,,,,,obfuscated filename: the release folder carries the identity
+Memento (2000)/Memento.2000.1080p.BluRay.x264-NOGRP/Memento.2000.1080p.BluRay.x264-NOGRP.mkv,movie,Memento,2000,,,,,,,,,release folder nested in a title folder
+Star Wars Collection/Star Wars (1977)/Star Wars (1977).mkv,movie,Star Wars,1977,,,,,,,,,collection folder above the movie folder
+Star Wars Collection/The Empire Strikes Back (1980)/The Empire Strikes Back (1980).mkv,movie,The Empire Strikes Back,1980,,,,,,,,,collection folder above the movie folder
+Marvel/Phase 1/Iron Man (2008)/Iron Man (2008).mkv,movie,Iron Man,2008,,,,,,,,,grouping folders such as 'Phase 1' are not part of the title
+Sci-Fi/Alien (1979)/Alien (1979).mkv,movie,Alien,1979,,,,,,,,,genre folder
+A/Amadeus (1984)/Amadeus (1984).mkv,movie,Amadeus,1984,,,,,,,,,A-Z bucket folder
+4K/Dune (2021)/Dune (2021) - 2160p.mkv,movie,Dune,2021,,,,,,,,,"'4K' bucket folder is a resolution, not a title"
+Parasite [2019]/Parasite [2019] [1080p].mkv,movie,Parasite,2019,,,,,,,,,year in square brackets
+Heat (1995)/heat.1995.720p.bluray.x264.mkv,movie,Heat,1995,,,,,,,,,lower-case filename
+"Matrix, The (1999)/Matrix, The (1999).mkv",movie,The Matrix,1999,,,,,,,,,"library-sort form 'Title, The' reads as 'The Title'"
+The Matrix (1999)/matrix.mkv,movie,The Matrix,1999,,,,,,,,,short alias filename: the Title (Year) folder is authoritative
+1917 (2019)/1917.mkv,movie,1917,2019,,,,,,,,,number-only title; the year comes from the folder
+Ocean's Eleven (2001)/Ocean's Eleven (2001).mkv,movie,Ocean's Eleven,2001,,,,,,,,,apostrophe kept
+Schindler's List (1993)/Schindler's List (1993) - 1080p.mkv,movie,Schindler's List,1993,,,,,,,,,
+Amélie (2001)/Amélie (2001).mkv,movie,Amélie,2001,,,,,,,,,accented title (NFC)
+Léon (1994)/Léon (1994).mkv,movie,Léon,1994,,,,,,,,,path is NFD as macOS/SMB write it; compare after NFC normalisation
+"Crazy, Stupid, Love (2011)/Crazy, Stupid, Love (2011).mkv",movie,"Crazy, Stupid, Love",2011,,,,,,,,,commas in the title
+Mission Impossible - Fallout (2018)/Mission Impossible - Fallout (2018).mkv,movie,Mission Impossible - Fallout,2018,,,,,,,,,spaced hyphen inside a movie title
+Dune (2021)/Dune.mkv,movie,Dune,2021,,,,,,,,,the folder year separates it from Dune (1984)
+BRAVEHEART.1995.1080P.BLURAY.X264.MKV,movie,Braveheart,1995,,,,,,,,,"all capitals, extension included"
+the.departed.2006.720p.bluray.x264.mkv,movie,The Departed,2006,,,,,,,,,all lower case
+The_Pianist_2002_1080p_BluRay.mkv,movie,The Pianist,2002,,,,,,,,,underscore separators
+The-Truman-Show-1998-1080p.mkv,movie,The Truman Show,1998,,,,,,,,,hyphen separators
+The Big Lebowski 1998 1080p BluRay.mkv,movie,The Big Lebowski,1998,,,,,,,,,"space separators, no brackets"
+Fargo.(1996).1080p.mkv,movie,Fargo,1996,,,,,,,,,bracketed year in a dotted name
+Casino..1995...1080p.BluRay.mkv,movie,Casino,1995,,,,,,,,,repeated dots
+Reservoir Dogs.1992.mkv,movie,Reservoir Dogs,1992,,,,,,,,,mixed space and dot separators
+Taxi_Driver.1976.1080p.mkv,movie,Taxi Driver,1976,,,,,,,,,mixed underscore and dot separators
+[1080p] Jaws (1975).mkv,movie,Jaws,1975,,,,,,,,,leading bracketed tag
+Rear Window (1954) [1080p x265 10bit].mkv,movie,Rear Window,1954,,,,,,,,,
+Vertigo(1958).mkv,movie,Vertigo,1958,,,,,,,,,no space before the bracket
+psycho 1960.MP4,movie,Psycho,1960,,,,,,,,,upper-case extension
+Chinatown.1974.1080p.BluRay.x264.Mp4,movie,Chinatown,1974,,,,,,,,,mixed-case extension
+Network.1976.1080p.BluRay.m4v,movie,Network,1976,,,,,,,,,.m4v
+Annie.Hall.1977.720p.mov,movie,Annie Hall,1977,,,,,,,,,.mov
+Rocky.1976.DVDRip.XviD.avi,movie,Rocky,1976,,,,,,,,,.avi with XviD
+Jaws.2.1978.480p.webm,movie,Jaws 2,1978,,,,,,,,,.webm; sequel number
+Apollo.11.2019.1080p.HDTV.ts,movie,Apollo 11,2019,,,,,,,,,.ts transport stream
+Moon.2009.1080p.BluRay.x264.MKV,movie,Moon,2009,,,,,,,,,
+Hachi.A.Dogs.Tale.2009.720p.BluRay.x264.mkv,movie,Hachi A Dogs Tale,2009,,,,,,,,,
+Chungking.Express.1994.1080p.BluRay.x264.mkv,movie,Chungking Express,1994,,,,,,,,,
+The Matrix (1999) [tmdbid-603]/The Matrix (1999) [tmdbid-603].mkv,movie,The Matrix,1999,,,,,,603,,,Jellyfin provider id
+The Matrix (1999) {tmdb-603}/The Matrix (1999) {tmdb-603}.mkv,movie,The Matrix,1999,,,,,,603,,,"Plex provider id, the {tmdb-603} form in SPEC §7.2"
+The Matrix (1999) [imdbid-tt0133093]/The Matrix (1999) [imdbid-tt0133093].mkv,movie,The Matrix,1999,,,,,,,tt0133093,,"Jellyfin IMDb id, the [imdbid-tt…] form in SPEC §7.2"
+Fight Club (1999) {tmdb-550}/Fight Club (1999) {tmdb-550}.mkv,movie,Fight Club,1999,,,,,,550,,,Plex provider id
+Inception (2010) [imdbid-tt1375666]/Inception (2010) [imdbid-tt1375666].mkv,movie,Inception,2010,,,,,,,tt1375666,,Jellyfin IMDb id
+Pulp Fiction (1994) {imdb-tt0110912}/Pulp Fiction (1994).mkv,movie,Pulp Fiction,1994,,,,,,,tt0110912,,Plex IMDb id on the folder only
+The Dark Knight (2008) {tmdb-155}/The Dark Knight (2008) {edition-IMAX} {tmdb-155}.mkv,movie,The Dark Knight,2008,,,,,IMAX,155,,,Plex edition and id tags together
+Interstellar (2014) [tmdbid=157336]/Interstellar (2014).mkv,movie,Interstellar,2014,,,,,,157336,,,Emby-style '=' separator
+The Godfather (1972) [tmdbid-238] [imdbid-tt0068646]/The Godfather (1972).mkv,movie,The Godfather,1972,,,,,,238,tt0068646,,two provider ids
+The.Matrix.1999.1080p.BluRay.x265.[tmdbid-603].mkv,movie,The Matrix,1999,,,,,,603,,,provider id inside a scene name
+Dune (2021) [tmdbid-438631]/Dune (2021) - 2160p.mkv,movie,Dune,2021,,,,,,438631,,,
+Parasite (2019) [tmdbid-496243]/Parasite (2019).mkv,movie,Parasite,2019,,,,,,496243,,,
+Blade Runner 2049 (2017) [tmdbid-335984]/Blade Runner 2049 (2017).mkv,movie,Blade Runner 2049,2017,,,,,,335984,,,
+Toy Story (1995) {tmdb-862}/Toy Story (1995).mkv,movie,Toy Story,1995,,,,,,862,,,
+Spirited Away (2001) [tmdbid-129]/Spirited Away (2001).mkv,movie,Spirited Away,2001,,,,,,129,,,
+The Matrix (1999) [tmdbid-]/The Matrix (1999).mkv,movie,The Matrix,1999,,,,,,,,,"empty id tag: no hint, and the tag must not leak into the title"
+الرسالة (1976)/الرسالة (1976).mkv,movie,الرسالة,1976,,,,,,,,,Arabic script (The Message)
+Al-Risalah.1976.ARABIC.1080p.BluRay.x264-NOGRP.mkv,movie,Al-Risalah,1976,,,,,,,,,transliterated Arabic; the hyphen belongs to the name
+باب الحديد (1958) [1080p].mkv,movie,باب الحديد,1958,,,,,,,,,Arabic script (Cairo Station)
+Cairo.Station.1958.ARABIC.1080p.BluRay.x264.mkv,movie,Cairo Station,1958,,,,,,,,,English title of an Arabic film
+صراع في الوادي 1954.avi,movie,صراع في الوادي,1954,,,,,,,,,Arabic script with space separators
+المومياء.1969.720p.BluRay.mkv,movie,المومياء,1969,,,,,,,,,Arabic script with scene tags
+عمارة_يعقوبيان_2006.mp4,movie,عمارة يعقوبيان,2006,,,,,,,,,Arabic script with underscores
+The.Yacoubian.Building.2006.ARABIC.720p.WEB-DL.mkv,movie,The Yacoubian Building,2006,,,,,,,,,
+الإرهاب والكباب (1992)/الإرهاب.والكباب.1992.DVDRip.mkv,movie,الإرهاب والكباب,1992,,,,,,,,,hamza on the alef kept as written
+الارهاب والكباب 1992.mkv,movie,الارهاب والكباب,1992,,,,,,,,,bare alef kept as written; the matcher folds alef forms (SPEC §7.2)
+Al.Irhab.wal.Kabab.1992.DVDRip.x264.mkv,movie,Al Irhab wal Kabab,1992,,,,,,,,,transliterated Arabic
+El.Kit.Kat.1991.DVDRip.x264.mkv,movie,El Kit Kat,1991,,,,,,,,,transliterated Arabic
+Wadjda.2012.1080p.BluRay.x264-NOGRP.mkv,movie,Wadjda,2012,,,,,,,,,transliterated Saudi title
+ذيب.2014.1080p.BluRay.x264.mkv,movie,ذيب,2014,,,,,,,,,one-word Arabic title (Theeb)
+Theeb.2014.ARABIC.1080p.BluRay.x264.mkv,movie,Theeb,2014,,,,,,,,,
+كفرناحوم (2018)/كفرناحوم.2018.1080p.BluRay.x264.mkv,movie,كفرناحوم,2018,,,,,,,,,Arabic script (Capernaum)
+Capernaum.2018.ARABIC.1080p.BluRay.x264-NOGRP.mkv,movie,Capernaum,2018,,,,,,,,,
+الجزيرة (2007)/الجزيرة (2007).mkv,movie,الجزيرة,2007,,,,,,,,,
+El.Gezira.2007.1080p.WEB-DL.mkv,movie,El Gezira,2007,,,,,,,,,
+الفيل الأزرق (2014)/الفيل.الأزرق.2014.1080p.WEB-DL.mkv,movie,الفيل الأزرق,2014,,,,,,,,,
+الفيل الأزرق ٢ (٢٠١٩)/الفيل الأزرق ٢ (٢٠١٩).mkv,movie,الفيل الأزرق ٢,2019,,,,,,,,,Arabic-Indic digits: ٢ stays in the title and ٢٠١٩ is the year 2019
+ولاد رزق (2015)/ولاد رزق.2015.1080p.mkv,movie,ولاد رزق,2015,,,,,,,,,
+Welad.Rizk.2015.1080p.WEB-DL.AAC2.0.H.264.mkv,movie,Welad Rizk,2015,,,,,,,,,
+فيلم الممر 2019 1080p.mp4,movie,الممر,2019,,,,,,,,,"'فيلم' (film) is a prefix, not part of the title"
+The.Passage.2019.ARABIC.1080p.WEB-DL.mkv,movie,The Passage,2019,,,,,,,,,English title of an Egyptian film (الممر)
+كيرة والجن (2022)/كيرة.والجن.2022.1080p.WEB-DL.mkv,movie,كيرة والجن,2022,,,,,,,,,
+Kira.and.El.Gin.2022.1080p.WEB-DL.mkv,movie,Kira and El Gin,2022,,,,,,,,,
+بركة يقابل بركة (2016)/بركة يقابل بركة (2016) - 1080p.mkv,movie,بركة يقابل بركة,2016,,,,,,,,,
+Barakah.Meets.Barakah.2016.1080p.NF.WEB-DL.mkv,movie,Barakah Meets Barakah,2016,,,,,,,,,
+هجان.2023.1080p.WEB-DL.AAC.H264.mkv,movie,هجان,2023,,,,,,,,,
+Hajjan.2023.ARABIC.1080p.WEB-DL.mkv,movie,Hajjan,2023,,,,,,,,,
+Naga.2023.1080p.NF.WEB-DL.DDP5.1.x264.mkv,movie,Naga,2023,,,,,,,,,
+سطار (2023)/سطار.2023.1080p.WEB-DL.mkv,movie,سطار,2023,,,,,,,,,
+خلي بالك من زوزو (1972).mkv,movie,خلي بالك من زوزو,1972,,,,,,,,,
+Assal.Eswed.2010.720p.WEB-DL.mkv,movie,Assal Eswed,2010,,,,,,,,,
+Game of Thrones/Season 01/Game.of.Thrones.S01E01.Winter.Is.Coming.1080p.BluRay.x264-NOGRP.mkv,episode,Game of Thrones,,1,1,,,,,,,the episode title after the marker is not part of the series title
+Game of Thrones/Season 08/Game.of.Thrones.S08E06.The.Iron.Throne.2160p.UHD.BluRay.x265.10bit.HDR.mkv,episode,Game of Thrones,,8,6,,,,,,,
+Game.of.Thrones.S03E09.720p.HDTV.x264-NOGRP.mkv,episode,Game of Thrones,,3,9,,,,,,,flat file
+The Office (US)/Season 02/The.Office.US.S02E01.The.Dundies.720p.WEB-DL.mkv,episode,The Office,,2,1,,,,,,,"'US' is a country disambiguator, not part of the title"
+The.Office.US.S05E14.Stress.Relief.1080p.WEB-DL.DD5.1.H.264.mkv,episode,The Office,,5,14,,,,,,,"'US' is a country disambiguator, not part of the title"
+Friends/Season 01/Friends - S01E01 - The One Where Monica Gets a Roommate.mkv,episode,Friends,,1,1,,,,,,,
+Stranger Things/Season 04/Stranger.Things.S04E01.Chapter.One.The.Hellfire.Club.2160p.NF.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-NOGRP.mkv,episode,Stranger Things,,4,1,,,,,,,'Chapter One' is the episode title
+The Simpsons/Season 35/The.Simpsons.S35E01.1080p.WEB.h264-NOGRP.mkv,episode,The Simpsons,,35,1,,,,,,,
+the.simpsons.s01e01.720p.mkv,episode,The Simpsons,,1,1,,,,,,,all lower case
+The.Simpsons.S04E12.Marge.vs.the.Monorail.720p.mkv,episode,The Simpsons,,4,12,,,,,,,
+Doctor Who (2005)/Season 01/Doctor.Who.2005.S01E01.Rose.1080p.BluRay.x264.mkv,episode,Doctor Who,2005,1,1,,,,,,,series year disambiguates the 2005 revival
+Doctor Who (1963)/Season 01/Doctor Who (1963) - S01E01 - An Unearthly Child.mkv,episode,Doctor Who,1963,1,1,,,,,,,same title as the 2005 series; only the year differs
+The Wire/Season 1/02 - The Detail.mkv,episode,The Wire,,1,2,,,,,,,bare episode number; the season comes from the 'Season 1' folder
+The Wire/Season 2/The.Wire.S03E01.Time.After.Time.mkv,episode,The Wire,,3,1,,,,,,,misfiled: the explicit SxxEyy marker wins over the season folder
+Sherlock/Series 2/Sherlock.S02E01.A.Scandal.in.Belgravia.1080p.BluRay.x264.mkv,episode,Sherlock,,2,1,,,,,,,British 'Series 2' folder
+The.Crown.S01E01.1080p.NF.WEB-DL.DDP5.1.x264-NOGRP.mkv,episode,The Crown,,1,1,,,,,,,NF is a source tag
+The.Last.of.Us.S01E03.Long.Long.Time.2160p.HMAX.WEB-DL.x265.10bit.HDR.DDP5.1.Atmos-NOGRP.mkv,episode,The Last of Us,,1,3,,,,,,,
+House.of.the.Dragon.S02E01.2160p.MAX.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-NOGRP.mkv,episode,House of the Dragon,,2,1,,,,,,,
+Shogun.2024.S01E01.Anjin.1080p.DSNP.WEB-DL.DDP5.1.H.264-NOGRP.mkv,episode,Shogun,2024,1,1,,,,,,,series year before the marker
+Fallout.S01E01.The.End.2160p.AMZN.WEB-DL.DDP5.1.HDR10Plus.H.265-NOGRP.mkv,episode,Fallout,,1,1,,,,,,,
+The Bear/Season 03/The Bear S03E01 Tomorrow.mkv,episode,The Bear,,3,1,,,,,,,space separators
+Ted.Lasso.S01E01.Pilot.2160p.ATVP.WEB-DL.DDP5.1.HDR.H.265-NOGRP.mkv,episode,Ted Lasso,,1,1,,,,,,,
+Severance.S02E01.Hello.Ms.Cobel.1080p.ATVP.WEB-DL.DDP5.1.H.264-NOGRP.mkv,episode,Severance,,2,1,,,,,,,
+Arcane.S01E01.Welcome.to.the.Playground.1080p.NF.WEB-DL.DDP5.1.x264-NOGRP.mkv,episode,Arcane,,1,1,,,,,,,
+Dark.S01E01.Secrets.GERMAN.1080p.NF.WEB-DL.DDP5.1.x264-NOGRP.mkv,episode,Dark,,1,1,,,,,,,one-word title
+La.Casa.de.Papel.S01E01.SPANISH.1080p.NF.WEB-DL.mkv,episode,La Casa de Papel,,1,1,,,,,,,Spanish articles are part of the title
+Squid.Game.S01E01.Red.Light.Green.Light.KOREAN.1080p.NF.WEB-DL.mkv,episode,Squid Game,,1,1,,,,,,,
+Lupin.S01E01.FRENCH.1080p.NF.WEB-DL.DDP5.1.x264.mkv,episode,Lupin,,1,1,,,,,,,
+Chernobyl.S01E01.1.23.45.1080p.AMZN.WEB-DL.mkv,episode,Chernobyl,,1,1,,,,,,,the episode title 1:23:45 is written as numbers
+True.Detective.S01E01.The.Long.Bright.Dark.720p.BluRay.x264.mkv,episode,True Detective,,1,1,,,,,,,
+Westworld.S01E01.The.Original.2160p.UHD.BluRay.x265.10bit.HDR.mkv,episode,Westworld,,1,1,,,,,,,
+The.Mandalorian.S01E01.Chapter.1.The.Mandalorian.2160p.DSNP.WEB-DL.mkv,episode,The Mandalorian,,1,1,,,,,,,the episode title 'Chapter 1 The Mandalorian' repeats the series title
+The.Boys.S04E01.Department.of.Dirty.Tricks.1080p.AMZN.WEB-DL.mkv,episode,The Boys,,4,1,,,,,,,
+Better.Call.Saul.S06E13.Saul.Gone.1080p.AMC.WEB-DL.mkv,episode,Better Call Saul,,6,13,,,,,,,
+Better Call Saul/Season 1/Better.Call.Saul.S01E01.Uno.720p.mkv,episode,Better Call Saul,,1,1,,,,,,,
+Mr.Robot.S01E01.eps1.0_hellofriend.mov.1080p.mkv,episode,Mr Robot,,1,1,,,,,,,the episode title contains '.mov'; the real extension is .mkv
+Black.Mirror.S03E04.San.Junipero.1080p.NF.WEB-DL.mkv,episode,Black Mirror,,3,4,,,,,,,
+Peaky.Blinders.S01E01.720p.BluRay.x264.mkv,episode,Peaky Blinders,,1,1,,,,,,,
+Succession.S04E10.With.Open.Eyes.1080p.AMZN.WEB-DL.mkv,episode,Succession,,4,10,,,,,,,
+Lost.S01E01.Pilot.Part.1.720p.BluRay.x264.mkv,episode,Lost,,1,1,,,,,,,'Part 1' belongs to the episode title
+Prison.Break.S01E01.720p.BluRay.x264.mkv,episode,Prison Break,,1,1,,,,,,,
+24.S01E01.12.00.A.M.-1.00.A.M.720p.BluRay.x264.mkv,episode,24,,1,1,,,,,,,number-only title; the episode title is clock times
+The.100.S01E01.Pilot.1080p.BluRay.x264.mkv,episode,The 100,,1,1,,,,,,,number inside the series title
+9-1-1.S01E01.Pilot.1080p.WEB-DL.mkv,episode,9-1-1,,1,1,,,,,,,digits joined by hyphens
+1883.S01E01.1883.1080p.AMZN.WEB-DL.mkv,episode,1883,,1,1,,,,,,,"number-only title, repeated as the episode title; it is not a year"
+1923.S01E01.1923.2160p.AMZN.WEB-DL.mkv,episode,1923,,1,1,,,,,,,"number-only title in the year range; it is the title, not a year"
+Station.19.S01E01.Stuck.720p.WEB-DL.mkv,episode,Station 19,,1,1,,,,,,,
+Room.104.S01E01.Ralphie.720p.WEB-DL.mkv,episode,Room 104,,1,1,,,,,,,
+Brooklyn.Nine-Nine.S01E01.Pilot.1080p.WEB-DL.mkv,episode,Brooklyn Nine-Nine,,1,1,,,,,,,
+S.W.A.T.2017.S01E01.Pilot.1080p.WEB-DL.mkv,episode,S.W.A.T.,2017,1,1,,,,,,,dotted acronym title plus the series year
+Marvels.Agents.of.S.H.I.E.L.D.S01E01.Pilot.1080p.BluRay.x264.mkv,episode,Marvels Agents of S.H.I.E.L.D.,,1,1,,,,,,,dotted acronym right before the marker
+Greys.Anatomy.S20E01.1080p.WEB.h264-NOGRP.mkv,episode,Greys Anatomy,,20,1,,,,,,,
+Law.and.Order.SVU.S25E01.1080p.WEB.h264.mkv,episode,Law and Order SVU,,25,1,,,,,,,
+Star.Trek.Discovery.S01E01.1080p.WEB-DL.mkv,episode,Star Trek Discovery,,1,1,,,,,,,
+The.Flash.2014.S01E01.Pilot.1080p.WEB-DL.mkv,episode,The Flash,2014,1,1,,,,,,,
+Planet.Earth.II.S01E01.Islands.2160p.UHD.BluRay.x265.10bit.HDR.mkv,episode,Planet Earth II,,1,1,,,,,,,Roman numeral in the series title
+Cosmos.A.Spacetime.Odyssey.S01E01.1080p.BluRay.x264.mkv,episode,Cosmos A Spacetime Odyssey,,1,1,,,,,,,
+Extras (2005)/Season 01/Extras - S01E01.mkv,episode,Extras,2005,1,1,,,,,,,"a series named Extras: 'Extras (2005)' is the show folder, not an extras folder"
+Trailer Park Boys/Season 01/Trailer.Park.Boys.S01E01.mkv,episode,Trailer Park Boys,,1,1,,,,,,,'Trailer' in a series title does not make a trailer
+Breaking Bad (2008)/Season 1/Breaking Bad - S01E03 - ...And the Bag's in the River.mkv,episode,Breaking Bad,2008,1,3,,,,,,,the episode title starts with dots and has an apostrophe
+Breaking.Bad.S01E04.Cancer.Man.1080p.BluRay.x264-NOGRP.mkv,episode,Breaking Bad,,1,4,,,,,,,
+breaking.bad.s01e05.720p.hdtv.x264.mkv,episode,Breaking Bad,,1,5,,,,,,,all lower case
+BREAKING.BAD.S01E06.1080P.WEB.MKV,episode,Breaking Bad,,1,6,,,,,,,"all capitals, extension included"
+Breaking_Bad_S01E07_720p.mkv,episode,Breaking Bad,,1,7,,,,,,,underscore separators
+Breaking Bad - 2x01 - Seven Thirty-Seven.mkv,episode,Breaking Bad,,2,1,,,,,,,NxMM marker; the episode title has number words
+Breaking Bad/S02/E02.mkv,episode,Breaking Bad,,2,2,,,,,,,"minimal names: season folder S02, file E02"
+Breaking Bad/Season 02/Episode 03.mkv,episode,Breaking Bad,,2,3,,,,,,,"words, no SxxEyy marker"
+Breaking.Bad.S02.E04.Down.720p.mkv,episode,Breaking Bad,,2,4,,,,,,,dot between season and episode
+Breaking Bad S02 E05 Breakage.mkv,episode,Breaking Bad,,2,5,,,,,,,space between season and episode
+Breaking.Bad.Season.2.Episode.6.Peekaboo.mkv,episode,Breaking Bad,,2,6,,,,,,,spelled-out markers
+Breaking.Bad.s2e7.mkv,episode,Breaking Bad,,2,7,,,,,,,no zero padding
+Breaking.Bad.S2E8.Better.Call.Saul.720p.mkv,episode,Breaking Bad,,2,8,,,,,,,the episode title is also a series title
+Breaking.Bad.S02E009.mkv,episode,Breaking Bad,,2,9,,,,,,,three-digit episode number
+Breaking Bad/Season 02/Breaking Bad - S02E10 - Over.mp4,episode,Breaking Bad,,2,10,,,,,,,
+Breaking Bad/Season 03/03x01.mkv,episode,Breaking Bad,,3,1,,,,,,,the filename is only an NxMM marker
+Breaking Bad/Season 03/Breaking.Bad.S03E02.PROPER.720p.HDTV.x264-NOGRP.mkv,episode,Breaking Bad,,3,2,,,,,,,
+Breaking Bad/Season 03/Breaking.Bad.S03E03.REPACK.1080p.BluRay.x264-NOGRP.mkv,episode,Breaking Bad,,3,3,,,,,,,REPACK is a release flag
+Breaking Bad/Season 04/Breaking.Bad.S04E01.Box.Cutter.ts,episode,Breaking Bad,,4,1,,,,,,,.ts episode
+Chernobyl.S01.2160p.UHD.BluRay.x265.10bit.HDR-NOGRP/Chernobyl.S01E02.2160p.UHD.BluRay.x265.10bit.HDR-NOGRP.mkv,episode,Chernobyl,,1,2,,,,,,,season-pack release folder
+Friends/Season 03/Friends.3x25.The.One.at.the.Beach.mkv,episode,Friends,,3,25,,,,,,,
+Friends.S10E17E18.The.Last.One.1080p.BluRay.x265.mkv,episode,Friends,,10,17;18,,,,,,,double episode
+Friends/Season 02/friends.s02e12-e13.the.one.after.the.superbowl.mkv,episode,Friends,,2,12;13,,,,,,,range written e12-e13
+Friends/Season 01/Friends - 1x16-1x17 - The One with Two Parts.mkv,episode,Friends,,1,16;17,,,,,,,NxMM range
+Stargate SG-1/Season 01/Stargate.SG-1.S01E01-E02.Children.of.the.Gods.mkv,episode,Stargate SG-1,,1,1;2,,,,,,,range S01E01-E02; 'SG-1' belongs to the title
+Seinfeld/Season 05/Seinfeld.S05E18E19.The.Raincoats.mkv,episode,Seinfeld,,5,18;19,,,,,,,
+Seinfeld.S09E23E24.The.Finale.mkv,episode,Seinfeld,,9,23;24,,,,,,,
+The.Office.US.S04E01E02.Fun.Run.720p.WEB-DL.mkv,episode,The Office,,4,1;2,,,,,,,
+Lost/Season 01/Lost.S01E24-E25.Exodus.720p.BluRay.mkv,episode,Lost,,1,24;25,,,,,,,
+Game.of.Thrones.S01E01-02.720p.mkv,episode,Game of Thrones,,1,1;2,,,,,,,range without the second 'E'
+24/Season 01/24.S01E01E02E03.mkv,episode,24,,1,1;2;3,,,,,,,triple episode
+Doctor Who (2005)/Season 01/Doctor.Who.2005.S01E12-E13.mkv,episode,Doctor Who,2005,1,12;13,,,,,,,
+Breaking Bad/Season 05/Breaking Bad - S05E15-E16.mkv,episode,Breaking Bad,,5,15;16,,,,,,,
+Peaky Blinders/Season 02/Peaky.Blinders.S02E01-E03.720p.BluRay.x264.mkv,episode,Peaky Blinders,,2,1;2;3,,,,,,,range S02E01-E03 expands to three episodes
+The.Daily.Show.2024.03.15.720p.WEB.h264-NOGRP.mkv,episode,The Daily Show,,,,,2024-03-15,,,,,dated episode: the date is not a series year
+Last.Week.Tonight.with.John.Oliver.2024.02.18.1080p.WEB.h264-NOGRP.mkv,episode,Last Week Tonight with John Oliver,,,,,2024-02-18,,,,,
+The Tonight Show Starring Jimmy Fallon/The.Tonight.Show.Starring.Jimmy.Fallon.2024.01.10.1080p.WEB.mkv,episode,The Tonight Show Starring Jimmy Fallon,,,,,2024-01-10,,,,,
+Jeopardy/Jeopardy.2023-11-06.720p.HDTV.mkv,episode,Jeopardy,,,,,2023-11-06,,,,,dashed date
+Saturday.Night.Live.2024.12.14.1080p.WEB.h264.mkv,episode,Saturday Night Live,,,,,2024-12-14,,,,,
+The.Late.Show.with.Stephen.Colbert.15.03.2024.mkv,episode,The Late Show with Stephen Colbert,,,,,2024-03-15,,,,,day.month.year order; 15 cannot be a month
+Wheel of Fortune 2024-03-15.mkv,episode,Wheel of Fortune,,,,,2024-03-15,,,,,
+Countdown.20240315.mp4,episode,Countdown,,,,,2024-03-15,,,,,compact YYYYMMDD date
+Good Morning America (1975)/Good Morning America - 2024-03-15.mkv,episode,Good Morning America,1975,,,,2024-03-15,,,,,"series year from the folder, air date from the file"
+60.Minutes.2024.03.17.720p.WEB.h264.mkv,episode,60 Minutes,,,,,2024-03-17,,,,,number-led title followed by a date
+The.View.2024.03.15.1080p.WEB.h264.mkv,episode,The View,,,,,2024-03-15,,,,,
+صباح الخير يا عرب 2024-03-15.mp4,episode,صباح الخير يا عرب,,,,,2024-03-15,,,,,Arabic-script daily show
+Doctor Who (2005)/Specials/Doctor Who (2005) - S00E01.mkv,episode,Doctor Who,2005,0,1,,,,,,,S00 in a 'Specials' folder
+Sherlock/Season 00/Sherlock.S00E01.The.Abominable.Bride.1080p.BluRay.mkv,episode,Sherlock,,0,1,,,,,,,'Season 00' folder
+Game of Thrones/Specials/Game.of.Thrones.S00E05.1080p.mkv,episode,Game of Thrones,,0,5,,,,,,,
+Breaking Bad/Specials/Breaking.Bad.S00E01.mkv,episode,Breaking Bad,,0,1,,,,,,,
+Stranger Things/Specials/Stranger Things - Special - Beyond Stranger Things.mkv,episode,Stranger Things,,0,,,,,,,,"special without a number: season 0, the episode is found by title or review"
+The Office (US)/Specials/The Office (US) - S00E02.mkv,episode,The Office,,0,2,,,,,,,'(US)' is a country disambiguator
+Friends/Season 0/Friends.S00E01.mkv,episode,Friends,,0,1,,,,,,,'Season 0' folder
+The.Simpsons.S00E01.mkv,episode,The Simpsons,,0,1,,,,,,,flat special
+Sherlock/Specials/Sherlock - S00E02.mkv,episode,Sherlock,,0,2,,,,,,,
+باب الحارة/Specials/باب.الحارة.S00E01.mkv,episode,باب الحارة,,0,1,,,,,,,Arabic series special
+One Piece/[NOGRP] One Piece - 1071 [1080p].mkv,episode,One Piece,,,,1071,,,,,,absolute number after ' - '
+One.Piece.E1088.1080p.WEB.H264-NOGRP.mkv,episode,One Piece,,,,1088,,,,,,episode marker without a season is absolute
+[NOGRP] Jujutsu Kaisen - 24 [1080p][A1B2C3D4].mkv,episode,Jujutsu Kaisen,,,,24,,,,,,CRC32 in brackets
+[NOGRP] Gintama - 105 [1080p].mkv,episode,Gintama,,,,105,,,,,,three-digit absolute number between ' - ' and the next tag
+[NOGRP] Mob Psycho 100 - 05 [720p].mkv,episode,Mob Psycho 100,,,,5,,,,,,number inside the title; the episode follows ' - '
+[NOGRP] Steins;Gate - 01 [BD 1080p].mkv,episode,Steins;Gate,,,,1,,,,,,semicolon in the title
+[NOGRP] Kaiju No. 8 - 03 [1080p].mkv,episode,Kaiju No. 8,,,,3,,,,,,'No. 8' belongs to the title
+[NOGRP] Spy x Family - 12 [1080p].mkv,episode,Spy x Family,,,,12,,,,,,' x ' in the title is not an NxMM marker
+Hunter x Hunter (2011)/Hunter x Hunter (2011) - 148 [1080p].mkv,episode,Hunter x Hunter,2011,,,148,,,,,,series year plus absolute number
+[NOGRP] Frieren - 05v2 [1080p].mkv,episode,Frieren,,,,5,,,,,,"v2 marks a re-release, not an episode"
+Naruto Shippuden/Naruto Shippuden - 500 - The Message [1080p].mkv,episode,Naruto Shippuden,,,,500,,,,,,episode title after the number
+Detective Conan/Detective Conan - 1100 [720p].mkv,episode,Detective Conan,,,,1100,,,,,,four-digit absolute number
+Bleach (2004)/[NOGRP] Bleach - 366 [1080p].mkv,episode,Bleach,2004,,,366,,,,,,series year from the folder
+Dragon Ball Z/Dragon Ball Z - 001.mkv,episode,Dragon Ball Z,,,,1,,,,,,zero-padded absolute number
+[NOGRP]_Cowboy_Bebop_-_05_[BD_1080p].mkv,episode,Cowboy Bebop,,,,5,,,,,,underscore separators around the dash
+[NOGRP] Attack on Titan S2 - 03 [1080p].mkv,episode,Attack on Titan,,2,3,,,,,,,'S2' before ' - 03' makes the number season-relative
+[NOGRP] Demon Slayer - Kimetsu no Yaiba - 19 [1080p].mkv,episode,Demon Slayer - Kimetsu no Yaiba,,,,19,,,,,,spaced hyphen inside the title; the last ' - NN' is the episode
+[NOGRP] Neon Genesis Evangelion - 26 [BD 1080p][Dual Audio].mkv,episode,Neon Genesis Evangelion,,,,26,,,,,,
+[NOGRP] Fullmetal Alchemist Brotherhood - 64 (1080p) [ABCD1234].mkv,episode,Fullmetal Alchemist Brotherhood,,,,64,,,,,,
+[NOGRP] Oshi no Ko - 01 [1080p].mkv,episode,Oshi no Ko,,,,1,,,,,,
+Pokemon/Pokemon - 001 - Pokemon I Choose You.mkv,episode,Pokemon,,,,1,,,,,,the episode title repeats the series title
+[NOGRP] Bocchi the Rock! - 08 [1080p].mkv,episode,Bocchi the Rock!,,,,8,,,,,,exclamation mark in the title
+[NOGRP] 86 - 01 [1080p].mkv,episode,86,,,,1,,,,,,number-only title
+[NOGRP] Lycoris Recoil - 13 END [1080p].mkv,episode,Lycoris Recoil,,,,13,,,,,,'END' flag
+باب الحارة/الموسم 01/باب.الحارة.S01E01.mkv,episode,باب الحارة,,1,1,,,,,,,Arabic season folder (الموسم = season)
+باب الحارة/الموسم 02/الحلقة 05.mkv,episode,باب الحارة,,2,5,,,,,,,"Arabic words only: الموسم = season, الحلقة = episode"
+Bab.Al.Hara.S01E02.720p.WEB-DL.mkv,episode,Bab Al Hara,,1,2,,,,,,,transliterated Arabic
+الهيبة/الهيبة الجزء 2 الحلقة 12.mp4,episode,الهيبة,,2,12,,,,,,,الجزء (part) is used for the season
+Al.Hayba.S01E01.1080p.WEB-DL.AAC2.0.H.264-NOGRP.mkv,episode,Al Hayba,,1,1,,,,,,,
+مسلسل الاختيار الحلقة 3.mp4,episode,الاختيار,,,,3,,,,,,"'مسلسل' (series) is a prefix, not part of the title; with no season the number is absolute"
+El.Ekhtiyar.S03E01.1080p.WEB-DL.mkv,episode,El Ekhtiyar,,3,1,,,,,,,
+Rashash.S01E01.ARABIC.1080p.SHAHID.WEB-DL.AAC2.0.H.264-NOGRP.mkv,episode,Rashash,,1,1,,,,,,,SHAHID is a source tag
+رشاش/الموسم 1/رشاش - S01E02.mkv,episode,رشاش,,1,2,,,,,,,
+Al.Asouf.S01E01.1080p.WEB-DL.mkv,episode,Al Asouf,,1,1,,,,,,,
+العاصوف (2018)/Season 01/العاصوف.S01E05.1080p.mkv,episode,العاصوف,2018,1,5,,,,,,,Arabic title with the series year on the folder
+Paranormal.S01E01.ARABIC.1080p.NF.WEB-DL.mkv,episode,Paranormal,,1,1,,,,,,,English title of an Egyptian series (ما وراء الطبيعة)
+ما وراء الطبيعة/الموسم 01/ما.وراء.الطبيعة.S01E03.mkv,episode,ما وراء الطبيعة,,1,3,,,,,,,
+AlRawabi.School.for.Girls.S01E01.ARABIC.1080p.NF.WEB-DL.mkv,episode,AlRawabi School for Girls,,1,1,,,,,,,
+مدرسة الروابي للبنات/مدرسة.الروابي.للبنات.S02E01.mkv,episode,مدرسة الروابي للبنات,,2,1,,,,,,,
+طاش ما طاش/الموسم 18/طاش ما طاش 18 - الحلقة 07.mkv,episode,طاش ما طاش,,18,7,,,,,,,the 18 after the title repeats the season from the folder
+Tash.Ma.Tash.S18E07.mkv,episode,Tash Ma Tash,,18,7,,,,,,,
+جعفر العمدة (2023)/الحلقة 01.mp4,episode,جعفر العمدة,2023,,,1,,,,,,"no season folder, so the episode number is absolute"
+Grand.Hotel.2016.S01E01.ARABIC.720p.WEB-DL.mkv,episode,Grand Hotel,2016,1,1,,,,,,,
+الحشاشين/الحشاشين.S01E01.1080p.WEB-DL.mkv,episode,الحشاشين,,1,1,,,,,,,
+Al.Hashashin.2024.S01E01.ARABIC.1080p.WEB-DL.mkv,episode,Al Hashashin,2024,1,1,,,,,,,
+Breaking Bad (2008) [tvdbid-81189]/Season 01/Breaking Bad - S01E01 - Pilot.mkv,episode,Breaking Bad,2008,1,1,,,,,,81189,Jellyfin TVDB id on the show folder
+Breaking Bad (2008) {tmdb-1396}/Season 02/Breaking Bad (2008) - S02E01.mkv,episode,Breaking Bad,2008,2,1,,,,1396,,,Plex TMDB id on the show folder
+Game of Thrones (2011) [tmdbid-1399]/Season 01/Game of Thrones - S01E02 - The Kingsroad.mkv,episode,Game of Thrones,2011,1,2,,,,1399,,,
+Game of Thrones (2011) {tvdb-121361}/Season 02/Game.of.Thrones.S02E01.mkv,episode,Game of Thrones,2011,2,1,,,,,,121361,Plex TVDB id
+Breaking Bad (2008) [imdbid-tt0903747]/Season 03/Breaking Bad - S03E01.mkv,episode,Breaking Bad,2008,3,1,,,,,tt0903747,,
+Game of Thrones (2011) {imdb-tt0944947}/Season 03/Game of Thrones - S03E01 - Valar Dohaeris.mkv,episode,Game of Thrones,2011,3,1,,,,,tt0944947,,
+Stranger Things (2016) [tvdbid-305288]/Season 01/Stranger.Things.S01E01.mkv,episode,Stranger Things,2016,1,1,,,,,,305288,
+The Matrix (1999)/Sample/the.matrix.1999.1080p.bluray.x265-sample.mkv,ignore,,,,,,,,,,,Sample folder
+Inception (2010)/Inception.2010.1080p.BluRay.DTS.x264-sample.mkv,ignore,,,,,,,,,,,'-sample' suffix
+Interstellar.2014.1080p.BluRay.x264-NOGRP/Sample/interstellar.2014.1080p.bluray.x264-nogrp.sample.mkv,ignore,,,,,,,,,,,Sample folder inside a release folder
+Gladiator (2000)/sample.mkv,ignore,,,,,,,,,,,file named 'sample'
+Arrival.2016.1080p.BluRay.SAMPLE.mkv,ignore,,,,,,,,,,,SAMPLE token after the year (contrast Free Samples)
+The.Batman.2022.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-NOGRP/Sample/sample-the.batman.2022.mkv,ignore,,,,,,,,,,,Sample folder with a 'sample-' prefix
+وجدة (2012)/Sample/وجدة.2012.sample.mkv,ignore,,,,,,,,,,,Sample folder in an Arabic title folder
+Breaking Bad/Season 01/Breaking.Bad.S01E01.720p-sample.mkv,ignore,,,,,,,,,,,'-sample' suffix on an episode
+Dune (2021)/Dune (2021)-sample.mp4,ignore,,,,,,,,,,,'-sample' suffix
+The Matrix (1999)/The Matrix (1999)-trailer.mp4,ignore,,,,,,,,,,,Plex/Jellyfin '-trailer' suffix
+Dune (2021)/Trailers/Dune Official Trailer 2.mp4,ignore,,,,,,,,,,,Trailers folder
+Oppenheimer.2023.Trailer.1080p.mp4,ignore,,,,,,,,,,,Trailer token after the year (contrast Trailer Park Boys)
+Trailers/Joker (2019) Teaser.mp4,ignore,,,,,,,,,,,Trailers folder at the library root
+Interstellar (2014)/Interstellar (2014)-trailer.mkv,ignore,,,,,,,,,,,'-trailer' suffix
+Inception (2010)/Extras/Inception - Making Of.mkv,ignore,,,,,,,,,,,Extras folder
+Inception (2010)/Featurettes/The Dream Is Collapsing.mkv,ignore,,,,,,,,,,,Featurettes folder
+The Dark Knight (2008)/Behind The Scenes/Batman Unmasked.mkv,ignore,,,,,,,,,,,Behind The Scenes folder
+Alien (1979)/Deleted Scenes/Deleted Scene 01.mkv,ignore,,,,,,,,,,,Deleted Scenes folder
+Parasite (2019)/Interviews/Director Interview.mkv,ignore,,,,,,,,,,,Interviews folder
+Toy Story (1995)/Shorts/Tin Toy (1988).mkv,ignore,,,,,,,,,,,Shorts folder: an extra even though the name looks like a movie
+Up (2009)/Up (2009)-featurette.mkv,ignore,,,,,,,,,,,'-featurette' suffix
+Up (2009)/Up (2009)-behindthescenes.mkv,ignore,,,,,,,,,,,'-behindthescenes' suffix
+Up (2009)/Up (2009)-deleted.mkv,ignore,,,,,,,,,,,'-deleted' suffix
+Up (2009)/Up (2009)-interview.mkv,ignore,,,,,,,,,,,'-interview' suffix
+Up (2009)/Dugs Special Mission-short.mkv,ignore,,,,,,,,,,,'-short' suffix
+Up (2009)/Scenes/Married Life.mkv,ignore,,,,,,,,,,,Scenes folder
+Breaking Bad/Extras/Breaking Bad - Inside the Episode 101.mkv,ignore,,,,,,,,,,,Extras folder inside a series
+Game of Thrones/Season 01/Extras/Making Game of Thrones.mkv,ignore,,,,,,,,,,,Extras folder inside a season
+Stranger Things/Season 04/Featurettes/Inside the Upside Down.mkv,ignore,,,,,,,,,,,Featurettes folder inside a season
+باب الحارة/Extras/كواليس باب الحارة.mkv,ignore,,,,,,,,,,,Extras folder in an Arabic series (كواليس = behind the scenes)
+The Matrix (1999)/The Matrix (1999).en.srt,ignore,,,,,,,,,,,sidecar subtitle
+The Matrix (1999)/The Matrix (1999).nfo,ignore,,,,,,,,,,,metadata sidecar
+The Matrix (1999)/poster.jpg,ignore,,,,,,,,,,,artwork
+The Matrix (1999)/fanart.jpg,ignore,,,,,,,,,,,artwork
+Breaking Bad/tvshow.nfo,ignore,,,,,,,,,,,series metadata sidecar
+Breaking Bad/Season 01/Breaking.Bad.S01E01.720p.ar.srt,ignore,,,,,,,,,,,Arabic sidecar subtitle
+Breaking Bad/Season 01/Breaking.Bad.1x02.ar.ass,ignore,,,,,,,,,,,Arabic ASS sidecar subtitle
+وجدة (2012)/وجدة.2012.1080p.WEB-DL.ar.srt,ignore,,,,,,,,,,,Arabic sidecar subtitle
+Show/Season 02/Show.S02E01E02.chapters.xml,ignore,,,,,,,,,,,chapter metadata
+The Matrix (1999)/._The Matrix (1999).mkv,ignore,,,,,,,,,,,"macOS AppleDouble file (hidden, not a video)"
+.DS_Store,ignore,,,,,,,,,,,macOS folder metadata
+The Matrix (1999)/Thumbs.db,ignore,,,,,,,,,,,Windows thumbnail cache
+@eaDir/The.Matrix.1999.1080p.BluRay.x265.mkv/SYNOVIDEO_VIDEO_SCREENSHOT.jpg,ignore,,,,,,,,,,,Synology thumbnail folder
+#recycle/Memento.2000.1080p.BluRay.x264.mkv,ignore,,,,,,,,,,,Synology recycle bin
+$RECYCLE.BIN/S-1-5-21-1000/$R1A2B3C.mkv,ignore,,,,,,,,,,,Windows recycle bin
+.Trash-1000/files/Heat.1995.1080p.BluRay.mkv,ignore,,,,,,,,,,,freedesktop trash (hidden folder)
+Inception (2010)/.Inception.2010.1080p.BluRay.DTS.x264.mkv.Xy12Ab,ignore,,,,,,,,,,,rsync temporary file (hidden)
+lost+found/#1234567,ignore,,,,,,,,,,,filesystem recovery folder
+The.Matrix.1999.iso,ignore,,,,,,,,,,,disc image: .iso is not an accepted extension
+Metropolis.1927.wmv,ignore,,,,,,,,,,,.wmv is not an accepted extension (SPEC §7.1)
+Nosferatu.1922.mpg,ignore,,,,,,,,,,,.mpg is not an accepted extension (SPEC §7.1)
+Sunrise.1927.flv,ignore,,,,,,,,,,,.flv is not an accepted extension (SPEC §7.1)
+The.General.1926.divx,ignore,,,,,,,,,,,.divx is not an accepted extension (SPEC §7.1)
+Home Videos/VIDEO_TS/VTS_01_1.VOB,ignore,,,,,,,,,,,DVD structure: .vob is not an accepted extension

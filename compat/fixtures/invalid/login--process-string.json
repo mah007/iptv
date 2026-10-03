@@ -1,0 +1,15 @@
+{
+  "description": "process is the boolean true.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/server_info/process",
+      "value": "true"
+    }
+  ],
+  "expect": {
+    "at": "$.server_info.process",
+    "kind": "type"
+  }
+}

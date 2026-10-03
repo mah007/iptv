@@ -1,0 +1,15 @@
+{
+  "description": "Logos are JPEG, PNG or WebP: many TV apps cannot render SVG.",
+  "fixture": "get_live_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/stream_icon",
+      "value": "https://media.example.com/images/channel-3001/logo/original.svg"
+    }
+  ],
+  "expect": {
+    "at": "$[0].stream_icon",
+    "kind": "pattern"
+  }
+}

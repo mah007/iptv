@@ -1,0 +1,15 @@
+{
+  "description": "time_now is timestamp_now in UTC, not in Riyadh time.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/server_info/time_now",
+      "value": "2026-10-03 19:00:00"
+    }
+  ],
+  "expect": {
+    "at": "$.server_info.time_now",
+    "kind": "invariant:clock"
+  }
+}

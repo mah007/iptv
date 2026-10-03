@@ -1,0 +1,15 @@
+{
+  "description": "The root copies carry the same values as info.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/plot",
+      "value": "A different text."
+    }
+  ],
+  "expect": {
+    "at": "$.plot",
+    "kind": "invariant:root-copy"
+  }
+}

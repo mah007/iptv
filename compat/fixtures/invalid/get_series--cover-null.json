@@ -1,0 +1,15 @@
+{
+  "description": "Images are \"\" when missing, never null.",
+  "fixture": "get_series.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/cover",
+      "value": null
+    }
+  ],
+  "expect": {
+    "at": "$[0].cover",
+    "kind": "type"
+  }
+}

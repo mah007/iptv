@@ -1,0 +1,15 @@
+{
+  "description": "Images are \"\" when missing, never null.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/stream_icon",
+      "value": null
+    }
+  ],
+  "expect": {
+    "at": "$[0].stream_icon",
+    "kind": "type"
+  }
+}

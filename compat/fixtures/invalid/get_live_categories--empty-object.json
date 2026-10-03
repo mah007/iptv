@@ -1,0 +1,15 @@
+{
+  "description": "An empty list is [], never {} (the PHP empty-array trap).",
+  "fixture": "get_live_categories.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "",
+      "value": {}
+    }
+  ],
+  "expect": {
+    "at": "$",
+    "kind": "type"
+  }
+}

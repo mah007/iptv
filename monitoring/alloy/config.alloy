@@ -1,0 +1,204 @@
+// Grafana Alloy: container logs -> redaction -> Loki (SPEC §11, §14; ADR-0008).
+//
+//   docker containers of the compose project
+//     -> redaction.redact      strip credentials and tokens (redaction.alloy)
+//     -> loki.process.enrich   request_id as structured metadata
+//     -> loki.write.loki       Loki, 30-day retention
+//   and, in parallel, the Nginx edge's access log -> loki.process.edge_metrics,
+//   which turns it into the iptv_edge_* metrics that Prometheus scrapes from Alloy.
+//
+// Labels stay few (service, container, project, stream); everything else is in the line.
+
+logging {
+	// Never "debug": debug logging prints raw log lines before they are redacted.
+	level  = "info"
+	format = "json"
+}
+
+import.file "redaction" {
+	filename = "/etc/alloy/redaction.alloy"
+}
+
+// Containers of this compose project only (a laptop may run unrelated containers).
+discovery.docker "containers" {
+	host             = "unix:///var/run/docker.sock"
+	refresh_interval = "15s"
+
+	filter {
+		name   = "label"
+		values = ["com.docker.compose.project=" + coalesce(sys.env("ALLOY_COMPOSE_PROJECT"), "smart-iptv")]
+	}
+}
+
+// Only the rules are used, by loki.source.docker below.
+discovery.relabel "containers" {
+	targets = []
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/?(.*)"
+		target_label  = "container"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+		target_label  = "project"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_log_stream"]
+		target_label  = "stream"
+	}
+}
+
+loki.source.docker "containers" {
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.docker.containers.targets
+	relabel_rules = discovery.relabel.containers.rules
+	forward_to    = [redaction.redact.lines.receiver]
+}
+
+redaction.redact "lines" {
+	forward_to = [
+		loki.process.enrich.receiver,
+		loki.process.edge_metrics.receiver,
+	]
+}
+
+// Correlate a request across Traefik, Django and the Nginx edge (SPEC §14):
+// Django and the edge log `request_id`; Traefik logs the X-Request-Id header that
+// Django returns (downstream_X-Request-Id) when its access log keeps that header.
+loki.process "enrich" {
+	forward_to = [loki.write.loki.receiver]
+
+	stage.json {
+		expressions = {
+			request_id                  = "request_id",
+			traefik_response_request_id = `"downstream_X-Request-Id"`,
+			traefik_request_request_id  = `"request_X-Request-Id"`,
+		}
+	}
+
+	stage.template {
+		source   = "request_id"
+		template = `{{ or .request_id .traefik_response_request_id .traefik_request_request_id "" }}`
+	}
+
+	stage.structured_metadata {
+		values = {
+			request_id = "",
+		}
+	}
+}
+
+// Edge metrics from the Nginx edge's JSON access log (M7 writes it; SPEC §12 fields:
+// edge_id, status, bytes_sent, request_time, upstream_cache_status, upstream_header_time).
+// Nginx's stub_status has no bytes, statuses or cache results, so these come from logs.
+// Nothing is forwarded: Loki gets the same lines through loki.process.enrich.
+loki.process "edge_metrics" {
+	forward_to = []
+
+	stage.match {
+		selector = `{service="nginx-stream"}`
+
+		stage.json {
+			expressions = {
+				edge_id               = "edge_id",
+				status                = "status",
+				bytes_sent            = "bytes_sent",
+				request_time          = "request_time",
+				upstream_cache_status = "upstream_cache_status",
+				upstream_header_time  = "upstream_header_time",
+			}
+		}
+
+		stage.regex {
+			source     = "status"
+			expression = `^(?P<status_digit>[1-5])[0-9][0-9]$`
+		}
+
+		stage.template {
+			source   = "status_class"
+			template = `{{ if .status_digit }}{{ .status_digit }}xx{{ else }}unknown{{ end }}`
+		}
+
+		// Nginx writes "-" when the request bypassed the cache.
+		stage.template {
+			source   = "cache_status"
+			template = `{{ if and .upstream_cache_status (ne .upstream_cache_status "-") }}{{ ToUpper .upstream_cache_status }}{{ else }}NONE{{ end }}`
+		}
+
+		stage.template {
+			source   = "edge"
+			template = `{{ or .edge_id "unknown" }}`
+		}
+
+		stage.labels {
+			values = {
+				edge         = "",
+				status_class = "",
+				cache_status = "",
+			}
+		}
+
+		stage.label_keep {
+			values = ["edge", "status_class", "cache_status"]
+		}
+
+		stage.metrics {
+			metric.counter {
+				name              = "requests_total"
+				prefix            = "iptv_edge_"
+				description       = "Edge requests by edge, status class and cache result (from the access log)."
+				match_all         = true
+				action            = "inc"
+				max_idle_duration = "24h"
+			}
+
+			metric.counter {
+				name              = "sent_bytes_total"
+				prefix            = "iptv_edge_"
+				description       = "Bytes the edge sent to clients, by edge, status class and cache result."
+				source            = "bytes_sent"
+				action            = "add"
+				max_idle_duration = "24h"
+			}
+		}
+
+		stage.label_drop {
+			values = ["status_class", "cache_status"]
+		}
+
+		stage.metrics {
+			metric.histogram {
+				name              = "request_duration_seconds"
+				prefix            = "iptv_edge_"
+				description       = "Edge request time (nginx $request_time), by edge."
+				source            = "request_time"
+				buckets           = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]
+				max_idle_duration = "24h"
+			}
+
+			// Time to the origin's first byte on cache misses (nginx $upstream_header_time).
+			metric.histogram {
+				name              = "upstream_header_seconds"
+				prefix            = "iptv_edge_"
+				description       = "Origin time to first byte on cache misses (nginx $upstream_header_time), by edge."
+				source            = "upstream_header_time"
+				buckets           = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+				max_idle_duration = "24h"
+			}
+		}
+	}
+}
+
+loki.write "loki" {
+	endpoint {
+		url = coalesce(sys.env("LOKI_PUSH_URL"), "http://loki:3100/loki/api/v1/push")
+	}
+}

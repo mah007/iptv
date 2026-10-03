@@ -1,0 +1,15 @@
+{
+  "description": "added is a unix-seconds string, not an integer.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/added",
+      "value": 1791032700
+    }
+  ],
+  "expect": {
+    "at": "$[0].added",
+    "kind": "type"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "Movies, episodes and live channels share one id sequence, because apps key history and favourites by stream id.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/1/stream_id",
+      "value": 3001
+    }
+  ],
+  "expect": {
+    "at": "get_live_streams $[0].stream_id",
+    "kind": "invariant:id-namespace"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "rating_5based is a JSON number, not a string.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/rating_5based",
+      "value": "4.1"
+    }
+  ],
+  "expect": {
+    "at": "$[0].rating_5based",
+    "kind": "type"
+  }
+}

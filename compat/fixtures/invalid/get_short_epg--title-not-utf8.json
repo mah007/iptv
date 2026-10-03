@@ -1,0 +1,15 @@
+{
+  "description": "EPG titles decode to UTF-8 text.",
+  "fixture": "get_short_epg.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/title",
+      "value": "//79"
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[0].title",
+    "kind": "invariant:base64-utf8"
+  }
+}

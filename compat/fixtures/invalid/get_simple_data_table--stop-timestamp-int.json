@@ -1,0 +1,15 @@
+{
+  "description": "stop_timestamp is a unix-seconds string, not an integer.",
+  "fixture": "get_simple_data_table.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/0/stop_timestamp",
+      "value": 1791041400
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[0].stop_timestamp",
+    "kind": "type"
+  }
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "num": 1,
+    "name": "Breaking Bad",
+    "series_id": 2001,
+    "cover": "https://media.example.com/images/series-2001/poster/w500.a87ff679.webp",
+    "plot": "A chemistry teacher diagnosed with terminal cancer starts making methamphetamine to secure his family's future.",
+    "cast": "Bryan Cranston, Aaron Paul, Anna Gunn, RJ Mitte, Dean Norris",
+    "director": "Vince Gilligan",
+    "genre": "Drama, Crime",
+    "releaseDate": "2008-01-20",
+    "release_date": "2008-01-20",
+    "last_modified": "1791034800",
+    "rating": "8.9",
+    "rating_5based": 4.5,
+    "backdrop_path": ["https://media.example.com/images/series-2001/backdrop/w1280.e4da3b7f.webp"],
+    "youtube_trailer": "",
+    "episode_run_time": "45",
+    "category_id": "21",
+    "category_ids": [21, 22],
+    "tmdb": "1396"
+  }
+]

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-iptv.invalid/compat/schemas/get_vod_streams.schema.json",
+  "title": "player_api.php?action=get_vod_streams[&category_id=]",
+  "description": "The movies the user's plan allows, optionally filtered to one category (SPEC §7.5). [] when there is none, never {}.",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/vodStream"
+  },
+  "$defs": {
+    "vodStream": {
+      "type": "object",
+      "properties": {
+        "num": {
+          "$ref": "common.schema.json#/$defs/num"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "stream_type": {
+          "type": "string",
+          "const": "movie"
+        },
+        "stream_id": {
+          "$ref": "common.schema.json#/$defs/xcId"
+        },
+        "stream_icon": {
+          "$ref": "common.schema.json#/$defs/imageUrl",
+          "description": "The poster."
+        },
+        "rating": {
+          "$ref": "common.schema.json#/$defs/rating"
+        },
+        "rating_5based": {
+          "$ref": "common.schema.json#/$defs/rating5"
+        },
+        "added": {
+          "$ref": "common.schema.json#/$defs/unixTime"
+        },
+        "category_id": {
+          "$ref": "common.schema.json#/$defs/categoryId"
+        },
+        "category_ids": {
+          "$ref": "common.schema.json#/$defs/categoryIds"
+        },
+        "container_extension": {
+          "$ref": "common.schema.json#/$defs/containerExtension"
+        },
+        "custom_sid": {
+          "$ref": "common.schema.json#/$defs/alwaysEmpty"
+        },
+        "direct_source": {
+          "$ref": "common.schema.json#/$defs/alwaysEmpty"
+        },
+        "tmdb_id": {
+          "$ref": "common.schema.json#/$defs/tmdbId"
+        },
+        "is_adult": {
+          "$ref": "common.schema.json#/$defs/flag"
+        }
+      },
+      "required": [
+        "num",
+        "name",
+        "stream_type",
+        "stream_id",
+        "stream_icon",
+        "rating",
+        "rating_5based",
+        "added",
+        "category_id",
+        "category_ids",
+        "container_extension",
+        "custom_sid",
+        "direct_source",
+        "tmdb_id",
+        "is_adult"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "description": "Season keys are in numeric order, specials (\"0\") first.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "remove",
+      "path": "/episodes/0"
+    },
+    {
+      "op": "add",
+      "path": "/episodes/0",
+      "value": [
+        {
+          "id": "5003",
+          "episode_num": 1,
+          "title": "Good Cop / Bad Cop",
+          "container_extension": "mp4",
+          "season": 0,
+          "added": "1791034680",
+          "custom_sid": "",
+          "direct_source": "",
+          "info": {
+            "movie_image": "https://media.example.com/images/episode-5003/still/w500.45c48cce.webp",
+            "plot": "",
+            "duration_secs": 180,
+            "duration": "00:03:00",
+            "rating": "7.1",
+            "air_date": "2009-02-17",
+            "releasedate": "2009-02-17",
+            "video": {
+              "codec_name": "h264",
+              "width": 1280,
+              "height": 720
+            },
+            "audio": {
+              "codec_name": "aac",
+              "channels": 2
+            },
+            "bitrate": 2410
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "at": "$.episodes",
+    "kind": "invariant:season-order"
+  }
+}

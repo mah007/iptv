@@ -1,0 +1,15 @@
+{
+  "description": "auth is the integer 1, not the boolean true.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/auth",
+      "value": true
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.auth",
+    "kind": "type"
+  }
+}

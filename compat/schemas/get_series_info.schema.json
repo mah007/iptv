@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-iptv.invalid/compat/schemas/get_series_info.schema.json",
+  "title": "player_api.php?action=get_series_info&series_id=",
+  "description": "One series with its seasons and playable episodes (SPEC §7.5). episodes is always an object keyed by season-number strings, \"0\" (specials) included; {} when there is none, never [].",
+  "type": "object",
+  "properties": {
+    "seasons": {
+      "description": "One entry per key of episodes, ordered by season_number; [] when episodes is {}.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/season"
+      }
+    },
+    "info": {
+      "$ref": "#/$defs/info"
+    },
+    "episodes": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(0|[1-9][0-9]{0,3})$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/episode"
+        },
+        "minItems": 1
+      }
+    }
+  },
+  "required": ["seasons", "info", "episodes"],
+  "additionalProperties": false,
+  "$defs": {
+    "season": {
+      "type": "object",
+      "properties": {
+        "season_number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name",
+          "description": "\"Season 1\", \"Specials\" (in the user's locale)."
+        },
+        "episode_count": {
+          "description": "The number of playable episodes in this season (the length of its episodes entry).",
+          "type": "integer",
+          "minimum": 1
+        },
+        "cover": {
+          "$ref": "common.schema.json#/$defs/imageUrl"
+        },
+        "cover_big": {
+          "$ref": "common.schema.json#/$defs/imageUrl"
+        },
+        "air_date": {
+          "$ref": "common.schema.json#/$defs/date"
+        },
+        "overview": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "id": {
+          "description": "A stable integer id for the season (the TMDB season id when known).",
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "season_number",
+        "name",
+        "episode_count",
+        "cover",
+        "cover_big",
+        "air_date",
+        "overview",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "info": {
+      "description": "The series fields of get_series, without num and series_id.",
+      "type": "object",
+      "properties": {
+        "name": { "$ref": "get_series.schema.json#/$defs/series/properties/name" },
+        "cover": { "$ref": "get_series.schema.json#/$defs/series/properties/cover" },
+        "plot": { "$ref": "get_series.schema.json#/$defs/series/properties/plot" },
+        "cast": { "$ref": "get_series.schema.json#/$defs/series/properties/cast" },
+        "director": { "$ref": "get_series.schema.json#/$defs/series/properties/director" },
+        "genre": { "$ref": "get_series.schema.json#/$defs/series/properties/genre" },
+        "releaseDate": { "$ref": "get_series.schema.json#/$defs/series/properties/releaseDate" },
+        "release_date": { "$ref": "get_series.schema.json#/$defs/series/properties/release_date" },
+        "last_modified": { "$ref": "get_series.schema.json#/$defs/series/properties/last_modified" },
+        "rating": { "$ref": "get_series.schema.json#/$defs/series/properties/rating" },
+        "rating_5based": { "$ref": "get_series.schema.json#/$defs/series/properties/rating_5based" },
+        "backdrop_path": { "$ref": "get_series.schema.json#/$defs/series/properties/backdrop_path" },
+        "youtube_trailer": { "$ref": "get_series.schema.json#/$defs/series/properties/youtube_trailer" },
+        "episode_run_time": { "$ref": "get_series.schema.json#/$defs/series/properties/episode_run_time" },
+        "category_id": { "$ref": "get_series.schema.json#/$defs/series/properties/category_id" },
+        "category_ids": { "$ref": "get_series.schema.json#/$defs/series/properties/category_ids" },
+        "tmdb": { "$ref": "get_series.schema.json#/$defs/series/properties/tmdb" }
+      },
+      "required": [
+        "name",
+        "cover",
+        "plot",
+        "cast",
+        "director",
+        "genre",
+        "releaseDate",
+        "release_date",
+        "last_modified",
+        "rating",
+        "rating_5based",
+        "backdrop_path",
+        "youtube_trailer",
+        "episode_run_time",
+        "category_id",
+        "category_ids",
+        "tmdb"
+      ],
+      "additionalProperties": false
+    },
+    "episode": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/xcIdString",
+          "description": "The episode's xc_id as a string; also the id in /series/{u}/{p}/{id}.mp4."
+        },
+        "episode_num": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "title": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "container_extension": {
+          "$ref": "common.schema.json#/$defs/containerExtension"
+        },
+        "season": {
+          "description": "Equals the episodes key this episode is listed under.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "added": {
+          "$ref": "common.schema.json#/$defs/unixTime"
+        },
+        "custom_sid": {
+          "$ref": "common.schema.json#/$defs/alwaysEmpty"
+        },
+        "direct_source": {
+          "$ref": "common.schema.json#/$defs/alwaysEmpty"
+        },
+        "info": {
+          "$ref": "#/$defs/episodeInfo"
+        }
+      },
+      "required": [
+        "id",
+        "episode_num",
+        "title",
+        "container_extension",
+        "season",
+        "added",
+        "custom_sid",
+        "direct_source",
+        "info"
+      ],
+      "additionalProperties": false
+    },
+    "episodeInfo": {
+      "type": "object",
+      "properties": {
+        "movie_image": {
+          "$ref": "common.schema.json#/$defs/imageUrl",
+          "description": "The episode still."
+        },
+        "plot": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "duration_secs": {
+          "$ref": "common.schema.json#/$defs/durationSecs"
+        },
+        "duration": {
+          "$ref": "common.schema.json#/$defs/duration"
+        },
+        "rating": {
+          "$ref": "common.schema.json#/$defs/rating"
+        },
+        "air_date": {
+          "$ref": "common.schema.json#/$defs/date"
+        },
+        "releasedate": {
+          "$ref": "common.schema.json#/$defs/date",
+          "description": "Same value as air_date."
+        },
+        "video": {
+          "$ref": "common.schema.json#/$defs/video"
+        },
+        "audio": {
+          "$ref": "common.schema.json#/$defs/audio"
+        },
+        "bitrate": {
+          "$ref": "common.schema.json#/$defs/bitrate"
+        }
+      },
+      "required": [
+        "movie_image",
+        "plot",
+        "duration_secs",
+        "duration",
+        "rating",
+        "air_date",
+        "releasedate",
+        "video",
+        "audio",
+        "bitrate"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "description": "Movie URLs end in their container_extension (.mp4), whatever output= says.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "1001.mp4",
+      "new": "1001.ts"
+    }
+  ],
+  "expect": {
+    "at": "line 7",
+    "kind": "m3u:url"
+  }
+}

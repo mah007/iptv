@@ -1,0 +1,15 @@
+{
+  "description": "tmdb_id is a string (\"603\"), not an integer.",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/tmdb_id",
+      "value": 603
+    }
+  ],
+  "expect": {
+    "at": "$[0].tmdb_id",
+    "kind": "type"
+  }
+}

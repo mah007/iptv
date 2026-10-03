@@ -1,0 +1,17 @@
+{
+  "description": "backdrop_path lists URLs; \"no backdrop\" is [], not [\"\"].",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/backdrop_path",
+      "value": [
+        ""
+      ]
+    }
+  ],
+  "expect": {
+    "at": "$.backdrop_path[0]",
+    "kind": "pattern"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "season_number is an integer, not a string.",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/seasons/1/season_number",
+      "value": "1"
+    }
+  ],
+  "expect": {
+    "at": "$.seasons[1].season_number",
+    "kind": "type"
+  }
+}

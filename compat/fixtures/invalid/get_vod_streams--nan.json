@@ -1,0 +1,14 @@
+{
+  "description": "NaN is not JSON, even though some encoders write it.",
+  "fixture": "get_vod_streams.json",
+  "replace": [
+    {
+      "old": "\"rating_5based\": 4.1,",
+      "new": "\"rating_5based\": NaN,"
+    }
+  ],
+  "expect": {
+    "at": "$",
+    "kind": "json"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "description": "Attribute values cannot contain double quotes; the writer replaces them.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "tvg-name=\"The Matrix\"",
+      "new": "tvg-name=\"The \"Matrix\"\""
+    }
+  ],
+  "expect": {
+    "at": "line 6",
+    "kind": "m3u:extinf"
+  }
+}

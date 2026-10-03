@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-iptv.invalid/compat/schemas/auth_failure.schema.json",
+  "title": "player_api.php failed authentication",
+  "description": "The body for any request with an unknown username or a wrong password, sent with HTTP 200 because IPTV apps expect it (SPEC §7.5). It is byte-for-byte the same in both cases, so a response never reveals whether a username exists.",
+  "type": "object",
+  "properties": {
+    "user_info": {
+      "type": "object",
+      "properties": {
+        "auth": {
+          "type": "integer",
+          "const": 0
+        }
+      },
+      "required": ["auth"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["user_info"],
+  "additionalProperties": false
+}

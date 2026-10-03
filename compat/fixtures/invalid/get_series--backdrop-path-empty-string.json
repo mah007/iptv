@@ -1,0 +1,15 @@
+{
+  "description": "backdrop_path is [] when there is no backdrop, never \"\".",
+  "fixture": "get_series.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/backdrop_path",
+      "value": ""
+    }
+  ],
+  "expect": {
+    "at": "$[0].backdrop_path",
+    "kind": "type"
+  }
+}

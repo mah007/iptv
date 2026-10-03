@@ -1,0 +1,15 @@
+{
+  "description": "exp_date is a unix-seconds string, not an integer.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/exp_date",
+      "value": 1822564800
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.exp_date",
+    "kind": "type"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "movie_data.stream_id is an integer, not a string.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/movie_data/stream_id",
+      "value": "1001"
+    }
+  ],
+  "expect": {
+    "at": "$.movie_data.stream_id",
+    "kind": "type"
+  }
+}

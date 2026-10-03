@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-iptv.invalid/compat/schemas/get_vod_info.schema.json",
+  "title": "player_api.php?action=get_vod_info&vod_id=",
+  "description": "One movie's details (SPEC §7.5). Every field of info is also repeated at the root, with the same value, for apps that read it there.",
+  "type": "object",
+  "properties": {
+    "info": {
+      "$ref": "#/$defs/info"
+    },
+    "movie_data": {
+      "$ref": "#/$defs/movieData"
+    },
+    "name": { "$ref": "#/$defs/info/properties/name" },
+    "o_name": { "$ref": "#/$defs/info/properties/o_name" },
+    "cover_big": { "$ref": "#/$defs/info/properties/cover_big" },
+    "movie_image": { "$ref": "#/$defs/info/properties/movie_image" },
+    "backdrop_path": { "$ref": "#/$defs/info/properties/backdrop_path" },
+    "plot": { "$ref": "#/$defs/info/properties/plot" },
+    "description": { "$ref": "#/$defs/info/properties/description" },
+    "cast": { "$ref": "#/$defs/info/properties/cast" },
+    "actors": { "$ref": "#/$defs/info/properties/actors" },
+    "director": { "$ref": "#/$defs/info/properties/director" },
+    "genre": { "$ref": "#/$defs/info/properties/genre" },
+    "release_date": { "$ref": "#/$defs/info/properties/release_date" },
+    "releasedate": { "$ref": "#/$defs/info/properties/releasedate" },
+    "year": { "$ref": "#/$defs/info/properties/year" },
+    "country": { "$ref": "#/$defs/info/properties/country" },
+    "rating": { "$ref": "#/$defs/info/properties/rating" },
+    "rating_5based": { "$ref": "#/$defs/info/properties/rating_5based" },
+    "duration_secs": { "$ref": "#/$defs/info/properties/duration_secs" },
+    "duration": { "$ref": "#/$defs/info/properties/duration" },
+    "tmdb_id": { "$ref": "#/$defs/info/properties/tmdb_id" },
+    "imdb_id": { "$ref": "#/$defs/info/properties/imdb_id" },
+    "youtube_trailer": { "$ref": "#/$defs/info/properties/youtube_trailer" },
+    "age": { "$ref": "#/$defs/info/properties/age" },
+    "video": { "$ref": "#/$defs/info/properties/video" },
+    "audio": { "$ref": "#/$defs/info/properties/audio" },
+    "bitrate": { "$ref": "#/$defs/info/properties/bitrate" }
+  },
+  "required": [
+    "info",
+    "movie_data",
+    "name",
+    "o_name",
+    "cover_big",
+    "movie_image",
+    "backdrop_path",
+    "plot",
+    "description",
+    "cast",
+    "actors",
+    "director",
+    "genre",
+    "release_date",
+    "releasedate",
+    "year",
+    "country",
+    "rating",
+    "rating_5based",
+    "duration_secs",
+    "duration",
+    "tmdb_id",
+    "imdb_id",
+    "youtube_trailer",
+    "age",
+    "video",
+    "audio",
+    "bitrate"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "info": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "o_name": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Original title."
+        },
+        "cover_big": {
+          "$ref": "common.schema.json#/$defs/imageUrl",
+          "description": "Large poster."
+        },
+        "movie_image": {
+          "$ref": "common.schema.json#/$defs/imageUrl",
+          "description": "Poster."
+        },
+        "backdrop_path": {
+          "$ref": "common.schema.json#/$defs/imageUrlList"
+        },
+        "plot": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Same text as plot."
+        },
+        "cast": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Comma-separated names."
+        },
+        "actors": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Same text as cast."
+        },
+        "director": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Comma-separated names."
+        },
+        "genre": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Comma-separated genre names in the user's locale."
+        },
+        "release_date": {
+          "$ref": "common.schema.json#/$defs/date"
+        },
+        "releasedate": {
+          "$ref": "common.schema.json#/$defs/date",
+          "description": "Same value as release_date."
+        },
+        "year": {
+          "$ref": "common.schema.json#/$defs/year"
+        },
+        "country": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "rating": {
+          "$ref": "common.schema.json#/$defs/rating"
+        },
+        "rating_5based": {
+          "$ref": "common.schema.json#/$defs/rating5"
+        },
+        "duration_secs": {
+          "$ref": "common.schema.json#/$defs/durationSecs"
+        },
+        "duration": {
+          "$ref": "common.schema.json#/$defs/duration"
+        },
+        "tmdb_id": {
+          "$ref": "common.schema.json#/$defs/tmdbId"
+        },
+        "imdb_id": {
+          "$ref": "common.schema.json#/$defs/imdbId"
+        },
+        "youtube_trailer": {
+          "$ref": "common.schema.json#/$defs/youtubeKey"
+        },
+        "age": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Certification for the configured country (\"R\", \"+15\"), or \"\"."
+        },
+        "video": {
+          "$ref": "common.schema.json#/$defs/video"
+        },
+        "audio": {
+          "$ref": "common.schema.json#/$defs/audio"
+        },
+        "bitrate": {
+          "$ref": "common.schema.json#/$defs/bitrate"
+        }
+      },
+      "required": [
+        "name",
+        "o_name",
+        "cover_big",
+        "movie_image",
+        "backdrop_path",
+        "plot",
+        "description",
+        "cast",
+        "actors",
+        "director",
+        "genre",
+        "release_date",
+        "releasedate",
+        "year",
+        "country",
+        "rating",
+        "rating_5based",
+        "duration_secs",
+        "duration",
+        "tmdb_id",
+        "imdb_id",
+        "youtube_trailer",
+        "age",
+        "video",
+        "audio",
+        "bitrate"
+      ],
+      "additionalProperties": false
+    },
+    "movieData": {
+      "type": "object",
+      "properties": {
+        "stream_id": {
+          "$ref": "common.schema.json#/$defs/xcId",
+          "description": "Equals the vod_id that was requested."
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "added": {
+          "$ref": "common.schema.json#/$defs/unixTime"
+        },
+        "category_id": {
+          "$ref": "common.schema.json#/$defs/categoryId"
+        },
+        "container_extension": {
+          "$ref": "common.schema.json#/$defs/containerExtension"
+        },
+        "custom_sid": {
+          "$ref": "common.schema.json#/$defs/alwaysEmpty"
+        },
+        "direct_source": {
+          "$ref": "common.schema.json#/$defs/alwaysEmpty"
+        }
+      },
+      "required": [
+        "stream_id",
+        "name",
+        "added",
+        "category_id",
+        "container_extension",
+        "custom_sid",
+        "direct_source"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

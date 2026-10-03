@@ -1,0 +1,15 @@
+{
+  "description": "The server reports UTC; time strings are UTC everywhere.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/server_info/timezone",
+      "value": "Asia/Riyadh"
+    }
+  ],
+  "expect": {
+    "at": "$.server_info.timezone",
+    "kind": "const"
+  }
+}

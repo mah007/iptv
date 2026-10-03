@@ -1,0 +1,15 @@
+{
+  "description": "Every listing belongs to the requested channel.",
+  "fixture": "get_simple_data_table.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/epg_listings/3/channel_id",
+      "value": "family-cinema.example"
+    }
+  ],
+  "expect": {
+    "at": "$.epg_listings[3].channel_id",
+    "kind": "invariant:epg-channel"
+  }
+}

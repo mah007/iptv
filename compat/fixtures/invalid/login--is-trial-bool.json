@@ -1,0 +1,15 @@
+{
+  "description": "is_trial is the string \"0\" or \"1\", not a boolean.",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/is_trial",
+      "value": false
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.is_trial",
+    "kind": "type"
+  }
+}

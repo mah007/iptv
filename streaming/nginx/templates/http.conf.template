@@ -1,0 +1,26 @@
+# Rendered by docker-entrypoint.d/40-edge-config.sh into /etc/nginx/conf.d/edge/ from
+# EDGE_* variables. Edit the template, not the rendered copy.
+
+# Upstream names are re-resolved, so a recreated web (or origin) container is found
+# again without reloading the edge.
+resolver ${EDGE_RESOLVER} valid=${EDGE_RESOLVER_VALID} ipv6=off;
+resolver_timeout 5s;
+
+# The master reads the key file at configuration load and on reload; workers never
+# open it, so it can be readable by root only. Rotation: replace it, then reload.
+js_preload_object edge_keys from ${EDGE_KEYS_FILE};
+
+map "" $edge_id {
+    default "${EDGE_ID}";
+}
+
+map "" $edge_media_root {
+    default "${EDGE_MEDIA_ROOT}";
+}
+
+# Django's internal URLconf, which serves /internal/stream-auth from Redis only.
+upstream edge_auth {
+    zone edge_auth_upstream 64k;
+    server ${EDGE_AUTH_UPSTREAM} resolve;
+    keepalive 16;
+}

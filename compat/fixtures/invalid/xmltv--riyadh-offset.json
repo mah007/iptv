@@ -1,0 +1,14 @@
+{
+  "description": "Times are written in UTC (+0000), like every Xtream time.",
+  "fixture": "xmltv.xml",
+  "replace": [
+    {
+      "old": "start=\"20261003153000 +0000\"",
+      "new": "start=\"20261003183000 +0300\""
+    }
+  ],
+  "expect": {
+    "at": "/tv/programme[2]/@start",
+    "kind": "xmltv:time"
+  }
+}

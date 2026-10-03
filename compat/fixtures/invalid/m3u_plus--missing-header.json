@@ -1,0 +1,14 @@
+{
+  "description": "A playlist starts with #EXTM3U.",
+  "fixture": "m3u_plus.m3u",
+  "replace": [
+    {
+      "old": "#EXTM3U url-tvg=\"https://tv.example.com/xmltv.php?username=mah-7k3p9q&password=example-password\"\n",
+      "new": ""
+    }
+  ],
+  "expect": {
+    "at": "line 1",
+    "kind": "m3u:header"
+  }
+}

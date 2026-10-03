@@ -1,0 +1,15 @@
+{
+  "description": "The failure body is exactly {\"user_info\":{\"auth\":0}}: a message would differ between an unknown user and a wrong password.",
+  "fixture": "auth_failure.json",
+  "patch": [
+    {
+      "op": "add",
+      "path": "/user_info/message",
+      "value": "Invalid password"
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.message",
+    "kind": "additionalProperties"
+  }
+}

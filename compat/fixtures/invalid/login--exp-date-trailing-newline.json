@@ -1,0 +1,15 @@
+{
+  "description": "Patterns use ECMA-262 anchors: a trailing newline does not match ^...$ (Python's $ alone would let it through).",
+  "fixture": "login.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/user_info/exp_date",
+      "value": "1822564800\n"
+    }
+  ],
+  "expect": {
+    "at": "$.user_info.exp_date",
+    "kind": "pattern"
+  }
+}

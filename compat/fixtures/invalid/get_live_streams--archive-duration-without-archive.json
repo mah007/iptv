@@ -1,0 +1,15 @@
+{
+  "description": "A channel without catch-up has tv_archive_duration 0.",
+  "fixture": "get_live_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/1/tv_archive_duration",
+      "value": 7
+    }
+  ],
+  "expect": {
+    "at": "$[1].tv_archive_duration",
+    "kind": "invariant:archive"
+  }
+}

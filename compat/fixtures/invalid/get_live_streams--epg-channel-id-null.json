@@ -1,0 +1,15 @@
+{
+  "description": "epg_channel_id is \"\" when the channel has no guide, never null.",
+  "fixture": "get_live_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/epg_channel_id",
+      "value": null
+    }
+  ],
+  "expect": {
+    "at": "$[0].epg_channel_id",
+    "kind": "type"
+  }
+}

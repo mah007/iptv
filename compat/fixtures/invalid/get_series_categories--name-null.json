@@ -1,0 +1,15 @@
+{
+  "description": "category_name is never null.",
+  "fixture": "get_series_categories.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/category_name",
+      "value": null
+    }
+  ],
+  "expect": {
+    "at": "$[0].category_name",
+    "kind": "type"
+  }
+}

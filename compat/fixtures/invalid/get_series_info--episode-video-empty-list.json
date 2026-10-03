@@ -1,0 +1,15 @@
+{
+  "description": "An episode's video is an object, never [].",
+  "fixture": "get_series_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/episodes/1/0/info/video",
+      "value": []
+    }
+  ],
+  "expect": {
+    "at": "$.episodes[\"1\"][0].info.video",
+    "kind": "type"
+  }
+}
