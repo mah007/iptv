@@ -31,7 +31,12 @@ import type {
   AdminCreated,
   AdminsListParams,
   AuditListParams,
+  Candidate,
   CategoriesListParams,
+  Category,
+  CategoryReorderRequest,
+  CategoryWriteRequest,
+  CredentialResetRequest,
   CustomerCreateRequest,
   CustomerCreated,
   CustomerDetail,
@@ -42,25 +47,53 @@ import type {
   DeviceCreateRequest,
   IssuedCredential,
   Kpis,
+  LibrariesListParams,
+  Library,
+  LibraryWriteRequest,
   LoginRequest,
   LoginResponse,
   Me,
+  MetadataSearchParams,
   MfaVerifyRequest,
+  MovieDetail,
+  MoviesListParams,
   PaginatedAccessRuleList,
   PaginatedAdminList,
   PaginatedAuditLogList,
   PaginatedCategoryList,
   PaginatedCustomerSummaryList,
   PaginatedDeviceList,
+  PaginatedLibraryList,
+  PaginatedMovieSummaryList,
+  PaginatedReviewList,
+  PaginatedScanJobList,
+  PaginatedSeriesSummaryList,
+  PaginatedSessionList,
   PatchedAccessProfileRequest,
   PatchedAdminUpdateRequest,
+  PatchedCategoryWriteRequest,
   PatchedCustomerProfileRequest,
+  PatchedLibraryWriteRequest,
+  PatchedMovieUpdateRequest,
   PatchedRoleRequest,
+  PatchedSeriesUpdateRequest,
   PatchedSettingRequest,
   Permission,
   Problem,
+  Queued,
+  ResolveRequest,
+  Review,
+  ReviewQueueListParams,
   Role,
   RoleRequest,
+  ScanJob,
+  ScanStarted,
+  ScansListParams,
+  SeriesDetail,
+  SeriesListParams,
+  Session,
+  SessionsListParams,
+  SessionsStreamParams,
   SettingEntry,
   SuspendRequest,
 } from "./admin.schemas";
@@ -1026,7 +1059,7 @@ export const getCategoriesListUrl = (params?: CategoriesListParams) => {
 };
 
 /**
- * GET /api/v1/admin/categories: for access-profile editors now, the catalogue in M6.
+ * GET /api/v1/admin/categories: for access-profile editors and the catalogue.
  * @summary List categories, by kind and order
  */
 export const categoriesList = async (
@@ -1142,6 +1175,539 @@ export function useCategoriesList<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export const getCategoriesCreateUrl = () => {
+  return `/api/v1/admin/categories`;
+};
+
+/**
+ * GET /api/v1/admin/categories: for access-profile editors and the catalogue.
+ * @summary Create a category
+ */
+export const categoriesCreate = async (
+  categoryWriteRequest: CategoryWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Category> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<Category>(getCategoriesCreateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(categoryWriteRequest),
+  });
+};
+
+export const getCategoriesCreateMutationKey = () => ["categoriesCreate"] as const;
+
+export const getCategoriesCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof categoriesCreate>>,
+    TError,
+    CategoriesCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof categoriesCreate>>,
+  TError,
+  CategoriesCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCategoriesCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof categoriesCreate>>,
+    CategoriesCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return categoriesCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CategoriesCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof categoriesCreate>>
+>;
+export type CategoriesCreateMutationBody = CategoryWriteRequest;
+export type CategoriesCreateMutationError = ErrorType<Problem>;
+export type CategoriesCreateMutationVariables = { data: CategoryWriteRequest };
+
+/**
+ * @summary Create a category
+ */
+export const useCategoriesCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof categoriesCreate>>,
+      TError,
+      CategoriesCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof categoriesCreate>>,
+  TError,
+  CategoriesCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getCategoriesCreateMutationOptions(options), queryClient);
+};
+
+export const getCategoriesRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/categories/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One category
+ */
+export const categoriesRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Category> => {
+  return apiFetch<Category>(getCategoriesRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getCategoriesRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/categories/${id}`] as const;
+};
+
+export const getCategoriesRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof categoriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof categoriesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getCategoriesRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof categoriesRetrieve>>> = ({ signal }) =>
+    categoriesRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof categoriesRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type CategoriesRetrieveQueryResult = NonNullable<
+  Awaited<ReturnType<typeof categoriesRetrieve>>
+>;
+export type CategoriesRetrieveQueryError = ErrorType<Problem>;
+
+export function useCategoriesRetrieve<
+  TData = Awaited<ReturnType<typeof categoriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof categoriesRetrieve>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof categoriesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof categoriesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useCategoriesRetrieve<
+  TData = Awaited<ReturnType<typeof categoriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof categoriesRetrieve>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof categoriesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof categoriesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useCategoriesRetrieve<
+  TData = Awaited<ReturnType<typeof categoriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof categoriesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One category
+ */
+
+export function useCategoriesRetrieve<
+  TData = Awaited<ReturnType<typeof categoriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof categoriesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getCategoriesRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getCategoriesUpdateUrl = (id: string) => {
+  return `/api/v1/admin/categories/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Change a category
+ */
+export const categoriesUpdate = async (
+  id: string,
+  patchedCategoryWriteRequest?: PatchedCategoryWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Category> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<Category>(getCategoriesUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedCategoryWriteRequest),
+  });
+};
+
+export const getCategoriesUpdateMutationKey = () => ["categoriesUpdate"] as const;
+
+export const getCategoriesUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof categoriesUpdate>>,
+    TError,
+    CategoriesUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof categoriesUpdate>>,
+  TError,
+  CategoriesUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCategoriesUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof categoriesUpdate>>,
+    CategoriesUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return categoriesUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CategoriesUpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof categoriesUpdate>>
+>;
+export type CategoriesUpdateMutationBody = PatchedCategoryWriteRequest | undefined;
+export type CategoriesUpdateMutationError = ErrorType<Problem>;
+export type CategoriesUpdateMutationVariables = { id: string; data?: PatchedCategoryWriteRequest };
+
+/**
+ * @summary Change a category
+ */
+export const useCategoriesUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof categoriesUpdate>>,
+      TError,
+      CategoriesUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof categoriesUpdate>>,
+  TError,
+  CategoriesUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getCategoriesUpdateMutationOptions(options), queryClient);
+};
+
+export const getCategoriesDeleteUrl = (id: string) => {
+  return `/api/v1/admin/categories/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Delete a category (titles and access profiles lose it)
+ */
+export const categoriesDelete = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getCategoriesDeleteUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getCategoriesDeleteMutationKey = () => ["categoriesDelete"] as const;
+
+export const getCategoriesDeleteMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof categoriesDelete>>,
+    TError,
+    CategoriesDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof categoriesDelete>>,
+  TError,
+  CategoriesDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCategoriesDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof categoriesDelete>>,
+    CategoriesDeleteMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return categoriesDelete(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CategoriesDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof categoriesDelete>>
+>;
+
+export type CategoriesDeleteMutationError = ErrorType<Problem>;
+export type CategoriesDeleteMutationVariables = { id: string };
+
+/**
+ * @summary Delete a category (titles and access profiles lose it)
+ */
+export const useCategoriesDelete = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof categoriesDelete>>,
+      TError,
+      CategoriesDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof categoriesDelete>>,
+  TError,
+  CategoriesDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getCategoriesDeleteMutationOptions(options), queryClient);
+};
+
+export const getCategoriesReorderUrl = () => {
+  return `/api/v1/admin/categories/reorder`;
+};
+
+/**
+ * @summary Put the categories of one kind in the given order
+ */
+export const categoriesReorder = async (
+  categoryReorderRequest: CategoryReorderRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Category[]> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<Category[]>(getCategoriesReorderUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(categoryReorderRequest),
+  });
+};
+
+export const getCategoriesReorderMutationKey = () => ["categoriesReorder"] as const;
+
+export const getCategoriesReorderMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof categoriesReorder>>,
+    TError,
+    CategoriesReorderMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof categoriesReorder>>,
+  TError,
+  CategoriesReorderMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCategoriesReorderMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof categoriesReorder>>,
+    CategoriesReorderMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return categoriesReorder(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CategoriesReorderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof categoriesReorder>>
+>;
+export type CategoriesReorderMutationBody = CategoryReorderRequest;
+export type CategoriesReorderMutationError = ErrorType<Problem>;
+export type CategoriesReorderMutationVariables = { data: CategoryReorderRequest };
+
+/**
+ * @summary Put the categories of one kind in the given order
+ */
+export const useCategoriesReorder = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof categoriesReorder>>,
+      TError,
+      CategoriesReorderMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof categoriesReorder>>,
+  TError,
+  CategoriesReorderMutationVariables,
+  TContext
+> => {
+  return useMutation(getCategoriesReorderMutationOptions(options), queryClient);
+};
 
 export const getCustomersListUrl = (params?: CustomersListParams) => {
   const normalizedParams = new URLSearchParams();
@@ -2632,16 +3198,38 @@ export const getDevicesResetCredentialsUrl = (id: string) => {
 };
 
 /**
- * The response holds the new password; it is shown once.
+ * The response holds the new password; it is shown once. The body is optional: a chosen password (else one is generated) and a new username (else it stays).
  * @summary Issue a new password for the device; the old one stops working
  */
 export const devicesResetCredentials = async (
   id: string,
+  credentialResetRequest?: CredentialResetRequest,
   options?: Parameters<typeof apiFetch>[1],
 ): Promise<IssuedCredential> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
   return apiFetch<IssuedCredential>(getDevicesResetCredentialsUrl(id), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(credentialResetRequest),
   });
 };
 
@@ -2675,9 +3263,9 @@ export const getDevicesResetCredentialsMutationOptions = <
     Awaited<ReturnType<typeof devicesResetCredentials>>,
     DevicesResetCredentialsMutationVariables
   > = (props) => {
-    const { id } = props ?? {};
+    const { id, data } = props ?? {};
 
-    return devicesResetCredentials(id, requestOptions);
+    return devicesResetCredentials(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2686,9 +3274,12 @@ export const getDevicesResetCredentialsMutationOptions = <
 export type DevicesResetCredentialsMutationResult = NonNullable<
   Awaited<ReturnType<typeof devicesResetCredentials>>
 >;
-
+export type DevicesResetCredentialsMutationBody = CredentialResetRequest | undefined;
 export type DevicesResetCredentialsMutationError = ErrorType<Problem>;
-export type DevicesResetCredentialsMutationVariables = { id: string };
+export type DevicesResetCredentialsMutationVariables = {
+  id: string;
+  data?: CredentialResetRequest;
+};
 
 /**
  * @summary Issue a new password for the device; the old one stops working
@@ -2881,6 +3472,1235 @@ export const useDevicesUnblock = <TError = ErrorType<Problem>, TContext = unknow
   return useMutation(getDevicesUnblockMutationOptions(options), queryClient);
 };
 
+export const getLibrariesListUrl = (params?: LibrariesListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/libraries?${stringifiedParams}`
+    : `/api/v1/admin/libraries`;
+};
+
+/**
+ * @summary List libraries with their totals and latest scan
+ */
+export const librariesList = async (
+  params?: LibrariesListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedLibraryList> => {
+  return apiFetch<PaginatedLibraryList>(getLibrariesListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLibrariesListQueryKey = (params?: LibrariesListParams) => {
+  return [`/api/v1/admin/libraries`, ...(params ? [params] : [])] as const;
+};
+
+export const getLibrariesListQueryOptions = <
+  TData = Awaited<ReturnType<typeof librariesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LibrariesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLibrariesListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof librariesList>>> = ({ signal }) =>
+    librariesList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof librariesList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LibrariesListQueryResult = NonNullable<Awaited<ReturnType<typeof librariesList>>>;
+export type LibrariesListQueryError = ErrorType<Problem>;
+
+export function useLibrariesList<
+  TData = Awaited<ReturnType<typeof librariesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | LibrariesListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof librariesList>>,
+          TError,
+          Awaited<ReturnType<typeof librariesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLibrariesList<
+  TData = Awaited<ReturnType<typeof librariesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LibrariesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof librariesList>>,
+          TError,
+          Awaited<ReturnType<typeof librariesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLibrariesList<
+  TData = Awaited<ReturnType<typeof librariesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LibrariesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List libraries with their totals and latest scan
+ */
+
+export function useLibrariesList<
+  TData = Awaited<ReturnType<typeof librariesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LibrariesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLibrariesListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLibrariesCreateUrl = () => {
+  return `/api/v1/admin/libraries`;
+};
+
+/**
+ * @summary Add a library: a readable folder under the media root
+ */
+export const librariesCreate = async (
+  libraryWriteRequest: LibraryWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Library> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<Library>(getLibrariesCreateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(libraryWriteRequest),
+  });
+};
+
+export const getLibrariesCreateMutationKey = () => ["librariesCreate"] as const;
+
+export const getLibrariesCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof librariesCreate>>,
+    TError,
+    LibrariesCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof librariesCreate>>,
+  TError,
+  LibrariesCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLibrariesCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof librariesCreate>>,
+    LibrariesCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return librariesCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LibrariesCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof librariesCreate>>
+>;
+export type LibrariesCreateMutationBody = LibraryWriteRequest;
+export type LibrariesCreateMutationError = ErrorType<Problem>;
+export type LibrariesCreateMutationVariables = { data: LibraryWriteRequest };
+
+/**
+ * @summary Add a library: a readable folder under the media root
+ */
+export const useLibrariesCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof librariesCreate>>,
+      TError,
+      LibrariesCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof librariesCreate>>,
+  TError,
+  LibrariesCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getLibrariesCreateMutationOptions(options), queryClient);
+};
+
+export const getLibrariesRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/libraries/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One library with its totals and latest scan
+ */
+export const librariesRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Library> => {
+  return apiFetch<Library>(getLibrariesRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLibrariesRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/libraries/${id}`] as const;
+};
+
+export const getLibrariesRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof librariesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLibrariesRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof librariesRetrieve>>> = ({ signal }) =>
+    librariesRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof librariesRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type LibrariesRetrieveQueryResult = NonNullable<
+  Awaited<ReturnType<typeof librariesRetrieve>>
+>;
+export type LibrariesRetrieveQueryError = ErrorType<Problem>;
+
+export function useLibrariesRetrieve<
+  TData = Awaited<ReturnType<typeof librariesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesRetrieve>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof librariesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof librariesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLibrariesRetrieve<
+  TData = Awaited<ReturnType<typeof librariesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesRetrieve>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof librariesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof librariesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLibrariesRetrieve<
+  TData = Awaited<ReturnType<typeof librariesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One library with its totals and latest scan
+ */
+
+export function useLibrariesRetrieve<
+  TData = Awaited<ReturnType<typeof librariesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof librariesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLibrariesRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLibrariesUpdateUrl = (id: string) => {
+  return `/api/v1/admin/libraries/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Change a library
+ */
+export const librariesUpdate = async (
+  id: string,
+  patchedLibraryWriteRequest?: PatchedLibraryWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Library> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<Library>(getLibrariesUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedLibraryWriteRequest),
+  });
+};
+
+export const getLibrariesUpdateMutationKey = () => ["librariesUpdate"] as const;
+
+export const getLibrariesUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof librariesUpdate>>,
+    TError,
+    LibrariesUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof librariesUpdate>>,
+  TError,
+  LibrariesUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLibrariesUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof librariesUpdate>>,
+    LibrariesUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return librariesUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LibrariesUpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof librariesUpdate>>
+>;
+export type LibrariesUpdateMutationBody = PatchedLibraryWriteRequest | undefined;
+export type LibrariesUpdateMutationError = ErrorType<Problem>;
+export type LibrariesUpdateMutationVariables = { id: string; data?: PatchedLibraryWriteRequest };
+
+/**
+ * @summary Change a library
+ */
+export const useLibrariesUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof librariesUpdate>>,
+      TError,
+      LibrariesUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof librariesUpdate>>,
+  TError,
+  LibrariesUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getLibrariesUpdateMutationOptions(options), queryClient);
+};
+
+export const getLibrariesDeleteUrl = (id: string) => {
+  return `/api/v1/admin/libraries/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Delete a library and its file records (titles stay, hidden if left empty)
+ */
+export const librariesDelete = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getLibrariesDeleteUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getLibrariesDeleteMutationKey = () => ["librariesDelete"] as const;
+
+export const getLibrariesDeleteMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof librariesDelete>>,
+    TError,
+    LibrariesDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof librariesDelete>>,
+  TError,
+  LibrariesDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLibrariesDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof librariesDelete>>,
+    LibrariesDeleteMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return librariesDelete(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LibrariesDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof librariesDelete>>
+>;
+
+export type LibrariesDeleteMutationError = ErrorType<Problem>;
+export type LibrariesDeleteMutationVariables = { id: string };
+
+/**
+ * @summary Delete a library and its file records (titles stay, hidden if left empty)
+ */
+export const useLibrariesDelete = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof librariesDelete>>,
+      TError,
+      LibrariesDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof librariesDelete>>,
+  TError,
+  LibrariesDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getLibrariesDeleteMutationOptions(options), queryClient);
+};
+
+export const getLibrariesScanUrl = (id: string) => {
+  return `/api/v1/admin/libraries/${encodeURIComponent(String(id))}/scan`;
+};
+
+/**
+ * @summary Scan the library now (returns the running scan if there is one)
+ */
+export const librariesScan = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ScanStarted> => {
+  return apiFetch<ScanStarted>(getLibrariesScanUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLibrariesScanMutationKey = () => ["librariesScan"] as const;
+
+export const getLibrariesScanMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof librariesScan>>,
+    TError,
+    LibrariesScanMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof librariesScan>>,
+  TError,
+  LibrariesScanMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLibrariesScanMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof librariesScan>>,
+    LibrariesScanMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return librariesScan(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LibrariesScanMutationResult = NonNullable<Awaited<ReturnType<typeof librariesScan>>>;
+
+export type LibrariesScanMutationError = ErrorType<Problem>;
+export type LibrariesScanMutationVariables = { id: string };
+
+/**
+ * @summary Scan the library now (returns the running scan if there is one)
+ */
+export const useLibrariesScan = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof librariesScan>>,
+      TError,
+      LibrariesScanMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof librariesScan>>,
+  TError,
+  LibrariesScanMutationVariables,
+  TContext
+> => {
+  return useMutation(getLibrariesScanMutationOptions(options), queryClient);
+};
+
+export const getMetadataSearchUrl = (params: MetadataSearchParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/metadata/search?${stringifiedParams}`
+    : `/api/v1/admin/metadata/search`;
+};
+
+/**
+ * @summary Search TMDB (or the fixtures) for manual matching
+ */
+export const metadataSearch = async (
+  params: MetadataSearchParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Candidate[]> => {
+  return apiFetch<Candidate[]>(getMetadataSearchUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getMetadataSearchQueryKey = (params?: MetadataSearchParams) => {
+  return [`/api/v1/admin/metadata/search`, ...(params ? [params] : [])] as const;
+};
+
+export const getMetadataSearchQueryOptions = <
+  TData = Awaited<ReturnType<typeof metadataSearch>>,
+  TError = ErrorType<Problem>,
+>(
+  params: MetadataSearchParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof metadataSearch>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMetadataSearchQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof metadataSearch>>> = ({ signal }) =>
+    metadataSearch(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof metadataSearch>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type MetadataSearchQueryResult = NonNullable<Awaited<ReturnType<typeof metadataSearch>>>;
+export type MetadataSearchQueryError = ErrorType<Problem>;
+
+export function useMetadataSearch<
+  TData = Awaited<ReturnType<typeof metadataSearch>>,
+  TError = ErrorType<Problem>,
+>(
+  params: MetadataSearchParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof metadataSearch>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof metadataSearch>>,
+          TError,
+          Awaited<ReturnType<typeof metadataSearch>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMetadataSearch<
+  TData = Awaited<ReturnType<typeof metadataSearch>>,
+  TError = ErrorType<Problem>,
+>(
+  params: MetadataSearchParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof metadataSearch>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof metadataSearch>>,
+          TError,
+          Awaited<ReturnType<typeof metadataSearch>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMetadataSearch<
+  TData = Awaited<ReturnType<typeof metadataSearch>>,
+  TError = ErrorType<Problem>,
+>(
+  params: MetadataSearchParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof metadataSearch>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Search TMDB (or the fixtures) for manual matching
+ */
+
+export function useMetadataSearch<
+  TData = Awaited<ReturnType<typeof metadataSearch>>,
+  TError = ErrorType<Problem>,
+>(
+  params: MetadataSearchParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof metadataSearch>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getMetadataSearchQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getMoviesListUrl = (params?: MoviesListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["status"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? "null" : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/movies?${stringifiedParams}`
+    : `/api/v1/admin/movies`;
+};
+
+/**
+ * @summary List movies with poster, status and file count
+ */
+export const moviesList = async (
+  params?: MoviesListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedMovieSummaryList> => {
+  return apiFetch<PaginatedMovieSummaryList>(getMoviesListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getMoviesListQueryKey = (params?: MoviesListParams) => {
+  return [`/api/v1/admin/movies`, ...(params ? [params] : [])] as const;
+};
+
+export const getMoviesListQueryOptions = <
+  TData = Awaited<ReturnType<typeof moviesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: MoviesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMoviesListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof moviesList>>> = ({ signal }) =>
+    moviesList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof moviesList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type MoviesListQueryResult = NonNullable<Awaited<ReturnType<typeof moviesList>>>;
+export type MoviesListQueryError = ErrorType<Problem>;
+
+export function useMoviesList<
+  TData = Awaited<ReturnType<typeof moviesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | MoviesListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof moviesList>>,
+          TError,
+          Awaited<ReturnType<typeof moviesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMoviesList<
+  TData = Awaited<ReturnType<typeof moviesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: MoviesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof moviesList>>,
+          TError,
+          Awaited<ReturnType<typeof moviesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMoviesList<
+  TData = Awaited<ReturnType<typeof moviesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: MoviesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List movies with poster, status and file count
+ */
+
+export function useMoviesList<
+  TData = Awaited<ReturnType<typeof moviesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: MoviesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getMoviesListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getMoviesRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/movies/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary A movie with metadata, artwork, credits and files
+ */
+export const moviesRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<MovieDetail> => {
+  return apiFetch<MovieDetail>(getMoviesRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getMoviesRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/movies/${id}`] as const;
+};
+
+export const getMoviesRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof moviesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMoviesRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof moviesRetrieve>>> = ({ signal }) =>
+    moviesRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof moviesRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type MoviesRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof moviesRetrieve>>>;
+export type MoviesRetrieveQueryError = ErrorType<Problem>;
+
+export function useMoviesRetrieve<
+  TData = Awaited<ReturnType<typeof moviesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesRetrieve>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof moviesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof moviesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMoviesRetrieve<
+  TData = Awaited<ReturnType<typeof moviesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesRetrieve>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof moviesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof moviesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMoviesRetrieve<
+  TData = Awaited<ReturnType<typeof moviesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary A movie with metadata, artwork, credits and files
+ */
+
+export function useMoviesRetrieve<
+  TData = Awaited<ReturnType<typeof moviesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof moviesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getMoviesRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getMoviesUpdateUrl = (id: string) => {
+  return `/api/v1/admin/movies/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Edit a movie's metadata; edited fields are locked against refreshes
+ */
+export const moviesUpdate = async (
+  id: string,
+  patchedMovieUpdateRequest?: PatchedMovieUpdateRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<MovieDetail> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<MovieDetail>(getMoviesUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedMovieUpdateRequest),
+  });
+};
+
+export const getMoviesUpdateMutationKey = () => ["moviesUpdate"] as const;
+
+export const getMoviesUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof moviesUpdate>>,
+    TError,
+    MoviesUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof moviesUpdate>>,
+  TError,
+  MoviesUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMoviesUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof moviesUpdate>>,
+    MoviesUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return moviesUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MoviesUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof moviesUpdate>>>;
+export type MoviesUpdateMutationBody = PatchedMovieUpdateRequest | undefined;
+export type MoviesUpdateMutationError = ErrorType<Problem>;
+export type MoviesUpdateMutationVariables = { id: string; data?: PatchedMovieUpdateRequest };
+
+/**
+ * @summary Edit a movie's metadata; edited fields are locked against refreshes
+ */
+export const useMoviesUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof moviesUpdate>>,
+      TError,
+      MoviesUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof moviesUpdate>>,
+  TError,
+  MoviesUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getMoviesUpdateMutationOptions(options), queryClient);
+};
+
+export const getMoviesRefreshMetadataUrl = (id: string) => {
+  return `/api/v1/admin/movies/${encodeURIComponent(String(id))}/refresh-metadata`;
+};
+
+/**
+ * @summary Fetch the movie's metadata again (locked fields are kept)
+ */
+export const moviesRefreshMetadata = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Queued> => {
+  return apiFetch<Queued>(getMoviesRefreshMetadataUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getMoviesRefreshMetadataMutationKey = () => ["moviesRefreshMetadata"] as const;
+
+export const getMoviesRefreshMetadataMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof moviesRefreshMetadata>>,
+    TError,
+    MoviesRefreshMetadataMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof moviesRefreshMetadata>>,
+  TError,
+  MoviesRefreshMetadataMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMoviesRefreshMetadataMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof moviesRefreshMetadata>>,
+    MoviesRefreshMetadataMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return moviesRefreshMetadata(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MoviesRefreshMetadataMutationResult = NonNullable<
+  Awaited<ReturnType<typeof moviesRefreshMetadata>>
+>;
+
+export type MoviesRefreshMetadataMutationError = ErrorType<Problem>;
+export type MoviesRefreshMetadataMutationVariables = { id: string };
+
+/**
+ * @summary Fetch the movie's metadata again (locked fields are kept)
+ */
+export const useMoviesRefreshMetadata = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof moviesRefreshMetadata>>,
+      TError,
+      MoviesRefreshMetadataMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof moviesRefreshMetadata>>,
+  TError,
+  MoviesRefreshMetadataMutationVariables,
+  TContext
+> => {
+  return useMutation(getMoviesRefreshMetadataMutationOptions(options), queryClient);
+};
+
 export const getPermissionsListUrl = () => {
   return `/api/v1/admin/permissions`;
 };
@@ -2994,6 +4814,467 @@ export function usePermissionsList<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export const getReviewQueueListUrl = (params?: ReviewQueueListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/review-queue?${stringifiedParams}`
+    : `/api/v1/admin/review-queue`;
+};
+
+/**
+ * @summary Files whose metadata match needs a decision (open by default)
+ */
+export const reviewQueueList = async (
+  params?: ReviewQueueListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedReviewList> => {
+  return apiFetch<PaginatedReviewList>(getReviewQueueListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getReviewQueueListQueryKey = (params?: ReviewQueueListParams) => {
+  return [`/api/v1/admin/review-queue`, ...(params ? [params] : [])] as const;
+};
+
+export const getReviewQueueListQueryOptions = <
+  TData = Awaited<ReturnType<typeof reviewQueueList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ReviewQueueListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof reviewQueueList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getReviewQueueListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof reviewQueueList>>> = ({ signal }) =>
+    reviewQueueList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof reviewQueueList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ReviewQueueListQueryResult = NonNullable<Awaited<ReturnType<typeof reviewQueueList>>>;
+export type ReviewQueueListQueryError = ErrorType<Problem>;
+
+export function useReviewQueueList<
+  TData = Awaited<ReturnType<typeof reviewQueueList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | ReviewQueueListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof reviewQueueList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reviewQueueList>>,
+          TError,
+          Awaited<ReturnType<typeof reviewQueueList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useReviewQueueList<
+  TData = Awaited<ReturnType<typeof reviewQueueList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ReviewQueueListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof reviewQueueList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reviewQueueList>>,
+          TError,
+          Awaited<ReturnType<typeof reviewQueueList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useReviewQueueList<
+  TData = Awaited<ReturnType<typeof reviewQueueList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ReviewQueueListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof reviewQueueList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Files whose metadata match needs a decision (open by default)
+ */
+
+export function useReviewQueueList<
+  TData = Awaited<ReturnType<typeof reviewQueueList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ReviewQueueListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof reviewQueueList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getReviewQueueListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getReviewQueueRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/review-queue/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One review with the parsed name, the file and the scored candidates
+ */
+export const reviewQueueRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Review> => {
+  return apiFetch<Review>(getReviewQueueRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getReviewQueueRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/review-queue/${id}`] as const;
+};
+
+export const getReviewQueueRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof reviewQueueRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof reviewQueueRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getReviewQueueRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof reviewQueueRetrieve>>> = ({ signal }) =>
+    reviewQueueRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof reviewQueueRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type ReviewQueueRetrieveQueryResult = NonNullable<
+  Awaited<ReturnType<typeof reviewQueueRetrieve>>
+>;
+export type ReviewQueueRetrieveQueryError = ErrorType<Problem>;
+
+export function useReviewQueueRetrieve<
+  TData = Awaited<ReturnType<typeof reviewQueueRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof reviewQueueRetrieve>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reviewQueueRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof reviewQueueRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useReviewQueueRetrieve<
+  TData = Awaited<ReturnType<typeof reviewQueueRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof reviewQueueRetrieve>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof reviewQueueRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof reviewQueueRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useReviewQueueRetrieve<
+  TData = Awaited<ReturnType<typeof reviewQueueRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof reviewQueueRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One review with the parsed name, the file and the scored candidates
+ */
+
+export function useReviewQueueRetrieve<
+  TData = Awaited<ReturnType<typeof reviewQueueRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof reviewQueueRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getReviewQueueRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getReviewQueueResolveUrl = (id: string) => {
+  return `/api/v1/admin/review-queue/${encodeURIComponent(String(id))}/resolve`;
+};
+
+/**
+ * @summary Match the file to the chosen TMDB movie or series
+ */
+export const reviewQueueResolve = async (
+  id: string,
+  resolveRequest: ResolveRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Review> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<Review>(getReviewQueueResolveUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(resolveRequest),
+  });
+};
+
+export const getReviewQueueResolveMutationKey = () => ["reviewQueueResolve"] as const;
+
+export const getReviewQueueResolveMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviewQueueResolve>>,
+    TError,
+    ReviewQueueResolveMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reviewQueueResolve>>,
+  TError,
+  ReviewQueueResolveMutationVariables,
+  TContext
+> => {
+  const mutationKey = getReviewQueueResolveMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reviewQueueResolve>>,
+    ReviewQueueResolveMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return reviewQueueResolve(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReviewQueueResolveMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reviewQueueResolve>>
+>;
+export type ReviewQueueResolveMutationBody = ResolveRequest;
+export type ReviewQueueResolveMutationError = ErrorType<Problem>;
+export type ReviewQueueResolveMutationVariables = { id: string; data: ResolveRequest };
+
+/**
+ * @summary Match the file to the chosen TMDB movie or series
+ */
+export const useReviewQueueResolve = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof reviewQueueResolve>>,
+      TError,
+      ReviewQueueResolveMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof reviewQueueResolve>>,
+  TError,
+  ReviewQueueResolveMutationVariables,
+  TContext
+> => {
+  return useMutation(getReviewQueueResolveMutationOptions(options), queryClient);
+};
+
+export const getReviewQueueSkipUrl = (id: string) => {
+  return `/api/v1/admin/review-queue/${encodeURIComponent(String(id))}/skip`;
+};
+
+/**
+ * @summary Set the review aside; the file stays unmatched
+ */
+export const reviewQueueSkip = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Review> => {
+  return apiFetch<Review>(getReviewQueueSkipUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getReviewQueueSkipMutationKey = () => ["reviewQueueSkip"] as const;
+
+export const getReviewQueueSkipMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviewQueueSkip>>,
+    TError,
+    ReviewQueueSkipMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reviewQueueSkip>>,
+  TError,
+  ReviewQueueSkipMutationVariables,
+  TContext
+> => {
+  const mutationKey = getReviewQueueSkipMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reviewQueueSkip>>,
+    ReviewQueueSkipMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return reviewQueueSkip(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReviewQueueSkipMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reviewQueueSkip>>
+>;
+
+export type ReviewQueueSkipMutationError = ErrorType<Problem>;
+export type ReviewQueueSkipMutationVariables = { id: string };
+
+/**
+ * @summary Set the review aside; the file stays unmatched
+ */
+export const useReviewQueueSkip = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof reviewQueueSkip>>,
+      TError,
+      ReviewQueueSkipMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof reviewQueueSkip>>,
+  TError,
+  ReviewQueueSkipMutationVariables,
+  TContext
+> => {
+  return useMutation(getReviewQueueSkipMutationOptions(options), queryClient);
+};
 
 export const getRolesListUrl = () => {
   return `/api/v1/admin/roles`;
@@ -3524,6 +5805,1071 @@ export const useRolesDestroy = <TError = ErrorType<Problem>, TContext = unknown>
 > => {
   return useMutation(getRolesDestroyMutationOptions(options), queryClient);
 };
+
+export const getScansListUrl = (params?: ScansListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/scans?${stringifiedParams}`
+    : `/api/v1/admin/scans`;
+};
+
+/**
+ * @summary Scan history, newest first
+ */
+export const scansList = async (
+  params?: ScansListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedScanJobList> => {
+  return apiFetch<PaginatedScanJobList>(getScansListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getScansListQueryKey = (params?: ScansListParams) => {
+  return [`/api/v1/admin/scans`, ...(params ? [params] : [])] as const;
+};
+
+export const getScansListQueryOptions = <
+  TData = Awaited<ReturnType<typeof scansList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ScansListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getScansListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof scansList>>> = ({ signal }) =>
+    scansList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof scansList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ScansListQueryResult = NonNullable<Awaited<ReturnType<typeof scansList>>>;
+export type ScansListQueryError = ErrorType<Problem>;
+
+export function useScansList<
+  TData = Awaited<ReturnType<typeof scansList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | ScansListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof scansList>>,
+          TError,
+          Awaited<ReturnType<typeof scansList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useScansList<
+  TData = Awaited<ReturnType<typeof scansList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ScansListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof scansList>>,
+          TError,
+          Awaited<ReturnType<typeof scansList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useScansList<
+  TData = Awaited<ReturnType<typeof scansList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ScansListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Scan history, newest first
+ */
+
+export function useScansList<
+  TData = Awaited<ReturnType<typeof scansList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ScansListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getScansListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getScansRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/scans/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One scan with its counts and log
+ */
+export const scansRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ScanJob> => {
+  return apiFetch<ScanJob>(getScansRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getScansRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/scans/${id}`] as const;
+};
+
+export const getScansRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof scansRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getScansRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof scansRetrieve>>> = ({ signal }) =>
+    scansRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof scansRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type ScansRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof scansRetrieve>>>;
+export type ScansRetrieveQueryError = ErrorType<Problem>;
+
+export function useScansRetrieve<
+  TData = Awaited<ReturnType<typeof scansRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansRetrieve>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof scansRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof scansRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useScansRetrieve<
+  TData = Awaited<ReturnType<typeof scansRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansRetrieve>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof scansRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof scansRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useScansRetrieve<
+  TData = Awaited<ReturnType<typeof scansRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One scan with its counts and log
+ */
+
+export function useScansRetrieve<
+  TData = Awaited<ReturnType<typeof scansRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof scansRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getScansRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getSeriesListUrl = (params?: SeriesListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["status"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? "null" : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/series?${stringifiedParams}`
+    : `/api/v1/admin/series`;
+};
+
+/**
+ * @summary List series with poster, status and episode counts
+ */
+export const seriesList = async (
+  params?: SeriesListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedSeriesSummaryList> => {
+  return apiFetch<PaginatedSeriesSummaryList>(getSeriesListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSeriesListQueryKey = (params?: SeriesListParams) => {
+  return [`/api/v1/admin/series`, ...(params ? [params] : [])] as const;
+};
+
+export const getSeriesListQueryOptions = <
+  TData = Awaited<ReturnType<typeof seriesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SeriesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSeriesListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof seriesList>>> = ({ signal }) =>
+    seriesList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof seriesList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SeriesListQueryResult = NonNullable<Awaited<ReturnType<typeof seriesList>>>;
+export type SeriesListQueryError = ErrorType<Problem>;
+
+export function useSeriesList<
+  TData = Awaited<ReturnType<typeof seriesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | SeriesListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof seriesList>>,
+          TError,
+          Awaited<ReturnType<typeof seriesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSeriesList<
+  TData = Awaited<ReturnType<typeof seriesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SeriesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof seriesList>>,
+          TError,
+          Awaited<ReturnType<typeof seriesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSeriesList<
+  TData = Awaited<ReturnType<typeof seriesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SeriesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List series with poster, status and episode counts
+ */
+
+export function useSeriesList<
+  TData = Awaited<ReturnType<typeof seriesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SeriesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSeriesListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getSeriesRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/series/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary A series with seasons, episodes, artwork, credits and files
+ */
+export const seriesRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<SeriesDetail> => {
+  return apiFetch<SeriesDetail>(getSeriesRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSeriesRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/series/${id}`] as const;
+};
+
+export const getSeriesRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof seriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSeriesRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof seriesRetrieve>>> = ({ signal }) =>
+    seriesRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof seriesRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type SeriesRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof seriesRetrieve>>>;
+export type SeriesRetrieveQueryError = ErrorType<Problem>;
+
+export function useSeriesRetrieve<
+  TData = Awaited<ReturnType<typeof seriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesRetrieve>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof seriesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof seriesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSeriesRetrieve<
+  TData = Awaited<ReturnType<typeof seriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesRetrieve>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof seriesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof seriesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSeriesRetrieve<
+  TData = Awaited<ReturnType<typeof seriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary A series with seasons, episodes, artwork, credits and files
+ */
+
+export function useSeriesRetrieve<
+  TData = Awaited<ReturnType<typeof seriesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof seriesRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSeriesRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getSeriesUpdateUrl = (id: string) => {
+  return `/api/v1/admin/series/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Edit a series' metadata; edited fields are locked against refreshes
+ */
+export const seriesUpdate = async (
+  id: string,
+  patchedSeriesUpdateRequest?: PatchedSeriesUpdateRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<SeriesDetail> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<SeriesDetail>(getSeriesUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedSeriesUpdateRequest),
+  });
+};
+
+export const getSeriesUpdateMutationKey = () => ["seriesUpdate"] as const;
+
+export const getSeriesUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof seriesUpdate>>,
+    TError,
+    SeriesUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof seriesUpdate>>,
+  TError,
+  SeriesUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSeriesUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof seriesUpdate>>,
+    SeriesUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return seriesUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SeriesUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof seriesUpdate>>>;
+export type SeriesUpdateMutationBody = PatchedSeriesUpdateRequest | undefined;
+export type SeriesUpdateMutationError = ErrorType<Problem>;
+export type SeriesUpdateMutationVariables = { id: string; data?: PatchedSeriesUpdateRequest };
+
+/**
+ * @summary Edit a series' metadata; edited fields are locked against refreshes
+ */
+export const useSeriesUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof seriesUpdate>>,
+      TError,
+      SeriesUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof seriesUpdate>>,
+  TError,
+  SeriesUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getSeriesUpdateMutationOptions(options), queryClient);
+};
+
+export const getSeriesRefreshMetadataUrl = (id: string) => {
+  return `/api/v1/admin/series/${encodeURIComponent(String(id))}/refresh-metadata`;
+};
+
+/**
+ * @summary Fetch the series' metadata again (locked fields are kept)
+ */
+export const seriesRefreshMetadata = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Queued> => {
+  return apiFetch<Queued>(getSeriesRefreshMetadataUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSeriesRefreshMetadataMutationKey = () => ["seriesRefreshMetadata"] as const;
+
+export const getSeriesRefreshMetadataMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof seriesRefreshMetadata>>,
+    TError,
+    SeriesRefreshMetadataMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof seriesRefreshMetadata>>,
+  TError,
+  SeriesRefreshMetadataMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSeriesRefreshMetadataMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof seriesRefreshMetadata>>,
+    SeriesRefreshMetadataMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return seriesRefreshMetadata(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SeriesRefreshMetadataMutationResult = NonNullable<
+  Awaited<ReturnType<typeof seriesRefreshMetadata>>
+>;
+
+export type SeriesRefreshMetadataMutationError = ErrorType<Problem>;
+export type SeriesRefreshMetadataMutationVariables = { id: string };
+
+/**
+ * @summary Fetch the series' metadata again (locked fields are kept)
+ */
+export const useSeriesRefreshMetadata = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof seriesRefreshMetadata>>,
+      TError,
+      SeriesRefreshMetadataMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof seriesRefreshMetadata>>,
+  TError,
+  SeriesRefreshMetadataMutationVariables,
+  TContext
+> => {
+  return useMutation(getSeriesRefreshMetadataMutationOptions(options), queryClient);
+};
+
+export const getSessionsListUrl = (params?: SessionsListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/sessions?${stringifiedParams}`
+    : `/api/v1/admin/sessions`;
+};
+
+/**
+ * `active=true` lists the sessions still open.
+ * @summary List playback sessions, newest first
+ */
+export const sessionsList = async (
+  params?: SessionsListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedSessionList> => {
+  return apiFetch<PaginatedSessionList>(getSessionsListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSessionsListQueryKey = (params?: SessionsListParams) => {
+  return [`/api/v1/admin/sessions`, ...(params ? [params] : [])] as const;
+};
+
+export const getSessionsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSessionsListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof sessionsList>>> = ({ signal }) =>
+    sessionsList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof sessionsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SessionsListQueryResult = NonNullable<Awaited<ReturnType<typeof sessionsList>>>;
+export type SessionsListQueryError = ErrorType<Problem>;
+
+export function useSessionsList<
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | SessionsListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sessionsList>>,
+          TError,
+          Awaited<ReturnType<typeof sessionsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSessionsList<
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sessionsList>>,
+          TError,
+          Awaited<ReturnType<typeof sessionsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSessionsList<
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List playback sessions, newest first
+ */
+
+export function useSessionsList<
+  TData = Awaited<ReturnType<typeof sessionsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSessionsListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getSessionsKillUrl = (id: string) => {
+  return `/api/v1/admin/sessions/${encodeURIComponent(String(id))}/kill`;
+};
+
+/**
+ * Playback stops on the player's next request, within the edge's 60 s stream-auth cache. 409 when the session has already ended.
+ * @summary Stop a playback session
+ */
+export const sessionsKill = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Session> => {
+  return apiFetch<Session>(getSessionsKillUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSessionsKillMutationKey = () => ["sessionsKill"] as const;
+
+export const getSessionsKillMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sessionsKill>>,
+    TError,
+    SessionsKillMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sessionsKill>>,
+  TError,
+  SessionsKillMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSessionsKillMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sessionsKill>>,
+    SessionsKillMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return sessionsKill(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SessionsKillMutationResult = NonNullable<Awaited<ReturnType<typeof sessionsKill>>>;
+
+export type SessionsKillMutationError = ErrorType<Problem>;
+export type SessionsKillMutationVariables = { id: string };
+
+/**
+ * @summary Stop a playback session
+ */
+export const useSessionsKill = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof sessionsKill>>,
+      TError,
+      SessionsKillMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof sessionsKill>>,
+  TError,
+  SessionsKillMutationVariables,
+  TContext
+> => {
+  return useMutation(getSessionsKillMutationOptions(options), queryClient);
+};
+
+export const getSessionsStreamUrl = (params?: SessionsStreamParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/sessions/stream?${stringifiedParams}`
+    : `/api/v1/admin/sessions/stream`;
+};
+
+/**
+ * Server-sent events, polled every 2 s from redis-state: first `snapshot` `{"sessions": [Session]}`, then `diff` `{"added": [Session], "updated": [Session], "removed": [id]}` whenever something changed, and a keep-alive comment every 15 s otherwise. A Session is `{id, user{id,name}, device{id,name}, title{kind,id,name}, rendition, ip, country, edge, started_at, last_seen_at, bytes_sent}`; `id` is what sessions/{id}/kill takes.
+ * @summary Live sessions as server-sent events
+ */
+export const sessionsStream = async (
+  params?: SessionsStreamParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<string> => {
+  return apiFetch<string>(getSessionsStreamUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSessionsStreamQueryKey = (params?: SessionsStreamParams) => {
+  return [`/api/v1/admin/sessions/stream`, ...(params ? [params] : [])] as const;
+};
+
+export const getSessionsStreamQueryOptions = <
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsStreamParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSessionsStreamQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof sessionsStream>>> = ({ signal }) =>
+    sessionsStream(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof sessionsStream>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SessionsStreamQueryResult = NonNullable<Awaited<ReturnType<typeof sessionsStream>>>;
+export type SessionsStreamQueryError = ErrorType<Problem>;
+
+export function useSessionsStream<
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | SessionsStreamParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sessionsStream>>,
+          TError,
+          Awaited<ReturnType<typeof sessionsStream>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSessionsStream<
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsStreamParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof sessionsStream>>,
+          TError,
+          Awaited<ReturnType<typeof sessionsStream>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSessionsStream<
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsStreamParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Live sessions as server-sent events
+ */
+
+export function useSessionsStream<
+  TData = Awaited<ReturnType<typeof sessionsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: SessionsStreamParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof sessionsStream>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSessionsStreamQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export const getSettingsListUrl = () => {
   return `/api/v1/admin/settings`;
