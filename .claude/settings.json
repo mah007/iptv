@@ -56,5 +56,20 @@
       "Read(./**/.env)",
       "Read(./secrets/**)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{ f=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty'); d=\"$CLAUDE_PROJECT_DIR\"; case \"$f\" in \"$d\"/backend/*.py) [ -x \"$d/backend/.venv/bin/ruff\" ] && \"$d/backend/.venv/bin/ruff\" format --force-exclude --quiet \"$f\" ;; \"$d\"/frontend/*.ts|\"$d\"/frontend/*.tsx|\"$d\"/frontend/*.css|\"$d\"/frontend/*.json|\"$d\"/frontend/*.js) [ -x \"$d/frontend/node_modules/.bin/prettier\" ] && cd \"$d/frontend\" && ./node_modules/.bin/prettier --write --log-level silent \"$f\" ;; esac ; } >/dev/null 2>&1 || true",
+            "timeout": 30,
+            "statusMessage": "Formatting"
+          }
+        ]
+      }
+    ]
   }
 }
