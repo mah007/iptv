@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# Create .env from .env.example with freshly generated development secrets.
-# Never overwrites an existing .env; delete it first to regenerate (data volumes
-# keep the old passwords, so `make down` and remove the volumes too).
+# Create an env file from .env.example with freshly generated secrets.
+#   scripts/secrets.sh          -> .env (the dev stack's; never overwritten)
+#   scripts/secrets.sh <path>   -> <path> (e.g. a throwaway file for image smoke tests)
+# To regenerate .env, delete it first: data volumes keep the old passwords, so
+# `make down` and remove the volumes too.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [[ -f .env ]]; then
-  echo ".env already exists; leaving it untouched."
+out="${1:-.env}"
+if [[ -f "$out" && -s "$out" ]]; then
+  echo "$out already exists; leaving it untouched."
   exit 0
 fi
 
@@ -21,7 +24,7 @@ port_in_use() {
 }
 
 umask 077
-tmp="$(mktemp .env.XXXXXX)"
+tmp="$(mktemp "${out}.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 
 # Hex keeps every value safe inside URLs and shell quoting.
@@ -33,11 +36,11 @@ awk '{
   print
 }' .env.example > "$tmp"
 
-if port_in_use 80; then
+if [[ "$out" == ".env" ]] && port_in_use 80; then
   sed -i.bak 's/^HTTP_PORT=80$/HTTP_PORT=8080/' "$tmp" && rm -f "$tmp.bak"
   echo "Port 80 is busy on this machine; Traefik will listen on 8080 (HTTP_PORT in .env)."
 fi
 
-mv "$tmp" .env
+mv "$tmp" "$out"
 trap - EXIT
-echo "Created .env with generated secrets (mode 600). Keep it out of git."
+echo "Created $out with generated secrets (mode 600). Keep it out of git."

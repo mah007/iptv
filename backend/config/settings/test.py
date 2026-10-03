@@ -1,4 +1,6 @@
-"""pytest settings. Defaults let CI run against plain service containers.
+"""pytest settings. Tests run inside the dev stack (`make test`), which supplies
+the real hosts and credentials; the defaults below only let these settings
+import without a .env (host-side mypy loads them via django-stubs).
 
 Redis tests use their own database indexes so a test run never touches the
 data of a running dev stack.
@@ -8,15 +10,11 @@ import os
 from urllib.parse import urlsplit
 
 os.environ.setdefault("DJANGO_SECRET_KEY", "test-only-insecure-key")
-os.environ.setdefault("POSTGRES_HOST", "localhost")
 os.environ.setdefault("POSTGRES_DB", "iptv")
 os.environ.setdefault("POSTGRES_USER", "iptv")
 os.environ.setdefault("POSTGRES_PASSWORD", "iptv")
-os.environ.setdefault("REDIS_STATE_HOST", "localhost")
 os.environ.setdefault("REDIS_STATE_PASSWORD", "iptv")
-os.environ.setdefault("REDIS_CACHE_HOST", "localhost")
 os.environ.setdefault("REDIS_CACHE_PASSWORD", "iptv")
-os.environ.setdefault("MEILI_URL", "http://localhost:7700")
 os.environ.setdefault("MEILI_MASTER_KEY", "test-only-master-key")
 
 from .base import *

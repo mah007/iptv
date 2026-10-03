@@ -1,18 +1,31 @@
 # Smart IPTV developer commands. `make` lists them.
-# Everything runs in containers; the host needs Docker, make, openssl and python3.
+# Everything runs in containers; the host needs Docker, make, curl, openssl and python3.
 
 SHELL := /bin/bash
+# Fail recipes on any error, including inside pipelines (make licenses pipes into the gate).
+.SHELLFLAGS := -eu -o pipefail -c
+MAKEFLAGS += --no-print-directory
 .DEFAULT_GOAL := help
 
 export HOST_UID := $(shell id -u)
 export HOST_GID := $(shell id -g)
 
+# One image tag for compose and the image targets: APP_VERSION from .env, else "dev".
+APP_VERSION ?= $(or $(shell sed -n 's/^APP_VERSION=//p' .env 2>/dev/null),dev)
+export APP_VERSION
+
 COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml
 RUN_BACKEND := $(COMPOSE) run --rm --no-deps -T web
 RUN_FRONTEND := $(COMPOSE) run --rm --no-deps -T frontend
 
+# Trivy pinned by digest: a moved or compromised tag can't change what runs.
+TRIVY_IMAGE := aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
+IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION)
+# Extra docker build flags; before tagging a milestone use BUILD_FLAGS="--pull --no-cache".
+BUILD_FLAGS ?= --pull
+
 .PHONY: help secrets up down ps logs migrate shell smoke test test-backend test-frontend \
-	lint lint-backend lint-frontend fmt typecheck build licenses
+	lint lint-backend lint-frontend fmt typecheck build smoke-images scan licenses ci ci-steps
 
 help: ## List available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -24,7 +37,7 @@ secrets: ## Create .env with generated dev secrets (never overwrites)
 	@scripts/secrets.sh
 
 up: .env ## Build and start the dev stack, wait for healthchecks, apply migrations
-	$(COMPOSE) up --build --detach --wait
+	$(COMPOSE) up --build --detach --wait --wait-timeout 300
 	$(COMPOSE) exec -T web python manage.py migrate --noinput
 	@port=$$(grep -E '^HTTP_PORT=' .env | cut -d= -f2); domain=$$(grep -E '^DOMAIN=' .env | cut -d= -f2); \
 	  suffix=$$([ "$$port" = "80" ] || echo ":$$port"); \
@@ -64,6 +77,7 @@ lint: lint-backend lint-frontend ## Lint and format-check everything
 lint-backend:
 	$(RUN_BACKEND) ruff check .
 	$(RUN_BACKEND) ruff format --check .
+	$(RUN_BACKEND) python manage.py makemigrations --check --dry-run
 
 lint-frontend:
 	$(RUN_FRONTEND) pnpm lint
@@ -77,11 +91,48 @@ typecheck: ## mypy (backend) and tsc (frontend)
 	$(RUN_BACKEND) mypy .
 	$(RUN_FRONTEND) pnpm typecheck
 
-build: ## Build the production images (app, frontend)
-	docker build -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$${APP_VERSION:-dev} .
-	docker build -f docker/frontend.Dockerfile --target runtime -t smart-iptv/frontend:$${APP_VERSION:-dev} .
+build: ## Build the production images (app, frontend), pulling fresh base images
+	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
+	docker build $(BUILD_FLAGS) -f docker/frontend.Dockerfile --target runtime -t smart-iptv/frontend:$(APP_VERSION) .
+
+smoke-images: ## Start the production images (env from .env.example), check --deploy, wait for health
+	@scripts/smoke_images.sh
+
+scan: ## Trivy: fixable HIGH/CRITICAL CVEs and secrets in the images, secrets in the repo; after make build
+	@for image in $(IMAGES); do \
+	  echo "Trivy image: $$image"; \
+	  docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro -v iptv-trivy-cache:/root/.cache $(TRIVY_IMAGE) \
+	    image --quiet --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$$image" || exit 1; \
+	done
+	@echo "Trivy secrets: repository"
+	@docker run --rm -v "$(CURDIR)":/repo:ro -v iptv-trivy-cache:/root/.cache $(TRIVY_IMAGE) \
+	  fs --quiet --scanners secret --exit-code 1 --skip-files .env \
+	  --skip-dirs .git --skip-dirs '**/node_modules' --skip-dirs '**/.venv' --skip-dirs '**/dist' /repo
 
 licenses: ## Licence gate (SPEC §1.2) on production dependencies; run after make build
-	docker run --rm -i --entrypoint python smart-iptv/app:$${APP_VERSION:-dev} - python < scripts/license_gate.py
+	python3 scripts/license_gate.py --self-test
+	docker run --rm -i --entrypoint python smart-iptv/app:$(APP_VERSION) - python < scripts/license_gate.py
 	$(RUN_FRONTEND) sh -c 'pnpm install --frozen-lockfile --store-dir /pnpm-store > /dev/null && pnpm -r licenses list --prod --json' \
 	  | python3 scripts/license_gate.py npm
+
+# The project has no hosted CI (ADR-0003): this is the gate. Run it before pushing
+# and before tagging a milestone; it stops at the first failing step.
+ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitted work)
+	@test -z "$(t)" || { echo "make ci always runs the full suite; drop t=$(t)" >&2; exit 1; }
+	@test -n "$(ALLOW_DIRTY)" || test -z "$$(git status --porcelain)" || \
+	  { echo "make ci checks what you push: commit or stash first (or ALLOW_DIRTY=1)" >&2; exit 1; }
+	@$(MAKE) ci-steps || { echo "make ci FAILED. Service status and recent logs:" >&2; \
+	  $(COMPOSE) ps >&2 || true; $(COMPOSE) logs --no-color --tail=60 >&2 || true; exit 1; }
+	@echo ""
+	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, types, tests, images, Trivy, licences."
+
+ci-steps:
+	$(MAKE) up
+	$(MAKE) smoke
+	$(MAKE) lint
+	$(MAKE) typecheck
+	$(MAKE) test
+	$(MAKE) build
+	$(MAKE) smoke-images
+	$(MAKE) scan
+	$(MAKE) licenses

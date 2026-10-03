@@ -17,8 +17,8 @@ Gate verdicts follow SPEC §1.2:
     BLOCK   GPL/AGPL/SSPL/BUSL/non-commercial: never import; run as a separate process at most
     CHECK   licence unknown or unrecognised: read it before pinning
 
-Exit status is 1 when any package is BLOCK, so the script can back a CI gate.
-Stdlib only, so it runs with any Python 3.10+.
+Exit status is 1 when any package is BLOCK, so the script can back a quality gate.
+Stdlib only; needs Python 3.11+ (datetime.UTC).
 """
 
 from __future__ import annotations

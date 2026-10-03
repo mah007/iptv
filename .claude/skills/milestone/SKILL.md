@@ -35,16 +35,18 @@ argument-hint: "<milestone, e.g. 1, 7 or 11b; empty = next>"
 - Files to create or change, grouped by app or package.
 - Decisions, each marked ADR or no ADR. Write an ADR for any new dependency or service, a data-model shape, a security mechanism, a public contract (REST, Xtream, token format), or a deviation from the spec.
 - Every dependency you'll add, checked first with the `dep-check` skill.
+- Re-check the stack pinned in ADR-0001 with `dep-check` and plan security or end-of-life upgrades; this replaces Renovate (ADR-0003).
 - Risks, and for each acceptance criterion the exact command or test that will prove it.
 
 ## 3. Build
-- Work in small steps. After each one, run the narrowest gate that covers the change, and run `make fmt lint typecheck test` before each commit. Fix failures before moving on.
+- Work in small steps. After each one, run the narrowest gate that covers the change, and run `make fmt lint typecheck test` before each commit. Fix failures before moving on. Run `make ci` before pushing.
 - Migrations: one per logical change, named, reversible.
 - Commit per coherent step, using Conventional Commits scoped to the app (`feat(playback): …`, `fix(xtream): …`).
 - If the spec is wrong, or a library disagrees with it, stop and report it with a proposed alternative. Don't diverge silently.
 - Ask before deleting data or volumes, breaking a public contract, adding a paid service or non-permissive dependency, or anything irreversible.
 
 ## 4. Prove acceptance
+- Run `make ci`, the full quality gate (there's no hosted CI; see ADR-0003), and cite its result.
 - Run every criterion for real: commands, URLs, tests. Show evidence such as output excerpts, test names and status codes, not assertions.
 - If a criterion can't be verified on this machine, mark it NOT VERIFIED and give the reason. Never mark it as passing.
 
@@ -52,7 +54,7 @@ argument-hint: "<milestone, e.g. 1, 7 or 11b; empty = next>"
 - `docs/PROGRESS.md`: milestone status, what's done, what's next, known issues, verify commands.
 - `docs/adr/NNNN-kebab-title.md`: Context, Decision, Alternatives, Consequences.
 - Update CLAUDE.md if commands or architecture facts changed.
-- Tag `m{N}-done` only when every criterion passes. Ask before pushing anything.
+- Tag `m{N}-done` only when `make ci BUILD_FLAGS="--pull --no-cache"` and every criterion pass. Ask before pushing anything the user hasn't asked to push.
 
 ## 6. Checkpoint, then stop and wait for "continue"
 ```
@@ -71,7 +73,8 @@ argument-hint: "<milestone, e.g. 1, 7 or 11b; empty = next>"
 - <only things that need the user's call>
 ```
 
-## M1-specific
-- Move `SMART_IPTV_MASTER_PROMPT.md` to `docs/SPEC.md` if it's still at the repo root.
-- ADR-0001 pins versions from a `dep-check` run. SPEC §4 names Node 22, PostgreSQL 17 and Django 5.2 LTS, but newer LTS or major lines may exist by now, so decide each one explicitly.
-- Once Ruff and Prettier/ESLint exist, add PostToolUse format hooks to `.claude/settings.json`, and add single-test commands to CLAUDE.md.
+## Gate additions by milestone
+Wherever the spec says "in CI", wire the check into `make ci` (ADR-0003 has the mapping):
+- **M2:** fail `make ci` when the generated OpenAPI client (`make api-client`) is stale.
+- **M9:** Xtream contract tests (schemas and golden fixtures in `compat/`) and the IPTVnator end-to-end run.
+- **M14:** pip-audit, pnpm audit and Semgrep in `make ci`; a weekly scheduled `make restore-test` on staging.

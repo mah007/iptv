@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Smart IPTV
 The full specification is `docs/SPEC.md`. Read it before every milestone. Progress lives in `docs/PROGRESS.md`, and decisions in `docs/adr/NNNN-title.md`; ADR-0001 holds pinned versions and ADR-0002 the identity, routing and network foundations.
 
-`docs/SPEC.md` exists locally but is excluded from git (`.git/info/exclude`) because the GitHub repo is public. Never commit or publish it until the owner decides.
+`docs/SPEC.md` exists locally but is excluded from git (`.git/info/exclude`) because the GitHub repo is public. Never commit or publish it until the owner decides. The owner dropped hosted CI: where the spec says "CI", "GitHub Actions" or a release workflow, follow ADR-0003's mapping (checks go into `make ci`).
 
 Spec map, for reading one section mid-milestone: §1 rules · §3 architecture · §5 repo layout · §6 data model · §7 services (7.1 scan, 7.2 parse/match, 7.3 transcode, 7.4 entitlements/playback, 7.5 Xtream, 7.6 billing, 7.7 notifications, 7.8 search, 7.9 recommendations) · §8 admin UI · §9 portal · §10 REST API · §11 security · §12 Nginx edge · §13 Docker · §14 observability · §15 tests and gates · §16 milestones and acceptance criteria.
 
@@ -49,11 +49,12 @@ A self-hosted OTT/VOD subscription platform for **owned or licensed content** on
 Everything runs in containers through the Makefile (`make` lists targets). The stack must be up for backend tests: they use the real Postgres, Valkey and Meilisearch.
 - `make secrets` (creates `.env`; never read or print it), `make up` (build, wait for health, migrate), `make smoke`, `make down`, `make ps`, `make logs s=web`, `make shell`
 - `make test`: pytest with 85% coverage enforced, plus Vitest.
-- `make lint`, `make fmt`, `make typecheck`, `make build` (production images), `make licenses` (licence gate; run after `make build`)
+- `make lint`, `make fmt`, `make typecheck`, `make build` (production images), `make scan` (Trivy) and `make licenses` (licence gate); run the last two after `make build`.
+- `make ci`: the full quality gate (ADR-0003 lists its steps). It checks the committed tree: commit first, or use `ALLOW_DIRTY=1` for a check of uncommitted work. There's no hosted CI, so run it before pushing; before tagging `m{N}-done` run `make ci BUILD_FLAGS="--pull --no-cache"`. Don't add GitHub Actions or another hosted CI.
 - Single backend test: `make test-backend t="apps/core/tests/test_routing.py -k internal"`. Passing `t` skips the coverage gate.
 - Single frontend test: `docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml run --rm frontend pnpm --filter @smart-iptv/admin exec vitest run src/app.test.tsx`
 - Host shortcuts (faster, outside containers): in `backend/` run `uv run ruff check .` and `uv run mypy .`; in `frontend/` run `pnpm lint`, `pnpm typecheck` and `pnpm test`.
-- Planned, not yet in the Makefile: `make api-client` (M2: regenerates the Orval client, which is never hand-edited, and CI fails if it's stale), `make seed` (M3), `make sample-media` (M4), `make loadtest`, `make backup`, `make restore-test`, `make deploy`.
+- Planned, not yet in the Makefile: `make api-client` (M2: regenerates the Orval client, which is never hand-edited, and `make ci` fails if it's stale), `make seed` (M3), `make sample-media` (M4), `make loadtest`, `make backup`, `make restore-test`, `make deploy`.
 
 ## Gotchas learned building M1
 - Dev runs on `HTTP_PORT` from `.env`. It's 8080 on this machine, where Apache holds port 80, so URLs are `http://admin.localhost:8080`.
@@ -61,6 +62,8 @@ Everything runs in containers through the Makefile (`make` lists targets). The s
 - uv uses `prerelease = "explicit"`. kombu 5.6 (stable) needs `redis<6.5`, so redis-py stays on 6.4 until kombu 5.7 is final. redis-py types sync calls as maybe-awaitable, so `cast()` results.
 - Traefik registers recreated containers asynchronously; `make smoke` retries for 30 s, and new smoke checks should do the same.
 - Production images drop pip and apply distro updates. Gunicorn 26 needs `--no-control-socket`, because `/app` is read-only to uid 10001.
+- Every Django app keeps a `migrations/` package. Without one, `makemigrations` ignores the app's new models, so `migrate` never creates their tables; `make lint` runs `makemigrations --check`.
+- pnpm denies dependency install scripts unless `allowBuilds` in `pnpm-workspace.yaml` says otherwise; deny by default and allow only what's proven necessary.
 
 ## Conventions
 - **Python:** 3.13, uv, Ruff, mypy (strict in playback/xtream_api/billing), pytest. Service functions live in `services.py`, not in views or serializers. Use `select_related`/`prefetch_related`, and no N+1 (assert query counts in tests). Thresholds, TTLs and feature flags are typed settings (the settings registry and the `Setting` model), not constants. API errors are RFC 9457 problem+json with a stable `code` (`CONCURRENCY_LIMIT`, `SUBSCRIPTION_EXPIRED`, …).

@@ -4,6 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+command -v curl >/dev/null || { echo "smoke.sh needs curl on the host" >&2; exit 1; }
+
 value() { grep -E "^$1=" .env | cut -d= -f2-; }
 port="$(value HTTP_PORT)"
 domain="$(value DOMAIN)"

@@ -1,5 +1,4 @@
 .git
-.github
 .claude
 docs
 **/.env
@@ -17,3 +16,4 @@ docs
 **/.coverage
 **/htmlcov
 backend/staticfiles
+**/secrets

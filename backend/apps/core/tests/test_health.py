@@ -1,4 +1,4 @@
-"""Readiness against the real stores. They must be running (dev stack or CI services)."""
+"""Readiness against the real stores, so the dev stack must be up (`make up`)."""
 
 from unittest import mock
 

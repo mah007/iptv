@@ -15,3 +15,7 @@ CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = env_int("DJANGO_HSTS_SECONDS", default=31_536_000)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = env_bool("DJANGO_HSTS_PRELOAD", default=False)
+if not SECURE_HSTS_PRELOAD:
+    # Preload is the operator's explicit choice (DJANGO_HSTS_PRELOAD=1): removing a
+    # domain from the browsers' preload list takes months.
+    SILENCED_SYSTEM_CHECKS = ["security.W021"]

@@ -1,6 +1,6 @@
 # ADR-0001: Stack and pinned versions
 
-- **Status:** Accepted
+- **Status:** Accepted; supply-chain notes amended by [ADR-0003](0003-no-hosted-ci.md) (no hosted CI)
 - **Date:** 2026-10-03
 - **Milestone:** M1
 
@@ -40,7 +40,7 @@ Dev only: `pytest 9.1.1`, `pytest-django 4.14.0`, `pytest-cov 7.1.0`, `ruff 0.16
 - **TypeScript 6.0.3, not 7.x and not 5.x.** TypeScript 7 (the native compiler) is out, but typescript-eslint supports only `<6.1`. 6.0 is the newest release the lint toolchain supports. Revisit when typescript-eslint supports 7.
 
 ### Supply chain
-- CI pins third-party GitHub Actions to commit SHAs and runs Trivy from an image pinned by digest.
+- Trivy 0.75.0 runs from `aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa` (`TRIVY_IMAGE` in the Makefile; `make scan`, part of the `make ci` gate). Update both together.
 - The licence gate (`scripts/license_gate.py`, `make licenses`) checks production dependencies of both stacks, and fails on GPL/AGPL/SSPL/BUSL/non-commercial or unknown licences, and on an empty input.
 - Production images apply distro security updates at build time. The app image removes pip, whose vendored packages were the only Trivy findings.
 
@@ -52,4 +52,4 @@ Dev only: `pytest 9.1.1`, `pytest-django 4.14.0`, `pytest-cov 7.1.0`, `ruff 0.16
 
 ## Consequences
 - Upgrade checkpoints: Django 6.2 LTS (2027-04), Node 26 (2027), TypeScript 7 (when typescript-eslint supports it), redis-py 8 (when kombu 5.7 is final), Python 3.14 (native uuid7).
-- Every new dependency goes through `dep-check` and an ADR note; the licence gate enforces it in CI.
+- Every new dependency goes through `dep-check` and an ADR note; the licence gate in `make ci` enforces it.

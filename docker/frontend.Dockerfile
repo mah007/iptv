@@ -11,7 +11,8 @@ RUN corepack enable
 WORKDIR /app
 
 FROM base AS dev
-RUN mkdir -p /pnpm-store && chown node:node /pnpm-store /app
+# World-writable store: dev runs as the host UID, which may not be 1000 (node).
+RUN mkdir -p /pnpm-store && chmod 1777 /pnpm-store && chown node:node /app
 USER node
 EXPOSE 5173 5174
 CMD ["sh", "-c", "pnpm install --frozen-lockfile --store-dir /pnpm-store && exec pnpm dev"]

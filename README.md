@@ -123,11 +123,11 @@ flowchart LR
 | Edge and ingress | Nginx with njs, Traefik v3 |
 | Observability | Prometheus, Grafana, Loki, Grafana Alloy |
 | Tooling | uv, Ruff, mypy, pytest, pnpm, Vitest, Playwright, Locust, k6 |
-| CI | GitHub Actions: lint, types, tests, build, Trivy, licence gate, pip-audit, Semgrep, Bandit |
+| Quality gate | `make ci`, run locally (no hosted CI): lint, types, tests, image build, Trivy, licence gate; pip-audit, pnpm audit and Semgrep join in M14 |
 
 **Pinned today:** Python 3.13, Django 5.2 LTS, Celery 5.6, PostgreSQL 18, Valkey 9.1, Meilisearch 1.54, Traefik 3.7, Node.js 24 LTS, pnpm 12, React 19, Vite 8, Tailwind CSS 4, TypeScript 6.0. [ADR-0001](docs/adr/0001-stack-and-versions.md) lists every version, the date it was checked, and the reason for each deviation from the original spec.
 
-Every dependency imported into our code is permissively licensed (MIT, BSD, Apache-2.0, ISC, MPL-2.0, or LGPL used unmodified), and a licence gate enforces this in CI. GPL/AGPL tools run only as separate processes.
+Every dependency imported into our code is permissively licensed (MIT, BSD, Apache-2.0, ISC, MPL-2.0, or LGPL used unmodified), and the licence gate in `make ci` enforces this. GPL/AGPL tools run only as separate processes.
 
 ## System requirements
 
@@ -136,7 +136,7 @@ Every dependency imported into our code is permissively licensed (MIT, BSD, Apac
 |---|---|
 | Operating system | Linux x86_64 is recommended for production. For development, Linux or Windows with Docker Desktop and WSL2. |
 | Docker | Docker Engine with the Compose v2 plugin. |
-| Basics | `git`, `make`, `openssl` and `python3` (for the secrets script and licence gate). Everything else runs in containers. |
+| Basics | `git`, `make`, `curl`, `openssl` and `python3` (curl for `make smoke`, openssl for the secrets script, python3 for the licence gate). Everything else runs in containers. |
 | Contributors (optional) | For editor tooling outside containers: [uv](https://docs.astral.sh/uv/) (installs Python 3.13) and Node.js 24 LTS with corepack (pnpm 12). |
 | GPU (optional) | Intel iGPU/Arc (QSV/VAAPI via `/dev/dri`) or an NVIDIA GPU with the NVIDIA Container Toolkit. Without a GPU, transcoding falls back to CPU. |
 
@@ -190,7 +190,8 @@ On port 8080, add `:8080` to each URL. Modern browsers and curl resolve `*.local
 | `make test-backend t="apps/core/tests/test_routing.py -k internal"` | Run selected backend tests |
 | `make lint` · `make fmt` · `make typecheck` | Ruff, ESLint and Prettier · auto-format · mypy and tsc |
 | `make logs s=web` · `make ps` · `make shell` | Follow one service's logs · status · Django shell |
-| `make build` · `make licenses` | Production images · licence gate on their dependencies |
+| `make build` · `make smoke-images` · `make scan` · `make licenses` | Production images · start and health-check them · Trivy CVE and secret scan · licence gate on their dependencies |
+| `make ci` | The full quality gate on the committed tree; run it before pushing (there's no hosted CI) |
 | `make down` | Stop the stack; data volumes are kept |
 
 Seeding demo data (`make seed`) arrives in M3, and generated sample media (`make sample-media`) in M4.
@@ -214,7 +215,7 @@ Supported apps include IPTV Smarters, TiviMate, XCIPTV, OTT Navigator, IBO Playe
 
 ## Deployment (production)
 
-> The production compose files and `make deploy` arrive with M1, and are hardened through **M13–M15**.
+> Not built yet: the production compose file and `make deploy` arrive with the production overlay in **M13–M15**. The steps below describe the target setup.
 
 ### Tiers
 | Tier | Layout |
@@ -258,7 +259,7 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 
 | # | Milestone | Delivers | Status |
 |---|---|---|---|
-| M1 | Infrastructure & repo | Monorepo; `make up` boots the full stack; CI green (lint, types, tests, build, Trivy, licence gate); versions pinned in ADR-0001 | ✅ Built |
+| M1 | Infrastructure & repo | Monorepo; `make up` boots the full stack; `make ci` quality gate green (lint, types, tests, build, Trivy, licence gate); versions pinned in ADR-0001 | ✅ Built |
 | M2 | Backend foundation | Redacted structured logs, problem+json errors, OpenAPI and the generated client, settings registry, feature flags, audit log, metrics | ⏭️ Next |
 | M3 | Accounts & subscriptions | Users, roles, devices, Xtream credentials (Argon2id), admin MFA, plans, subscription activation, expiry and grace jobs, entitlement cache | Planned |
 | M4 | Library scanner | Watcher, reconciliation scans, move detection, ffprobe, filename parsing, live scan progress, sample media | Planned |
@@ -296,9 +297,9 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, client setup guides (ar/en
 
 - Work happens milestone by milestone: plan, record decisions as ADRs (`docs/adr/`), build in small verified steps, then stop at a checkpoint. Status lives in [docs/PROGRESS.md](docs/PROGRESS.md).
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/), for example `feat(playback): …` or `fix(xtream): …`.
-- CI runs the same `make` targets you run locally: `make up`, `make smoke`, `make lint`, `make typecheck`, `make test`, then `make build`, a Trivy scan and `make licenses`.
+- There's no hosted CI ([ADR-0003](docs/adr/0003-no-hosted-ci.md)). `make ci` is the quality gate: stack and smoke test, lint (with a missing-migrations check), types, tests, production images (started and health-checked with `check --deploy`), a Trivy CVE and secret scan, and the licence gate. It checks the committed tree, so commit first (or pass `ALLOW_DIRTY=1`), and run it before pushing.
 - The frontend lint blocks hard-coded user-facing text (use i18next) and physical left/right Tailwind classes (use logical ones so Arabic mirrors).
-- From M2, `make api-client` regenerates the typed frontend client after API changes, and CI fails if it's out of date.
+- From M2, `make api-client` regenerates the typed frontend client after API changes, and `make ci` fails if it's out of date.
 - [CLAUDE.md](CLAUDE.md) holds the architecture rules and conventions for AI-assisted development with Claude Code.
 
 ## Security
