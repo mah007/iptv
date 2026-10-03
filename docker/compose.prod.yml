@@ -25,6 +25,8 @@ services:
     labels:
       traefik.http.routers.api.entrypoints: websecure
       traefik.http.routers.api.tls.certresolver: letsencrypt
+      # The Xtream host is TV_HOST (e.g. the bare base name), not always tv.<DOMAIN>.
+      traefik.http.routers.tv.rule: Host(`${TV_HOST:-tv.${DOMAIN:-localhost}}`) && !PathPrefix(`/internal`)
       traefik.http.routers.tv.entrypoints: websecure
       traefik.http.routers.tv.tls.certresolver: letsencrypt
 
