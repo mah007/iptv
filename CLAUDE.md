@@ -1,0 +1,75 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Smart IPTV
+The full specification is `docs/SPEC.md`. Read it before every milestone. Progress lives in `docs/PROGRESS.md`, and decisions in `docs/adr/NNNN-title.md`.
+
+Before M1 the repo holds only the spec: there's no Makefile, no code and no `docs/`. If `docs/SPEC.md` is missing, the spec is still `SMART_IPTV_MASTER_PROMPT.md` at the repo root; move it to `docs/SPEC.md` as part of M1.
+
+Spec map, for reading one section mid-milestone: §1 rules · §3 architecture · §5 repo layout · §6 data model · §7 services (7.1 scan, 7.2 parse/match, 7.3 transcode, 7.4 entitlements/playback, 7.5 Xtream, 7.6 billing, 7.7 notifications, 7.8 search, 7.9 recommendations) · §8 admin UI · §9 portal · §10 REST API · §11 security · §12 Nginx edge · §13 Docker · §14 observability · §15 tests and gates · §16 milestones and acceptance criteria.
+
+## What this is
+A self-hosted OTT/VOD subscription platform for **owned or licensed content** only. It has:
+
+- a Django control plane;
+- an Nginx streaming plane;
+- an Xtream-compatible API for IPTV apps;
+- a React admin SPA and customer portal (ar/en, RTL).
+
+## Architecture (what spans many files)
+- **Hosts.** Traefik routes `app.` (portal), `api.` (`/api/v1`), `tv.` (Xtream), `admin.` (admin SPA) and, in the small tier, `media.` (Nginx edge). Django mirrors this with `config/urls_api.py`, `urls_xtream.py` and `urls_internal.py` (`/internal/stream-auth` and `/metrics`, internal network only).
+- **Playback.** Xtream `/movie|/series/{u}/{p}/{xc_id}.{ext}`, or web `POST /api/v1/playback/start`, runs the entitlement checks in the fixed fail-fast order of §7.4, takes a concurrency slot via an atomic Redis Lua script, and returns a 302 to `media.*/v/{token}/…`. At the edge, njs verifies the HMAC token (current and previous `kid`), then `auth_request` to `/internal/stream-auth` (cached 60 s per token) refreshes the heartbeat and checks `kick:{session}`. A Celery sweeper closes sessions with stale heartbeats and records them in Postgres.
+- **Two Redis instances, not interchangeable.** `redis-state` (noeviction, AOF) holds sessions, slots, kicks, `ent:{user}` entitlements and the Celery broker. `redis-cache` (allkeys-lru) holds only recomputable data, such as TMDB responses and Xtream catalog JSON.
+- **Writers invalidate derived caches.** Rebuild `ent:{user}` on any change to subscription, plan, access rules or user status. Invalidate `xc:{plan_hash}:{locale}:{action}[:{category}]` on any catalog, plan or category change. Subscriptions change only through `subscriptions.activate(...)`, which snapshots the plan, rebuilds the entitlement, audits and notifies.
+- **Ingest.** Watcher or reconciliation scan → guessit parse → ffprobe → TMDB match (auto-accept only at ≥ 0.85 with a ≥ 0.10 lead, otherwise a `MatchReview`) → en+ar enrichment and images → transcode → title `ready` once `compat_mp4` exists. Per-library `processing_policy` (`ingest|on_demand|passthrough`) alters this flow.
+- **Celery queues.** `worker` consumes default/scan/metadata/images/notify. Transcoders detect their hardware at start and subscribe only to the matching `transcode.{nvenc,qsv,vaapi,cpu}` queues. Rendition ladders and encoder presets live in `streaming/ffmpeg/profiles.yaml`, not in code.
+
+## Hard rules
+- No content-acquisition features (torrent, Usenet, indexers, scrapers). Media enters only through admin libraries.
+- Dependencies imported into our code must be MIT/BSD/Apache-2/ISC/zlib/MPL-2, or LGPL used unmodified. No GPL/AGPL code imported or copied (`tmdbsimple` is GPL-3, so we write our own TMDB client). Run GPL/AGPL tools (FFmpeg, Grafana, Loki, k6) only as separate processes. Never copy from Dispatcharr, Jellyfin, Kyoo, iptv-proxy, m3u-editor or Xtream-UI.
+- Metadata comes from TMDB (primary) and TheTVDB (TV fallback), with TMDB attribution shown. Never use OMDb or IMDb datasets. Subtitle downloading stays off behind a feature flag.
+- Transcode at ingest and direct-play at runtime. Real-time transcoding is only a capped fallback.
+- Media requests never touch Postgres: the edge verifies the HMAC token, and the cached `auth_request` touches Redis only.
+- Never log credentials or tokens; redaction runs in structlog, Nginx, Traefik and Alloy, and a test fails if a raw password reaches a log. Never expose storage paths: `storage_key` is never serialized, and admin views show library-relative paths. Never commit secrets; only `.env.example`.
+- Xtream JSON must match the PHP-panel types in SPEC §7.5 exactly. The easy ones to break:
+  - strings for `category_id`, timestamps, counts and ports;
+  - ints for `stream_id`/`series_id`/`season_number`;
+  - `""`, never `null`;
+  - `backdrop_path` always an array;
+  - `episodes` always an object keyed by season-number strings, including `"0"` (empty is `{}`);
+  - failed auth is `{"user_info":{"auth":0}}` with HTTP 200, identical for an unknown user and a wrong password.
+
+  Contract tests (schemas and golden fixtures in `compat/`) guard it.
+- No TODO stubs or fake implementations on the critical path.
+- Before pinning a dependency, check its latest stable version and licence. If a library behaves differently from the spec, report it and propose an alternative; don't silently work around it.
+- Load-test only on the local network, never against a CDN or public egress.
+
+## Commands
+These are the planned Makefile targets; they exist once M1 lands.
+- `make secrets` (generate dev secrets), then `make up` / `make down` / `make logs s=web`
+- `make test`, `make lint`, `make fmt`, `make typecheck`
+- `make migrate`, `make seed` (prints the admin credentials once), `make sample-media` (generates legal FFmpeg test files named like real releases)
+- `make api-client` regenerates the Orval client in `frontend/packages/api` after API changes. Never hand-edit it; CI fails if it's stale.
+- `make loadtest`, `make backup`, `make restore-test`, `make deploy`
+- M1 must add here how to run a single backend test (pytest) and a single frontend test (Vitest).
+
+## Conventions
+- **Python:** 3.13, uv, Ruff, mypy (strict in playback/xtream_api/billing), pytest. Service functions live in `services.py`, not in views or serializers. Use `select_related`/`prefetch_related`, and no N+1 (assert query counts in tests). Thresholds, TTLs and feature flags are typed settings (the settings registry and the `Setting` model), not constants. API errors are RFC 9457 problem+json with a stable `code` (`CONCURRENCY_LIMIT`, `SUBSCRIPTION_EXPIRED`, …).
+- **Data:** every table has a UUIDv7 `id` plus `created_at`/`updated_at`. Catalog items and episodes also get an integer `xc_id`, because Xtream clients need ints. Money is stored in integer minor units with a `currency` column.
+- **Tests:**
+  - TMDB calls replay from VCR cassettes in `backend/tests/cassettes/` when `TMDB_API_KEY` is unset.
+  - Parser cases live in `backend/tests/data/filenames.csv`.
+  - Test the concurrency Lua script against real Redis (Testcontainers), not a mock.
+  - Coverage must be ≥ 85% on core apps.
+- **Frontend:** TypeScript strict, TanStack Query/Router/Table, shadcn/ui from `packages/ui`, logical CSS properties only (RTL), all strings via i18next (ar + en). There must be no hard-coded user-facing text.
+- **Commits:** Conventional Commits. Tag `m{N}-done` when acceptance passes.
+
+## Workflow per milestone
+1. Read the spec and progress, then plan (files, decisions, risks).
+2. Write an ADR if the decision is significant.
+3. Implement in small steps, running lint, type checks and tests after each.
+4. Update `docs/PROGRESS.md` and the docs.
+5. Stop at the checkpoint: what was built, how to verify it, the acceptance checklist, and open questions. Wait for "continue".
+
+Ask before deleting data or volumes, breaking a public contract, adding paid services or non-permissive dependencies, or doing anything irreversible.
