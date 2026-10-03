@@ -20,6 +20,7 @@ CMD ["sh", "-c", "pnpm install --frozen-lockfile --store-dir /pnpm-store && exec
 FROM base AS build
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 COPY frontend/packages/ui/package.json packages/ui/
+COPY frontend/packages/api/package.json packages/api/
 COPY frontend/apps/admin/package.json apps/admin/
 COPY frontend/apps/portal/package.json apps/portal/
 RUN --mount=type=cache,target=/pnpm-store \

@@ -57,14 +57,27 @@ services:
       traefik.enable: "true"
       traefik.http.services.web.loadbalancer.server.port: "8000"
       # Internal endpoints are also 404 by URLconf; this is defence in depth.
-      traefik.http.routers.api.rule: Host(`api.${DOMAIN:-localhost}`) && !PathPrefix(`/internal`)
+      traefik.http.routers.api.rule: Host(`api.${DOMAIN:-localhost}`) && !PathPrefix(`/internal`) && !PathPrefix(`/metrics`)
       traefik.http.routers.api.entrypoints: web
       traefik.http.routers.api.service: web
       traefik.http.routers.api.middlewares: secure-headers@file
-      traefik.http.routers.tv.rule: Host(`tv.${DOMAIN:-localhost}`) && !PathPrefix(`/internal`)
+      traefik.http.routers.tv.rule: Host(`tv.${DOMAIN:-localhost}`) && !PathPrefix(`/internal`) && !PathPrefix(`/metrics`)
       traefik.http.routers.tv.entrypoints: web
       traefik.http.routers.tv.service: web
       traefik.http.routers.tv.middlewares: secure-headers@file
+      # Same-origin APIs (ADR-0004): /api on the admin and portal hosts goes to Django,
+      # the rest of those hosts to the SPAs. The explicit priority beats the SPA
+      # routers, whose default priority is their rule length.
+      traefik.http.routers.admin-api.rule: Host(`admin.${DOMAIN:-localhost}`) && PathPrefix(`/api`)
+      traefik.http.routers.admin-api.priority: "1000"
+      traefik.http.routers.admin-api.entrypoints: web
+      traefik.http.routers.admin-api.service: web
+      traefik.http.routers.admin-api.middlewares: secure-headers@file
+      traefik.http.routers.portal-api.rule: Host(`app.${DOMAIN:-localhost}`) && PathPrefix(`/api`)
+      traefik.http.routers.portal-api.priority: "1000"
+      traefik.http.routers.portal-api.entrypoints: web
+      traefik.http.routers.portal-api.service: web
+      traefik.http.routers.portal-api.middlewares: secure-headers@file
 
   worker:
     <<: *app

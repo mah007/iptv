@@ -13,6 +13,8 @@ x-app-dev: &app-dev
     DJANGO_SETTINGS_MODULE: config.settings.dev
   volumes:
     - ./backend:/app
+    # Transcoding profiles live outside backend/ (apps/media/profiles.py finds them here).
+    - ./streaming/ffmpeg:/streaming/ffmpeg:ro
   working_dir: /app
 
 services:
@@ -25,7 +27,8 @@ services:
 
   web:
     <<: *app-dev
-    command: ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app"]
+    # No access log: it prints raw paths (Xtream paths carry credentials).
+    command: ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app", "--no-access-log"]
 
   worker:
     <<: *app-dev

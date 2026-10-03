@@ -24,16 +24,17 @@ IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION)
 # Extra docker build flags; before tagging a milestone use BUILD_FLAGS="--pull --no-cache".
 BUILD_FLAGS ?= --pull
 
-.PHONY: help secrets up down ps logs migrate shell smoke test test-backend test-frontend \
-	lint lint-backend lint-frontend fmt typecheck build smoke-images scan licenses ci ci-steps
+.PHONY: help secrets up down ps logs migrate seed shell smoke test test-backend test-frontend \
+	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
+	api-client api-client-check build smoke-images scan licenses ci ci-steps
 
 help: ## List available commands
-	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .env:
 	@scripts/secrets.sh
 
-secrets: ## Create .env with generated dev secrets (never overwrites)
+secrets: ## Create .env with generated dev secrets, or append keys new in .env.example
 	@scripts/secrets.sh
 
 up: .env ## Build and start the dev stack, wait for healthchecks, apply migrations
@@ -55,6 +56,9 @@ logs: ## Follow logs; one service with s=<name>, e.g. make logs s=web
 
 migrate: ## Apply database migrations
 	$(COMPOSE) exec -T web python manage.py migrate --noinput
+
+seed: ## Load demo data (idempotent); prints a new admin's password once. args=--reset-admin-password
+	$(COMPOSE) exec -T web python manage.py seed_demo $(args)
 
 shell: ## Django shell in the web container
 	$(COMPOSE) exec web python manage.py shell
@@ -87,9 +91,47 @@ fmt: ## Format and auto-fix backend and frontend
 	$(RUN_BACKEND) ruff check --fix .
 	$(RUN_FRONTEND) pnpm fmt
 
-typecheck: ## mypy (backend) and tsc (frontend)
+typecheck: typecheck-backend typecheck-frontend ## mypy (backend) and tsc (frontend)
+
+typecheck-backend: ## mypy
 	$(RUN_BACKEND) mypy .
+
+typecheck-frontend: ## tsc for every frontend package
 	$(RUN_FRONTEND) pnpm typecheck
+
+# The admin API's OpenAPI schema and the Orval client generated from it (ADR-0004).
+# Generated files are committed and never edited by hand.
+API_DIR := frontend/packages/api
+API_SCHEMA := $(API_DIR)/openapi/admin.yaml
+
+api-client: ## Regenerate the admin OpenAPI schema and the typed client in frontend/packages/api
+	@mkdir -p $(dir $(API_SCHEMA))
+	@# Logs go to stderr, so stdout is exactly the schema; a failed run keeps the old file.
+	$(RUN_BACKEND) python manage.py spectacular --urlconf config.urls_admin --validate --fail-on-warn \
+	  > $(API_SCHEMA).tmp || { rm -f $(API_SCHEMA).tmp; exit 1; }
+	@mv $(API_SCHEMA).tmp $(API_SCHEMA)
+	@# Prettier-format the schema (it's committed and checked like any file), then run
+	@# Orval. Both use the node_modules that `make up` installed: pnpm must not
+	@# re-install them here, which would re-link them to another store.
+	$(RUN_FRONTEND) sh -c 'pnpm --config.verify-deps-before-run=false exec prettier --write \
+	  --log-level warn $(patsubst frontend/%,%,$(API_SCHEMA)) \
+	  && pnpm --config.verify-deps-before-run=false --filter @smart-iptv/api generate'
+
+# Checksums of the schema and client sources (node_modules excluded), to compare generations.
+API_SUMS = find $(API_DIR) -path $(API_DIR)/node_modules -prune -o -type f -print0 | sort -z | xargs -0 sha256sum
+
+api-client-check: ## Fail if the schema or client in the tree differs from a fresh generation
+	@# Compares content before and after regenerating, so it also works on uncommitted
+	@# work (ALLOW_DIRTY=1); make ci's clean-tree check covers "committed".
+	@before="$$(mktemp)"; after="$$(mktemp)"; trap 'rm -f "$$before" "$$after"' EXIT; \
+	$(API_SUMS) > "$$before"; \
+	$(MAKE) --no-print-directory api-client; \
+	$(API_SUMS) > "$$after"; \
+	if ! cmp -s "$$before" "$$after"; then \
+	  echo "The API client in $(API_DIR) is stale; run make api-client and commit. Changed:" >&2; \
+	  diff "$$before" "$$after" | sed -n 's/^[<>] [0-9a-f]*  /  /p' | sort -u >&2; exit 1; \
+	fi
+	@echo "API client is up to date."
 
 build: ## Build the production images (app, frontend), pulling fresh base images
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
@@ -124,13 +166,14 @@ ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitt
 	@$(MAKE) ci-steps || { echo "make ci FAILED. Service status and recent logs:" >&2; \
 	  $(COMPOSE) ps >&2 || true; $(COMPOSE) logs --no-color --tail=60 >&2 || true; exit 1; }
 	@echo ""
-	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, types, tests, images, Trivy, licences."
+	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, types, API client, tests, images, Trivy, licences."
 
 ci-steps:
 	$(MAKE) up
 	$(MAKE) smoke
 	$(MAKE) lint
 	$(MAKE) typecheck
+	$(MAKE) api-client-check
 	$(MAKE) test
 	$(MAKE) build
 	$(MAKE) smoke-images

@@ -21,5 +21,6 @@ ping: {}
 log:
   level: INFO
 
-# Access logging stays off: Xtream URLs carry credentials in the path, and the
-# redacting log pipeline (Traefik, Nginx, Alloy) arrives in M2/M13.
+# Access logging stays off: Xtream URLs carry credentials in the path. Django logs
+# every request with the path redacted (RequestLogMiddleware, ADR-0005); a Traefik
+# access log with the path dropped comes with the log pipeline (Alloy) in M13.

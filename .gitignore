@@ -30,4 +30,4 @@ coverage/
 *.log
 
 # Local media libraries and generated sample media (scripts/sample_media.sh)
-media/
+/media/

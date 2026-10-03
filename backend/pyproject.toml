@@ -12,6 +12,24 @@ dependencies = [
     "uvicorn>=0.54.0,<0.55",
     "uvicorn-worker>=0.4.0,<0.5",
     "gunicorn>=26.2.0,<27",
+    "djangorestframework>=3.18.1,<3.19",
+    "drf-spectacular>=0.30.0,<0.31",
+    "django-filter>=26.1,<27",
+    "structlog>=26.1.0,<27",
+    "django-prometheus>=2.5.0,<2.6",
+    "prometheus-client>=0.26.0,<0.27",
+    "argon2-cffi>=25.1.0,<26",
+    "cryptography>=50.0.2,<51",
+    "pyotp>=2.10.0,<3",
+    "phonenumberslite>=9.0.40,<10",
+    "django-axes>=8.3.1,<9",
+    "guessit>=4.4.0,<5",
+    "xxhash>=4.0.1,<5",
+    "rapidfuzz>=3.14.6,<4",
+    "httpx>=0.28.1,<0.29",
+    "tenacity>=9.1.4,<10",
+    "pillow>=12.3.0,<13",
+    "pyyaml>=6.0.3,<7",
 ]
 
 [dependency-groups]
@@ -24,6 +42,9 @@ dev = [
     "django-stubs[compatible-mypy]>=5.2.9,<5.3",
     "celery-types>=0.26.0,<0.27",
     "watchfiles>=1.1.0,<2",
+    "djangorestframework-stubs>=3.16.9,<3.17",
+    "hypothesis>=6.168.3,<7",
+    "types-pyyaml>=6.0.12.20260906",
 ]
 
 [tool.uv]
@@ -54,7 +75,7 @@ ignore = ["PLR2004"]
 
 [tool.mypy]
 python_version = "3.13"
-plugins = ["mypy_django_plugin.main"]
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_return_any = true
@@ -73,6 +94,11 @@ disallow_untyped_calls = true
 disallow_incomplete_defs = true
 disallow_subclassing_any = true
 warn_unreachable = true
+
+# No type hints or stubs published for these.
+[[tool.mypy.overrides]]
+module = ["django_filters.*", "django_prometheus.*", "axes.*"]
+ignore_missing_imports = true
 
 [tool.django-stubs]
 django_settings_module = "config.settings.test"
