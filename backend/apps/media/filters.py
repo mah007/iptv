@@ -5,8 +5,7 @@ from django_filters import rest_framework as filters
 from apps.media.models import JobStatus, TranscodeBackend, TranscodeJob
 
 
-# django-filter ships no type hints, so its base class is Any to mypy.
-class TranscodeJobFilter(filters.FilterSet):  # type: ignore[misc,no-any-unimported]
+class TranscodeJobFilter(filters.FilterSet):
     status = filters.MultipleChoiceFilter(choices=JobStatus.choices)
     backend = filters.ChoiceFilter(choices=TranscodeBackend.choices)
     file = filters.UUIDFilter(field_name="media_file_id", help_text="Jobs of one media file.")

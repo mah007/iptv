@@ -28,11 +28,7 @@ export function useMe(): Me | undefined {
 export type PermissionRequirement = string | readonly string[];
 
 /** Any library permission shows the content pages (the API's own read rule). */
-export const LIBRARY_VIEW: PermissionRequirement = [
-  "library.view",
-  "library.manage",
-  "library.review",
-];
+export const LIBRARY_VIEW: readonly string[] = ["library.view", "library.manage", "library.review"];
 
 export function hasPermission(me: Me | undefined, requirement: PermissionRequirement): boolean {
   if (me === undefined) return false;

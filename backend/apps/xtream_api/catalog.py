@@ -7,9 +7,9 @@ What apps may see:
 - series with status `ready` in such a category and with a playable episode; only
   playable episodes are listed (`catalog.services.playable_files`).
 
-A title's `category_ids` are its visible categories in the order they were linked:
-the library's default categories first, then the genre categories in TMDB's genre
-order, so the first is the primary one.
+A title's `category_ids` are its visible categories in the order they were linked
+(the link rows' ids): the library's default categories first, then the genre
+categories, so the first is the primary one.
 
 Queries are fixed per call, whatever the catalog size (asserted in the tests):
 lists take one query per relation (titles, category links, images, credits, genres),

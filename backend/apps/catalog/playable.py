@@ -11,7 +11,7 @@ Each lookup takes at most three queries: the title, its categories, its renditio
 Renditions carry the asset key (`Rendition.storage_key`), never a storage path.
 """
 
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from django.db.models import QuerySet
@@ -86,14 +86,17 @@ def _episode(where: dict[str, Any]) -> PlayableTitle | None:
 
 
 def _renditions(rows: QuerySet[Rendition]) -> list[dict[str, Any]]:
-    return list(
-        rows.filter(
-            status=RenditionStatus.READY,
-            kind__in=PLAYABLE_KINDS,
-            media_file__removed_at__isnull=True,
-        )
-        .order_by("-media_file__is_primary", "-height", "kind")
-        .values("storage_key", "kind", "height", "container", "duration_s")
+    return cast(
+        list[dict[str, Any]],
+        list(
+            rows.filter(
+                status=RenditionStatus.READY,
+                kind__in=PLAYABLE_KINDS,
+                media_file__removed_at__isnull=True,
+            )
+            .order_by("-media_file__is_primary", "-height", "kind")
+            .values("storage_key", "kind", "height", "container", "duration_s")
+        ),
     )
 
 

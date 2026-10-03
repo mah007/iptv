@@ -32,41 +32,37 @@ export function useEventStream(
   events: readonly string[],
   onEvent: StreamListener,
 ): StreamState {
-  const [state, setState] = useState<StreamState>("connecting");
+  // The state belongs to one URL: a new URL reads as "connecting" until its stream answers.
+  const [status, setStatus] = useState<{ url: string; value: StreamState } | null>(null);
   const listener = useRef(onEvent);
   useEffect(() => {
     listener.current = onEvent;
   });
   const names = events.join(",");
+  const supported = typeof EventSource !== "undefined";
 
   useEffect(() => {
-    if (url === null) return undefined;
-    if (typeof EventSource === "undefined") {
-      setState("offline");
-      return undefined;
-    }
+    if (url === null || !supported) return undefined;
+    const target = url;
     let source: EventSource | null = null;
     let reopen: ReturnType<typeof setTimeout> | undefined;
-    let disposed = false;
 
-    function open(target: string): void {
-      setState("connecting");
+    function open(): void {
       const current = new EventSource(target);
       source = current;
       current.onopen = () => {
-        setState("open");
+        setStatus({ url: target, value: "open" });
       };
       current.onerror = () => {
-        if (current.readyState === EventSource.CLOSED) {
-          setState("offline");
-          if (!disposed) {
-            reopen = setTimeout(() => {
-              open(target);
-            }, REOPEN_MS);
-          }
-        } else {
-          setState("connecting");
+        if (current.readyState !== EventSource.CLOSED) {
+          setStatus({ url: target, value: "connecting" });
+          return;
         }
+        setStatus({ url: target, value: "offline" });
+        reopen = setTimeout(() => {
+          setStatus({ url: target, value: "connecting" });
+          open();
+        }, REOPEN_MS);
       };
       for (const name of names.split(",").filter(Boolean)) {
         current.addEventListener(name, (event: MessageEvent) => {
@@ -75,13 +71,13 @@ export function useEventStream(
       }
     }
 
-    open(url);
+    open();
     return () => {
-      disposed = true;
       clearTimeout(reopen);
       source?.close();
     };
-  }, [url, names]);
+  }, [url, names, supported]);
 
-  return url === null ? "offline" : state;
+  if (url === null || !supported) return "offline";
+  return status?.url === url ? status.value : "connecting";
 }

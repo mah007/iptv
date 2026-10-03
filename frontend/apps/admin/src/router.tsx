@@ -14,7 +14,10 @@ import { parseAuditSearch } from "./features/audit/search";
 import { AuthLayout } from "./features/auth/auth-layout";
 import { createPendingSignIn, type PendingSignIn } from "./features/auth/pending-sign-in";
 import { parseLoginSearch } from "./features/auth/search";
+import { parseCategoriesSearch } from "./features/categories/search";
 import { parseCustomerSearch, parseCustomersSearch } from "./features/customers/search";
+import { parseReviewSearch } from "./features/review/search";
+import { parseTitlesSearch } from "./features/titles/search";
 import { AdminLayout } from "./layout/admin-layout";
 import { isSignedOutError, meQueryOptions } from "./lib/auth";
 import { NotFoundPage } from "./pages/not-found";
@@ -75,6 +78,50 @@ const customerRoute = createRoute({
   validateSearch: parseCustomerSearch,
   component: lazyRouteComponent(() => import("./pages/customer-detail"), "CustomerDetailPage"),
 });
+const sessionsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/sessions",
+  component: lazyRouteComponent(() => import("./pages/sessions"), "SessionsPage"),
+});
+const librariesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/libraries",
+  component: lazyRouteComponent(() => import("./pages/libraries"), "LibrariesPage"),
+});
+const moviesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/movies",
+  validateSearch: parseTitlesSearch,
+  component: lazyRouteComponent(() => import("./pages/titles"), "MoviesPage"),
+});
+const movieRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/movies/$titleId",
+  component: lazyRouteComponent(() => import("./pages/title-detail"), "MovieDetailPage"),
+});
+const seriesListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/series",
+  validateSearch: parseTitlesSearch,
+  component: lazyRouteComponent(() => import("./pages/titles"), "SeriesPage"),
+});
+const seriesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/series/$titleId",
+  component: lazyRouteComponent(() => import("./pages/title-detail"), "SeriesDetailPage"),
+});
+const reviewRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/review",
+  validateSearch: parseReviewSearch,
+  component: lazyRouteComponent(() => import("./pages/review-queue"), "ReviewQueuePage"),
+});
+const categoriesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/categories",
+  validateSearch: parseCategoriesSearch,
+  component: lazyRouteComponent(() => import("./pages/categories"), "CategoriesPage"),
+});
 const adminsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/admins",
@@ -117,6 +164,14 @@ export const routeTree = rootRoute.addChildren([
     dashboardRoute,
     customersRoute,
     customerRoute,
+    sessionsRoute,
+    librariesRoute,
+    moviesRoute,
+    movieRoute,
+    seriesListRoute,
+    seriesRoute,
+    reviewRoute,
+    categoriesRoute,
     adminsRoute,
     auditRoute,
     settingsRoute,

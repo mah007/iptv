@@ -195,7 +195,6 @@ function LibraryCard({ library, onEdit }: { library: Library; onEdit: (() => voi
           <DescriptionItem label={t("libraries.fields.files")}>
             <span className="tabular-nums">
               {t("libraries.filesSize", {
-                count: stats.files ?? 0,
                 files: format.number(stats.files ?? 0),
                 size: format.bytes(stats.bytes ?? 0),
               })}
@@ -363,12 +362,16 @@ function Libraries() {
   const { t } = useTranslation();
   const can = useCan();
   const query = useLibrariesList({ page_size: 100 }, { query: { refetchInterval: REFRESH_MS } });
-  const [editing, setEditing] = useState<Library | "new" | null>(null);
+  // The sheet keeps showing its library while it animates closed.
+  const [editing, setEditing] = useState<{ open: boolean; library: Library | null }>({
+    open: false,
+    library: null,
+  });
   const manage = can("library.manage");
   const newButton = manage ? (
     <Button
       onClick={() => {
-        setEditing("new");
+        setEditing({ open: true, library: null });
       }}
     >
       <Plus aria-hidden="true" />
@@ -414,7 +417,7 @@ function Libraries() {
             onEdit={
               manage
                 ? () => {
-                    setEditing(library);
+                    setEditing({ open: true, library });
                   }
                 : null
             }
@@ -437,10 +440,10 @@ function Libraries() {
       </div>
       {manage ? (
         <LibrarySheet
-          library={editing === "new" ? null : editing}
-          open={editing !== null}
+          library={editing.library}
+          open={editing.open}
           onOpenChange={(open) => {
-            if (!open) setEditing(null);
+            setEditing((previous) => ({ ...previous, open }));
           }}
         />
       ) : null}

@@ -15,7 +15,7 @@ audited by `apps.media.services`.
 from typing import Any, ClassVar
 from uuid import UUID
 
-from django.db.models import QuerySet
+from django.db.models import Prefetch, QuerySet
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -28,6 +28,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import HasPermission, Requirements
+from apps.catalog.models import Episode
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
 from apps.media import feed, services
@@ -40,9 +41,10 @@ VIEW: tuple[str, ...] = ("library.view", "library.manage")
 
 
 def jobs() -> QuerySet[TranscodeJob]:
+    episodes = Episode.objects.select_related("season__series").order_by("season__number", "number")
     return TranscodeJob.objects.select_related(
         "media_file__library", "media_file__movie"
-    ).prefetch_related("media_file__episodes__season__series")
+    ).prefetch_related(Prefetch("media_file__episodes", queryset=episodes))
 
 
 def _body(pk: UUID) -> dict[str, Any]:

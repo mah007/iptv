@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from kombu import Queue
+from kombu import Exchange, Queue
 
 from apps.core.logs import configure_structlog, logging_config, parse_log_format
 from config.env import env, env_bool, env_int, env_list
@@ -204,9 +204,15 @@ TMDB_CACHE_TTL_S = env_int("TMDB_CACHE_TTL_S", default=24 * 60 * 60)
 # --- Celery -------------------------------------------------------------------
 # Queues from SPEC §13. `worker` consumes the general queues; transcoders
 # subscribe only to the transcode.* queue matching their hardware (M8).
+# Every queue is bound under its own name on one direct exchange. (Queues declared
+# without a routing key all got the key "default", so each message reached every bound
+# queue. The exchange has a new name so the brokers' old bindings no longer apply.)
 CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_DEFAULT_EXCHANGE = "tasks"
+CELERY_TASK_DEFAULT_ROUTING_KEY = "default"
+_TASK_EXCHANGE = Exchange("tasks", type="direct")
 CELERY_TASK_QUEUES = tuple(
-    Queue(name)
+    Queue(name, _TASK_EXCHANGE, routing_key=name)
     for name in (
         "default",
         "scan",

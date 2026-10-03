@@ -9,6 +9,7 @@ encoder, priority, attempts, worker_host, error}`.
 """
 
 import json
+import time
 from collections.abc import AsyncIterator
 from typing import Any, Final
 
@@ -19,6 +20,7 @@ from redis.exceptions import RedisError
 from apps.media.services import CHANNEL
 
 KEEPALIVE_S: Final = 15.0
+POLL_S: Final = 1.0
 RETRY_MS: Final = 5000
 
 
@@ -37,11 +39,16 @@ async def job_events(
         await pubsub.subscribe(CHANNEL)
         yield f"retry: {RETRY_MS}\n".encode() + event("snapshot", {"jobs": snapshot})
         sent = 0
+        quiet_since = time.monotonic()
         while limit is None or sent < limit:
-            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=KEEPALIVE_S)
+            # None also stands for a skipped subscribe confirmation, so time the silence.
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=POLL_S)
             if message is None:
-                yield b": keep-alive\n\n"
+                if time.monotonic() - quiet_since >= KEEPALIVE_S:
+                    yield b": keep-alive\n\n"
+                    quiet_since = time.monotonic()
                 continue
+            quiet_since = time.monotonic()
             try:
                 data = json.loads(message["data"])
             except (TypeError, ValueError):

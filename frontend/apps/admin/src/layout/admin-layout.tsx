@@ -13,22 +13,38 @@ import {
   SidebarTrigger,
   ThemeToggle,
   Topbar,
+  useFormatters,
 } from "@smart-iptv/ui";
-import { useAuthLogout } from "@smart-iptv/api";
+import { useAuthLogout, useReviewQueueList } from "@smart-iptv/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { environment } from "../environment";
-import { useCan, useMe } from "../lib/auth";
+import { LIBRARY_VIEW, useCan, useMe } from "../lib/auth";
 import { notifyError } from "../lib/problems";
 import { BrandLockup, BrandMark } from "./brand";
-import { NAV_SECTIONS } from "./nav";
+import { NAV_SECTIONS, type NavItem } from "./nav";
 import { UserMenu } from "./user-menu";
+
+/** How often the sidebar's counts refresh. */
+const BADGE_REFRESH_MS = 60_000;
+
+/** Live counts for sidebar items (SPEC §8.2): the open review queue. */
+function useNavBadges(): Record<NonNullable<NavItem["badge"]>, number | undefined> {
+  const can = useCan();
+  const reviews = useReviewQueueList(
+    { status: "open", page_size: 1 },
+    { query: { enabled: can(LIBRARY_VIEW), refetchInterval: BADGE_REFRESH_MS } },
+  );
+  return { openReviews: reviews.data?.count };
+}
 
 function AdminSidebar() {
   const { t } = useTranslation();
   const can = useCan();
+  const format = useFormatters();
+  const badges = useNavBadges();
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => can(item.permission)),
@@ -52,11 +68,20 @@ function AdminSidebar() {
       <SidebarContent>
         {sections.map((section) => (
           <SidebarSection key={section.id} title={t(section.titleKey)}>
-            {section.items.map((item) => (
-              <SidebarItem key={item.to} asChild icon={<item.icon />} label={t(item.labelKey)}>
-                <Link to={item.to} activeOptions={{ exact: item.exact ?? false }} />
-              </SidebarItem>
-            ))}
+            {section.items.map((item) => {
+              const count = item.badge ? badges[item.badge] : undefined;
+              return (
+                <SidebarItem
+                  key={item.to}
+                  asChild
+                  icon={<item.icon />}
+                  label={t(item.labelKey)}
+                  {...(count ? { badge: format.number(count) } : {})}
+                >
+                  <Link to={item.to} activeOptions={{ exact: item.exact ?? false }} />
+                </SidebarItem>
+              );
+            })}
           </SidebarSection>
         ))}
       </SidebarContent>

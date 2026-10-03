@@ -34,6 +34,7 @@ from uuid import UUID, uuid4
 
 import structlog
 from django.db import IntegrityError, transaction
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -165,13 +166,19 @@ def celery_priority(priority: int) -> int:
     return PRIORITY_MAX - max(PRIORITY_MIN, min(PRIORITY_MAX, priority))
 
 
+def _job_rendition(job: TranscodeJob) -> QuerySet[Rendition]:
+    if job.rendition_id is None:
+        return Rendition.objects.none()
+    return Rendition.objects.filter(pk=job.rendition_id)
+
+
 def dispatch(job: TranscodeJob, *, countdown: int | None = None) -> None:
     """(Re-)send the job's Celery message after the commit. Earlier messages go stale."""
     from apps.media import tasks  # noqa: PLC0415 (tasks import this module)
 
     job.dispatches += 1
     job.save(update_fields=["dispatches", "updated_at"])
-    args = [str(job.pk), job.dispatches]
+    args = (str(job.pk), job.dispatches)
     options: dict[str, Any] = {
         "queue": queue_for(job.backend),
         "priority": celery_priority(job.priority),
@@ -442,9 +449,7 @@ def _start(job: TranscodeJob, host: str) -> None:
     job.error = ""
     job.error_tail = ""
     job.save()
-    Rendition.objects.filter(pk=job.rendition_id).update(
-        status=RenditionStatus.RUNNING, error="", updated_at=timezone.now()
-    )
+    _job_rendition(job).update(status=RenditionStatus.RUNNING, error="", updated_at=timezone.now())
     publish(job)
 
 
@@ -502,7 +507,7 @@ def _ready(job: TranscodeJob, made: ProbeResult) -> None:
     video = made.video
     now = timezone.now()
     with transaction.atomic():
-        Rendition.objects.filter(pk=job.rendition_id).update(
+        _job_rendition(job).update(
             status=RenditionStatus.READY,
             width=video.width if video else None,
             height=video.height if video else None,
@@ -551,7 +556,7 @@ def _finish(job: TranscodeJob, status: JobStatus, *, error: str | None = None) -
         job.error = error[:ERROR_MAX]
     job.save()
     if status in (JobStatus.FAILED, JobStatus.CANCELLED):
-        Rendition.objects.filter(pk=job.rendition_id).exclude(status=RenditionStatus.READY).update(
+        _job_rendition(job).exclude(status=RenditionStatus.READY).update(
             status=RenditionStatus.FAILED, error=job.error, updated_at=timezone.now()
         )
     publish(job)
@@ -633,9 +638,9 @@ def retry_job(job: TranscodeJob, *, actor: User | None, ip: str | None) -> Trans
             job.finished_at = None
             job.backend = route(job.remux)
             job.save()
-            Rendition.objects.filter(pk=job.rendition_id).exclude(
-                status=RenditionStatus.READY
-            ).update(status=RenditionStatus.PENDING, error="", updated_at=timezone.now())
+            _job_rendition(job).exclude(status=RenditionStatus.READY).update(
+                status=RenditionStatus.PENDING, error="", updated_at=timezone.now()
+            )
             dispatch(job)
             audit.record(
                 "transcode_job.retry",

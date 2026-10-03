@@ -160,7 +160,8 @@ class World:
                 episode_run_time=47,
                 status=TitleStatus.READY,
             )
-            show.categories.add(self.crime, self.docs)
+            show.categories.add(self.crime)  # one add() per link keeps their order
+            show.categories.add(self.docs)
             show.genres.set(self.genres)
             self.image("poster", ("w185", "w500", "original"), series=show)
             self.image("backdrop", ("w1280",), series=show)

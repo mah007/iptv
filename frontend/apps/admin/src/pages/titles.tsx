@@ -9,7 +9,6 @@ import {
   type SeriesSummary,
 } from "@smart-iptv/api";
 import {
-
   Button,
   DataTable,
   EmptyState,
@@ -92,8 +91,8 @@ function useColumns(kind: TitleKind) {
                 <div className="grid min-w-0">
                   <TitleLink kind={kind} title={title} />
                   {other ? (
-                    <span className="truncate text-xs text-muted-foreground" dir="auto">
-                      {other}
+                    <span className="truncate text-xs text-muted-foreground">
+                      <bdi>{other}</bdi>
                     </span>
                   ) : null}
                 </div>

@@ -19,8 +19,15 @@
       "overview": "Overview",
       "customers": "Customers",
       "security": "Security",
-      "system": "System"
-    }
+      "system": "System",
+      "content": "Content"
+    },
+    "sessions": "Live sessions",
+    "libraries": "Libraries",
+    "movies": "Movies",
+    "series": "Series",
+    "review": "Review queue",
+    "categories": "Categories"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -842,6 +849,420 @@
       "MFA_INVALID": "That code didn't work. Check your app and enter the current code.",
       "NOT_AUTHENTICATED": "Your sign-in timed out. Start again with your password.",
       "UNAVAILABLE": "Sign-in isn't available right now. Try again in a few minutes."
+    }
+  },
+  "libraries": {
+    "title": "Libraries",
+    "description": "Folders of owned or licensed media under /media. Scans find new files and match them to metadata.",
+    "new": "Add library",
+    "edit": "Edit {{name}}",
+    "scanNow": "Scan now",
+    "everyMinutes_one": "Every minute",
+    "everyMinutes_other": "Every {{count}} minutes",
+    "filesSize": "{{files}} ({{size}})",
+    "counts": {
+      "movies_one": "{{count}} movie",
+      "movies_other": "{{count}} movies",
+      "series_one": "{{count}} series",
+      "series_other": "{{count}} series",
+      "episodes_one": "{{count}} episode",
+      "episodes_other": "{{count}} episodes",
+      "review_one": "{{count}} to review",
+      "review_other": "{{count}} to review",
+      "pending_one": "{{count}} pending",
+      "pending_other": "{{count}} pending",
+      "errors_one": "{{count}} error",
+      "errors_other": "{{count}} errors"
+    },
+    "kinds": {
+      "movies": "Movies",
+      "series": "Series",
+      "documentaries": "Documentaries",
+      "kids": "Kids",
+      "mixed": "Mixed"
+    },
+    "policies": {
+      "ingest": {
+        "title": "Transcode at ingest",
+        "description": "Every file gets a compatible MP4 before it is offered. Recommended."
+      },
+      "on_demand": {
+        "title": "Transcode on first play",
+        "description": "Saves storage; the first viewer may wait while the rendition is made."
+      },
+      "passthrough": {
+        "title": "Serve the source",
+        "description": "No transcoding. Only for files every player can already play."
+      }
+    },
+    "fields": {
+      "policy": "Processing",
+      "interval": "Rescan",
+      "files": "Files",
+      "titles": "Titles",
+      "attention": "Needs attention"
+    },
+    "scan": {
+      "found": "Found",
+      "new": "New",
+      "changed": "Changed",
+      "removed": "Removed",
+      "errors": "Errors",
+      "never": "Not scanned yet.",
+      "last": "Last scan",
+      "live": "Live",
+      "inProgress": "Scanning…",
+      "started": "Scan of {{name}} started",
+      "alreadyRunning": "{{name}} is already being scanned"
+    },
+    "history": {
+      "title": "Scan history",
+      "description": "The latest scans of every library, with their logs.",
+      "empty": "No scans yet.",
+      "library": "Library",
+      "status": "Status",
+      "trigger": "Started by",
+      "started": "Started",
+      "log": "Log",
+      "logTitle": "Scan log: {{name}}"
+    },
+    "triggers": {
+      "watcher": "File watcher",
+      "schedule": "Schedule",
+      "manual": "Admin"
+    },
+    "empty": {
+      "title": "No libraries yet",
+      "description": "Add a folder under /media to start finding and matching titles."
+    },
+    "form": {
+      "name": "Name",
+      "kind": "Content",
+      "path": "Folder",
+      "pathHelp": "A folder under /media, e.g. /media/movies.",
+      "policy": "Processing",
+      "interval": "Reconciliation scan every (minutes)",
+      "intervalHelp": "The file watcher sees changes at once; this scan catches anything it missed.",
+      "enabled": "Enabled",
+      "enabledHelp": "Disabled libraries are not scanned.",
+      "create": "Add library",
+      "saved": "{{name}} saved",
+      "created": "{{name}} added",
+      "editTitle": "Edit library",
+      "newTitle": "Add library",
+      "description": "Media enters only through libraries. The server checks that the folder is under /media."
+    },
+    "validation": {
+      "nameRequired": "Enter a name.",
+      "nameTooLong": "Use at most 100 characters.",
+      "pathRequired": "Enter a folder under /media.",
+      "pathTooLong": "Use at most 500 characters.",
+      "interval": "Enter whole minutes from 1 to 10080."
+    }
+  },
+  "titles": {
+    "movie": {
+      "title": "Movies",
+      "description": "Matched movies, their artwork, files and status."
+    },
+    "series": {
+      "title": "Series",
+      "description": "Matched series with their seasons and episodes."
+    },
+    "synthetic": "Synthetic",
+    "syntheticHelp": "Metadata from the offline sample fixtures (no TMDB key), not from TMDB.",
+    "listSeparator": ", ",
+    "columns": {
+      "title": "Title",
+      "year": "Year",
+      "status": "Status",
+      "categories": "Categories",
+      "files": "Files",
+      "episodes": "Episodes",
+      "rating": "Rating",
+      "updated": "Updated"
+    },
+    "filters": {
+      "search": "Search English, Arabic or original title…",
+      "status": "Status",
+      "library": "Library",
+      "category": "Category",
+      "chipStatus": "Status: {{value}}",
+      "chipLibrary": "Library: {{value}}",
+      "chipCategory": "Category: {{value}}"
+    },
+    "view": {
+      "label": "View",
+      "grid": "Posters",
+      "list": "List"
+    },
+    "pagination": "Pages",
+    "pageOf": "Page {{page}} of {{pages}}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "noMatches": {
+      "title": "No titles match",
+      "description": "Try other filters or clear them."
+    },
+    "empty": {
+      "movie": {
+        "title": "No movies yet",
+        "description": "Movies appear here once a library scan finds and matches them."
+      },
+      "series": {
+        "title": "No series yet",
+        "description": "Series appear here once a library scan finds and matches their episodes."
+      },
+      "libraries": "Go to libraries"
+    },
+    "sources": {
+      "tmdb": "TMDB",
+      "synthetic": "Offline fixtures",
+      "manual": "Manual"
+    },
+    "detail": {
+      "edit": "Edit",
+      "refresh": "Refresh metadata",
+      "refreshQueued": "Metadata refresh queued",
+      "hide": "Hide",
+      "show": "Show",
+      "hidden": "Title hidden from customers",
+      "shown": "Title shown to customers again",
+      "overview": "Overview",
+      "english": "English",
+      "arabic": "Arabic",
+      "noOverview": "No overview yet.",
+      "details": "Details",
+      "source": "Metadata source",
+      "tmdb": "TMDB ID",
+      "xtreamId": "Xtream ID",
+      "originalTitle": "Original title",
+      "released": "Released",
+      "firstAired": "First aired",
+      "runtime": "Runtime",
+      "refreshed": "Metadata refreshed",
+      "locked": "Locked fields",
+      "posterOf": "Poster of {{title}}"
+    },
+    "files": {
+      "title": "Files",
+      "description": "Source files, with their path inside the library.",
+      "none": "No files.",
+      "noneHelp": "Its files were removed from the library.",
+      "path": "File",
+      "quality": "Video",
+      "duration": "Duration",
+      "size": "Size",
+      "state": "State",
+      "removed": "removed",
+      "directPlay": "Direct play"
+    },
+    "seasons": {
+      "title": "Seasons and episodes",
+      "description": "Episodes with their files.",
+      "none": "No episodes yet.",
+      "season": "Season {{number}}",
+      "specials": "Specials",
+      "untitled": "Untitled episode",
+      "episodes_one": "{{count}} episode",
+      "episodes_other": "{{count}} episodes"
+    },
+    "editor": {
+      "title": "Edit metadata",
+      "description": "English and Arabic side by side. Customers see the language of their profile.",
+      "categories": "Categories",
+      "locked": "Locked: refreshes keep your edit",
+      "lockHelp": "Fields you change are locked, so metadata refreshes keep your edits.",
+      "saved": "Metadata saved",
+      "fields": {
+        "title": "Title (English)",
+        "title_ar": "Title (Arabic)",
+        "overview": "Overview (English)",
+        "overview_ar": "Overview (Arabic)",
+        "tagline": "Tagline (English)",
+        "tagline_ar": "Tagline (Arabic)",
+        "year": "Year"
+      }
+    },
+    "validation": {
+      "titleRequired": "Enter the English title.",
+      "tooLong": "That's too long.",
+      "year": "Enter a year from 1870 to 2200, or leave it empty."
+    }
+  },
+  "review": {
+    "title": "Review queue",
+    "description": "Files the matcher couldn't place with confidence. Pick the right title, or skip.",
+    "listLabel": "Files to review",
+    "previous": "Previous",
+    "next": "Next",
+    "inLibrary": "In {{name}}",
+    "decided": {
+      "resolved": "Matched by {{name}}",
+      "skipped": "Skipped by {{name}}",
+      "open": "Open"
+    },
+    "kinds": {
+      "movie": "Movie",
+      "tv": "Series"
+    },
+    "reasons": {
+      "ambiguous": "Close scores",
+      "below_threshold": "Low confidence",
+      "no_candidates": "No candidates",
+      "classification": "Movie or episode?",
+      "numbering": "No episode number",
+      "episode_not_found": "Episode not found"
+    },
+    "skip": "Skip",
+    "skippedToast": "Skipped",
+    "resolved": "Matched to {{title}}",
+    "choose": "Choose",
+    "chosen": "Chosen",
+    "score": "Match score",
+    "notMeasured": "Not measured",
+    "breakdown": {
+      "title": "Title",
+      "year": "Year",
+      "runtime": "Runtime",
+      "popularity": "Popularity"
+    },
+    "tmdbId": "TMDB {{id}}",
+    "candidates": "Candidates ({{number}})",
+    "noCandidates": "No candidates. Search TMDB or enter an ID below.",
+    "file": {
+      "title": "What the file says",
+      "parsedTitle": "Title from the name",
+      "year": "Year",
+      "episode": "Episode",
+      "duration": "Duration",
+      "video": "Video",
+      "size": "Size"
+    },
+    "manual": {
+      "title": "Match manually",
+      "description": "Search TMDB, or enter the TMDB ID of the right title.",
+      "kind": "Type",
+      "tmdbId": "TMDB ID",
+      "match": "Match",
+      "search": "Search TMDB",
+      "searchButton": "Search",
+      "noResults": "Nothing found. Try another spelling or the original title."
+    },
+    "empty": {
+      "open": {
+        "title": "All caught up",
+        "description": "Every scanned file is matched. New ambiguous files show up here."
+      },
+      "resolved": {
+        "title": "Nothing resolved yet",
+        "description": "Files matched from this queue are listed here."
+      },
+      "skipped": {
+        "title": "Nothing skipped",
+        "description": "Files skipped from this queue are listed here."
+      }
+    }
+  },
+  "categories": {
+    "title": "Categories",
+    "description": "What IPTV apps and the portal list, in this order. Names show in each customer's language.",
+    "new": "New category",
+    "kinds": {
+      "vod": "Movies",
+      "series": "Series",
+      "live": "Live TV"
+    },
+    "columns": {
+      "order": "#",
+      "nameEn": "English name",
+      "nameAr": "Arabic name",
+      "slug": "Slug",
+      "xtream": "In IPTV apps",
+      "actions": "Actions"
+    },
+    "adult": "Adult",
+    "visibleLabel": "Show {{name}} in IPTV apps",
+    "shown": "{{name}} shown in IPTV apps",
+    "hidden": "{{name}} hidden from IPTV apps",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "edit": "Edit {{name}}",
+    "delete": {
+      "label": "Delete {{name}}",
+      "title": "Delete {{name}}?",
+      "description": "Titles and access profiles lose this category. This can't be undone.",
+      "confirm": "Delete category",
+      "done": "{{name}} deleted"
+    },
+    "empty": {
+      "title": "No categories of this kind",
+      "description": "Categories group titles in IPTV apps and limit what customers can watch."
+    },
+    "form": {
+      "newTitle": "New category: {{kind}}",
+      "editTitle": "Edit category",
+      "description": "Both names are required: IPTV apps show the customer's language.",
+      "nameEn": "English name",
+      "nameAr": "Arabic name",
+      "slug": "Slug",
+      "slugHelp": "Letters, digits, hyphens and underscores. Leave empty to make one from the English name.",
+      "visible_in_xtream": "Show in IPTV apps",
+      "visible_in_xtreamHelp": "Hidden categories stay usable in access profiles.",
+      "is_adult": "Adult content",
+      "is_adultHelp": "Customers see it only when their access profile allows adult content.",
+      "create": "Create category",
+      "saved": "{{name}} saved",
+      "created": "{{name}} created"
+    },
+    "validation": {
+      "nameRequired": "Enter a name.",
+      "nameTooLong": "Use at most 100 characters.",
+      "slug": "Use letters, digits, hyphens and underscores only."
+    }
+  },
+  "sessions": {
+    "title": "Live sessions",
+    "description": "Who is watching what right now. Updates every 2 seconds.",
+    "connection": {
+      "open": "Live",
+      "connecting": "Connecting…",
+      "offline": "Reconnecting…"
+    },
+    "stats": {
+      "streams": "Streams now",
+      "users": "Customers watching",
+      "bytes": "Sent by live streams"
+    },
+    "columns": {
+      "customer": "Customer and device",
+      "title": "Title",
+      "rendition": "Rendition",
+      "ip": "IP address",
+      "duration": "Watching for",
+      "bytes": "Sent",
+      "actions": "Actions"
+    },
+    "kinds": {
+      "movie": "Movie",
+      "episode": "Episode"
+    },
+    "unknownCustomer": "Unknown customer",
+    "unknownDevice": "Unknown device",
+    "unknownTitle": "Unknown title",
+    "startedAt": "Started {{time}}",
+    "stopping": "Stopping…",
+    "empty": {
+      "title": "Nobody is watching",
+      "description": "Sessions appear here the moment a player starts a stream."
+    },
+    "kill": {
+      "action": "Stop",
+      "title": "Stop this session?",
+      "description": "{{name}} stops watching {{title}} within a minute. They can start again unless you also block the device.",
+      "confirm": "Stop session",
+      "done": "Session of {{name}} stopped",
+      "alreadyEnded": "That session had already ended"
     }
   }
 }
