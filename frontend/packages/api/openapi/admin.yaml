@@ -1,0 +1,382 @@
+openapi: 3.1.0
+info:
+  title: Smart IPTV Admin API
+  version: 1.0.0
+  description: Same-origin API of the admin SPA. Errors are RFC 9457 problem details.
+paths:
+  /api/v1/admin/audit:
+    get:
+      operationId: audit_list
+      description: |-
+        GET /api/v1/admin/audit: newest first, filterable, paginated.
+
+        Staff only until RBAC lands in M3, which switches it to `audit.view`.
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+      - in: query
+        name: actor
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: at_after
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: at_before
+        schema:
+          type: string
+          format: date-time
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: target_id
+        schema:
+          type: string
+      - in: query
+        name: target_type
+        schema:
+          type: string
+      tags:
+      - audit
+      security:
+      - sessionAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditLogList'
+          description: ''
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /api/v1/admin/settings:
+    get:
+      operationId: settings_list
+      description: Staff only until RBAC lands in M3, which switches it to `settings.view`.
+      summary: List every setting with its effective value
+      tags:
+      - settings
+      security:
+      - sessionAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SettingEntry'
+          description: ''
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /api/v1/admin/settings/{key}:
+    patch:
+      operationId: settings_update
+      description: Staff only until RBAC lands in M3, which switches writes to `settings.edit`.
+      summary: Change a setting; it applies everywhere without a restart
+      parameters:
+      - in: path
+        name: key
+        schema:
+          type: string
+        required: true
+      tags:
+      - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSettingRequest'
+      security:
+      - sessionAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingEntry'
+          description: ''
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+components:
+  schemas:
+    AuditActor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - username
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        at:
+          type: string
+          format: date-time
+          readOnly: true
+        actor:
+          oneOf:
+          - $ref: '#/components/schemas/AuditActor'
+          - type: 'null'
+          readOnly: true
+        actor_ip:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+        action:
+          type: string
+          readOnly: true
+        target_type:
+          type: string
+          readOnly: true
+        target_id:
+          type: string
+          readOnly: true
+        before:
+          oneOf:
+          - {}
+          - type: 'null'
+          readOnly: true
+        after:
+          oneOf:
+          - {}
+          - type: 'null'
+          readOnly: true
+      required:
+      - action
+      - actor
+      - actor_ip
+      - after
+      - at
+      - before
+      - id
+      - target_id
+      - target_type
+    PaginatedAuditLogList:
+      type: object
+      required:
+      - count
+      - next
+      - previous
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+          - string
+          - 'null'
+          format: uri
+        previous:
+          type:
+          - string
+          - 'null'
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
+    PatchedSettingRequest:
+      type: object
+      description: 'PATCH body. Partial like any PATCH: without `value` nothing changes.'
+      properties:
+        value:
+          type:
+          - boolean
+          - number
+          - string
+    SettingEntry:
+      type: object
+      description: A registered setting with its effective value. Sensitive values
+        are never sent.
+      properties:
+        key:
+          type: string
+          readOnly: true
+        group:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/SettingKind'
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        default:
+          type:
+          - boolean
+          - number
+          - string
+          - 'null'
+          readOnly: true
+        value:
+          type:
+          - boolean
+          - number
+          - string
+          - 'null'
+          readOnly: true
+        is_default:
+          type: boolean
+          readOnly: true
+        sensitive:
+          type: boolean
+          readOnly: true
+        min_value:
+          type:
+          - number
+          - 'null'
+          format: double
+          readOnly: true
+        max_value:
+          type:
+          - number
+          - 'null'
+          format: double
+          readOnly: true
+        choices:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+          readOnly: true
+        updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        updated_by:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+      required:
+      - choices
+      - default
+      - description
+      - group
+      - is_default
+      - key
+      - kind
+      - max_value
+      - min_value
+      - sensitive
+      - updated_at
+      - updated_by
+      - value
+    SettingKind:
+      enum:
+      - bool
+      - int
+      - float
+      - str
+      type: string
+      description: |-
+        * `bool` - BOOL
+        * `int` - INT
+        * `float` - FLOAT
+        * `str` - STR
+    ErrorCode:
+      type: string
+      enum:
+      - VALIDATION_ERROR
+      - NOT_AUTHENTICATED
+      - PERMISSION_DENIED
+      - NOT_FOUND
+      - METHOD_NOT_ALLOWED
+      - RATE_LIMITED
+      - INTERNAL_ERROR
+      - INVALID_CREDENTIALS
+      - ACCOUNT_LOCKED
+      - MFA_REQUIRED
+      - MFA_SETUP_REQUIRED
+      - MFA_INVALID
+      - SUBSCRIPTION_EXPIRED
+      - CONCURRENCY_LIMIT
+      - CATEGORY_NOT_ALLOWED
+      - DEVICE_BLOCKED
+      - DEVICE_LIMIT
+      - TITLE_PREPARING
+      - CONFLICT
+      description: Stable machine-readable error code.
+    Problem:
+      type: object
+      description: RFC 9457 problem details, served as application/problem+json.
+      properties:
+        type:
+          type: string
+          description: urn:smart-iptv:problem:<code>
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        detail:
+          type: string
+        field_errors:
+          type: object
+          description: Messages per field; nested fields use dotted paths.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+      - type
+      - title
+      - status
+      - code
+      - detail
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

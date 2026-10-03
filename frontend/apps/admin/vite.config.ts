@@ -16,5 +16,17 @@ export default defineConfig({
     allowedHosts: [`admin.${domain}`],
     ...(hmrClientPort ? { hmr: { clientPort: Number(hmrClientPort) } } : {}),
   },
-  test: { environment: "jsdom" },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          // React changes rarely: its own long-cached chunk survives app releases.
+          groups: [
+            { name: "react", test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
+  test: { environment: "jsdom", setupFiles: ["./src/test-setup.ts"] },
 });

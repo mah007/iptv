@@ -50,4 +50,22 @@ docker run -d --name "$app_name" --env-file "$env_file" \
 docker run -d --name "$frontend_name" "$frontend_image" >/dev/null
 wait_healthy "$app_name" 90
 wait_healthy "$frontend_name" 60
+
+# Gunicorn's workers write metrics to a multiprocess directory that /metrics
+# aggregates (config/gunicorn_conf.py); the healthchecks above produced samples.
+echo "Prometheus metrics from the Gunicorn workers:"
+if docker exec "$app_name" python -c "
+import sys, urllib.request
+request = urllib.request.Request('http://127.0.0.1:8000/metrics', headers={'Host': 'localhost'})
+with urllib.request.urlopen(request, timeout=10) as resp:
+    body = resp.read().decode()
+ok = '# TYPE iptv_subscriptions gauge' in body and 'django_http_requests_total_by_method_total' in body
+sys.exit(0 if ok else 1)
+"; then
+  echo "  ok    /metrics aggregates the workers' samples"
+else
+  echo "  FAIL  /metrics; last logs:" >&2
+  docker logs --tail 40 "$app_name" >&2 || true
+  exit 1
+fi
 echo "Image smoke test passed."

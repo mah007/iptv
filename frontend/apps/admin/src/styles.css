@@ -1,3 +1,21 @@
 @import "tailwindcss";
 @import "@smart-iptv/ui/styles.css";
 @source "../../../packages/ui/src";
+
+/* A faint wash of the brand accent behind the sign-in and error screens. */
+.auth-backdrop {
+  background-image:
+    radial-gradient(
+      60% 45% at 50% 0%,
+      color-mix(in oklab, var(--primary) 9%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      circle at 1px 1px,
+      color-mix(in oklab, var(--foreground) 7%, transparent) 1px,
+      transparent 0
+    );
+  background-size:
+    100% 100%,
+    22px 22px;
+}

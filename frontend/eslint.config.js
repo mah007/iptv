@@ -15,7 +15,8 @@ const RTL_MESSAGE =
 const classContexts = ["JSXAttribute[name.name='className']", "CallExpression[callee.name='cva']"];
 
 export default defineConfig([
-  globalIgnores(["**/dist", "**/coverage", "**/node_modules"]),
+  // Orval output (packages/api/src/generated) is regenerated, never hand-edited.
+  globalIgnores(["**/dist", "**/coverage", "**/node_modules", "packages/api/src/generated/**"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

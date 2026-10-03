@@ -1,9 +1,84 @@
 {
   "title": "Smart IPTV Admin",
+  "brand": "Smart IPTV",
   "area": "Admin",
+  "nav": {
+    "label": "Main navigation",
+    "homeLink": "Smart IPTV Admin home",
+    "home": "Home",
+    "sections": {
+      "overview": "Overview"
+    }
+  },
+  "layout": {
+    "skipToContent": "Skip to content",
+    "loading": "Loading…"
+  },
+  "userMenu": {
+    "label": "Account menu",
+    "signOut": "Sign out"
+  },
   "home": {
     "title": "Welcome to Smart IPTV",
     "subtitle": "The platform foundation is running. Admin features arrive milestone by milestone.",
+    "statusTitle": "Platform status",
+    "statusDescription": "Core services are up. Customer and subscription management comes next.",
     "status": "Foundation ready"
+  },
+  "notFound": {
+    "code": "404",
+    "title": "Page not found",
+    "description": "This page doesn't exist or has moved. Check the address, or head back to the start.",
+    "home": "Back to home"
+  },
+  "routeError": {
+    "title": "This page couldn't load",
+    "description": "Something went wrong on our side. Try again; if it keeps happening, contact support.",
+    "home": "Go to home"
+  },
+  "auth": {
+    "footer": "Staff access only. Activity is logged.",
+    "login": {
+      "title": "Sign in to Smart IPTV",
+      "subtitle": "Use your staff username or email.",
+      "loginLabel": "Username or email",
+      "passwordLabel": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "sessionNote": "For security, you're signed out after 30 minutes of inactivity."
+    },
+    "mfa": {
+      "verifyTitle": "Two-factor authentication",
+      "verifySubtitle": "Enter the 6-digit code from your authenticator app.",
+      "setupTitle": "Set up two-factor authentication",
+      "setupSubtitle": "Every admin account needs an authenticator app. This takes a minute.",
+      "step1": "1.",
+      "step2": "2.",
+      "scan": "Scan this QR code with an authenticator app, such as Google Authenticator, Microsoft Authenticator or 1Password.",
+      "qrLabel": "QR code to add Smart IPTV to an authenticator app",
+      "manualKey": "Can't scan? Enter this setup key instead",
+      "enterCode": "Enter the 6-digit code the app shows.",
+      "codeLabel": "Authentication code",
+      "codeHelp": "The code changes every 30 seconds.",
+      "submit": "Verify",
+      "submitSetup": "Verify and finish",
+      "back": "Back to sign in"
+    },
+    "validation": {
+      "loginRequired": "Enter your username or email.",
+      "loginTooLong": "That's longer than any username or email we accept.",
+      "passwordRequired": "Enter your password.",
+      "passwordTooLong": "That password is too long.",
+      "codeRequired": "Enter the 6-digit code.",
+      "codeFormat": "The code is 6 digits, e.g. 123456."
+    },
+    "errors": {
+      "INVALID_CREDENTIALS": "That username, email or password isn't right.",
+      "ACCOUNT_LOCKED": "Too many failed attempts. This account is locked for a while; try again later.",
+      "RATE_LIMITED": "Too many attempts. Wait a moment, then try again.",
+      "MFA_INVALID": "That code didn't work. Check your app and enter the current code.",
+      "NOT_AUTHENTICATED": "Your sign-in timed out. Start again with your password.",
+      "UNAVAILABLE": "Sign-in isn't available right now. Try again in a few minutes."
+    }
   }
 }

@@ -25,7 +25,8 @@ services:
 
   web:
     <<: *app-dev
-    command: ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app"]
+    # No access log: it prints raw paths (Xtream paths carry credentials).
+    command: ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app", "--no-access-log"]
 
   worker:
     <<: *app-dev

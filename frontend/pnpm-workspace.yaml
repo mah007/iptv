@@ -1,3 +1,7 @@
 packages:
   - "packages/*"
   - "apps/*"
+# Dependency install scripts are denied unless listed here as true (supply-chain
+# safeguard). esbuild's postinstall only swaps in a binary pnpm already installs.
+allowBuilds:
+  esbuild: false

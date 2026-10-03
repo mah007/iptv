@@ -2,7 +2,10 @@
 """Licence gate (SPEC §1.2): production dependencies must be permissively licensed.
 
 Allowed: MIT, BSD, Apache-2.0, ISC, Zlib, MPL-2.0, PSF and similar, plus LGPL used
-unmodified. Anything else (GPL, AGPL, SSPL, BUSL, non-commercial, unknown) fails.
+unmodified. OFL-1.1 is allowed too: it is the licence of the self-hosted fonts (Inter,
+IBM Plex Sans Arabic), and it permits bundling them in commercial software as long as
+the fonts aren't sold on their own. Anything else (GPL, AGPL, SSPL, BUSL,
+non-commercial, unknown) fails.
 
 Usage:
     python license_gate.py python
@@ -31,7 +34,9 @@ from importlib import metadata
 
 ALLOWED = re.compile(
     r"\b(MIT|MIT-0|BSD|0BSD|APACHE|ISC|ZLIB|MPL|MOZILLA PUBLIC|PSF|PYTHON SOFTWARE|"
-    r"PYTHON-2\.0|UNLICENSE|CC0|BLUEOAK|HPND|POSTGRESQL)\b"
+    r"PYTHON-2\.0|UNLICENSE|CC0|BLUEOAK|HPND|POSTGRESQL|"
+    # Font licence (SIL Open Font License 1.1), e.g. @fontsource packages.
+    r"OFL-1\.1|SIL OPEN FONT LICENSE(,? VERSION)? 1\.1)\b"
 )
 LGPL = re.compile(r"\bLGPL|LESSER GENERAL PUBLIC|LIBRARY GENERAL PUBLIC")
 FORBIDDEN = re.compile(
@@ -196,6 +201,10 @@ SELF_TEST_CASES = {
     "BSD License AND Other/Proprietary License": "fail",
     "CC-BY-NC-4.0": "fail",
     "Mozilla Public License 2.0 (MPL 2.0)": "ok",
+    "OFL-1.1": "ok",
+    "SIL Open Font License 1.1": "ok",
+    "(MIT AND OFL-1.1)": "ok",
+    "OFL-1.1 AND GPL-3.0-only": "fail",
     "UNKNOWN": "fail",
     "": "fail",
 }

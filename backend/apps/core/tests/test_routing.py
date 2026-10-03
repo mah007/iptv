@@ -69,3 +69,37 @@ def test_middleware_routes_on_the_async_stack() -> None:
     internal_request = RequestFactory().get("/", headers={"host": "web"})
     assert async_to_sync(middleware)(api_request).content == b"config.urls_api"
     assert async_to_sync(middleware)(internal_request).content == b"root"
+
+
+ADMIN = settings.ADMIN_HOST
+APP = settings.APP_HOST
+
+
+@pytest.mark.parametrize("host", [ADMIN, APP])
+def test_admin_and_portal_hosts_serve_their_api_health(client: Client, host: str) -> None:
+    response = client.get("/api/v1/health", headers={"host": host})
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.parametrize("host", [ADMIN, APP])
+def test_internal_endpoints_are_unreachable_from_the_spa_hosts(client: Client, host: str) -> None:
+    for path in ("/internal/health/live", "/internal/health/ready", "/metrics"):
+        assert client.get(path, headers={"host": host}).status_code == 404
+
+
+def test_the_admin_api_is_not_served_on_other_hosts(client: Client) -> None:
+    for host in (API, TV, APP, "web"):
+        response = client.get("/api/v1/schema", headers={"host": host})
+        assert response.status_code == 404
+
+
+def test_middleware_routes_the_spa_hosts() -> None:
+    def get_response(request: HttpRequest) -> HttpResponse:
+        return HttpResponse(getattr(request, "urlconf", "root"))
+
+    middleware = HostURLConfMiddleware(get_response)
+    admin = RequestFactory().get("/", headers={"host": f"{ADMIN}:8080"})
+    portal = RequestFactory().get("/", headers={"host": APP})
+    assert middleware(admin).content == b"config.urls_admin"
+    assert middleware(portal).content == b"config.urls_portal"

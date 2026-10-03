@@ -12,7 +12,7 @@ describe("portal shell", () => {
     expect(document.title).toBe("Smart IPTV");
     expect(document.documentElement.dataset.theme).toBe("dark");
 
-    fireEvent.click(screen.getByRole("button", { name: "Change language" }));
+    fireEvent.click(screen.getByRole("button", { name: /Change language/ }));
 
     expect(await screen.findByRole("heading", { name: "وجهتك للمشاهدة" })).toBeTruthy();
     expect(document.documentElement.dir).toBe("rtl");

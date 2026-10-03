@@ -2,19 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import ar from "./locales/ar.json";
 import en from "./locales/en.json";
+import { localeProblems } from "./testing";
 
-/** Dotted paths of every leaf string, e.g. "home.title". */
-function leafKeys(messages: Record<string, unknown>, prefix = ""): string[] {
-  return Object.entries(messages).flatMap(([key, value]) =>
-    value !== null && typeof value === "object"
-      ? leafKeys(value as Record<string, unknown>, `${prefix}${key}.`)
-      : [`${prefix}${key}`],
-  );
-}
+describe("ui locales", () => {
+  it("Arabic and English define the same messages, with every plural form", () => {
+    expect(localeProblems({ en, ar })).toEqual([]);
+  });
 
-describe("locales", () => {
-  // English is the fallback, so a key missing from Arabic would silently show English.
-  it("Arabic and English define exactly the same keys", () => {
-    expect(leafKeys(ar).sort()).toEqual(leafKeys(en).sort());
+  it("flags a missing message and a missing Arabic plural form", () => {
+    const problems = localeProblems({
+      en: { a: "A", items_one: "{{count}} item", items_other: "{{count}} items" },
+      ar: { items_one: "عنصر", items_other: "{{count}} عنصر" },
+    });
+    expect(problems).toContain('ar: missing "a"');
+    expect(problems).toContain('ar: "items" lacks the "few" plural form');
+    expect(problems).not.toContain('en: "items" lacks the "few" plural form');
   });
 });

@@ -8,9 +8,152 @@
     "toLight": "التبديل إلى الوضع الفاتح",
     "toDark": "التبديل إلى الوضع الداكن"
   },
+  "density": {
+    "toCompact": "التبديل إلى العرض المضغوط",
+    "toComfortable": "التبديل إلى العرض المريح"
+  },
   "environment": {
     "development": "تطوير",
     "staging": "تجريبي",
-    "production": "إنتاج"
+    "production": "إنتاج",
+    "developmentLong": "بيئة التطوير",
+    "stagingLong": "البيئة التجريبية",
+    "productionLong": "بيئة الإنتاج: التغييرات تمسّ العملاء الفعليين"
+  },
+  "sidebar": {
+    "open": "فتح قائمة التنقل",
+    "expand": "توسيع الشريط الجانبي",
+    "collapse": "طيّ الشريط الجانبي"
+  },
+  "dialog": {
+    "close": "إغلاق"
+  },
+  "toast": {
+    "region": "الإشعارات"
+  },
+  "breadcrumb": {
+    "label": "مسار التنقل"
+  },
+  "copy": {
+    "copy": "نسخ",
+    "copied": "نُسخ إلى الحافظة",
+    "failed": "تعذّر النسخ تلقائيًا. حدّد النص وانسخه يدويًا."
+  },
+  "secret": {
+    "reveal": "إظهار",
+    "hide": "إخفاء",
+    "masked": "مخفي",
+    "onceHint": "يظهر مرة واحدة فقط. انسخه قبل مغادرة هذه الصفحة.",
+    "goneHint": "أُخفي نهائيًا ولا يمكن عرضه مرة أخرى."
+  },
+  "password": {
+    "show": "إظهار كلمة المرور",
+    "hide": "إخفاء كلمة المرور"
+  },
+  "confirm": {
+    "cancel": "إلغاء",
+    "typeToConfirm": "اكتب <code>{{text}}</code> للتأكيد."
+  },
+  "error": {
+    "title": "حدث خطأ ما",
+    "description": "تعذّر تحميل هذا الجزء من الصفحة. أعد المحاولة، وإن تكرر الخطأ فتواصل مع الدعم.",
+    "retry": "إعادة المحاولة",
+    "details": "التفاصيل التقنية"
+  },
+  "dataTable": {
+    "columns": "الأعمدة",
+    "toggleColumns": "إظهار الأعمدة",
+    "selectPage": "تحديد كل صفوف هذه الصفحة",
+    "selectRow": "تحديد الصف",
+    "bulkActions": "إجراءات الصفوف المحددة",
+    "selected_zero": "لا صفوف محددة",
+    "selected_one": "صف واحد محدد",
+    "selected_two": "صفّان محددان",
+    "selected_few": "{{count}} صفوف محددة",
+    "selected_many": "{{count}} صفًا محددًا",
+    "selected_other": "{{count}} صف محدد",
+    "clearSelection": "إلغاء التحديد",
+    "rowsPerPage": "صفوف في الصفحة",
+    "range": "{{from}}–{{to}} من {{total}}",
+    "noRows": "لا نتائج",
+    "page": "صفحة {{page}} من {{pages}}",
+    "firstPage": "الصفحة الأولى",
+    "previousPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "lastPage": "الصفحة الأخيرة",
+    "empty": {
+      "title": "لا نتائج",
+      "description": "لا يوجد ما يطابق عوامل التصفية هذه حتى الآن."
+    },
+    "error": {
+      "title": "تعذّر تحميل هذه القائمة",
+      "description": "تحقق من اتصالك ثم أعد المحاولة."
+    }
+  },
+  "filter": {
+    "search": "بحث…",
+    "clearSearch": "مسح البحث",
+    "selectedCount_zero": "لا شيء محدد",
+    "selectedCount_one": "واحد محدد",
+    "selectedCount_two": "اثنان محددان",
+    "selectedCount_few": "{{count}} محددة",
+    "selectedCount_many": "{{count}} محددًا",
+    "selectedCount_other": "{{count}} محدد",
+    "clear": "مسح",
+    "clearAll": "مسح كل عوامل التصفية",
+    "remove": "إزالة عامل التصفية",
+    "active": "عوامل التصفية النشطة",
+    "from": "من",
+    "to": "إلى",
+    "range": "{{from}} → {{to}}",
+    "open": "…"
+  },
+  "statTile": {
+    "up": "ارتفاع بنسبة {{value}} عن الفترة السابقة",
+    "down": "انخفاض بنسبة {{value}} عن الفترة السابقة",
+    "flat": "دون تغيير عن الفترة السابقة"
+  },
+  "diff": {
+    "added": "مضاف: {{n}}",
+    "removed": "محذوف: {{n}}",
+    "changed": "معدّل: {{n}}",
+    "showUnchanged": "إظهار الحقول غير المتغيرة ({{n}})",
+    "hideUnchanged": "إخفاء الحقول غير المتغيرة",
+    "noChanges": "لا تغييرات مسجلة.",
+    "field": "الحقل",
+    "before": "قبل",
+    "after": "بعد",
+    "value": "(القيمة)",
+    "kind": {
+      "added": "مضاف",
+      "removed": "محذوف",
+      "changed": "معدّل",
+      "unchanged": "دون تغيير"
+    }
+  },
+  "status": {
+    "active": "نشط",
+    "grace": "فترة سماح",
+    "expired": "منتهٍ",
+    "suspended": "موقوف",
+    "trial": "تجريبي",
+    "processing": "قيد المعالجة",
+    "review": "بانتظار المراجعة",
+    "ready": "جاهز",
+    "hidden": "مخفي",
+    "pending": "معلّق",
+    "cancelled": "ملغى",
+    "disabled": "معطّل",
+    "license_expired": "انتهى الترخيص",
+    "running": "قيد التشغيل",
+    "queued": "في الانتظار",
+    "failed": "فشل",
+    "blocked": "محظور",
+    "approved": "معتمد",
+    "revoked": "ملغى",
+    "open": "مفتوح",
+    "resolved": "محلول",
+    "skipped": "متجاوز",
+    "sent": "أُرسل"
   }
 }

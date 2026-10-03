@@ -27,7 +27,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     HOME=/tmp
 EXPOSE 8000
-CMD ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# No access log: it prints raw paths, and Xtream paths carry credentials.
+CMD ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]
 
 FROM ${PYTHON_IMAGE} AS runtime
 ENV PATH="/opt/venv/bin:$PATH" \
@@ -54,6 +55,7 @@ USER 10001:10001
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
     CMD ["python", "-m", "apps.core.healthcheck", "web"]
-# Gunicorn reads WEB_CONCURRENCY for the worker count (SPEC §13: 2×CPU+1 in prod).
-# No control socket: the container is managed by restarts, and /app is read-only to uid 10001.
-CMD ["gunicorn", "config.asgi:application", "--worker-class", "uvicorn_worker.UvicornWorker", "--bind", "0.0.0.0:8000", "--no-control-socket", "--access-logfile", "-"]
+# config/gunicorn_conf.py: Uvicorn workers (WEB_CONCURRENCY, SPEC §13: 2×CPU+1 in prod),
+# no control socket, no access log (RequestLogMiddleware logs redacted requests),
+# and the Prometheus multiprocess directory.
+CMD ["gunicorn", "--config", "config/gunicorn_conf.py", "config.asgi:application"]
