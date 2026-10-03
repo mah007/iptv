@@ -1,0 +1,75 @@
+# CI runs the same `make` targets developers run locally, so a green build
+# proves the documented workflow works on a clean machine (SPEC §2, M1).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned by digest: a moved or compromised tag cannot change what runs.
+  TRIVY_IMAGE: aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
+
+jobs:
+  stack:
+    name: Stack, lint, types, tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Generate dev secrets
+        run: make secrets
+
+      - name: Boot the stack (make up)
+        run: make up
+
+      - name: Smoke test through Traefik
+        run: make smoke
+
+      - name: Lint
+        run: make lint
+
+      - name: Type check
+        run: make typecheck
+
+      - name: Tests (pytest + Vitest)
+        run: make test
+
+      - name: Service logs on failure
+        if: failure()
+        run: docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml logs --no-color --tail=200
+
+  images:
+    name: Production images, Trivy, licence gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build production images
+        run: make build
+
+      - name: Trivy (fail on fixable HIGH/CRITICAL)
+        run: |
+          for image in smart-iptv/app:dev smart-iptv/frontend:dev; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro "$TRIVY_IMAGE" \
+              image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$image"
+          done
+
+      - name: Licence gate (SPEC §1.2)
+        run: |
+          make secrets
+          make licenses
