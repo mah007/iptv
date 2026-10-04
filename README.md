@@ -14,6 +14,7 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-04:** milestones M3, M4, M6, M7 and M9 tagged as accepted after a clean no-cache quality gate; movie playback also checked with FFmpeg through the signed edge.
 - **2026-10-04:** live TV and EPG (M12) and monitoring (M13) started.
 - **2026-10-04:** the admin panel is complete (M11): billing pages, collections, storage and title media panels, with 88 browser tests in both languages and themes. Deployed.
 - **2026-10-04:** the customer portal is live (M11b): browse, Arabic search, the Shaka player with resume, account, TV-app logins with QR codes, checkout. Deployed.

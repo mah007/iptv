@@ -4,17 +4,43 @@
 |---|---|---|
 | M1 Infrastructure & repo | Done | `m1-done` |
 | M2 Backend foundation | Done | `m2-done` |
-| M3 Accounts, plans, subscriptions | Done: plans, `activate()`, grace/expiry jobs, renewal property tests, invoices, payments, notifications ([ADR-0012](adr/0012-billing-subscriptions-and-notifications.md)) | — |
-| M4 Library scanner, M5 Metadata | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)); live TMDB on the server since 2026-10-04 | — |
-| M6 Catalog & search | Done: customer catalog API, collections, home rows, Meilisearch with the Arabic normaliser and fallback, engagement ([ADR-0013](adr/0013-customer-api.md)) | — |
-| M7 Direct-play streaming | Done ([ADR-0007](adr/0007-media-token-and-edge.md), [ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)) | — |
+| M3 Accounts, plans, subscriptions | Done: plans, `activate()`, grace/expiry jobs, renewal property tests, invoices, payments, notifications ([ADR-0012](adr/0012-billing-subscriptions-and-notifications.md)) | `m3-done` |
+| M4 Library scanner, M5 Metadata | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)); live TMDB on the server since 2026-10-04 | `m4-done` (M5 waits for TheTVDB) |
+| M6 Catalog & search | Done: customer catalog API, collections, home rows, Meilisearch with the Arabic normaliser and fallback, engagement ([ADR-0013](adr/0013-customer-api.md)) | `m6-done` |
+| M7 Direct-play streaming | Done ([ADR-0007](adr/0007-media-token-and-edge.md), [ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)) | `m7-done` |
 | M8 Transcoding | Done: compat MP4, HLS fMP4 ladder with per-plan ceilings, UHD/HDR, trickplay, subtitles (cp1256-safe), retention ([ADR-0014](adr/0014-hls-uhd-subtitles-thumbnails.md)); GPU ladder benchmarks pending | — |
-| M9 Xtream API | Done ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)) | — |
+| M9 Xtream API | Done ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)) | `m9-done` |
 | M11 Admin UI | Done: every §8 page that has an API, billing pages, collections, storage, title media panels, live views with a polling fallback; `make e2e-admin` with axe ([ADR-0015](adr/0015-admin-ui.md)) | — |
 | M11b Customer portal | Done: portal UI with the Shaka player, progress and resume, account, devices and TV apps, checkout; `make e2e-portal` with axe ([ADR-0016](adr/0016-customer-portal.md)); provider sandboxes pending keys | — |
-| M10 client matrix (needs the owner's devices), M12–M15 | Planned | — |
+| M12 Live TV & EPG, M13 Monitoring & logging | In progress ([ADR-0017](adr/0017-live-tv-and-epg.md), [ADR-0018](adr/0018-observability.md) when they land) | — |
+| M10 client matrix (needs the owner's devices), M14, M15 | Planned | — |
 
 **Owner decision (2026-10-03): proof of concept first.** An admin creates a customer with device credentials, media is scanned, matched and transcoded, and an IPTV app logs in and plays. Everything commercial (plans, subscriptions, billing, payments, invoices, trials, notifications) is the last slice.
+
+## Acceptance and tags (2026-10-04)
+
+`make ci ALLOW_DIRTY=1 BUILD_FLAGS="--pull --no-cache"` passed for `81b1158` in 647 s (the only uncommitted file was the owner's `.claude/settings.json`). It covered:
+- stack and smoke, lint, the offline Xtream contract, types, both API clients current;
+- 2362 backend tests at 95.4% coverage; Vitest admin 125, ui 155, portal 45;
+- `make media-ready`, `make compat-live` (195 passed, 3 skipped), IPTVnator;
+- `make e2e-admin` (88 passed), `make e2e-portal` (3 passed);
+- production images built without cache, image smoke, Trivy and the licence gate.
+
+Tagged at `81b1158`, every §16 criterion passing:
+
+| Tag | Evidence beyond the gate |
+|---|---|
+| `m3-done` | The commercial slice completed M3 ([ADR-0012](adr/0012-billing-subscriptions-and-notifications.md)): plans, `activate()`, expiry and grace jobs, renewal property tests (hypothesis). This supersedes the POC-scope note under M2 + M3-lite. |
+| `m4-done` | Watcher, reconciliation and move detection, stable-file checks, probe, guessit parsing, scan SSE ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)); `make sample-media`. |
+| `m6-done` | Catalog API, categories and collections, Meilisearch with the Arabic normaliser and fallback, home rows, engagement ([ADR-0013](adr/0013-customer-api.md)). |
+| `m7-done` | Edge with njs tokens and the cached `auth_request` heartbeat, start/stop, Lua concurrency, kick, sweeper ([ADR-0007](adr/0007-media-token-and-edge.md), [ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)). Progressive MP4 checked with the FFmpeg tools ffplay is built on: an Xtream `/movie/…` request gave a 302 to the signed edge; ffprobe read H.264 1080p, AAC, AC-3 and mov_text; ffmpeg decoded 10 s, then seeked to 15 s over an HTTP range request, without errors. |
+| `m9-done` | All VOD and series actions with exact types, per-device credentials, per-plan cache, M3U, redaction, contract suite and IPTVnator green ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)). |
+
+Not tagged yet:
+- **M5:** the TheTVDB fallback for TV.
+- **M8:** GPU benchmark reports (CPU done; NVENC and QSV wait for an idle desktop).
+- **M11:** the global Devices and Lockouts pages need APIs (Live TV and EPG pages come with M12).
+- **M11b:** checkout against Stripe and Moyasar sandboxes needs keys.
 
 ## M11: admin UI (2026-10-04)
 
