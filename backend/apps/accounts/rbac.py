@@ -26,6 +26,11 @@ PERMISSIONS: Mapping[str, str] = MappingProxyType(
         "plans.view": "See plans.",
         "plans.edit": "Create and change plans.",
         "billing.refund": "Refund payments.",
+        # Billing and notifications (B1, ADR-0012).
+        "billing.view": "See payments, invoices and billing figures.",
+        "billing.manage": "Record bank transfer and cash payments.",
+        "notifications.view": "See the notification log and templates.",
+        "notifications.manage": "Edit notification templates; resend and test messages.",
         "library.view": "See libraries, scans, titles, categories and the review queue.",
         "library.manage": "Create and change libraries, run scans, edit titles and categories.",
         "library.review": "Resolve or skip metadata matches in the review queue.",
@@ -62,6 +67,9 @@ ROLE_DEFAULTS: Mapping[str, tuple[str, frozenset[str]]] = MappingProxyType(
                     "subscriptions.view",
                     "subscriptions.edit",
                     "plans.view",
+                    # B1 (ADR-0012): support sees payments and messages.
+                    "billing.view",
+                    "notifications.view",
                 }
             ),
         ),

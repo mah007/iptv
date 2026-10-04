@@ -39,12 +39,43 @@ EXPECTED_DEFAULTS = {
         dict(registry.DEFAULT_GENRE_CATEGORY_MAP), separators=(",", ":")
     ),
     "library.watcher_stable_s": 60,
+    # T1 (ADR-0014): media processing.
+    "library.hls_enabled": True,
+    "library.uhd_enabled": True,
+    "library.uhd_cpu_encode": False,
+    "library.rendition_retention_days": 7,
     "billing.vat_rate": 0.15,
     "billing.currency": "SAR",
     "billing.grace_days": 3,
     "trials.duration_hours": 24,
     "trials.limit_per_phone": 1,
     "security.admin_idle_timeout_min": 30,
+    # C1 (ADR-0013): customer sign-in and web playback progress.
+    "security.customer_session_days": 30,
+    "security.customer_access_token_ttl_s": 600,
+    "security.customer_refresh_token_days": 30,
+    "security.customer_auth_requests_per_ip": 60,
+    "security.password_reset_ttl_min": 60,
+    "security.password_invite_ttl_days": 7,
+    "security.password_reset_emails_per_hour": 3,
+    "playback.progress_min_interval_s": 5,
+    "playback.watched_ratio": 0.9,
+    # B1 (ADR-0012): billing and trials.
+    "billing.prices_include_vat": True,
+    "billing.invoice_prefix": "INV",
+    "billing.vat_number": "",
+    "billing.seller_address": "",
+    "billing.manual_instructions_en": (
+        "Transfer the amount to our bank account and send us the receipt; "
+        "quote the reference below."
+    ),
+    "billing.manual_instructions_ar": (
+        "حوّل المبلغ إلى حسابنا البنكي وأرسل لنا الإيصال مع ذكر الرقم المرجعي أدناه."
+    ),
+    "billing.stripe_enabled": False,
+    "billing.moyasar_enabled": False,
+    "billing.checkout_ttl_hours": 24,
+    "trials.require_approval": True,
     "features.subtitle_download": False,
     "features.machine_translation": False,
     "features.include_vod_in_m3u": True,
@@ -116,6 +147,8 @@ def test_float_settings_store_floats() -> None:
         ("metadata.genre_category_map", '{"action": "action"}', "JSON object"),
         ("metadata.genre_category_map", '{"28": "Not A Slug"}', "JSON object"),
         ("library.watcher_stable_s", 1, "at least 5"),
+        ("billing.invoice_prefix", "inv-", "capital letters"),
+        ("billing.vat_number", "12", "5 to 20"),
     ],
 )
 def test_constraints_and_validators(key: str, value: object, message: str) -> None:

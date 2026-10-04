@@ -1,0 +1,25 @@
+{
+  "id": "evt_1QfixtureCompleted",
+  "object": "event",
+  "api_version": "2025-09-30.clover",
+  "created": 1791374400,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "type": "checkout.session.completed",
+  "data": {
+    "object": {
+      "id": "__CHECKOUT__",
+      "object": "checkout.session",
+      "amount_subtotal": 4900,
+      "amount_total": 4900,
+      "client_reference_id": "__INVOICE__",
+      "currency": "sar",
+      "livemode": false,
+      "metadata": {"invoice_id": "__INVOICE__", "payment_id": "__PAYMENT__"},
+      "mode": "payment",
+      "payment_intent": "pi_3QfixturePaymentIntent",
+      "payment_status": "paid",
+      "status": "complete"
+    }
+  }
+}

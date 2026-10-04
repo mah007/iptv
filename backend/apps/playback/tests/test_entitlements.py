@@ -1,4 +1,5 @@
-"""The SPEC §7.4 entitlement object, derived from the manual access profile (ADR-0006)."""
+"""The SPEC §7.4 entitlement object, derived from the manual access profile (ADR-0006)
+or from the customer's subscription (ADR-0012)."""
 
 import json
 from collections.abc import Callable
@@ -18,6 +19,9 @@ from apps.accounts.models import (
     User,
     UserStatus,
 )
+from apps.billing import services as billing
+from apps.billing import subscriptions
+from apps.billing.models import Plan, Subscription, SubscriptionSource, SubscriptionStatus
 from apps.catalog.models import Category
 from apps.conftest import CustomerFactory
 from apps.core.stores import state_redis
@@ -136,7 +140,7 @@ def test_build_reads_prefetched_data_only(
 ) -> None:
     user = make_customer(category_ids=[category.pk])
     AccessRule.objects.create(user=user, type=AccessRuleType.IP_DENY, value="192.0.2.1")
-    with django_assert_num_queries(3):
+    with django_assert_num_queries(4):
         loaded = entitlements.load_user(user.pk)
     assert loaded is not None
     with django_assert_num_queries(0):
@@ -195,3 +199,151 @@ def test_changes_refresh_after_commit_only(
     for callback in callbacks:
         callback()
     assert json.loads(state_redis().get(key))["max_streams"] == 4  # type: ignore[arg-type]
+
+
+# --- The subscription source (ADR-0012) ------------------------------------------------------
+
+
+@pytest.fixture
+def premium(category: Category) -> Plan:
+    plan = billing.create_plan(
+        {
+            "code": "premium",
+            "name_en": "Premium",
+            "name_ar": "المميزة",
+            "price": 7900,
+            "max_streams": 4,
+            "max_devices": 5,
+            "max_quality": 2160,
+            "concurrency_policy": "kick_oldest",
+            "allow_live": False,
+            "allow_download": True,
+        },
+        category_ids=[category.pk],
+        actor=None,
+    )
+    return plan
+
+
+def subscribe(user: User, plan: Plan, **kwargs: Any) -> Subscription:
+    return subscriptions.activate(user, plan, source=SubscriptionSource.MANUAL, **kwargs)
+
+
+def test_a_subscription_replaces_the_access_profile(
+    make_customer: CustomerFactory, premium: Plan, category: Category
+) -> None:
+    user = make_customer(max_streams=1)  # an open-ended profile
+    subscription = subscribe(
+        user, premium, starts_at=NOW - timedelta(days=1), ends_at=NOW + timedelta(days=29)
+    )
+    entitlement = build(user)
+    assert entitlement["source"] == "subscription"
+    assert entitlement["status"] == "active"
+    assert entitlement["ends_at"] == subscription.ends_at.isoformat()
+    assert entitlement["grace_until"] == (subscription.ends_at + timedelta(days=3)).isoformat()
+    assert entitlement["max_streams"] == 4
+    assert entitlement["max_devices"] == 5
+    assert entitlement["max_quality"] == 2160
+    assert entitlement["policy"] == "kick_oldest"
+    assert entitlement["allow_live"] is False
+    assert entitlement["allow_download"] is True
+    assert entitlement["categories"] == [str(category.pk)]
+
+
+def test_the_snapshot_not_the_live_plan_decides(
+    make_customer: CustomerFactory, premium: Plan
+) -> None:
+    user = make_customer()
+    subscribe(user, premium)
+    billing.update_plan(premium, {"max_streams": 1}, actor=None)
+    assert build(user)["max_streams"] == 4
+
+
+@pytest.mark.parametrize(
+    ("ends", "grace_days", "expected"),
+    [
+        (timedelta(days=1), 3, "active"),
+        (-timedelta(days=1), 3, "active"),  # in grace: playback honours grace_until
+        (-timedelta(days=4), 3, "expired"),  # grace over, before the state job ran
+        (-timedelta(seconds=1), 0, "expired"),
+    ],
+)
+def test_the_dates_decide_the_status(
+    make_customer: CustomerFactory,
+    premium: Plan,
+    ends: timedelta,
+    grace_days: int,
+    expected: str,
+) -> None:
+    user = make_customer()
+    subscription = subscribe(user, premium)
+    Subscription.objects.filter(pk=subscription.pk).update(
+        starts_at=NOW - timedelta(days=40), ends_at=NOW + ends, grace_days=grace_days
+    )
+    assert build(user)["status"] == expected
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (SubscriptionStatus.SUSPENDED, "suspended"),
+        (SubscriptionStatus.EXPIRED, "expired"),
+        (SubscriptionStatus.CANCELLED, "expired"),
+    ],
+)
+def test_ended_and_suspended_subscriptions(
+    make_customer: CustomerFactory, premium: Plan, status: str, expected: str
+) -> None:
+    user = make_customer()  # its open-ended profile no longer applies
+    subscription = subscribe(user, premium)
+    Subscription.objects.filter(pk=subscription.pk).update(status=status)
+    entitlement = build(user)
+    assert entitlement["source"] == "subscription"
+    assert entitlement["status"] == expected
+    assert entitlement["grace_until"] is None
+
+
+def test_pending_subscriptions_leave_the_profile_in_charge(
+    make_customer: CustomerFactory, premium: Plan
+) -> None:
+    user = make_customer()
+    subscribe(user, premium, starts_at=timezone.now() + timedelta(days=5))
+    assert build(user)["source"] == "access_profile"
+
+
+def test_the_current_subscription_wins_over_ended_ones(
+    make_customer: CustomerFactory, premium: Plan
+) -> None:
+    user = make_customer()
+    old = subscriptions.cancel(subscribe(user, premium), actor=None)
+    current = subscribe(user, premium)
+    assert old.pk != current.pk
+    loaded = entitlements.load_user(user.pk)
+    assert loaded is not None
+    assert entitlements.governing_subscription(loaded.subscriptions.all()) == current
+    assert entitlements.build(loaded)["status"] == "active"  # type: ignore[index]
+
+
+def test_users_with_only_a_subscription(customer_user: User, premium: Plan) -> None:
+    subscribe(customer_user, premium)
+    entitlement = entitlements.refresh(customer_user.pk)
+    assert entitlement is not None
+    assert entitlement["source"] == "subscription"
+
+
+def test_ttl_runs_to_the_end_of_grace() -> None:
+    entitlement: Any = {
+        "status": "active",
+        "ends_at": (NOW - timedelta(days=1)).isoformat(),
+        "grace_until": (NOW + timedelta(minutes=5)).isoformat(),
+    }
+    assert entitlements.ttl_seconds(entitlement, NOW) == 300
+
+
+def test_device_limit_follows_the_source(make_customer: CustomerFactory, premium: Plan) -> None:
+    user = make_customer(max_devices=2)
+    assert entitlements.device_limit(user.pk) == 2
+    subscribe(user, premium)
+    entitlements.refresh(user.pk)
+    assert entitlements.device_limit(user.pk) == 5
+    assert entitlements.device_limit("0190f2c6-0000-7000-8000-000000000000") is None

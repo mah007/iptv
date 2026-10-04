@@ -20,6 +20,9 @@ admin_api = [
     path("", include("apps.playback.urls_admin")),
     path("", include("apps.media.urls_admin")),
     path("", include("apps.dashboard.urls_admin")),
+    # Billing and notifications (B1, ADR-0012).
+    path("", include("apps.billing.urls_admin")),
+    path("", include("apps.notifications.urls_admin")),
 ]
 
 urlpatterns = [

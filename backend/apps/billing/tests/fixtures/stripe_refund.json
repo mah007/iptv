@@ -1,0 +1,9 @@
+{
+  "id": "re_3QfixtureRefund",
+  "object": "refund",
+  "amount": 4900,
+  "currency": "sar",
+  "payment_intent": "pi_3QfixturePaymentIntent",
+  "reason": null,
+  "status": "succeeded"
+}

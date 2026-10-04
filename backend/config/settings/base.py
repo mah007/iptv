@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from celery.schedules import crontab
 from kombu import Exchange, Queue
 
 from apps.core.logs import configure_structlog, logging_config, parse_log_format
@@ -201,6 +202,28 @@ TMDB_LANGUAGE = env("TMDB_LANGUAGE", "en-US")
 TMDB_RATE_LIMIT_PER_S = env_int("TMDB_RATE_LIMIT_PER_S", default=35)
 TMDB_CACHE_TTL_S = env_int("TMDB_CACHE_TTL_S", default=24 * 60 * 60)
 
+# --- Email (SPEC §7.7, B1/ADR-0012) -----------------------------------------------------
+# SMTP for notifications. Without EMAIL_HOST nothing is sent: messages wait in the
+# outbox, visible in the admin, and go out once it is set (dev: Mailpit, dev.py).
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = env("EMAIL_HOST", "")
+EMAIL_PORT = env_int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", default=False)
+EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", default=20)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", f"Smart IPTV <no-reply@{DOMAIN}>")
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# --- Payment providers (SPEC §7.6, B1/ADR-0012) ------------------------------------------
+# Sandbox or live keys; a provider is offered only with its keys set and its
+# billing.<provider>_enabled setting on. Webhooks: https://api.<DOMAIN>/api/v1/webhooks/<provider>.
+STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", "")
+MOYASAR_SECRET_KEY = env("MOYASAR_SECRET_KEY", "")
+MOYASAR_WEBHOOK_SECRET = env("MOYASAR_WEBHOOK_SECRET", "")
+
 # --- Celery -------------------------------------------------------------------
 # Queues from SPEC §13. `worker` consumes the general queues; transcoders
 # subscribe only to the transcode.* queue matching their hardware (M8).
@@ -235,6 +258,8 @@ CELERY_TASK_ROUTES = {
     "apps.media.tasks.run_transcode_job": {"queue": "transcode.cpu"},
     "apps.metadata.tasks.fetch_*": {"queue": "images"},
     "apps.metadata.tasks.*": {"queue": "metadata"},
+    # Notifications (SPEC §7.7, B1/ADR-0012): delivery on the notify queue.
+    "apps.notifications.tasks.*": {"queue": "notify"},
 }
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_ACKS_LATE = True
@@ -266,12 +291,52 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 300.0,
         "options": {"expires": 280},
     },
+    # Deletes orphaned, expired and superseded renditions (M8, ADR-0014; T1).
+    "media-cleanup-renditions": {
+        "task": "apps.media.tasks.cleanup_renditions",
+        "schedule": 6 * 3600.0,
+        "options": {"expires": 3600},
+    },
     # Closes playback sessions whose heartbeat stopped and records them (SPEC §7.4).
     "playback-sweep-sessions": {
         "task": "apps.playback.tasks.sweep_sessions",
         "schedule": 60.0,
         "options": {"expires": 55},
     },
+    # --- Billing and notifications (B1, ADR-0012) ---
+    # Subscriptions: pending -> active -> grace -> expired, reminders, the gauge.
+    "billing-advance-subscriptions": {
+        "task": "apps.billing.tasks.advance_subscriptions",
+        "schedule": 300.0,
+        "options": {"expires": 280},
+    },
+    # Voids checkouts left unpaid for billing.checkout_ttl_hours.
+    "billing-expire-checkouts": {
+        "task": "apps.billing.tasks.expire_checkouts",
+        "schedule": 3600.0,
+        "options": {"expires": 3000},
+    },
+    # Retries due notifications; sends what waited for the SMTP settings.
+    "notifications-dispatch": {
+        "task": "apps.notifications.tasks.dispatch_queued",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
+    # --- end B1 ---
+    # --- Search and recommendations (C1, ADR-0013) ---
+    # Nightly: the search index rebuilt beside the live one and swapped in (SPEC §7.8).
+    "search-rebuild-index": {
+        "task": "apps.search.tasks.rebuild_index",
+        "schedule": crontab(hour=3, minute=10),
+        "options": {"expires": 3 * 3600},
+    },
+    # Nightly: similar titles for "more like this" and recommendations (SPEC §7.9).
+    "engagement-similar-titles": {
+        "task": "apps.engagement.tasks.compute_similar_titles",
+        "schedule": crontab(hour=3, minute=40),
+        "options": {"expires": 3 * 3600},
+    },
+    # --- end C1 ---
 }
 
 # --- I18n -----------------------------------------------------------------------
@@ -356,6 +421,27 @@ SPECTACULAR_SETTINGS = {
         "AccessStatus": "apps.playback.entitlements.EntitlementStatus",
         "DeviceStatus": "apps.accounts.serializers.DeviceStatus",
         "LoginStatus": "apps.accounts.auth.LoginStatus",
+        # C1 (ADR-0013): movie-or-series choices (collections, customer API).
+        "TitleType": "apps.catalog.serializers_customer.TITLE_TYPE_CHOICES",
+        # Billing and notifications (B1, ADR-0012).
+        "SubscriptionStatus": "apps.billing.models.SubscriptionStatus",
+        "SubscriptionSource": "apps.billing.models.SubscriptionSource",
+        "SubscriptionEndReason": "apps.billing.models.EndReason",
+        "InvoiceStatus": "apps.billing.models.InvoiceStatus",
+        "PaymentProviderCode": "apps.billing.models.PaymentProviderCode",
+        "PaymentStatus": "apps.billing.models.PaymentStatus",
+        "PaymentMethod": "apps.billing.models.PaymentMethod",
+        "NotificationChannel": "apps.notifications.models.Channel",
+        "OutboxStatus": "apps.notifications.models.OutboxStatus",
+        # Admin system health (ADR-0015).
+        "HealthStatus": "apps.dashboard.health.Status",
+        # Media pipeline (T1, ADR-0014); TranscodeJobStatusEnum keeps its generated name.
+        "TranscodeJobStatusEnum": "apps.media.models.JobStatus",
+        "TranscodeProfile": "apps.media.models.TranscodeProfile",
+        "RenditionKind": "apps.media.models.RenditionKind",
+        "RenditionStatus": "apps.media.models.RenditionStatus",
+        "SubtitleStatus": "apps.media.models.SubtitleStatus",
+        "SubtitleFormat": "apps.media.models.SubtitleFormat",
     },
     "ENUM_ADD_EXPLICIT_BLANK_NULL_CHOICE": False,
     "POSTPROCESSING_HOOKS": [
@@ -367,6 +453,12 @@ SPECTACULAR_SETTINGS = {
 # --- Metrics (SPEC §14) ----------------------------------------------------------------
 # Migration gauges would query the database whenever Django starts.
 PROMETHEUS_EXPORT_MIGRATIONS = False
+
+# --- Admin system health (SPEC §8.3 System Health, ADR-0015) ---------------------------
+# Edge health URLs the Health page probes from inside the backend network (comma-separated),
+# and the Grafana base URL for its "Open in Grafana" links (empty: no links).
+EDGE_HEALTH_URLS = env_list("EDGE_HEALTH_URLS", ["http://nginx-stream:8080/healthz"])
+GRAFANA_URL = env("GRAFANA_URL", "")
 
 # --- Logging (SPEC §11, §14) -------------------------------------------------------------
 # structlog for everything, redacted, on stderr. JSON by default; dev.py picks the

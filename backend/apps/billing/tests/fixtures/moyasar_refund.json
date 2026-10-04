@@ -1,0 +1,11 @@
+{
+  "id": "9b8a7c6d-1e2f-4a3b-8c4d-5e6f7a8b9c0d",
+  "status": "refunded",
+  "amount": 4900,
+  "fee": 110,
+  "currency": "SAR",
+  "refunded": 2000,
+  "refunded_at": "2026-10-06T09:00:00.000Z",
+  "invoice_id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+  "metadata": null
+}

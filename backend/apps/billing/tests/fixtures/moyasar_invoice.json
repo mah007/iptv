@@ -1,0 +1,17 @@
+{
+  "id": "6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
+  "status": "initiated",
+  "amount": 4900,
+  "currency": "SAR",
+  "description": "Standard (30d)",
+  "amount_format": "49.00 SAR",
+  "url": "https://checkout.moyasar.com/invoices/6f1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b?lang=en",
+  "callback_url": null,
+  "expired_at": "2026-10-05T12:00:00.000Z",
+  "created_at": "2026-10-04T12:00:00.000Z",
+  "updated_at": "2026-10-04T12:00:00.000Z",
+  "back_url": null,
+  "success_url": null,
+  "payments": [],
+  "metadata": {"invoice_id": "__INVOICE__", "payment_id": "__PAYMENT__"}
+}

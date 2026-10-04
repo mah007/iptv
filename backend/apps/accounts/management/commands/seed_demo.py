@@ -25,6 +25,7 @@ from apps.accounts import services
 from apps.accounts.models import AppHint, ConcurrencyPolicy, MaxQuality, MfaTotp, Role, User
 from apps.accounts.rbac import OWNER_ROLE, sync_rbac
 from apps.audit import services as audit
+from apps.billing.seed import seed_billing
 from apps.catalog.models import Category, CategoryKind
 
 ADMIN_USERNAME = "admin"
@@ -145,6 +146,7 @@ class Command(BaseCommand):
             f"Demo data ready: {len(categories)} categories, {created} new customers "
             f"({len(DEMO_CUSTOMERS)} in total), {expired} access periods marked expired."
         )
+        self.stdout.write(seed_billing())  # plans and subscriptions (B1, ADR-0012)
 
     def _admin(self, *, reset_password: bool) -> None:
         user = User.objects.filter(username=ADMIN_USERNAME).first()

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ t.title }} {{ invoice.number|default:"" }}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  :root { --ink: #1f2933; --muted: #5f6b7a; --line: #d9dee5; --accent: {{ accent }}; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; color: var(--ink); background: #fff;
+         font: 14px/1.55 "IBM Plex Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif; }
+  .sheet { max-width: 800px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start;
+           border-block-end: 3px solid var(--accent); padding-block-end: 16px; }
+  h1 { margin: 0; font-size: 22px; color: var(--accent); }
+  .muted { color: var(--muted); }
+  .status { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px;
+            border: 1px solid currentColor; margin-block-start: 6px; }
+  .status.paid { color: #0f7a3d; } .status.pending { color: #a15c07; }
+  .status.void, .status.refunded { color: #b42318; }
+  .parties { display: flex; justify-content: space-between; gap: 24px; margin-block: 20px; }
+  .parties div { flex: 1; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+       margin: 0 0 4px; }
+  table { width: 100%; border-collapse: collapse; margin-block-start: 8px; }
+  th, td { padding: 10px 8px; border-block-end: 1px solid var(--line); text-align: start; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .totals { margin-inline-start: auto; width: min(100%, 340px); margin-block-start: 12px; }
+  .totals td { border: 0; padding: 4px 8px; }
+  .totals tr.grand td { font-weight: 700; font-size: 16px; border-block-start: 2px solid var(--ink); }
+  footer { margin-block-start: 28px; font-size: 12px; color: var(--muted); }
+  @media print { body { padding: 0; } .noprint { display: none; } }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <header>
+    <div>
+      <h1>{{ seller_name }}</h1>
+      {% if invoice.seller.address %}<div class="muted">{{ invoice.seller.address|linebreaksbr }}</div>{% endif %}
+      {% if invoice.seller.vat_number %}<div>{{ t.vat_number }}: {{ invoice.seller.vat_number }}</div>{% endif %}
+      {% if invoice.seller.email %}<div class="muted">{{ invoice.seller.email }}</div>{% endif %}
+    </div>
+    <div>
+      <div><strong>{{ t.title }}</strong></div>
+      <div>{{ t.number }}: <strong>{{ invoice.number|default:t.unnumbered }}</strong></div>
+      <div>{{ t.date }}: {{ issued }}</div>
+      <span class="status {{ invoice.status }}">{{ status_label }}</span>
+    </div>
+  </header>
+
+  <section class="parties">
+    <div>
+      <h2>{{ t.bill_to }}</h2>
+      <div><strong>{{ invoice.bill_to.name|default:invoice.bill_to.username }}</strong></div>
+      {% if invoice.bill_to.email %}<div>{{ invoice.bill_to.email }}</div>{% endif %}
+      {% if invoice.bill_to.phone %}<div dir="ltr">{{ invoice.bill_to.phone }}</div>{% endif %}
+      <div class="muted">{{ t.account }}: {{ invoice.bill_to.username }}</div>
+    </div>
+    {% if payments %}
+    <div>
+      <h2>{{ t.payment }}</h2>
+      {% for payment in payments %}
+      <div>{{ payment.method }} · {{ payment.amount }}{% if payment.reference %} · {{ payment.reference }}{% endif %}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <table>
+    <thead>
+      <tr><th>{{ t.description }}</th><th class="num">{{ t.quantity }}</th><th class="num">{{ t.unit_price }}</th><th class="num">{{ t.amount }}</th></tr>
+    </thead>
+    <tbody>
+      {% for line in lines %}
+      <tr><td>{{ line.description }}</td><td class="num">{{ line.quantity }}</td><td class="num">{{ line.unit_amount }}</td><td class="num">{{ line.amount }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tr><td>{{ t.subtotal }}</td><td class="num">{{ subtotal }}</td></tr>
+    <tr><td>{{ t.vat }} ({{ vat_percent }}%)</td><td class="num">{{ vat_amount }}</td></tr>
+    <tr class="grand"><td>{{ t.total }}</td><td class="num">{{ total }}</td></tr>
+    {% if invoice.refunded_amount %}<tr><td>{{ t.refunded }}</td><td class="num">−{{ refunded }}</td></tr>{% endif %}
+  </table>
+
+  <footer>
+    <p>{{ t.footer }}</p>
+  </footer>
+</main>
+</body>
+</html>

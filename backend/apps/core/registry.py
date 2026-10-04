@@ -124,6 +124,10 @@ currency_code = _pattern(_CURRENCY, "Enter an ISO 4217 currency code, e.g. SAR."
 country_code = _pattern(_COUNTRY, "Enter an ISO 3166-1 alpha-2 country code, e.g. SA.")
 optional_email = _optional(EmailValidator())
 optional_http_url = _optional(URLValidator(schemes=["http", "https"]))
+# --- Billing validators (B1, ADR-0012) ---
+invoice_prefix = _pattern(re.compile(r"[A-Z0-9]{1,10}"), "Use 1 to 10 capital letters or digits.")
+vat_number = _optional(_pattern(re.compile(r"[0-9A-Z]{5,20}"), "Use 5 to 20 letters or digits."))
+# --- end B1 ---
 
 
 # --- The registry -------------------------------------------------------------------
@@ -200,10 +204,30 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("playback.realtime_transcode_max", _K.INT, 2,
                "Maximum concurrent real-time transcodes.", "playback",
                min_value=0, max_value=64),
+    # --- Web playback progress (C1, ADR-0013) ---
+    SettingDef("playback.progress_min_interval_s", _K.INT, 5,
+               "Progress reports closer together than this, in seconds, are not saved.",
+               "playback", min_value=0, max_value=300),
+    SettingDef("playback.watched_ratio", _K.FLOAT, 0.9,
+               "Share of a title's runtime after which it counts as watched.", "playback",
+               min_value=0.5, max_value=1.0),
+    # --- end C1 ---
     # Library scanning (SPEC §7.1)
     SettingDef("library.watcher_stable_s", _K.INT, 60,
                "A new file is scanned once its size has not changed for this many seconds.",
                "library", min_value=5, max_value=3600),
+    # Media processing (SPEC §7.3, ADR-0014; T1)
+    SettingDef("library.hls_enabled", _K.BOOL, True,
+               "Encode the HLS ladder (adaptive streaming for the portal) at ingest.",
+               "library"),
+    SettingDef("library.uhd_enabled", _K.BOOL, True,
+               "Make a UHD version of 4K sources for plans with 2160p quality.", "library"),
+    SettingDef("library.uhd_cpu_encode", _K.BOOL, False,
+               "Allow UHD HEVC encodes on CPU-only transcoders (very slow; keeping a "
+               "suitable source needs no encode).", "library"),
+    SettingDef("library.rendition_retention_days", _K.INT, 7,
+               "Days the renditions of a removed file are kept before cleanup deletes them.",
+               "library", min_value=0, max_value=365),
     # Metadata matching (SPEC §7.2)
     SettingDef("metadata.match_auto_accept", _K.FLOAT, 0.85,
                "Minimum confidence to accept a metadata match automatically.", "metadata",
@@ -226,15 +250,69 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("billing.grace_days", _K.INT, 3,
                "Days a subscription stays in grace after it ends.", "billing",
                min_value=0, max_value=60),
+    # --- Billing: prices, invoices, checkout and providers (B1, ADR-0012) ---
+    SettingDef("billing.prices_include_vat", _K.BOOL, True,
+               "Plan prices include VAT (VAT is carved out of them on invoices).", "billing"),
+    SettingDef("billing.invoice_prefix", _K.STR, "INV",
+               "Prefix of invoice numbers (PREFIX-YEAR-SEQUENCE).", "billing",
+               invoice_prefix),
+    SettingDef("billing.vat_number", _K.STR, "", "The seller's VAT registration number.",
+               "billing", vat_number),
+    SettingDef("billing.seller_address", _K.STR, "", "The seller's address on invoices.",
+               "billing"),
+    SettingDef("billing.manual_instructions_en", _K.STR,
+               "Transfer the amount to our bank account and send us the receipt; "
+               "quote the reference below.",
+               "How to pay by bank transfer or cash (English).", "billing"),
+    SettingDef("billing.manual_instructions_ar", _K.STR,
+               "حوّل المبلغ إلى حسابنا البنكي وأرسل لنا الإيصال مع ذكر الرقم المرجعي أدناه.",
+               "How to pay by bank transfer or cash (Arabic).", "billing"),
+    SettingDef("billing.stripe_enabled", _K.BOOL, False,
+               "Offer card payments through Stripe (needs STRIPE_SECRET_KEY and "
+               "STRIPE_WEBHOOK_SECRET).", "billing"),
+    SettingDef("billing.moyasar_enabled", _K.BOOL, False,
+               "Offer mada, Apple Pay and STC Pay through Moyasar (needs MOYASAR_SECRET_KEY "
+               "and MOYASAR_WEBHOOK_SECRET).", "billing"),
+    SettingDef("billing.checkout_ttl_hours", _K.INT, 24,
+               "Unpaid checkouts are voided after this many hours.", "billing",
+               min_value=1, max_value=168),
+    # --- end B1 ---
     # Trials
     SettingDef("trials.duration_hours", _K.INT, 24, "Length of a free trial, in hours.",
                "trials", min_value=1, max_value=720),
     SettingDef("trials.limit_per_phone", _K.INT, 1, "Free trials allowed per phone number.",
                "trials", min_value=0, max_value=10),
+    # --- Trials (B1, ADR-0012) ---
+    SettingDef("trials.require_approval", _K.BOOL, True,
+               "A customer's free trial waits for an admin's approval.", "trials"),
+    # --- end B1 ---
     # Security (SPEC §8.2, §11)
     SettingDef("security.admin_idle_timeout_min", _K.INT, 30,
                "Admin sessions end after this many idle minutes.", "security",
                min_value=5, max_value=480),
+    # --- Customer API sign-in (C1, ADR-0013) ---
+    SettingDef("security.customer_session_days", _K.INT, 30,
+               "Portal sign-ins end after this many idle days.", "security",
+               min_value=1, max_value=365),
+    SettingDef("security.customer_access_token_ttl_s", _K.INT, 600,
+               "Lifetime of app access tokens, in seconds.", "security",
+               min_value=60, max_value=3600),
+    SettingDef("security.customer_refresh_token_days", _K.INT, 30,
+               "App sign-ins end after this many days without a token refresh.", "security",
+               min_value=1, max_value=365),
+    SettingDef("security.customer_auth_requests_per_ip", _K.INT, 60,
+               "Failed customer sign-ins and password-reset requests per client IP in 15 "
+               "minutes before they are refused.", "security", min_value=5, max_value=10000),
+    SettingDef("security.password_reset_ttl_min", _K.INT, 60,
+               "A password-reset link works for this many minutes.", "security",
+               min_value=5, max_value=1440),
+    SettingDef("security.password_invite_ttl_days", _K.INT, 7,
+               "A set-your-password invitation works for this many days.", "security",
+               min_value=1, max_value=30),
+    SettingDef("security.password_reset_emails_per_hour", _K.INT, 3,
+               "Password-reset emails one customer can receive per hour.", "security",
+               min_value=1, max_value=20),
+    # --- end C1 ---
     # Feature flags
     SettingDef("features.subtitle_download", _K.BOOL, False,
                "Download subtitles from external providers.", "features"),
