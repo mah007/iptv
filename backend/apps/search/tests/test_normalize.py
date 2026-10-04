@@ -5,6 +5,12 @@ import pytest
 from apps.search.normalize import normalize, tokens
 
 
+@pytest.fixture(autouse=True)
+def _isolated_settings_cache() -> None:
+    """Override the shared autouse fixture: nothing here reads the settings registry,
+    so these pure tests also run on a host without the dev stack's redis-cache."""
+
+
 @pytest.mark.parametrize(
     ("text", "expected"),
     [

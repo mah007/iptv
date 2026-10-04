@@ -123,8 +123,11 @@ typecheck-frontend: ## tsc for every frontend package
 # Generated files are committed and never edited by hand.
 API_DIR := frontend/packages/api
 API_SCHEMA := $(API_DIR)/openapi/admin.yaml
+# The customer API's schema and client (C1, ADR-0013).
+PORTAL_API_DIR := frontend/packages/api-portal
+PORTAL_API_SCHEMA := $(PORTAL_API_DIR)/openapi/portal.yaml
 
-api-client: ## Regenerate the admin OpenAPI schema and the typed client in frontend/packages/api
+api-client: ## Regenerate the admin and customer OpenAPI schemas and their typed clients (frontend/packages/api, api-portal)
 	@mkdir -p $(dir $(API_SCHEMA))
 	@# Logs go to stderr, so stdout is exactly the schema; a failed run keeps the old file.
 	$(RUN_BACKEND) python manage.py spectacular --urlconf config.urls_admin --validate --fail-on-warn \
@@ -136,9 +139,18 @@ api-client: ## Regenerate the admin OpenAPI schema and the typed client in front
 	$(RUN_FRONTEND) sh -c 'pnpm --config.verify-deps-before-run=false exec prettier --write \
 	  --log-level warn $(patsubst frontend/%,%,$(API_SCHEMA)) \
 	  && pnpm --config.verify-deps-before-run=false --filter @smart-iptv/api generate'
+	@# The customer API (ADR-0013): the portal URLconf's schema and its client, the same way.
+	@mkdir -p $(dir $(PORTAL_API_SCHEMA))
+	$(RUN_BACKEND) python manage.py spectacular --urlconf config.urls_portal \
+	  --custom-settings config.urls_portal.SPECTACULAR_SETTINGS --validate --fail-on-warn \
+	  > $(PORTAL_API_SCHEMA).tmp || { rm -f $(PORTAL_API_SCHEMA).tmp; exit 1; }
+	@mv $(PORTAL_API_SCHEMA).tmp $(PORTAL_API_SCHEMA)
+	$(RUN_FRONTEND) sh -c 'pnpm --config.verify-deps-before-run=false exec prettier --write \
+	  --log-level warn $(patsubst frontend/%,%,$(PORTAL_API_SCHEMA)) \
+	  && pnpm --config.verify-deps-before-run=false --filter @smart-iptv/api-portal generate'
 
 # Checksums of the schema and client sources (node_modules excluded), to compare generations.
-API_SUMS = find $(API_DIR) -path $(API_DIR)/node_modules -prune -o -type f -print0 | sort -z | xargs -0 sha256sum
+API_SUMS = find $(API_DIR) $(PORTAL_API_DIR) \( -path $(API_DIR)/node_modules -o -path $(PORTAL_API_DIR)/node_modules \) -prune -o -type f -print0 | sort -z | xargs -0 sha256sum
 
 api-client-check: ## Fail if the schema or client in the tree differs from a fresh generation
 	@# Compares content before and after regenerating, so it also works on uncommitted
@@ -148,7 +160,7 @@ api-client-check: ## Fail if the schema or client in the tree differs from a fre
 	$(MAKE) --no-print-directory api-client; \
 	$(API_SUMS) > "$$after"; \
 	if ! cmp -s "$$before" "$$after"; then \
-	  echo "The API client in $(API_DIR) is stale; run make api-client and commit. Changed:" >&2; \
+	  echo "The API clients in $(API_DIR) or $(PORTAL_API_DIR) are stale; run make api-client and commit. Changed:" >&2; \
 	  diff "$$before" "$$after" | sed -n 's/^[<>] [0-9a-f]*  /  /p' | sort -u >&2; exit 1; \
 	fi
 	@echo "API client is up to date."

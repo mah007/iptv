@@ -33,4 +33,7 @@ urlpatterns = [
     ),
     path("review-queue/<uuid:pk>/skip", views.ReviewSkipView.as_view(), name="admin-review-skip"),
     path("metadata/search", views.MetadataSearchView.as_view(), name="admin-metadata-search"),
+    # Collections (C1, ADR-0013): curated rows for the portal's home and their pages.
+    path("collections", views.CollectionListView.as_view(), name="admin-collections-list"),
+    path("collections/<uuid:pk>", views.CollectionDetailView.as_view(), name="admin-collection"),
 ]

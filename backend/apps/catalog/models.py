@@ -8,6 +8,8 @@ and series by integers (SPEC §7.5); categories keep their own sequence. `storag
 (the library-relative path of a file) is internal and never serialized.
 """
 
+from typing import Any, Final
+
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex, OpClass
@@ -143,12 +145,37 @@ class Title(BaseModel):
     #: Fields an admin edited: a metadata refresh leaves them alone (SPEC §7.2 step 9).
     metadata_locked_fields = ArrayField(models.CharField(max_length=64), default=list, blank=True)
     metadata_refreshed_at = models.DateTimeField(null=True, blank=True)
+    #: The titles normalised for search (`apps.search.normalize`), kept up to date on every
+    #: save; the PostgreSQL fallback of search matches against it (SPEC §7.8).
+    search_text = models.TextField(blank=True, default="", editable=False)
 
     class Meta:
         abstract = True
 
     def __str__(self) -> str:
         return f"{self.title} ({self.year})" if self.year else self.title
+
+    def compute_search_text(self) -> str:
+        from apps.search.normalize import normalize  # noqa: PLC0415 (catalog loads first)
+
+        names = [self.title, self.title_ar, self.original_title, *(self.alt_titles or [])]
+        seen: dict[str, None] = {}
+        for name in names:
+            folded = normalize(name or "")
+            if folded:
+                seen.setdefault(folded, None)
+        return " | ".join(seen)
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.search_text = self.compute_search_text()
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and set(update_fields) & set(SEARCH_SOURCE_FIELDS):
+            kwargs["update_fields"] = {*update_fields, "search_text"}
+        super().save(*args, **kwargs)
+
+
+#: The fields `Title.search_text` is made from.
+SEARCH_SOURCE_FIELDS: Final = ("title", "title_ar", "original_title", "alt_titles")
 
 
 class Movie(Title):
@@ -165,6 +192,7 @@ class Movie(Title):
             GinIndex(
                 OpClass(Upper("title_ar"), name="gin_trgm_ops"), name="catalog_movie_title_ar_trgm"
             ),
+            GinIndex(OpClass("search_text", name="gin_trgm_ops"), name="catalog_movie_search_trgm"),
         )
 
 
@@ -190,6 +218,9 @@ class Series(Title):
             GinIndex(
                 OpClass(Upper("title_ar"), name="gin_trgm_ops"),
                 name="catalog_series_title_ar_trgm",
+            ),
+            GinIndex(
+                OpClass("search_text", name="gin_trgm_ops"), name="catalog_series_search_trgm"
             ),
         )
 
@@ -504,3 +535,65 @@ class MatchReview(BaseModel):
 
     def __str__(self) -> str:
         return f"review:{self.pk}"
+
+
+# --- Collections (SPEC §8.3 admin/collections, §9 home rows, §10 collections/{slug}) ------------
+
+
+class Collection(BaseModel):
+    """A hand-picked, ordered list of movies and series ("Ramadan picks", "Oscar winners").
+
+    Published collections with `show_on_home` become home rows in `sort` order;
+    every published one has a page at `collections/{slug}`.
+    """
+
+    slug = models.SlugField(max_length=100, unique=True)
+    name_en = models.CharField(max_length=150)
+    name_ar = models.CharField(max_length=150)
+    description_en = models.TextField(blank=True)
+    description_ar = models.TextField(blank=True)
+    sort = models.IntegerField(default=0)
+    published = models.BooleanField(default=True)
+    show_on_home = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("sort", "name_en")
+
+    def __str__(self) -> str:
+        return self.slug
+
+
+class CollectionItem(BaseModel):
+    """A movie or a series (exactly one) at a position in a collection."""
+
+    collection = models.ForeignKey(Collection, on_delete=models.CASCADE, related_name="items")
+    movie = models.ForeignKey(
+        Movie, null=True, blank=True, on_delete=models.CASCADE, related_name="collection_items"
+    )
+    series = models.ForeignKey(
+        Series, null=True, blank=True, on_delete=models.CASCADE, related_name="collection_items"
+    )
+    sort = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ("collection", "sort", "created_at")
+        constraints = (
+            models.CheckConstraint(
+                condition=models.Q(movie__isnull=False, series__isnull=True)
+                | models.Q(movie__isnull=True, series__isnull=False),
+                name="catalog_collectionitem_one_title",
+            ),
+            models.UniqueConstraint(
+                fields=("collection", "movie"),
+                condition=models.Q(movie__isnull=False),
+                name="catalog_collectionitem_movie_once",
+            ),
+            models.UniqueConstraint(
+                fields=("collection", "series"),
+                condition=models.Q(series__isnull=False),
+                name="catalog_collectionitem_series_once",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.collection_id}:{self.movie_id or self.series_id}"

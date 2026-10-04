@@ -35,6 +35,11 @@ services:
       # The admin SPA's same-origin API (admin.<DOMAIN>/api, ADR-0004).
       traefik.http.routers.admin-api.entrypoints: websecure
       traefik.http.routers.admin-api.tls.certresolver: letsencrypt
+      # C1 (ADR-0013): the portal's same-origin API and the customer sign-in limit.
+      traefik.http.routers.portal-api.entrypoints: websecure
+      traefik.http.routers.portal-api.tls.certresolver: letsencrypt
+      traefik.http.routers.customer-auth.entrypoints: websecure
+      traefik.http.routers.customer-auth.tls.certresolver: letsencrypt
 
   worker:
     <<: *prod-app

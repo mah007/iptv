@@ -23,6 +23,8 @@ from apps.catalog import services
 from apps.catalog.filters import MovieFilter, ReviewFilter, SeriesFilter
 from apps.catalog.models import (
     Category,
+    Collection,
+    CollectionItem,
     Credit,
     Episode,
     MatchReview,
@@ -37,6 +39,8 @@ from apps.catalog.serializers import (
     CategoryReorderSerializer,
     CategorySerializer,
     CategoryWriteSerializer,
+    CollectionSerializer,
+    CollectionWriteSerializer,
     MovieDetailSerializer,
     MovieSummarySerializer,
     MovieUpdateSerializer,
@@ -489,3 +493,90 @@ class CategoryReorderView(AdminView):
             ip=client_ip(request),
         )
         return Response(CategorySerializer(ordered, many=True).data)
+
+
+# --- Collections (C1, ADR-0013) -------------------------------------------------------------------
+
+
+def collection_queryset() -> QuerySet[Collection]:
+    items = CollectionItem.objects.select_related("movie", "series").prefetch_related(
+        Prefetch("movie__images", queryset=MediaImage.objects.filter(kind="poster")),
+        Prefetch("series__images", queryset=MediaImage.objects.filter(kind="poster")),
+    )
+    return Collection.objects.prefetch_related(
+        Prefetch("items", queryset=items.order_by("sort", "created_at"))
+    ).order_by("sort", "name_en", "id")
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="collections_list",
+        summary="Collections, in home-row order",
+        responses={200: CollectionSerializer(many=True), **problems(400, 401, 403)},
+    ),
+    post=extend_schema(
+        operation_id="collections_create",
+        summary="Create a collection",
+        request=CollectionWriteSerializer,
+        responses={201: CollectionSerializer, **problems(400, 401, 403, 409)},
+    ),
+)
+class CollectionListView(generics.ListCreateAPIView[Collection]):
+    permission_classes = (HasPermission,)
+    required_permissions: ClassVar[Requirements] = {"GET": VIEW, "POST": "library.manage"}
+    serializer_class = CollectionSerializer
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ("name_en", "name_ar", "slug")
+
+    def get_queryset(self) -> QuerySet[Collection]:
+        return collection_queryset()
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        payload = CollectionWriteSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        collection = services.create_collection(
+            payload.validated_data, actor=acting_user(request), ip=client_ip(request)
+        )
+        body = CollectionSerializer(collection_queryset().get(pk=collection.pk)).data
+        return Response(body, status=status.HTTP_201_CREATED)
+
+
+class CollectionDetailView(AdminView):
+    required_permissions: ClassVar[Requirements] = {
+        "GET": VIEW,
+        "PATCH": "library.manage",
+        "DELETE": "library.manage",
+    }
+
+    @extend_schema(
+        operation_id="collections_retrieve",
+        summary="One collection with its titles",
+        responses={200: CollectionSerializer, **problems(401, 403, 404)},
+    )
+    def get(self, request: Request, pk: UUID) -> Response:
+        return Response(CollectionSerializer(get_object_or_404(collection_queryset(), pk=pk)).data)
+
+    @extend_schema(
+        operation_id="collections_update",
+        summary="Change a collection; `items` replaces its titles in order",
+        request=CollectionWriteSerializer,
+        responses={200: CollectionSerializer, **problems(400, 401, 403, 404, 409)},
+    )
+    def patch(self, request: Request, pk: UUID) -> Response:
+        collection = get_object_or_404(Collection, pk=pk)
+        payload = CollectionWriteSerializer(collection, data=request.data, partial=True)
+        payload.is_valid(raise_exception=True)
+        services.update_collection(
+            collection, payload.validated_data, actor=acting_user(request), ip=client_ip(request)
+        )
+        return Response(CollectionSerializer(collection_queryset().get(pk=pk)).data)
+
+    @extend_schema(
+        operation_id="collections_delete",
+        summary="Delete a collection (its titles stay)",
+        responses={204: None, **problems(401, 403, 404)},
+    )
+    def delete(self, request: Request, pk: UUID) -> Response:
+        collection = get_object_or_404(Collection, pk=pk)
+        services.delete_collection(collection, actor=acting_user(request), ip=client_ip(request))
+        return Response(status=status.HTTP_204_NO_CONTENT)

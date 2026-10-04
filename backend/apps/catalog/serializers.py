@@ -4,13 +4,14 @@ the server. Artwork URLs point at the media edge (`MEDIA_BASE_URL/images/...`)."
 
 from typing import Any, ClassVar
 
-from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.utils import extend_schema_field, extend_schema_serializer
 from rest_framework import serializers
 
 from apps.accounts.models import User
 from apps.catalog.models import (
     Category,
     CategoryKind,
+    Collection,
     Credit,
     Episode,
     Genre,
@@ -178,6 +179,9 @@ class SubtitleTrackSerializer(serializers.Serializer[Any]):
     text = serializers.BooleanField()
 
 
+# Named MediaFile in the schema: a component called File shadows the DOM File type in the
+# generated TypeScript client, which breaks every multipart upload (T1, ADR-0014).
+@extend_schema_serializer(component_name="MediaFile")
 class FileSerializer(serializers.ModelSerializer[MediaFile]):
     """A media file as the admin sees it: its path inside its library, technical summary
     and pipeline state. Never the storage path."""
@@ -649,3 +653,89 @@ class SearchQuerySerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(choices=ReviewKind.choices)
     query = serializers.CharField(max_length=200)
     year = serializers.IntegerField(min_value=1870, max_value=2200, required=False)
+
+
+# --- Collections (C1, ADR-0013) -------------------------------------------------------------------
+
+
+class CollectionItemRefSerializer(serializers.Serializer[Any]):
+    type = serializers.ChoiceField(choices=(("movie", "Movie"), ("series", "Series")))
+    id = serializers.UUIDField()
+
+
+class CollectionItemSerializer(CollectionItemRefSerializer):
+    title = serializers.CharField(read_only=True)
+    title_ar = serializers.CharField(read_only=True)
+    year = serializers.IntegerField(read_only=True, allow_null=True)
+    status = serializers.ChoiceField(choices=TitleStatus.choices, read_only=True)
+    poster = ImageSerializer(read_only=True, allow_null=True)
+
+
+class CollectionSerializer(serializers.ModelSerializer[Collection]):
+    items = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Collection
+        fields = (
+            "id",
+            "slug",
+            "name_en",
+            "name_ar",
+            "description_en",
+            "description_ar",
+            "sort",
+            "published",
+            "show_on_home",
+            "items",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+    @extend_schema_field(CollectionItemSerializer(many=True))
+    def get_items(self, collection: Collection) -> list[dict[str, Any]]:
+        rows = []
+        for item in collection.items.all():
+            title = item.movie or item.series
+            if title is None:
+                continue
+            poster = pick_image(list(title.images.all()), "poster")
+            rows.append(
+                {
+                    "type": "movie" if item.movie_id else "series",
+                    "id": title.pk,
+                    "title": title.title,
+                    "title_ar": title.title_ar,
+                    "year": title.year,
+                    "status": title.status,
+                    "poster": ImageSerializer(poster).data if poster is not None else None,
+                }
+            )
+        return rows
+
+
+class CollectionWriteSerializer(serializers.ModelSerializer[Collection]):
+    """Create (names required; the slug defaults to one made from name_en) or change a
+    collection. `items` replaces its titles, in order."""
+
+    slug = serializers.SlugField(max_length=100, required=False, allow_blank=False)
+    items = serializers.ListField(
+        child=CollectionItemRefSerializer(), required=False, max_length=500
+    )
+
+    class Meta:
+        model = Collection
+        fields = (
+            "slug",
+            "name_en",
+            "name_ar",
+            "description_en",
+            "description_ar",
+            "sort",
+            "published",
+            "show_on_home",
+            "items",
+        )
+        # The slug's uniqueness is the service's (409 CONFLICT).
+        validators: ClassVar[list[Any]] = []
+        extra_kwargs: ClassVar[dict[str, dict[str, Any]]] = {"slug": {"validators": []}}

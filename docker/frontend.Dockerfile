@@ -21,6 +21,7 @@ FROM base AS build
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 COPY frontend/packages/ui/package.json packages/ui/
 COPY frontend/packages/api/package.json packages/api/
+COPY frontend/packages/api-portal/package.json packages/api-portal/
 COPY frontend/apps/admin/package.json apps/admin/
 COPY frontend/apps/portal/package.json apps/portal/
 RUN --mount=type=cache,target=/pnpm-store \

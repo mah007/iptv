@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from apps.accounts import api
+from apps.accounts import api, api_customer
 
 urlpatterns = [
     path("customers", api.CustomerListView.as_view(), name="admin-customers-list"),
@@ -26,6 +26,12 @@ urlpatterns = [
         "customers/<uuid:pk>/devices",
         api.CustomerDeviceListView.as_view(),
         name="admin-customers-devices",
+    ),
+    # C1 (ADR-0013): a single-use link for the customer to set their portal password.
+    path(
+        "customers/<uuid:pk>/password-invite",
+        api_customer.CustomerPasswordInviteView.as_view(),
+        name="admin-customers-password-invite",
     ),
     path("devices/<uuid:pk>/block", api.DeviceBlockView.as_view(), name="admin-devices-block"),
     path(

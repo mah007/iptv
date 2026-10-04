@@ -22,6 +22,8 @@ from apps.audit import services as audit
 from apps.catalog.models import (
     Category,
     CategoryKind,
+    Collection,
+    CollectionItem,
     Episode,
     MediaFile,
     Movie,
@@ -29,8 +31,8 @@ from apps.catalog.models import (
     Title,
     TitleStatus,
 )
-from apps.catalog.signals import notify_catalog_changed
-from apps.core.errors import ErrorCode, ProblemError
+from apps.catalog.signals import catalog_changed, notify_catalog_changed
+from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.registry import DEFAULT_GENRE_CATEGORY_MAP
 from apps.core.services import get_setting
 from apps.media.models import PLAYABLE_KINDS, RenditionStatus
@@ -407,3 +409,152 @@ def _category_state(category: Category) -> dict[str, Any]:
         "icon": category.icon,
         "parent": str(category.parent_id) if category.parent_id else None,
     }
+
+
+# --- Collections (C1, ADR-0013) -------------------------------------------------------------------
+
+COLLECTION_FIELDS: Final = (
+    "slug",
+    "name_en",
+    "name_ar",
+    "description_en",
+    "description_ar",
+    "sort",
+    "published",
+    "show_on_home",
+)
+MAX_COLLECTION_ITEMS: Final = 500
+
+
+def _collection_state(collection: Collection) -> dict[str, Any]:
+    return {
+        **{name: getattr(collection, name) for name in COLLECTION_FIELDS},
+        "items": [
+            f"movie:{movie_id}" if movie_id else f"series:{series_id}"
+            for movie_id, series_id in collection.items.order_by("sort").values_list(
+                "movie_id", "series_id"
+            )
+        ],
+    }
+
+
+def _set_items(collection: Collection, items: Sequence[Mapping[str, Any]]) -> None:
+    """Replace the collection's titles with `items` ([{type, id}], in order)."""
+    wanted = list(dict.fromkeys((str(item["type"]), item["id"]) for item in items))
+    movie_ids = {pk for kind, pk in wanted if kind == "movie"}
+    series_ids = {pk for kind, pk in wanted if kind == "series"}
+    known = {
+        ("movie", pk) for pk in Movie.objects.filter(pk__in=movie_ids).values_list("pk", flat=True)
+    }
+    known |= {
+        ("series", pk)
+        for pk in Series.objects.filter(pk__in=series_ids).values_list("pk", flat=True)
+    }
+    missing = [f"{kind}:{pk}" for kind, pk in wanted if (kind, pk) not in known]
+    if missing:
+        raise ProblemError(
+            ErrorCode.VALIDATION_ERROR,
+            "Unknown title.",
+            field_errors={
+                "items": [
+                    field_error(f"Unknown title {item}.", code="does_not_exist") for item in missing
+                ]
+            },
+        )
+    collection.items.all().delete()
+    CollectionItem.objects.bulk_create(
+        [
+            CollectionItem(
+                collection=collection,
+                movie_id=pk if kind == "movie" else None,
+                series_id=pk if kind == "series" else None,
+                sort=index * _SORT_STEP,
+            )
+            for index, (kind, pk) in enumerate(wanted, start=1)
+        ]
+    )
+
+
+def _collection_changed(collection_id: UUID) -> None:
+    from apps.catalog import home  # noqa: PLC0415 (home imports this module)
+
+    home.invalidate_on_commit()
+    transaction.on_commit(
+        lambda: catalog_changed.send(
+            sender=_collection_changed, kind="collection", ids=(collection_id,)
+        )
+    )
+
+
+def _check_slug(slug: str, exclude: UUID | None = None) -> None:
+    clash = Collection.objects.filter(slug=slug)
+    if exclude is not None:
+        clash = clash.exclude(pk=exclude)
+    if clash.exists():
+        raise ProblemError(
+            ErrorCode.CONFLICT,
+            "Another collection already uses that slug.",
+            field_errors={
+                "slug": [field_error("Already used by another collection.", code="slug_taken")]
+            },
+        )
+
+
+def create_collection(data: Mapping[str, Any], *, actor: User | None, ip: str | None) -> Collection:
+    values = {name: data[name] for name in COLLECTION_FIELDS if name in data}
+    if not values.get("slug"):
+        values["slug"] = slugify(values.get("name_en", ""))[:100] or "collection"
+    with transaction.atomic():
+        _check_slug(values["slug"])
+        collection = Collection.objects.create(**values)
+        _set_items(collection, data.get("items") or [])
+        audit.record(
+            "collection.create",
+            actor=actor,
+            target=collection,
+            after=_collection_state(collection),
+            ip=ip,
+        )
+        _collection_changed(collection.pk)
+    return collection
+
+
+def update_collection(
+    collection: Collection, data: Mapping[str, Any], *, actor: User | None, ip: str | None
+) -> Collection:
+    with transaction.atomic():
+        collection = Collection.objects.select_for_update().get(pk=collection.pk)
+        before = _collection_state(collection)
+        for name in COLLECTION_FIELDS:
+            if name in data:
+                setattr(collection, name, data[name])
+        _check_slug(collection.slug, exclude=collection.pk)
+        collection.save()
+        if "items" in data:
+            _set_items(collection, data["items"] or [])
+        after = _collection_state(collection)
+        if after != before:
+            audit.record(
+                "collection.update",
+                actor=actor,
+                target=collection,
+                before=before,
+                after=after,
+                ip=ip,
+            )
+            _collection_changed(collection.pk)
+    return collection
+
+
+def delete_collection(collection: Collection, *, actor: User | None, ip: str | None) -> None:
+    with transaction.atomic():
+        audit.record(
+            "collection.delete",
+            actor=actor,
+            target=collection,
+            before=_collection_state(collection),
+            ip=ip,
+        )
+        pk = collection.pk
+        collection.delete()
+        _collection_changed(pk)

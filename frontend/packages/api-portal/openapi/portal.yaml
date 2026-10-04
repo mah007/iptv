@@ -1,0 +1,4382 @@
+openapi: 3.1.0
+info:
+  title: Smart IPTV Customer API
+  version: 1.0.0
+  description: "Same-origin API of the customer portal (app.<domain>/api/v1): session
+    cookie plus CSRF. Apps use the same routes on api.<domain>/api/v1 with bearer
+    tokens (auth/login, auth/refresh). Errors are RFC 9457 problem details."
+paths:
+  /api/v1/auth/csrf:
+    get:
+      operationId: auth_csrf
+      description: "GET /api/v1/auth/csrf: sets the `csrftoken` cookie the SPA echoes
+        as X-CSRFToken."
+      summary: Set the CSRF cookie
+      tags:
+        - auth
+      responses:
+        "204":
+          description: The csrftoken cookie is set.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/login:
+    post:
+      operationId: auth_login
+      description: Opens a session after `GET auth/csrf`; send the CSRF token as X-CSRFToken.
+        The session lasts security.customer_session_days of idle time.
+      summary: Sign in to the portal (session cookie)
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerLoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerMe"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/logout:
+    post:
+      operationId: auth_logout
+      summary: Sign out; this browser's playback stops
+      tags:
+        - auth
+      security:
+        - portalSession: []
+        - {}
+      responses:
+        "204":
+          description: Signed out.
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/password/forgot:
+    post:
+      operationId: auth_password_forgot
+      description: Always 202, whether or not the login names an account with an email.
+      summary: Email a password-reset link
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+        required: true
+      responses:
+        "202":
+          description: Accepted.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/password/reset:
+    post:
+      operationId: auth_password_reset
+      description: The link works once. Other sign-ins of the account end.
+      summary: Set the password from a reset or invitation link
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+        required: true
+      responses:
+        "204":
+          description: Password set.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/categories:
+    get:
+      operationId: categories_list
+      description: A customer endpoint answering in the request's language.
+      summary: Categories that hold something you can watch
+      parameters:
+        - in: query
+          name: kind
+          schema:
+            type: string
+            enum:
+              - series
+              - vod
+      tags:
+        - categories
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/checkout:
+    post:
+      operationId: billing_checkout
+      description: "Creates a pending invoice and the provider's checkout: `redirect`
+        sends the customer to `redirect_url`; `manual` shows bank transfer instructions
+        with the reference to quote; `trial` started (or requested) a free trial."
+      summary: Start paying for a plan (or start a free trial)
+      tags:
+        - checkout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequestRequest"
+        required: true
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutResponse"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/collections/{slug}:
+    get:
+      operationId: collections_retrieve
+      description: A customer endpoint answering in the request's language.
+      summary: A collection's titles you can watch, in order
+      parameters:
+        - in: path
+          name: slug
+          schema:
+            type: string
+          required: true
+      tags:
+        - collections
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/continue-watching:
+    get:
+      operationId: continue_watching_list
+      description: A customer endpoint answering in the request's language.
+      summary: Titles to resume, newest first (one entry per series)
+      tags:
+        - continue-watching
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WatchItem"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/episodes/{id}:
+    get:
+      operationId: episodes_retrieve
+      description: A customer endpoint answering in the request's language.
+      summary: An episode, its series, and the episodes before and after it
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - episodes
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EpisodeDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/favorites:
+    get:
+      operationId: favorites_list
+      description: A customer endpoint answering in the request's language.
+      summary: My list, newest first
+      tags:
+        - favorites
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TitleCard"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: favorites_add
+      description: A customer endpoint answering in the request's language.
+      summary: Add a title to my list
+      tags:
+        - favorites
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TitleRefRequest"
+        required: true
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteAdded"
+          description: ""
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteAdded"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/favorites/{title_type}/{id}:
+    delete:
+      operationId: favorites_delete
+      description: A customer endpoint answering in the request's language.
+      summary: Remove a title from my list
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: path
+          name: title_type
+          schema:
+            type: string
+          required: true
+      tags:
+        - favorites
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/genres:
+    get:
+      operationId: genres_list
+      description: A customer endpoint answering in the request's language.
+      summary: Genres of the titles you can watch
+      parameters:
+        - in: query
+          name: kind
+          schema:
+            type: string
+            enum:
+              - movie
+              - series
+      tags:
+        - genres
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Genre"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/home:
+    get:
+      operationId: home_retrieve
+      description: "Rows in order: recently added, popular this week, because you
+        watched (one per recent title), top picks, collections, then one per category."
+      summary: "The home screen: hero, continue watching and rows"
+      tags:
+        - home
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Home"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me:
+    get:
+      operationId: me_retrieve
+      summary: The signed-in customer and what their access allows
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerMe"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: me_update
+      summary: Change name, language, time zone or marketing consent
+      tags:
+        - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedCustomerMeUpdateRequest"
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerMe"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/devices:
+    get:
+      operationId: me_devices_list
+      summary: "The customer's devices: IPTV apps, browsers and apps signed in"
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyDevice"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: me_devices_create
+      description: Username and password are generated unless given. Refused with
+        DEVICE_LIMIT past the access's max_devices (only IPTV app devices count).
+      summary: '"Add TV app": a device with Xtream credentials, shown once'
+      tags:
+        - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MyDeviceCreateRequest"
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyIssuedCredential"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/devices/{id}:
+    patch:
+      operationId: me_devices_update
+      summary: Rename a device
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedMyDeviceUpdateRequest"
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyDevice"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: me_devices_delete
+      summary: "Remove a device: its credentials stop working and its playback stops"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/devices/{id}/xtream-credentials:
+    post:
+      operationId: me_devices_xtream_credentials
+      description: The old password stops working at once. Give a username to rename
+        the login and a password to choose it; empty fields keep the username and
+        generate a password.
+      summary: New Xtream credentials for an IPTV app device, shown once
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MyCredentialResetRequest"
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyIssuedCredential"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/invoices:
+    get:
+      operationId: me_invoices
+      summary: My invoices, newest first (paid, refunded and awaiting payment)
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedCustomerInvoiceList"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/invoices/{id}/document:
+    get:
+      operationId: me_invoice_document
+      summary: One of my invoices as a print-ready HTML page
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: query
+          name: locale
+          schema:
+            type: string
+            enum:
+              - ar
+              - en
+          description: "Default: the invoice's."
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            text/html:
+              schema:
+                type: string
+          description: The page.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/subscription:
+    get:
+      operationId: me_subscription
+      summary: "My subscription: the current one (or the last that ended) and any
+        waiting one"
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MySubscription"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/movies:
+    get:
+      operationId: movies_list
+      description: A customer endpoint answering in the request's language.
+      summary: Movies you can watch
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+            format: uuid
+          description: Only titles in this category.
+        - in: query
+          name: cursor
+          schema:
+            type: string
+          description: The `next` or `previous` link's cursor.
+        - in: query
+          name: genre
+          schema:
+            type: string
+            format: uuid
+          description: Only titles of this genre.
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+          description: Items per page (24, at most 60).
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum:
+              - added
+              - popular
+              - rating
+              - title
+              - year
+          description: added (default), popular, rating, year or title.
+        - in: query
+          name: year
+          schema:
+            type: integer
+          description: Only titles from this year.
+      tags:
+        - movies
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedTitleCardList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/movies/{id}:
+    get:
+      operationId: movies_retrieve
+      description: A customer endpoint answering in the request's language.
+      summary: "A movie's page: details, people, your state, more like this"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - movies
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MovieDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/payment-providers:
+    get:
+      operationId: billing_providers
+      summary: Payment methods offered at checkout
+      tags:
+        - payment-providers
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Provider"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/people/{id}:
+    get:
+      operationId: people_retrieve
+      description: A customer endpoint answering in the request's language.
+      summary: A person and the titles you can watch with them
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - people
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/plans:
+    get:
+      operationId: billing_plans
+      summary: Plans on sale, with prices including VAT
+      tags:
+        - plans
+      security:
+        - {}
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicPlan"
+          description: ""
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/playback/{id}/progress:
+    post:
+      operationId: playback_progress
+      description: Reports closer together than playback.progress_min_interval_s are
+        not saved (saved=false).
+      summary: Report the position (every 15 s and on pause)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - playback
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgressReportRequest"
+        required: true
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgressSaved"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/playback/{id}/stop:
+    post:
+      operationId: playback_stop
+      description: A customer endpoint answering in the request's language.
+      summary: Stop the stream (on exit); saves the final position when given
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - playback
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StopReportRequest"
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "204":
+          description: Stopped.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/playback/start:
+    post:
+      operationId: playback_start
+      description: Runs the entitlement checks (SUBSCRIPTION_EXPIRED, DEVICE_BLOCKED,
+        CATEGORY_NOT_ALLOWED, QUALITY_NOT_ALLOWED, CONCURRENCY_LIMIT, ...) and returns
+        the signed stream URL. TITLE_PREPARING (409) while the title is being prepared.
+      summary: Start playing a movie or an episode in this browser or app
+      tags:
+        - playback
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaybackStartRequest"
+        required: true
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaybackGrant"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/ratings:
+    post:
+      operationId: ratings_set
+      description: A customer endpoint answering in the request's language.
+      summary: Thumbs up or down on a title (null clears it)
+      tags:
+        - ratings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RatingRequest"
+        required: true
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rating"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/recommendations:
+    get:
+      operationId: recommendations_retrieve
+      description: A customer endpoint answering in the request's language.
+      summary: Because you watched, top picks and popular this week
+      tags:
+        - recommendations
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recommendations"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/search:
+    get:
+      operationId: search
+      description: A customer endpoint answering in the request's language.
+      summary: Search movies, series, episodes and people (Arabic and English)
+      parameters:
+        - in: query
+          name: genre
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: page
+          schema:
+            type: integer
+            maximum: 50
+            minimum: 1
+            default: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            maximum: 50
+            minimum: 1
+            default: 20
+        - in: query
+          name: q
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+          description: Arabic or English; typos are fine.
+          required: true
+        - in: query
+          name: type
+          schema:
+            enum:
+              - movie
+              - series
+              - episode
+            type: string
+            minLength: 1
+          description: |-
+            * `movie` - Movie
+            * `series` - Series
+            * `episode` - Episode
+        - in: query
+          name: year
+          schema:
+            type: integer
+            maximum: 2200
+            minimum: 1870
+      tags:
+        - search
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/series:
+    get:
+      operationId: series_list
+      description: A customer endpoint answering in the request's language.
+      summary: Series you can watch
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+            format: uuid
+          description: Only titles in this category.
+        - in: query
+          name: cursor
+          schema:
+            type: string
+          description: The `next` or `previous` link's cursor.
+        - in: query
+          name: genre
+          schema:
+            type: string
+            format: uuid
+          description: Only titles of this genre.
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+          description: Items per page (24, at most 60).
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum:
+              - added
+              - popular
+              - rating
+              - title
+              - year
+          description: added (default), popular, rating, year or title.
+        - in: query
+          name: year
+          schema:
+            type: integer
+          description: Only titles from this year.
+      tags:
+        - series
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedTitleCardList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/series/{id}:
+    get:
+      operationId: series_retrieve
+      description: A customer endpoint answering in the request's language.
+      summary: "A series' page: details, seasons, the episode to play next"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - series
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeriesDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/series/{id}/seasons/{number}:
+    get:
+      operationId: series_season_retrieve
+      description: A customer endpoint answering in the request's language.
+      summary: A season's episodes you can watch, with your progress
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: path
+          name: number
+          schema:
+            type: integer
+          required: true
+      tags:
+        - series
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeasonDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/watch-history:
+    get:
+      operationId: watch_history_list
+      description: A customer endpoint answering in the request's language.
+      summary: Everything you watched, newest first
+      parameters:
+        - in: query
+          name: cursor
+          schema:
+            type: string
+          description: The `next` or `previous` cursor.
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+          description: Items per page (30, at most 100).
+      tags:
+        - watch-history
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedWatchItemList"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/watch-history/{id}:
+    delete:
+      operationId: watch_history_delete
+      description: A customer endpoint answering in the request's language.
+      summary: Forget one title (it also leaves continue-watching)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - watch-history
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+components:
+  schemas:
+    AccessStatus:
+      enum:
+        - active
+        - expired
+        - suspended
+        - disabled
+      type: string
+      description: |-
+        * `active` - ACTIVE
+        * `expired` - EXPIRED
+        * `suspended` - SUSPENDED
+        * `disabled` - DISABLED
+    AppHint:
+      enum:
+        - smarters
+        - tivimate
+        - ibo
+        - xciptv
+        - ott_navigator
+        - smartone
+        - iptvnator
+        - uhf
+        - other
+      type: string
+      description: |-
+        * `smarters` - IPTV Smarters
+        * `tivimate` - TiviMate
+        * `ibo` - IBO Player
+        * `xciptv` - XCIPTV
+        * `ott_navigator` - OTT Navigator
+        * `smartone` - SmartOne
+        * `iptvnator` - IPTVnator
+        * `uhf` - UHF
+        * `other` - Other
+    Artwork:
+      type: object
+      description: "One image: a default URL plus WebP and AVIF per size, and its
+        blurhash."
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The default size as WebP.
+        sizes:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: string
+              format: uri
+          description: '{"w500": {"webp": url, "avif": url}, ...}'
+        width:
+          type: integer
+        height:
+          type: integer
+        blurhash:
+          type: string
+      required:
+        - blurhash
+        - height
+        - sizes
+        - url
+        - width
+    AudioTrack:
+      type: object
+      properties:
+        language:
+          type: string
+          description: ISO 639-2, or und.
+        codec:
+          type: string
+        channels:
+          type: integer
+        default:
+          type: boolean
+      required:
+        - channels
+        - codec
+        - default
+        - language
+    BadgeEnum:
+      enum:
+        - 4K
+        - FHD
+        - HD
+        - SD
+      type: string
+      description: |-
+        * `4K` - 4K
+        * `FHD` - FHD
+        * `HD` - HD
+        * `SD` - SD
+    BecauseRow:
+      type: object
+      properties:
+        because_of:
+          allOf:
+            - $ref: "#/components/schemas/TitleCard"
+          readOnly: true
+          description: The title you watched.
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleCard"
+          readOnly: true
+      required:
+        - because_of
+        - items
+    Cast:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          readOnly: true
+        profile:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        character:
+          type: string
+      required:
+        - character
+        - id
+        - name
+        - profile
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/CategoryKindEnum"
+        slug:
+          type: string
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          readOnly: true
+        sort:
+          type: integer
+        parent_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+      required:
+        - id
+        - kind
+        - name
+        - parent_id
+        - slug
+        - sort
+    CategoryKindEnum:
+      enum:
+        - vod
+        - series
+      type: string
+      description: |-
+        * `vod` - Movies
+        * `series` - Series
+    CheckoutRequestRequest:
+      type: object
+      properties:
+        plan_id:
+          type: string
+          format: uuid
+        provider:
+          allOf:
+            - $ref: "#/components/schemas/PaymentProviderCode"
+          default: manual
+        return_url:
+          oneOf:
+            - type: string
+              format: uri
+              default: ""
+            - type: string
+              maxLength: 0
+      required:
+        - plan_id
+    CheckoutResponse:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/CheckoutResponseKindEnum"
+        provider:
+          type:
+            - string
+            - "null"
+        invoice:
+          oneOf:
+            - $ref: "#/components/schemas/CustomerInvoice"
+            - type: "null"
+        redirect_url:
+          type:
+            - string
+            - "null"
+          format: uri
+        reference:
+          type: string
+        instructions:
+          type: object
+          additionalProperties:
+            type: string
+        subscription:
+          oneOf:
+            - $ref: "#/components/schemas/CustomerSubscription"
+            - type: "null"
+      required:
+        - instructions
+        - invoice
+        - kind
+        - provider
+        - redirect_url
+        - reference
+        - subscription
+    CheckoutResponseKindEnum:
+      enum:
+        - redirect
+        - manual
+        - trial
+      type: string
+      description: |-
+        * `redirect` - redirect
+        * `manual` - manual
+        * `trial` - trial
+    Collection:
+      type: object
+      properties:
+        slug:
+          type: string
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleCard"
+          readOnly: true
+      required:
+        - description
+        - items
+        - name
+        - slug
+    CreditRole:
+      enum:
+        - cast
+        - director
+        - writer
+        - producer
+      type: string
+      description: |-
+        * `cast` - Cast
+        * `director` - Director
+        * `writer` - Writer
+        * `producer` - Producer
+    CustomerAccessSummary:
+      type: object
+      description: What the customer's access allows (their plan, until subscriptions
+        exist).
+      properties:
+        status:
+          allOf:
+            - $ref: "#/components/schemas/AccessStatus"
+          readOnly: true
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        max_streams:
+          type: integer
+          readOnly: true
+        max_devices:
+          type: integer
+          readOnly: true
+        max_quality:
+          allOf:
+            - $ref: "#/components/schemas/MaxQuality"
+          readOnly: true
+        allow_movies:
+          type: boolean
+          readOnly: true
+        allow_series:
+          type: boolean
+          readOnly: true
+        allow_live:
+          type: boolean
+          readOnly: true
+      required:
+        - allow_live
+        - allow_movies
+        - allow_series
+        - expires_at
+        - max_devices
+        - max_quality
+        - max_streams
+        - status
+    CustomerInvoice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        number:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/InvoiceStatus"
+          readOnly: true
+        plan:
+          allOf:
+            - $ref: "#/components/schemas/PlanRef"
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        subtotal:
+          type: integer
+          readOnly: true
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,4})?$
+          readOnly: true
+        vat_amount:
+          type: integer
+          readOnly: true
+        total:
+          type: integer
+          readOnly: true
+        refunded_amount:
+          type: integer
+          readOnly: true
+        lines:
+          readOnly: true
+        issued_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - created_at
+        - currency
+        - id
+        - issued_at
+        - lines
+        - number
+        - plan
+        - refunded_amount
+        - status
+        - subtotal
+        - total
+        - vat_amount
+        - vat_rate
+    CustomerLoginRequest:
+      type: object
+      properties:
+        login:
+          type: string
+          minLength: 1
+          description: Username, email or phone number.
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+      required:
+        - login
+        - password
+    CustomerMe:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        phone:
+          type: string
+          readOnly: true
+        locale:
+          allOf:
+            - $ref: "#/components/schemas/Locale"
+          readOnly: true
+        timezone:
+          type: string
+          readOnly: true
+        marketing_opt_in:
+          type: boolean
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/UserStatus"
+          readOnly: true
+        access:
+          oneOf:
+            - $ref: "#/components/schemas/CustomerAccessSummary"
+            - type: "null"
+          readOnly: true
+      required:
+        - access
+        - email
+        - id
+        - locale
+        - marketing_opt_in
+        - name
+        - phone
+        - status
+        - timezone
+        - username
+    CustomerSubscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        plan:
+          allOf:
+            - $ref: "#/components/schemas/PlanRef"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/SubscriptionStatus"
+          readOnly: true
+        starts_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ends_at:
+          type: string
+          format: date-time
+          readOnly: true
+        grace_until:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        source:
+          allOf:
+            - $ref: "#/components/schemas/SubscriptionSource"
+          readOnly: true
+        max_streams:
+          type: integer
+          readOnly: true
+        max_devices:
+          type: integer
+          readOnly: true
+        max_quality:
+          type: integer
+          readOnly: true
+        ended_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        end_reason:
+          allOf:
+            - $ref: "#/components/schemas/SubscriptionEndReason"
+          readOnly: true
+      required:
+        - end_reason
+        - ended_at
+        - ends_at
+        - grace_until
+        - id
+        - max_devices
+        - max_quality
+        - max_streams
+        - plan
+        - source
+        - starts_at
+        - status
+    DeliveryEnum:
+      enum:
+        - progressive
+        - segmented
+      type: string
+      description: |-
+        * `progressive` - Progressive
+        * `segmented` - Segmented (HLS)
+    DeviceKind:
+      enum:
+        - xtream
+        - web
+        - app
+      type: string
+      description: |-
+        * `xtream` - IPTV app (Xtream)
+        * `web` - Web player
+        * `app` - Mobile app
+    DeviceStatus:
+      enum:
+        - active
+        - pending
+        - blocked
+        - revoked
+      type: string
+      description: |-
+        * `active` - ACTIVE
+        * `pending` - PENDING
+        * `blocked` - BLOCKED
+        * `revoked` - REVOKED
+    EngineEnum:
+      enum:
+        - meilisearch
+        - database
+      type: string
+      description: |-
+        * `meilisearch` - Meilisearch
+        * `database` - PostgreSQL fallback
+    Episode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        season_number:
+          type: integer
+          readOnly: true
+        number:
+          type: integer
+        title:
+          type: string
+          readOnly: true
+        overview:
+          type: string
+          readOnly: true
+        air_date:
+          type:
+            - string
+            - "null"
+          format: date
+        runtime_min:
+          type:
+            - integer
+            - "null"
+        rating:
+          type:
+            - number
+            - "null"
+          format: double
+        still:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        progress:
+          oneOf:
+            - $ref: "#/components/schemas/Progress"
+            - type: "null"
+          readOnly: true
+      required:
+        - air_date
+        - id
+        - number
+        - overview
+        - progress
+        - rating
+        - runtime_min
+        - season_number
+        - still
+        - title
+    EpisodeDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        season_number:
+          type: integer
+          readOnly: true
+        number:
+          type: integer
+        title:
+          type: string
+          readOnly: true
+        overview:
+          type: string
+          readOnly: true
+        air_date:
+          type:
+            - string
+            - "null"
+          format: date
+        runtime_min:
+          type:
+            - integer
+            - "null"
+        rating:
+          type:
+            - number
+            - "null"
+          format: double
+        still:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        progress:
+          oneOf:
+            - $ref: "#/components/schemas/Progress"
+            - type: "null"
+          readOnly: true
+        series:
+          allOf:
+            - $ref: "#/components/schemas/TitleCard"
+          readOnly: true
+        previous_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+        next_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+      required:
+        - air_date
+        - id
+        - next_id
+        - number
+        - overview
+        - previous_id
+        - progress
+        - rating
+        - runtime_min
+        - season_number
+        - series
+        - still
+        - title
+    FavoriteAdded:
+      type: object
+      properties:
+        title_type:
+          $ref: "#/components/schemas/TitleType"
+        title_id:
+          type: string
+          format: uuid
+        added:
+          type: boolean
+          description: False when it was already in the list.
+      required:
+        - added
+        - title_id
+        - title_type
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        login:
+          type: string
+          minLength: 1
+          description: Username, email or phone number.
+          maxLength: 254
+      required:
+        - login
+    Genre:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          readOnly: true
+      required:
+        - id
+        - name
+    Hero:
+      type: object
+      description: "A featured title for the home carousel: backdrop, logo, overview."
+      properties:
+        type:
+          allOf:
+            - $ref: "#/components/schemas/TitleType"
+          readOnly: true
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          readOnly: true
+        original_title:
+          type: string
+        year:
+          type:
+            - integer
+            - "null"
+        rating:
+          type:
+            - number
+            - "null"
+          format: double
+          description: TMDB rating, 0 to 10.
+        certification:
+          type: string
+        runtime_min:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        poster:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        backdrop:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        overview:
+          type: string
+          readOnly: true
+        tagline:
+          type: string
+          readOnly: true
+        logo:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+      required:
+        - backdrop
+        - certification
+        - id
+        - logo
+        - original_title
+        - overview
+        - poster
+        - rating
+        - runtime_min
+        - tagline
+        - title
+        - type
+        - year
+    Home:
+      type: object
+      properties:
+        hero:
+          type: array
+          items:
+            $ref: "#/components/schemas/Hero"
+        continue_watching:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchItem"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeRow"
+      required:
+        - continue_watching
+        - hero
+        - rows
+    HomeRow:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/HomeRowKindEnum"
+        key:
+          type: string
+          description: Stable per row, e.g. category:<slug>.
+        title:
+          type: string
+          description: Display name in the request's language.
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleCard"
+        because_of:
+          allOf:
+            - $ref: "#/components/schemas/TitleCard"
+          description: because_you_watched rows.
+        category:
+          allOf:
+            - $ref: "#/components/schemas/Category"
+          description: "category rows: the category."
+        collection_slug:
+          type: string
+          description: collection rows.
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+        - items
+        - key
+        - kind
+        - title
+    HomeRowKindEnum:
+      enum:
+        - recently_added
+        - popular
+        - because_you_watched
+        - top_picks
+        - category
+        - collection
+      type: string
+      description: |-
+        * `recently_added` - Recently added
+        * `popular` - Popular this week
+        * `because_you_watched` - Because you watched
+        * `top_picks` - Top picks
+        * `category` - Category
+        * `collection` - Collection
+    InvoiceStatus:
+      enum:
+        - pending
+        - paid
+        - void
+        - refunded
+      type: string
+      description: |-
+        * `pending` - Awaiting payment
+        * `paid` - Paid
+        * `void` - Void
+        * `refunded` - Refunded
+    KnownFor:
+      type: object
+      properties:
+        title:
+          $ref: "#/components/schemas/TitleCard"
+        role:
+          $ref: "#/components/schemas/CreditRole"
+        character:
+          type: string
+      required:
+        - character
+        - role
+        - title
+    Locale:
+      enum:
+        - ar
+        - en
+      type: string
+      description: |-
+        * `ar` - العربية
+        * `en` - English
+    MaxQuality:
+      enum:
+        - 480
+        - 720
+        - 1080
+        - 2160
+      type: integer
+      description: |-
+        * `480` - 480p
+        * `720` - 720p
+        * `1080` - 1080p
+        * `2160` - 2160p
+    MovieDetail:
+      type: object
+      description: A movie or a series in a grid or a row.
+      properties:
+        type:
+          allOf:
+            - $ref: "#/components/schemas/TitleType"
+          readOnly: true
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          readOnly: true
+        original_title:
+          type: string
+        year:
+          type:
+            - integer
+            - "null"
+        rating:
+          type:
+            - number
+            - "null"
+          format: double
+          description: TMDB rating, 0 to 10.
+        certification:
+          type: string
+        runtime_min:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        poster:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        backdrop:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        overview:
+          type: string
+          readOnly: true
+        tagline:
+          type: string
+          readOnly: true
+        vote_count:
+          type: integer
+        original_language:
+          type: string
+        countries:
+          type: array
+          items:
+            type: string
+        trailer_youtube_key:
+          type: string
+        logo:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        genres:
+          type: array
+          items:
+            $ref: "#/components/schemas/Genre"
+          readOnly: true
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+          readOnly: true
+        directors:
+          type: array
+          items:
+            $ref: "#/components/schemas/PersonBrief"
+          readOnly: true
+        writers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PersonBrief"
+          readOnly: true
+        cast:
+          type: array
+          items:
+            $ref: "#/components/schemas/Cast"
+          readOnly: true
+        quality:
+          oneOf:
+            - $ref: "#/components/schemas/Quality"
+            - type: "null"
+          readOnly: true
+        tracks:
+          allOf:
+            - $ref: "#/components/schemas/TrackLanguages"
+          readOnly: true
+        viewer:
+          allOf:
+            - $ref: "#/components/schemas/ViewerState"
+          readOnly: true
+        similar:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleCard"
+          readOnly: true
+        release_date:
+          type:
+            - string
+            - "null"
+          format: date
+      required:
+        - backdrop
+        - cast
+        - categories
+        - certification
+        - countries
+        - directors
+        - genres
+        - id
+        - logo
+        - original_language
+        - original_title
+        - overview
+        - poster
+        - quality
+        - rating
+        - release_date
+        - runtime_min
+        - similar
+        - tagline
+        - title
+        - tracks
+        - trailer_youtube_key
+        - type
+        - viewer
+        - vote_count
+        - writers
+        - year
+    MyCredentialResetRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          default: ""
+          description: Leave empty to generate one. 3 to 32 letters, digits, dots,
+            hyphens or underscores, unique regardless of case. IPTV apps compare it
+            case-sensitively.
+          maxLength: 32
+        password:
+          type: string
+          writeOnly: true
+          default: ""
+          description: Leave empty to generate one. At least the xtream.password_min_length
+            setting (8 by default) of letters, digits and . _ - ~ @ ! *
+          maxLength: 64
+    MyDevice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/DeviceKind"
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        app_hint:
+          allOf:
+            - $ref: "#/components/schemas/AppHint"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/DeviceStatus"
+          readOnly: true
+        xtream_username:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        first_seen:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        last_seen:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        last_country:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        current:
+          type: boolean
+          readOnly: true
+          description: The device this request comes from (this browser or app).
+      required:
+        - app_hint
+        - created_at
+        - current
+        - first_seen
+        - id
+        - kind
+        - last_country
+        - last_seen
+        - name
+        - status
+        - xtream_username
+    MyDeviceCreateRequest:
+      type: object
+      description: '"Add TV app": a device with Xtream credentials, chosen or generated.'
+      properties:
+        name:
+          type: string
+          default: ""
+          maxLength: 100
+        app_hint:
+          allOf:
+            - $ref: "#/components/schemas/AppHint"
+          default: other
+        username:
+          type: string
+          default: ""
+          description: Leave empty to generate one. 3 to 32 letters, digits, dots,
+            hyphens or underscores, unique regardless of case. IPTV apps compare it
+            case-sensitively.
+          maxLength: 32
+        password:
+          type: string
+          writeOnly: true
+          default: ""
+          description: Leave empty to generate one. At least the xtream.password_min_length
+            setting (8 by default) of letters, digits and . _ - ~ @ ! *
+          maxLength: 64
+    MyIssuedCredential:
+      type: object
+      description: "Shown once: the password can never be read again (a reset makes
+        a new one)."
+      properties:
+        device:
+          allOf:
+            - $ref: "#/components/schemas/MyDevice"
+          readOnly: true
+        server_url:
+          type: string
+          readOnly: true
+          description: What the IPTV app asks for as the server or portal URL.
+        username:
+          type: string
+          readOnly: true
+        password:
+          type: string
+          readOnly: true
+      required:
+        - device
+        - password
+        - server_url
+        - username
+    MySubscription:
+      type: object
+      description: "The customer's subscription: the current one, a waiting one,
+        or the last that ended."
+      properties:
+        subscription:
+          oneOf:
+            - $ref: "#/components/schemas/CustomerSubscription"
+            - type: "null"
+        pending:
+          oneOf:
+            - $ref: "#/components/schemas/CustomerSubscription"
+            - type: "null"
+      required:
+        - pending
+        - subscription
+    NextEpisode:
+      type: object
+      description: 'What "Play" starts on a series page: the episode in progress,
+        else the next one.'
+      properties:
+        id:
+          type: string
+          format: uuid
+        season_number:
+          type: integer
+          readOnly: true
+        number:
+          type: integer
+        title:
+          type: string
+          readOnly: true
+        overview:
+          type: string
+          readOnly: true
+        air_date:
+          type:
+            - string
+            - "null"
+          format: date
+        runtime_min:
+          type:
+            - integer
+            - "null"
+        rating:
+          type:
+            - number
+            - "null"
+          format: double
+        still:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        progress:
+          oneOf:
+            - $ref: "#/components/schemas/Progress"
+            - type: "null"
+          readOnly: true
+      required:
+        - air_date
+        - id
+        - number
+        - overview
+        - progress
+        - rating
+        - runtime_min
+        - season_number
+        - still
+        - title
+    PaginatedCustomerInvoiceList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerInvoice"
+    PaginatedTitleCardList:
+      type: object
+      required:
+        - next
+        - previous
+        - results
+      properties:
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleCard"
+    PaginatedWatchItemList:
+      type: object
+      required:
+        - next
+        - previous
+        - results
+      properties:
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchItem"
+    PatchedCustomerMeUpdateRequest:
+      type: object
+      description: What customers change themselves; email and phone stay with the
+        admin.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        locale:
+          $ref: "#/components/schemas/Locale"
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        marketing_opt_in:
+          type: boolean
+    PatchedMyDeviceUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        app_hint:
+          $ref: "#/components/schemas/AppHint"
+    PaymentProviderCode:
+      enum:
+        - manual
+        - stripe
+        - moyasar
+      type: string
+      description: |-
+        * `manual` - Manual (bank transfer or cash)
+        * `stripe` - Stripe
+        * `moyasar` - Moyasar
+    PersonBrief:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          readOnly: true
+        profile:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+      required:
+        - id
+        - name
+        - profile
+    PersonDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          readOnly: true
+        profile:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        known_for:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnownFor"
+          readOnly: true
+      required:
+        - id
+        - known_for
+        - name
+        - profile
+    PlanRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        name_en:
+          type: string
+          readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
+        is_trial:
+          type: boolean
+          readOnly: true
+      required:
+        - code
+        - id
+        - is_trial
+        - name_ar
+        - name_en
+    PlaybackEpisode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        season_number:
+          type: integer
+        number:
+          type: integer
+      required:
+        - id
+        - number
+        - season_number
+    PlaybackGrant:
+      type: object
+      description: "A started stream: open `url` in the player and report progress
+        to `session_id`."
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: For playback/{id}/progress and /stop.
+        title_type:
+          $ref: "#/components/schemas/PlayingType"
+        title_id:
+          type: string
+          format: uuid
+          description: The movie or the episode playing.
+        episode:
+          oneOf:
+            - $ref: "#/components/schemas/PlaybackEpisode"
+            - type: "null"
+        delivery:
+          $ref: "#/components/schemas/DeliveryEnum"
+        url:
+          type: string
+          format: uri
+          description: The signed edge URL of the stream.
+        hls_master_url:
+          type:
+            - string
+            - "null"
+          format: uri
+        compat_url:
+          type:
+            - string
+            - "null"
+          format: uri
+        height:
+          type: integer
+        expires_at:
+          type: string
+          format: date-time
+          description: When the signed URL stops working.
+        duration_ms:
+          type: integer
+        resume_ms:
+          type: integer
+          description: Where to resume; 0 starts at the top.
+        audio:
+          type: array
+          items:
+            $ref: "#/components/schemas/AudioTrack"
+        subtitles:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubtitleTrack"
+        thumbnails_url:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: Seek-bar previews (WebVTT sprite map), when available.
+      required:
+        - audio
+        - compat_url
+        - delivery
+        - duration_ms
+        - episode
+        - expires_at
+        - height
+        - hls_master_url
+        - resume_ms
+        - session_id
+        - subtitles
+        - thumbnails_url
+        - title_id
+        - title_type
+        - url
+    PlaybackStartRequest:
+      type: object
+      properties:
+        title_type:
+          $ref: "#/components/schemas/TitleType"
+        title_id:
+          type: string
+          format: uuid
+        episode_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "For a series: the episode. Without it, the episode in progress
+            or the next one (series_retrieve's next_episode)."
+        prefer:
+          allOf:
+            - $ref: "#/components/schemas/PreferEnum"
+          description: |-
+            Segmented or progressive delivery when both exist; the best quality within the plan otherwise.
+
+            * `hls` - HLS
+            * `mp4` - Progressive MP4
+      required:
+        - title_id
+        - title_type
+    PlayingType:
+      enum:
+        - movie
+        - episode
+      type: string
+      description: |-
+        * `movie` - Movie
+        * `episode` - Episode
+    PreferEnum:
+      enum:
+        - hls
+        - mp4
+      type: string
+      description: |-
+        * `hls` - HLS
+        * `mp4` - Progressive MP4
+    Price:
+      type: object
+      description: What the customer pays for a plan, in minor units, with the VAT
+        split.
+      properties:
+        net:
+          type: integer
+        vat:
+          type: integer
+        total:
+          type: integer
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,4})?$
+        display_en:
+          type: string
+        display_ar:
+          type: string
+      required:
+        - display_ar
+        - display_en
+        - net
+        - total
+        - vat
+        - vat_rate
+    Progress:
+      type: object
+      properties:
+        position_ms:
+          type: integer
+        duration_ms:
+          type: integer
+        completed:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - completed
+        - duration_ms
+        - position_ms
+        - updated_at
+    ProgressReportRequest:
+      type: object
+      properties:
+        position_ms:
+          type: integer
+          maximum: 360000000
+          minimum: 0
+        duration_ms:
+          type:
+            - integer
+            - "null"
+          maximum: 360000000
+          minimum: 0
+      required:
+        - position_ms
+    ProgressSaved:
+      type: object
+      properties:
+        saved:
+          type: boolean
+          description: False when throttled (too soon after the last).
+        position_ms:
+          type:
+            - integer
+            - "null"
+        completed:
+          type:
+            - boolean
+            - "null"
+      required:
+        - completed
+        - position_ms
+        - saved
+    Provider:
+      type: object
+      properties:
+        code:
+          $ref: "#/components/schemas/PaymentProviderCode"
+        name:
+          type: string
+      required:
+        - code
+        - name
+    PublicPlan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        name_en:
+          type: string
+          readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
+        description_en:
+          type: string
+          readOnly: true
+        description_ar:
+          type: string
+          readOnly: true
+        duration_months:
+          type: integer
+          readOnly: true
+        duration_days:
+          type: integer
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        price:
+          allOf:
+            - $ref: "#/components/schemas/Price"
+          readOnly: true
+        max_streams:
+          type: integer
+          readOnly: true
+        max_devices:
+          type: integer
+          readOnly: true
+        max_quality:
+          allOf:
+            - $ref: "#/components/schemas/MaxQuality"
+          readOnly: true
+        allow_movies:
+          type: boolean
+          readOnly: true
+        allow_series:
+          type: boolean
+          readOnly: true
+        allow_live:
+          type: boolean
+          readOnly: true
+        allow_download:
+          type: boolean
+          readOnly: true
+        is_trial:
+          type: boolean
+          readOnly: true
+        category_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          readOnly: true
+      required:
+        - allow_download
+        - allow_live
+        - allow_movies
+        - allow_series
+        - category_ids
+        - code
+        - currency
+        - description_ar
+        - description_en
+        - duration_days
+        - duration_months
+        - id
+        - is_trial
+        - max_devices
+        - max_quality
+        - max_streams
+        - name_ar
+        - name_en
+        - price
+    Quality:
+      type: object
+      properties:
+        height:
+          type: integer
+          description: The best height this customer can play.
+        badge:
+          $ref: "#/components/schemas/BadgeEnum"
+      required:
+        - badge
+        - height
+    Rating:
+      type: object
+      properties:
+        title_type:
+          $ref: "#/components/schemas/TitleType"
+        title_id:
+          type: string
+          format: uuid
+        value:
+          allOf:
+            - $ref: "#/components/schemas/Thumb"
+          description: |-
+            null clears the rating.
+
+            * `up` - Up
+            * `down` - Down
+      required:
+        - title_id
+        - title_type
+        - value
+    RatingRequest:
+      type: object
+      properties:
+        title_type:
+          $ref: "#/components/schemas/TitleType"
+        title_id:
+          type: string
+          format: uuid
+        value:
+          allOf:
+            - $ref: "#/components/schemas/Thumb"
+          description: |-
+            null clears the rating.
+
+            * `up` - Up
+            * `down` - Down
+      required:
+        - title_id
+        - title_type
+        - value
+    Recommendations:
+      type: object
+      properties:
+        because_you_watched:
+          type: array
+          items:
+            $ref: "#/components/schemas/BecauseRow"
+        top_picks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleCard"
+        popular:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleCard"
+      required:
+        - because_you_watched
+        - popular
+        - top_picks
+    ResetPasswordRequest:
+      type: object
+      properties:
+        uid:
+          type: string
+          minLength: 1
+          description: The link's uid parameter.
+          maxLength: 64
+        token:
+          type: string
+          minLength: 1
+          description: The link's token parameter.
+          maxLength: 128
+        password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+      required:
+        - password
+        - token
+        - uid
+    SearchHit:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/SearchResultType"
+        title:
+          allOf:
+            - $ref: "#/components/schemas/TitleCard"
+          readOnly: true
+          description: The movie or series (an episode's).
+        episode:
+          oneOf:
+            - $ref: "#/components/schemas/Episode"
+            - type: "null"
+          readOnly: true
+      required:
+        - episode
+        - title
+        - type
+    SearchResult:
+      type: object
+      properties:
+        query:
+          type: string
+        engine:
+          allOf:
+            - $ref: "#/components/schemas/EngineEnum"
+          description: |-
+            database while Meilisearch is unavailable (no episodes, fewer typos).
+
+            * `meilisearch` - Meilisearch
+            * `database` - PostgreSQL fallback
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchHit"
+        people:
+          type: array
+          items:
+            $ref: "#/components/schemas/PersonBrief"
+          description: Matching people (first page only).
+      required:
+        - engine
+        - page
+        - page_size
+        - people
+        - query
+        - results
+        - total
+    SearchResultType:
+      enum:
+        - movie
+        - series
+        - episode
+      type: string
+      description: |-
+        * `movie` - Movie
+        * `series` - Series
+        * `episode` - Episode
+    SeasonBrief:
+      type: object
+      properties:
+        number:
+          type: integer
+        name:
+          type: string
+          readOnly: true
+        overview:
+          type: string
+          readOnly: true
+        air_date:
+          type:
+            - string
+            - "null"
+          format: date
+        episode_count:
+          type: integer
+          readOnly: true
+          description: Episodes you can watch now.
+        poster:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+      required:
+        - air_date
+        - episode_count
+        - name
+        - number
+        - overview
+        - poster
+    SeasonDetail:
+      type: object
+      properties:
+        number:
+          type: integer
+        name:
+          type: string
+          readOnly: true
+        overview:
+          type: string
+          readOnly: true
+        air_date:
+          type:
+            - string
+            - "null"
+          format: date
+        episode_count:
+          type: integer
+          readOnly: true
+          description: Episodes you can watch now.
+        poster:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        series:
+          allOf:
+            - $ref: "#/components/schemas/SeriesRef"
+          readOnly: true
+        episodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Episode"
+          readOnly: true
+      required:
+        - air_date
+        - episode_count
+        - episodes
+        - name
+        - number
+        - overview
+        - poster
+        - series
+    SeriesDetail:
+      type: object
+      description: A movie or a series in a grid or a row.
+      properties:
+        type:
+          allOf:
+            - $ref: "#/components/schemas/TitleType"
+          readOnly: true
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          readOnly: true
+        original_title:
+          type: string
+        year:
+          type:
+            - integer
+            - "null"
+        rating:
+          type:
+            - number
+            - "null"
+          format: double
+          description: TMDB rating, 0 to 10.
+        certification:
+          type: string
+        runtime_min:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        poster:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        backdrop:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        overview:
+          type: string
+          readOnly: true
+        tagline:
+          type: string
+          readOnly: true
+        vote_count:
+          type: integer
+        original_language:
+          type: string
+        countries:
+          type: array
+          items:
+            type: string
+        trailer_youtube_key:
+          type: string
+        logo:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        genres:
+          type: array
+          items:
+            $ref: "#/components/schemas/Genre"
+          readOnly: true
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+          readOnly: true
+        directors:
+          type: array
+          items:
+            $ref: "#/components/schemas/PersonBrief"
+          readOnly: true
+        writers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PersonBrief"
+          readOnly: true
+        cast:
+          type: array
+          items:
+            $ref: "#/components/schemas/Cast"
+          readOnly: true
+        quality:
+          oneOf:
+            - $ref: "#/components/schemas/Quality"
+            - type: "null"
+          readOnly: true
+        tracks:
+          allOf:
+            - $ref: "#/components/schemas/TrackLanguages"
+          readOnly: true
+        viewer:
+          allOf:
+            - $ref: "#/components/schemas/ViewerState"
+          readOnly: true
+        similar:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleCard"
+          readOnly: true
+        first_air_date:
+          type:
+            - string
+            - "null"
+          format: date
+        last_air_date:
+          type:
+            - string
+            - "null"
+          format: date
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeasonBrief"
+          readOnly: true
+        next_episode:
+          oneOf:
+            - $ref: "#/components/schemas/NextEpisode"
+            - type: "null"
+          readOnly: true
+      required:
+        - backdrop
+        - cast
+        - categories
+        - certification
+        - countries
+        - directors
+        - first_air_date
+        - genres
+        - id
+        - last_air_date
+        - logo
+        - next_episode
+        - original_language
+        - original_title
+        - overview
+        - poster
+        - quality
+        - rating
+        - runtime_min
+        - seasons
+        - similar
+        - tagline
+        - title
+        - tracks
+        - trailer_youtube_key
+        - type
+        - viewer
+        - vote_count
+        - writers
+        - year
+    SeriesRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          readOnly: true
+      required:
+        - id
+        - title
+    StopReportRequest:
+      type: object
+      properties:
+        position_ms:
+          type:
+            - integer
+            - "null"
+          maximum: 360000000
+          minimum: 0
+        duration_ms:
+          type:
+            - integer
+            - "null"
+          maximum: 360000000
+          minimum: 0
+    SubscriptionEndReason:
+      enum:
+        - expired
+        - cancelled
+        - refunded
+        - rejected
+        - merged
+      type: string
+      description: |-
+        * `expired` - Expired
+        * `cancelled` - Cancelled
+        * `refunded` - Refunded
+        * `rejected` - Trial request rejected
+        * `merged` - Merged into the current subscription
+    SubscriptionSource:
+      enum:
+        - manual
+        - payment
+        - trial
+        - import
+      type: string
+      description: |-
+        * `manual` - Manual (admin)
+        * `payment` - Payment
+        * `trial` - Trial
+        * `import` - Import
+    SubscriptionStatus:
+      enum:
+        - pending
+        - active
+        - grace
+        - expired
+        - suspended
+        - cancelled
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `active` - Active
+        * `grace` - Grace
+        * `expired` - Expired
+        * `suspended` - Suspended
+        * `cancelled` - Cancelled
+    SubtitleTrack:
+      type: object
+      properties:
+        language:
+          type: string
+          description: ISO 639-2, or und.
+        name:
+          type: string
+          description: The track title, if any.
+        forced:
+          type: boolean
+        url:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: WebVTT, signed like the stream.
+      required:
+        - forced
+        - language
+        - name
+        - url
+    Thumb:
+      enum:
+        - up
+        - down
+      type: string
+      description: |-
+        * `up` - Up
+        * `down` - Down
+    TitleCard:
+      type: object
+      description: A movie or a series in a grid or a row.
+      properties:
+        type:
+          allOf:
+            - $ref: "#/components/schemas/TitleType"
+          readOnly: true
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          readOnly: true
+        original_title:
+          type: string
+        year:
+          type:
+            - integer
+            - "null"
+        rating:
+          type:
+            - number
+            - "null"
+          format: double
+          description: TMDB rating, 0 to 10.
+        certification:
+          type: string
+        runtime_min:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        poster:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+        backdrop:
+          oneOf:
+            - $ref: "#/components/schemas/Artwork"
+            - type: "null"
+          readOnly: true
+      required:
+        - backdrop
+        - certification
+        - id
+        - original_title
+        - poster
+        - rating
+        - runtime_min
+        - title
+        - type
+        - year
+    TitleRefRequest:
+      type: object
+      properties:
+        title_type:
+          $ref: "#/components/schemas/TitleType"
+        title_id:
+          type: string
+          format: uuid
+      required:
+        - title_id
+        - title_type
+    TitleType:
+      enum:
+        - movie
+        - series
+      type: string
+      description: |-
+        * `movie` - Movie
+        * `series` - Series
+    TrackLanguages:
+      type: object
+      properties:
+        audio:
+          type: array
+          items:
+            type: string
+          description: ISO 639-2 codes.
+        subtitles:
+          type: array
+          items:
+            type: string
+          description: ISO 639-2 codes.
+      required:
+        - audio
+        - subtitles
+    UserStatus:
+      enum:
+        - active
+        - suspended
+        - disabled
+      type: string
+      description: |-
+        * `active` - Active
+        * `suspended` - Suspended
+        * `disabled` - Disabled
+    ViewerState:
+      type: object
+      description: The signed-in customer's relation to the title.
+      properties:
+        favorite:
+          type: boolean
+        rating:
+          $ref: "#/components/schemas/Thumb"
+        progress:
+          oneOf:
+            - $ref: "#/components/schemas/Progress"
+            - type: "null"
+      required:
+        - favorite
+        - progress
+        - rating
+    WatchItem:
+      type: object
+      description: A movie or an episode you started (or the next episode of a series
+        you watch).
+      properties:
+        id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+          description: The history entry; null for an up-next.
+        type:
+          allOf:
+            - $ref: "#/components/schemas/PlayingType"
+          readOnly: true
+        title:
+          allOf:
+            - $ref: "#/components/schemas/TitleCard"
+          readOnly: true
+        episode:
+          oneOf:
+            - $ref: "#/components/schemas/Episode"
+            - type: "null"
+          readOnly: true
+        position_ms:
+          type: integer
+        duration_ms:
+          type: integer
+        completed:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - completed
+        - duration_ms
+        - episode
+        - id
+        - position_ms
+        - title
+        - type
+        - updated_at
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - NOT_AUTHENTICATED
+        - PERMISSION_DENIED
+        - NOT_FOUND
+        - METHOD_NOT_ALLOWED
+        - RATE_LIMITED
+        - INTERNAL_ERROR
+        - INVALID_CREDENTIALS
+        - ACCOUNT_LOCKED
+        - MFA_REQUIRED
+        - MFA_SETUP_REQUIRED
+        - MFA_INVALID
+        - SUBSCRIPTION_EXPIRED
+        - CONCURRENCY_LIMIT
+        - CATEGORY_NOT_ALLOWED
+        - DEVICE_BLOCKED
+        - DEVICE_LIMIT
+        - TITLE_PREPARING
+        - CONFLICT
+        - PROVIDER_UNAVAILABLE
+        - ACCOUNT_SUSPENDED
+        - DEVICE_NOT_APPROVED
+        - IP_BLOCKED
+        - GEO_BLOCKED
+        - CONTENT_TYPE_NOT_ALLOWED
+        - QUALITY_NOT_ALLOWED
+        - LICENSE_EXPIRED
+        - TRIAL_NOT_ELIGIBLE
+        - PAYMENT_PROVIDER_UNAVAILABLE
+        - PAYMENT_PROVIDER_ERROR
+        - WEBHOOK_INVALID
+      description: Stable machine-readable error code.
+    Problem:
+      type: object
+      description: RFC 9457 problem details, served as application/problem+json.
+      properties:
+        type:
+          type: string
+          description: urn:smart-iptv:problem:<code>
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        detail:
+          type: string
+        field_errors:
+          type: object
+          description: Messages per field; nested fields use dotted paths.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        field_error_codes:
+          type: object
+          description: "A stable code per message of field_errors (same keys, same
+            order): DRF's validation codes (required, max_length, invalid, unique,
+            ...) or the API's own (username_taken, password_length, ...). Clients
+            translate the codes and fall back to the messages."
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - type
+        - title
+        - status
+        - code
+        - detail
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+    portalSession:
+      type: apiKey
+      in: cookie
+      name: sessionid
