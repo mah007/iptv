@@ -51,6 +51,9 @@ services:
   beat:
     <<: *prod-app
 
+  migrate:
+    <<: *prod-app
+
   nginx-stream:
     volumes:
       # Direct-play renditions are symlinks to library files (ADR-0010).

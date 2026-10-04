@@ -24,6 +24,7 @@ x-app: &app
     redis-state: { condition: service_healthy }
     redis-cache: { condition: service_healthy }
     meilisearch: { condition: service_healthy }
+    migrate: { condition: service_completed_successfully }
 
 services:
   traefik:
@@ -105,6 +106,7 @@ services:
       redis-cache: { condition: service_healthy }
       meilisearch: { condition: service_healthy }
       media-init: { condition: service_completed_successfully }
+      migrate: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD-SHELL", "celery -A config inspect ping --destination celery@$$HOSTNAME --timeout 5 > /dev/null"]
       interval: 30s
@@ -158,6 +160,7 @@ services:
       postgres: { condition: service_healthy }
       redis-state: { condition: service_healthy }
       media-init: { condition: service_completed_successfully }
+      migrate: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD-SHELL", "celery -A config inspect ping --destination transcoder@$$HOSTNAME --timeout 5 > /dev/null"]
       interval: 30s
@@ -165,6 +168,16 @@ services:
       # Hardware detection test-encodes every candidate encoder first.
       start_period: 120s
       retries: 3
+
+  # Applies database migrations once per start, before any app process (web, worker, beat,
+  # watcher, transcoder) touches the schema: on a deploy that adds tables, nothing queries
+  # them before they exist.
+  migrate:
+    <<: *app
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
 
   # Gives the media volume's folders to the user the app runs as, once per start.
   media-init:

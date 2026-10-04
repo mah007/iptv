@@ -52,6 +52,9 @@ services:
       # Direct-play renditions are symlinks to library files (ADR-0010).
       - ./media:/media:ro
 
+  migrate:
+    <<: *app-dev
+
   media-init:
     <<: *app-dev
     user: "0:0"
