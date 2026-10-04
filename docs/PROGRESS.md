@@ -4,11 +4,15 @@
 |---|---|---|
 | M1 Infrastructure & repo | Done | `m1-done` |
 | M2 Backend foundation | Done | `m2-done` |
-| M3 Accounts (POC scope "M3-lite": access profiles instead of plans and subscriptions) | Done for the POC; plans, subscriptions and billing move to the final commercial slice | — |
-| POC slice 2: M4 library, M5 metadata, M6-lite catalog | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)) | — |
-| POC slice 3: M7 direct play, M8-lite transcoding | Done on the dev stack ([ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)) | — |
-| POC slice 4: M9 Xtream API and the IPTV-app demo | Done and deployed to the owner's server ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)) | — |
-| M10–M15, then the commercial slice | Planned | — |
+| M3 Accounts, plans, subscriptions | Done: plans, `activate()`, grace/expiry jobs, renewal property tests, invoices, payments, notifications ([ADR-0012](adr/0012-billing-subscriptions-and-notifications.md)) | — |
+| M4 Library scanner, M5 Metadata | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)); live TMDB on the server since 2026-10-04 | — |
+| M6 Catalog & search | Done: customer catalog API, collections, home rows, Meilisearch with the Arabic normaliser and fallback, engagement ([ADR-0013](adr/0013-customer-api.md)) | — |
+| M7 Direct-play streaming | Done ([ADR-0007](adr/0007-media-token-and-edge.md), [ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)) | — |
+| M8 Transcoding | Done: compat MP4, HLS fMP4 ladder with per-plan ceilings, UHD/HDR, trickplay, subtitles (cp1256-safe), retention ([ADR-0014](adr/0014-hls-uhd-subtitles-thumbnails.md)); GPU ladder benchmarks pending | — |
+| M9 Xtream API | Done ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)) | — |
+| M11 Admin UI | In progress | — |
+| M11b Customer portal | API done (ADR-0013); UI in progress | — |
+| M10 client matrix (needs the owner's devices), M12–M15 | Planned | — |
 
 **Owner decision (2026-10-03): proof of concept first.** An admin creates a customer with device credentials, media is scanned, matched and transcoded, and an IPTV app logs in and plays. Everything commercial (plans, subscriptions, billing, payments, invoices, trials, notifications) is the last slice.
 
