@@ -2,11 +2,10 @@
 
 **A self-hosted OTT/VOD subscription platform with an Xtream Codes-compatible API.** It brings library management like Plex/Jellyfin together with an IPTV panel. IPTV Smarters, TiviMate, XCIPTV, OTT Navigator and similar apps work with it out of the box.
 
-> 🚧 **Status: about two thirds built; the proof of concept runs in production.**
+> 🚧 **Status: the VOD platform is built and runs in production; live TV, monitoring, hardening and scale-out are next.**
 > - **Working end to end:** an admin signs in with MFA and creates a customer, typing the IPTV username and password or generating them. Media is scanned, matched on TMDB (English and Arabic), transcoded and served by the signed-URL edge, and IPTV apps log in and play over the Xtream API. The contract suite and an automated IPTVnator journey prove it.
-> - **Also done:** billing (plans, subscriptions, invoices, payments, emails) and the customer REST API (sign-in, catalog, Arabic search, web playback, continue watching).
-> - **In progress:** the full HLS ladder, subtitles and thumbnails, and the rest of the admin UI.
-> - **Still to come:** the customer portal UI, live TV and EPG, monitoring, security hardening and scale-out.
+> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout).
+> - **Still to come:** live TV and EPG, monitoring, security hardening and scale-out.
 >
 > See the [roadmap](#roadmap), [docs/PROGRESS.md](docs/PROGRESS.md) and the decisions in [docs/adr/](docs/adr/).
 
@@ -210,6 +209,8 @@ Demo data and media:
 | `make sample-media` | Legal synthetic sample files (FFmpeg test patterns named like real titles) in `./media` |
 | `make media-ready` | Adds the sample libraries if missing, then waits until a movie and a series are scanned, matched and transcoded |
 | `make compat` · `make compat-live` · `make e2e-iptvnator` | Xtream contract suite: offline, against the running stack, and an IPTVnator journey that signs in and plays |
+| `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
+| `make e2e-portal` | Portal journey in Playwright (sign in, Arabic search, play The Matrix, continue watching, sign out) and axe on ten pages in Arabic/light and English/dark at 390 px. Report in `dist/portal-e2e` |
 
 ## Connecting an IPTV app
 
@@ -285,11 +286,11 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 | M5 | Metadata | TMDB client, match scoring, review queue, English and Arabic enrichment, image pipeline (TheTVDB fallback still to come) | ✅ Mostly done |
 | M6 | Catalog & search | Catalog API, categories, collections, Meilisearch with Arabic normalisation, home rows | ✅ Done |
 | M7 | Direct-play streaming | Nginx edge with signed tokens, playback API, concurrency limits, kick, session sweeper | ✅ Done |
-| M8 | Transcoding | Rendition planner, GPU detection, compatible MP4 ✅; HLS ladder, UHD, thumbnails, subtitles | 🔨 In progress |
+| M8 | Transcoding | Rendition planner, GPU detection, compatible MP4, HLS ladder with per-plan ceilings, UHD/HDR, thumbnails, subtitles, retention | ✅ Done (GPU benchmarks pending) |
 | M9 | Xtream API | All VOD and series endpoints with exact types, per-plan cache, M3U, contract tests, IPTVnator E2E | ✅ Done |
 | M10 | Client compatibility | Verified on Smarters, TiviMate, XCIPTV, OTT Navigator, UHF and a webOS/Tizen app; Arabic and English setup guides | Needs real devices |
-| M11 | Admin UI | Every admin page, both themes, Arabic RTL and English, shortcuts, live views, accessibility checks | 🔨 In progress |
-| M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, checkout (manual, Stripe, Moyasar) | API ✅, UI next |
+| M11 | Admin UI | Every admin page, both themes, Arabic RTL and English, shortcuts, live views, accessibility checks | ✅ Done |
+| M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, checkout (manual, Stripe, Moyasar) | ✅ Done (provider sandboxes need keys) |
 | M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up | Planned |
 | M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | Planned |
 | M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | Partly (rate limits, lockouts) |

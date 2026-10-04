@@ -35,7 +35,7 @@ BUILD_FLAGS ?= --pull
 .PHONY: help secrets up down ps logs migrate seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
 	api-client api-client-check build smoke-images scan licenses ci ci-steps \
-	media-ready compat compat-live e2e-iptvnator
+	media-ready compat compat-live e2e-iptvnator e2e-admin e2e-portal
 
 help: ## List available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -200,6 +200,34 @@ e2e-iptvnator: ## IPTVnator (Docker, driven by Playwright) signs in, browses and
 	uvx --python 3.13 --with playwright==1.63.0 python compat/iptvnator_e2e.py \
 	  --app http://127.0.0.1:4333 --server "$(TV_URL)" --artifacts dist/iptvnator-e2e
 
+# --- Admin end-to-end suite (frontend/apps/admin/e2e, ADR-0015) --------------------------
+# Playwright with the host's Chrome against the dev stack, like the IPTVnator journey. The
+# end-to-end admin gets a fresh password every run (never stored); its TOTP codes come from
+# the DEBUG-only totp_code command. Results and traces go to dist/admin-e2e.
+ADMIN_URL = http://admin.$$(sed -n 's/^DOMAIN=//p' .env)$$(port=$$(sed -n 's/^HTTP_PORT=//p' .env); \
+	[ "$$port" = "80" ] || echo ":$$port")
+E2E_TOTP_COMMAND = ["docker","compose","--project-directory","$(CURDIR)","-f","$(CURDIR)/docker/compose.yml","-f","$(CURDIR)/docker/compose.dev.yml","exec","-T","web","python","manage.py","totp_code"]
+
+e2e-admin: ## Admin journeys (MFA sign-in, customer, device, scan, review, kill) and axe checks in Playwright
+	@export E2E_ADMIN_USER=e2e-admin E2E_ADMIN_PASS="$$(openssl rand -hex 16)"; \
+	$(COMPOSE) exec -T -e E2E_ADMIN_USER -e E2E_ADMIN_PASS web python manage.py e2e_admin_account --open-review; \
+	export ADMIN_URL="$(ADMIN_URL)" TV_URL="$(TV_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/admin-e2e" \
+	  E2E_TOTP_COMMAND='$(E2E_TOTP_COMMAND)'; \
+	cd frontend/apps/admin && node_modules/.bin/playwright test --config e2e/playwright.config.ts
+
+# --- Portal end-to-end journey (frontend/apps/portal/e2e, ADR-0016) -----------------------
+# Sign in, search in Arabic, play The Matrix, continue watching, sign out, with axe checks;
+# the host's Chrome against the dev stack. The customer gets a fresh password every run
+# (never stored) and an empty history. Results and traces go to dist/portal-e2e.
+PORTAL_URL = http://app.$$(sed -n 's/^DOMAIN=//p' .env)$$(port=$$(sed -n 's/^HTTP_PORT=//p' .env); \
+	[ "$$port" = "80" ] || echo ":$$port")
+
+e2e-portal: ## Portal journey (sign in, Arabic search, play, continue watching, sign out) and axe checks in Playwright
+	@export E2E_PORTAL_USER=e2e-portal E2E_PORTAL_PASS="$$(openssl rand -hex 16)"; \
+	$(COMPOSE) exec -T -e E2E_PORTAL_USER -e E2E_PORTAL_PASS web python manage.py e2e_portal_account; \
+	export PORTAL_URL="$(PORTAL_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/portal-e2e"; \
+	cd frontend/apps/portal && node_modules/.bin/playwright test --config e2e/playwright.config.ts
+
 build: ## Build the production images (app, media, frontend), pulling fresh base images
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target media -t smart-iptv/media:$(APP_VERSION) .
@@ -234,7 +262,7 @@ ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitt
 	@$(MAKE) ci-steps || { echo "make ci FAILED. Service status and recent logs:" >&2; \
 	  $(COMPOSE) ps >&2 || true; $(COMPOSE) logs --no-color --tail=60 >&2 || true; exit 1; }
 	@echo ""
-	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Xtream contract, types, API client, tests, live Xtream checks, IPTVnator, images, Trivy, licences."
+	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Xtream contract, types, API client, tests, live Xtream checks, IPTVnator, admin and portal E2E with axe, images, Trivy, licences."
 
 ci-steps:
 	$(MAKE) up
@@ -247,6 +275,8 @@ ci-steps:
 	$(MAKE) media-ready
 	$(MAKE) compat-live
 	$(MAKE) e2e-iptvnator
+	$(MAKE) e2e-admin
+	$(MAKE) e2e-portal
 	$(MAKE) build
 	$(MAKE) smoke-images
 	$(MAKE) scan

@@ -15,12 +15,17 @@ The checks themselves still matter. Only where they run changes.
   1. `up`: build and start the stack, waiting up to 5 minutes for every healthcheck;
   2. `smoke`: routing, isolation and readiness through Traefik;
   3. `lint`: Ruff, a missing-migrations check, and ESLint with warnings as errors plus Prettier;
-  4. `typecheck`;
-  5. `test`: pytest with 85% coverage and Vitest, including Arabic/English key parity;
-  6. `build`: production images, with `--pull`;
-  7. `smoke-images`: start both production images with an env generated from `.env.example`, run `check --deploy`, wait for their healthchecks;
-  8. `scan`: Trivy, pinned by digest, for fixable HIGH/CRITICAL CVEs and secrets in the images, plus a secret scan of the repository;
-  9. `licenses`: the licence gate, after its self-test.
+  4. `compat`: the Xtream contract's schemas and golden fixtures, offline;
+  5. `typecheck`;
+  6. `api-client-check`: the OpenAPI schemas and both generated clients are current;
+  7. `test`: pytest with 85% coverage and Vitest, including Arabic/English key parity;
+  8. `media-ready`: sample libraries scanned, matched and transcoded;
+  9. `compat-live`: the Xtream contract against the running tv host, play URLs included;
+  10. `e2e-iptvnator`, `e2e-admin`, `e2e-portal`: browser journeys in Playwright with the host's Chrome (IPTVnator; the admin SPA; the portal), the last two with axe;
+  11. `build`: production images, with `--pull`;
+  12. `smoke-images`: start the production images with an env generated from `.env.example`, run `check --deploy`, wait for their healthchecks;
+  13. `scan`: Trivy, pinned by digest, for fixable HIGH/CRITICAL CVEs and secrets in the images, plus a secret scan of the repository;
+  14. `licenses`: the licence gate, after its self-test.
 - **It checks the committed tree.** It refuses uncommitted changes unless `ALLOW_DIRTY=1`, refuses a test subset (`t=`), names the commit it passed for, and prints service status and logs when it fails.
 - **Run it before pushing to `main`.** Before tagging `m{N}-done`, run `make ci BUILD_FLAGS="--pull --no-cache"`. Milestone acceptance cites its result.
 - Where the spec says "CI", read `make ci`:
@@ -32,6 +37,7 @@ The checks themselves still matter. Only where they run changes.
 | Licence gate (§1.2) | `make licenses` inside `make ci`, today |
 | OpenAPI client freshness (§8.4) | Added to `make ci` in M2 |
 | Xtream contract tests and the IPTVnator end-to-end run (§7.5) | Added to `make ci` in M9 |
+| Admin and portal Playwright journeys with axe (§8, §9, §15) | Added to `make ci` in M11 and M11b |
 | pip-audit, pnpm audit, Semgrep (§11, §15) | Added to `make ci` in M14 (Bandit rules already run via Ruff's `S` rules) |
 | Weekly restore test (§11) | M14: a weekly scheduled job (cron or systemd timer) on the staging host runs `make restore-test` |
 | Release workflow (§5 `release.yml`) | Not created; releases run by hand through `make deploy` (§13, planned for M13–M15) |

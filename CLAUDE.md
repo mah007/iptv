@@ -59,6 +59,7 @@ Everything runs in containers through the Makefile (`make` lists targets). The s
 - `make seed args=--reset-admin-password` loads demo data and prints a new admin password once. TOTP codes in dev come from the DEBUG-only `manage.py totp_code`.
 - `make sample-media` generates legal synthetic media into `./media`; `make media-ready` waits until a sample movie and series are scanned and transcoded.
 - Xtream contract: `make compat` (schemas and golden fixtures, no stack), `make compat-live` (the running tv host, play URLs included) and `make e2e-iptvnator` (IPTVnator in Docker, driven by Playwright with the host's Chrome). All three run in `make ci`.
+- Browser E2E: `make e2e-admin` and `make e2e-portal` (Playwright with the host's Chrome against the dev stack, axe included; they need `make media-ready`). Both run in `make ci`. Run admin Vitest in a fresh `compose run` container: inside the running frontend container it gets OOM-killed.
 - Transcoding with a GPU in dev: `make up GPU=nvidia,intel` adds the opt-in overlays; the server is CPU-only.
 - Planned, not yet in the Makefile: `make loadtest`, `make backup`, `make restore-test`, `make deploy`.
 

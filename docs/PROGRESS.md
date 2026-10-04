@@ -10,11 +10,76 @@
 | M7 Direct-play streaming | Done ([ADR-0007](adr/0007-media-token-and-edge.md), [ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)) | — |
 | M8 Transcoding | Done: compat MP4, HLS fMP4 ladder with per-plan ceilings, UHD/HDR, trickplay, subtitles (cp1256-safe), retention ([ADR-0014](adr/0014-hls-uhd-subtitles-thumbnails.md)); GPU ladder benchmarks pending | — |
 | M9 Xtream API | Done ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)) | — |
-| M11 Admin UI | In progress | — |
-| M11b Customer portal | API done (ADR-0013); UI in progress | — |
+| M11 Admin UI | Done: every §8 page that has an API, billing pages, collections, storage, title media panels, live views with a polling fallback; `make e2e-admin` with axe ([ADR-0015](adr/0015-admin-ui.md)) | — |
+| M11b Customer portal | Done: portal UI with the Shaka player, progress and resume, account, devices and TV apps, checkout; `make e2e-portal` with axe ([ADR-0016](adr/0016-customer-portal.md)); provider sandboxes pending keys | — |
 | M10 client matrix (needs the owner's devices), M12–M15 | Planned | — |
 
 **Owner decision (2026-10-03): proof of concept first.** An admin creates a customer with device credentials, media is scanned, matched and transcoded, and an IPTV app logs in and plays. Everything commercial (plans, subscriptions, billing, payments, invoices, trials, notifications) is the last slice.
+
+## M11: admin UI (2026-10-04)
+
+### Done ([ADR-0015](adr/0015-admin-ui.md))
+- **Commercial pages:** plans, subscriptions (extend, cancel), payments, invoices, notifications and templates; a customer's billing and watch-history panels; the invite action.
+- **Catalog:** collections; a category checklist on plans and access rules.
+- **Title media panels** on movies and series: files and renditions, running jobs, audio and subtitle tracks (upload, edit, delete), reprocess with a choice of outputs, artwork (stored, TMDB alternatives, upload, primary) and re-match. Each episode has its own media sheet.
+- **Storage page** (`GET admin/storage`, cached 30 s): usage by library, growth over 90 days, the largest titles, and orphan cleanup that always dry-runs first.
+- **Settings:** every registry key has en/ar labels; an untranslated row fails the E2E suite.
+- **Live views:** sessions and transcode jobs poll every 5 s while the SSE feed is refused.
+- **Shortcuts:** `g b` (subscriptions) and `g p` (payments) join the go-to keys.
+
+### Evidence (dev stack)
+- `make e2e-admin`: 88 passed in 3.2 min. MFA sign-in; create a customer, reset a device, scan, resolve a review by keyboard, stop a live session; axe on every page and detail in English/light and Arabic/dark with nothing serious or critical; no sideways scroll at 390 px in Arabic; settings translated; palette and shortcuts.
+- Vitest: admin 125, ui 155. Backend: 2362 passed (lane 0).
+
+## M11b: customer portal (2026-10-04)
+
+### Done ([ADR-0016](adr/0016-customer-portal.md))
+- **Sign-in and passwords:**
+  - username, email or phone sign-in, forgot password, and the reset and invitation pages (`/reset-password`, `&welcome=1`);
+  - an expired session returns to sign-in and comes back to the page;
+  - sign-out clears the cache.
+- **Home:**
+  - a hero carousel (pauses on hover or focus, honours reduced motion);
+  - continue watching with progress bars;
+  - the API's rows (recently added, popular, because you watched, top picks, categories, collections) with "See all";
+  - rows mount as they scroll near; blurhash placeholders, lazy AVIF/WebP.
+- **Browse and titles:**
+  - movies and series with genre, category, year and sort filters in the URL, infinite scroll;
+  - title pages: backdrop, logo, meta, overview (ar/en), facts, cast linking to people, trailer (YouTube no-cookie), My List, thumbs, Play/Resume/Start over;
+  - series seasons and episodes with progress; collection and person pages.
+- **Search:** debounced 150 ms; Arabic and English, typos forgiven; grouped movies, series, episodes and people; empty states.
+- **Player (Shaka 5.2.12, HLS build):**
+  - HLS first, MP4 fallback;
+  - quality within the plan's ceiling, audio and subtitle menus, subtitle size and background;
+  - sprite previews on the seek bar, the resume prompt, a next-episode countdown;
+  - keyboard shortcuts, full screen, PiP;
+  - progress every 15 s and on pause, a keepalive stop on exit;
+  - clear messages for every §7.4 code.
+- **Engagement and account:**
+  - My List, watch history with removal;
+  - profile (name, language, time zone, marketing), password by email link;
+  - devices and TV apps: add with generated or chosen credentials shown once with a QR code, setup guides, reset, rename, remove;
+  - subscription and the renew banner;
+  - invoices (view, print);
+  - plans and checkout (manual instructions; providers only when enabled).
+- **Backend:**
+  - `manage.py e2e_portal_account`;
+  - "started" now scales for titles under five minutes (`min(30 s, 10 %)`), so 30 s samples resume and continue.
+
+### Evidence (dev stack)
+- `make e2e-portal`: 3 passed.
+  - The journey signs in, searches «المصفوفة», opens The Matrix, plays more than 5 s (HLS 1080p), finds it in Continue watching, and signs out.
+  - axe found nothing on sign-in, home, search, title and player.
+  - Ten pages each in Arabic/light and English/dark at 390 px: no axe violations, no horizontal scroll.
+- Vitest (portal): 45 passed, covering:
+  - the locale parity;
+  - the progress reporter, VTT sprites, shortcuts and error mapping;
+  - pages against a mocked API: sign-in redirect, session expiry, home rows, Arabic search debounce, title page and My List, the player page's resume and errors, Add TV app with QR, chosen-credential checks, manual checkout, invitation and expired links.
+- Backend (lane 1): engagement and the e2e command, 34 passed.
+- Checked by hand in Chrome (en/ar, light/dark, 390 px and desktop):
+  - HLS ABR to 1080p; Arabic sidecar subtitles right to left;
+  - sprite previews; next episode auto-plays;
+  - Add TV app → QR → remove; manual checkout → invoice → print frame.
 
 ## POC deployed (2026-10-04)
 
