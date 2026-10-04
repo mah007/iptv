@@ -285,6 +285,21 @@ export interface AuditLog {
 }
 
 /**
+ * * `cpu` - CPU (libx264)
+ * * `qsv` - Intel QSV
+ * * `vaapi` - VA-API
+ * * `nvenc` - NVIDIA NVENC
+ */
+export type BackendEnum = (typeof BackendEnum)[keyof typeof BackendEnum];
+
+export const BackendEnum = {
+  cpu: "cpu",
+  qsv: "qsv",
+  vaapi: "vaapi",
+  nvenc: "nvenc",
+} as const;
+
+/**
  * Each signal's score from 0 to 1 (null: not measurable); SPEC §7.2 step 4.
  */
 export interface Breakdown {
@@ -791,6 +806,33 @@ export interface Genre {
   readonly tmdb_id: number | null;
   readonly name_en: string;
   readonly name_ar: string;
+}
+
+export interface JobFile {
+  id: string;
+  /** The library's name. */
+  library: string;
+  /** The path inside its library. */
+  relative_path: string;
+  /** @nullable */
+  duration_ms: number | null;
+}
+
+/**
+ * * `movie` - movie
+ * * `episode` - episode
+ */
+export type JobTitleKindEnum = (typeof JobTitleKindEnum)[keyof typeof JobTitleKindEnum];
+
+export const JobTitleKindEnum = {
+  movie: "movie",
+  episode: "episode",
+} as const;
+
+export interface JobTitle {
+  kind: JobTitleKindEnum;
+  id: string;
+  name: string;
 }
 
 export interface Kpis {
@@ -1400,6 +1442,71 @@ export interface PaginatedSessionList {
 }
 
 /**
+ * * `compat_mp4` - Compat MP4
+ */
+export type ProfileEnum = (typeof ProfileEnum)[keyof typeof ProfileEnum];
+
+export const ProfileEnum = {
+  compat_mp4: "compat_mp4",
+} as const;
+
+/**
+ * * `queued` - Queued
+ * * `running` - Running
+ * * `done` - Done
+ * * `failed` - Failed
+ * * `cancelled` - Cancelled
+ */
+export type TranscodeJobStatusEnum =
+  (typeof TranscodeJobStatusEnum)[keyof typeof TranscodeJobStatusEnum];
+
+export const TranscodeJobStatusEnum = {
+  queued: "queued",
+  running: "running",
+  done: "done",
+  failed: "failed",
+  cancelled: "cancelled",
+} as const;
+
+export interface TranscodeJob {
+  readonly id: string;
+  readonly file: JobFile;
+  /** The movie or episode, if linked. */
+  readonly title: JobTitle | null;
+  readonly profile: ProfileEnum;
+  readonly remux: boolean;
+  readonly backend: BackendEnum;
+  readonly encoder: string;
+  readonly priority: number;
+  readonly status: TranscodeJobStatusEnum;
+  readonly progress: number;
+  /** @nullable */
+  readonly fps: number | null;
+  /** @nullable */
+  readonly speed: number | null;
+  /** @nullable */
+  readonly eta_s: number | null;
+  readonly worker_host: string;
+  readonly attempts: number;
+  readonly error: string;
+  readonly error_tail: string;
+  readonly created_at: string;
+  /** @nullable */
+  readonly started_at: string | null;
+  /** @nullable */
+  readonly finished_at: string | null;
+}
+
+export interface PaginatedTranscodeJobList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: TranscodeJob[];
+}
+
+/**
  * A customer's access profile. Empty `category_ids` means every category.
  */
 export interface PatchedAccessProfileRequest {
@@ -1684,6 +1791,15 @@ export interface PatchedSettingRequest {
 export interface Permission {
   readonly code: string;
   readonly description: string;
+}
+
+export interface PriorityRequest {
+  /**
+   * 0-9, higher runs first.
+   * @minimum 0
+   * @maximum 9
+   */
+  priority: number;
 }
 
 export interface Queued {
@@ -2467,6 +2583,100 @@ export type SessionsStreamParams = {
 export type SessionsStreamFormat = (typeof SessionsStreamFormat)[keyof typeof SessionsStreamFormat];
 
 export const SessionsStreamFormat = {
+  json: "json",
+  sse: "sse",
+} as const;
+
+export type TranscodeJobsListParams = {
+  /**
+   * * `cpu` - CPU (libx264)
+   * * `qsv` - Intel QSV
+   * * `vaapi` - VA-API
+   * * `nvenc` - NVIDIA NVENC
+   */
+  backend?: TranscodeJobsListBackend;
+  /**
+   * Jobs of one media file.
+   */
+  file?: string;
+  /**
+   * Sort key; prefix with - for descending. Default: -created_at.
+   *
+   * * `created_at` - Created at
+   * * `-created_at` - Created at (descending)
+   * * `priority` - Priority
+   * * `-priority` - Priority (descending)
+   * * `progress` - Progress
+   * * `-progress` - Progress (descending)
+   * * `started_at` - Started at
+   * * `-started_at` - Started at (descending)
+   * * `finished_at` - Finished at
+   * * `-finished_at` - Finished at (descending)
+   */
+  ordering?: TranscodeJobsListOrderingItem[];
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * * `queued` - Queued
+   * * `running` - Running
+   * * `done` - Done
+   * * `failed` - Failed
+   * * `cancelled` - Cancelled
+   */
+  status?: TranscodeJobsListStatusItem[];
+};
+
+export type TranscodeJobsListBackend =
+  (typeof TranscodeJobsListBackend)[keyof typeof TranscodeJobsListBackend];
+
+export const TranscodeJobsListBackend = {
+  cpu: "cpu",
+  nvenc: "nvenc",
+  qsv: "qsv",
+  vaapi: "vaapi",
+} as const;
+
+export type TranscodeJobsListOrderingItem =
+  (typeof TranscodeJobsListOrderingItem)[keyof typeof TranscodeJobsListOrderingItem];
+
+export const TranscodeJobsListOrderingItem = {
+  "-created_at": "-created_at",
+  "-finished_at": "-finished_at",
+  "-priority": "-priority",
+  "-progress": "-progress",
+  "-started_at": "-started_at",
+  created_at: "created_at",
+  finished_at: "finished_at",
+  priority: "priority",
+  progress: "progress",
+  started_at: "started_at",
+} as const;
+
+export type TranscodeJobsListStatusItem =
+  (typeof TranscodeJobsListStatusItem)[keyof typeof TranscodeJobsListStatusItem];
+
+export const TranscodeJobsListStatusItem = {
+  cancelled: "cancelled",
+  done: "done",
+  failed: "failed",
+  queued: "queued",
+  running: "running",
+} as const;
+
+export type TranscodeJobsStreamParams = {
+  format?: TranscodeJobsStreamFormat;
+};
+
+export type TranscodeJobsStreamFormat =
+  (typeof TranscodeJobsStreamFormat)[keyof typeof TranscodeJobsStreamFormat];
+
+export const TranscodeJobsStreamFormat = {
   json: "json",
   sse: "sse",
 } as const;

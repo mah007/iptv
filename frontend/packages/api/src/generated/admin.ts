@@ -69,6 +69,7 @@ import type {
   PaginatedScanJobList,
   PaginatedSeriesSummaryList,
   PaginatedSessionList,
+  PaginatedTranscodeJobList,
   PatchedAccessProfileRequest,
   PatchedAdminUpdateRequest,
   PatchedCategoryWriteRequest,
@@ -79,6 +80,7 @@ import type {
   PatchedSeriesUpdateRequest,
   PatchedSettingRequest,
   Permission,
+  PriorityRequest,
   Problem,
   Queued,
   ResolveRequest,
@@ -96,6 +98,9 @@ import type {
   SessionsStreamParams,
   SettingEntry,
   SuspendRequest,
+  TranscodeJob,
+  TranscodeJobsListParams,
+  TranscodeJobsStreamParams,
 } from "./admin.schemas";
 
 import { apiFetch } from "../fetcher";
@@ -7088,6 +7093,576 @@ export const useSettingsUpdate = <TError = ErrorType<Problem>, TContext = unknow
 > => {
   return useMutation(getSettingsUpdateMutationOptions(options), queryClient);
 };
+
+export const getTranscodeJobsListUrl = (params?: TranscodeJobsListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["status"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? "null" : String(v));
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/transcode-jobs?${stringifiedParams}`
+    : `/api/v1/admin/transcode-jobs`;
+};
+
+/**
+ * @summary List transcode jobs, newest first
+ */
+export const transcodeJobsList = async (
+  params?: TranscodeJobsListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedTranscodeJobList> => {
+  return apiFetch<PaginatedTranscodeJobList>(getTranscodeJobsListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getTranscodeJobsListQueryKey = (params?: TranscodeJobsListParams) => {
+  return [`/api/v1/admin/transcode-jobs`, ...(params ? [params] : [])] as const;
+};
+
+export const getTranscodeJobsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof transcodeJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: TranscodeJobsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getTranscodeJobsListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof transcodeJobsList>>> = ({ signal }) =>
+    transcodeJobsList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof transcodeJobsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TranscodeJobsListQueryResult = NonNullable<
+  Awaited<ReturnType<typeof transcodeJobsList>>
+>;
+export type TranscodeJobsListQueryError = ErrorType<Problem>;
+
+export function useTranscodeJobsList<
+  TData = Awaited<ReturnType<typeof transcodeJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | TranscodeJobsListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof transcodeJobsList>>,
+          TError,
+          Awaited<ReturnType<typeof transcodeJobsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTranscodeJobsList<
+  TData = Awaited<ReturnType<typeof transcodeJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: TranscodeJobsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof transcodeJobsList>>,
+          TError,
+          Awaited<ReturnType<typeof transcodeJobsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTranscodeJobsList<
+  TData = Awaited<ReturnType<typeof transcodeJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: TranscodeJobsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List transcode jobs, newest first
+ */
+
+export function useTranscodeJobsList<
+  TData = Awaited<ReturnType<typeof transcodeJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: TranscodeJobsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getTranscodeJobsListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getTranscodeJobsCancelUrl = (id: string) => {
+  return `/api/v1/admin/transcode-jobs/${encodeURIComponent(String(id))}/cancel`;
+};
+
+/**
+ * A running ffmpeg is stopped within a second. 409 for a finished job.
+ * @summary Cancel a queued or running job
+ */
+export const transcodeJobsCancel = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<TranscodeJob> => {
+  return apiFetch<TranscodeJob>(getTranscodeJobsCancelUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getTranscodeJobsCancelMutationKey = () => ["transcodeJobsCancel"] as const;
+
+export const getTranscodeJobsCancelMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof transcodeJobsCancel>>,
+    TError,
+    TranscodeJobsCancelMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof transcodeJobsCancel>>,
+  TError,
+  TranscodeJobsCancelMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTranscodeJobsCancelMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof transcodeJobsCancel>>,
+    TranscodeJobsCancelMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return transcodeJobsCancel(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TranscodeJobsCancelMutationResult = NonNullable<
+  Awaited<ReturnType<typeof transcodeJobsCancel>>
+>;
+
+export type TranscodeJobsCancelMutationError = ErrorType<Problem>;
+export type TranscodeJobsCancelMutationVariables = { id: string };
+
+/**
+ * @summary Cancel a queued or running job
+ */
+export const useTranscodeJobsCancel = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof transcodeJobsCancel>>,
+      TError,
+      TranscodeJobsCancelMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof transcodeJobsCancel>>,
+  TError,
+  TranscodeJobsCancelMutationVariables,
+  TContext
+> => {
+  return useMutation(getTranscodeJobsCancelMutationOptions(options), queryClient);
+};
+
+export const getTranscodeJobsPriorityUrl = (id: string) => {
+  return `/api/v1/admin/transcode-jobs/${encodeURIComponent(String(id))}/priority`;
+};
+
+/**
+ * 0-9, higher runs first. 409 for a finished job.
+ * @summary Change a queued or running job's priority
+ */
+export const transcodeJobsPriority = async (
+  id: string,
+  priorityRequest: PriorityRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<TranscodeJob> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<TranscodeJob>(getTranscodeJobsPriorityUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(priorityRequest),
+  });
+};
+
+export const getTranscodeJobsPriorityMutationKey = () => ["transcodeJobsPriority"] as const;
+
+export const getTranscodeJobsPriorityMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof transcodeJobsPriority>>,
+    TError,
+    TranscodeJobsPriorityMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof transcodeJobsPriority>>,
+  TError,
+  TranscodeJobsPriorityMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTranscodeJobsPriorityMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof transcodeJobsPriority>>,
+    TranscodeJobsPriorityMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return transcodeJobsPriority(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TranscodeJobsPriorityMutationResult = NonNullable<
+  Awaited<ReturnType<typeof transcodeJobsPriority>>
+>;
+export type TranscodeJobsPriorityMutationBody = PriorityRequest;
+export type TranscodeJobsPriorityMutationError = ErrorType<Problem>;
+export type TranscodeJobsPriorityMutationVariables = { id: string; data: PriorityRequest };
+
+/**
+ * @summary Change a queued or running job's priority
+ */
+export const useTranscodeJobsPriority = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof transcodeJobsPriority>>,
+      TError,
+      TranscodeJobsPriorityMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof transcodeJobsPriority>>,
+  TError,
+  TranscodeJobsPriorityMutationVariables,
+  TContext
+> => {
+  return useMutation(getTranscodeJobsPriorityMutationOptions(options), queryClient);
+};
+
+export const getTranscodeJobsRetryUrl = (id: string) => {
+  return `/api/v1/admin/transcode-jobs/${encodeURIComponent(String(id))}/retry`;
+};
+
+/**
+ * Attempts start from zero. 409 unless the job failed or was cancelled.
+ * @summary Queue a failed or cancelled job again
+ */
+export const transcodeJobsRetry = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<TranscodeJob> => {
+  return apiFetch<TranscodeJob>(getTranscodeJobsRetryUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getTranscodeJobsRetryMutationKey = () => ["transcodeJobsRetry"] as const;
+
+export const getTranscodeJobsRetryMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof transcodeJobsRetry>>,
+    TError,
+    TranscodeJobsRetryMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof transcodeJobsRetry>>,
+  TError,
+  TranscodeJobsRetryMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTranscodeJobsRetryMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof transcodeJobsRetry>>,
+    TranscodeJobsRetryMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return transcodeJobsRetry(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TranscodeJobsRetryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof transcodeJobsRetry>>
+>;
+
+export type TranscodeJobsRetryMutationError = ErrorType<Problem>;
+export type TranscodeJobsRetryMutationVariables = { id: string };
+
+/**
+ * @summary Queue a failed or cancelled job again
+ */
+export const useTranscodeJobsRetry = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof transcodeJobsRetry>>,
+      TError,
+      TranscodeJobsRetryMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof transcodeJobsRetry>>,
+  TError,
+  TranscodeJobsRetryMutationVariables,
+  TContext
+> => {
+  return useMutation(getTranscodeJobsRetryMutationOptions(options), queryClient);
+};
+
+export const getTranscodeJobsStreamUrl = (params?: TranscodeJobsStreamParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/transcode-jobs/stream?${stringifiedParams}`
+    : `/api/v1/admin/transcode-jobs/stream`;
+};
+
+/**
+ * Server-sent events: first `snapshot` `{"jobs": [TranscodeJob]}` with the queued and running jobs, then a `job` event `{id, status, progress, fps, speed, eta_s, backend, encoder, priority, attempts, worker_host, error}` for every update (progress at most once a second per job), and a keep-alive comment after 15 s without one.
+ * @summary Live transcode progress as server-sent events
+ */
+export const transcodeJobsStream = async (
+  params?: TranscodeJobsStreamParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<string> => {
+  return apiFetch<string>(getTranscodeJobsStreamUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getTranscodeJobsStreamQueryKey = (params?: TranscodeJobsStreamParams) => {
+  return [`/api/v1/admin/transcode-jobs/stream`, ...(params ? [params] : [])] as const;
+};
+
+export const getTranscodeJobsStreamQueryOptions = <
+  TData = Awaited<ReturnType<typeof transcodeJobsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: TranscodeJobsStreamParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsStream>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getTranscodeJobsStreamQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof transcodeJobsStream>>> = ({ signal }) =>
+    transcodeJobsStream(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof transcodeJobsStream>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TranscodeJobsStreamQueryResult = NonNullable<
+  Awaited<ReturnType<typeof transcodeJobsStream>>
+>;
+export type TranscodeJobsStreamQueryError = ErrorType<Problem>;
+
+export function useTranscodeJobsStream<
+  TData = Awaited<ReturnType<typeof transcodeJobsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | TranscodeJobsStreamParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsStream>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof transcodeJobsStream>>,
+          TError,
+          Awaited<ReturnType<typeof transcodeJobsStream>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTranscodeJobsStream<
+  TData = Awaited<ReturnType<typeof transcodeJobsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: TranscodeJobsStreamParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsStream>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof transcodeJobsStream>>,
+          TError,
+          Awaited<ReturnType<typeof transcodeJobsStream>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTranscodeJobsStream<
+  TData = Awaited<ReturnType<typeof transcodeJobsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: TranscodeJobsStreamParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsStream>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Live transcode progress as server-sent events
+ */
+
+export function useTranscodeJobsStream<
+  TData = Awaited<ReturnType<typeof transcodeJobsStream>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: TranscodeJobsStreamParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof transcodeJobsStream>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getTranscodeJobsStreamQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export const getAuthCsrfUrl = () => {
   return `/api/v1/auth/csrf`;

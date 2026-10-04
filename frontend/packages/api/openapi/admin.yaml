@@ -3552,6 +3552,348 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/transcode-jobs:
+    get:
+      operationId: transcode_jobs_list
+      summary: List transcode jobs, newest first
+      parameters:
+        - in: query
+          name: backend
+          schema:
+            type: string
+            enum:
+              - cpu
+              - nvenc
+              - qsv
+              - vaapi
+          description: |-
+            * `cpu` - CPU (libx264)
+            * `qsv` - Intel QSV
+            * `vaapi` - VA-API
+            * `nvenc` - NVIDIA NVENC
+        - in: query
+          name: file
+          schema:
+            type: string
+            format: uuid
+          description: Jobs of one media file.
+        - in: query
+          name: ordering
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - -created_at
+                - -finished_at
+                - -priority
+                - -progress
+                - -started_at
+                - created_at
+                - finished_at
+                - priority
+                - progress
+                - started_at
+          description: |-
+            Sort key; prefix with - for descending. Default: -created_at.
+
+            * `created_at` - Created at
+            * `-created_at` - Created at (descending)
+            * `priority` - Priority
+            * `-priority` - Priority (descending)
+            * `progress` - Progress
+            * `-progress` - Progress (descending)
+            * `started_at` - Started at
+            * `-started_at` - Started at (descending)
+            * `finished_at` - Finished at
+            * `-finished_at` - Finished at (descending)
+          explode: false
+          style: form
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - in: query
+          name: status
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - cancelled
+                - done
+                - failed
+                - queued
+                - running
+          description: |-
+            * `queued` - Queued
+            * `running` - Running
+            * `done` - Done
+            * `failed` - Failed
+            * `cancelled` - Cancelled
+          explode: true
+          style: form
+      tags:
+        - transcode-jobs
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedTranscodeJobList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/transcode-jobs/{id}/cancel:
+    post:
+      operationId: transcode_jobs_cancel
+      description: A running ffmpeg is stopped within a second. 409 for a finished
+        job.
+      summary: Cancel a queued or running job
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - transcode-jobs
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscodeJob"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/transcode-jobs/{id}/priority:
+    post:
+      operationId: transcode_jobs_priority
+      description: 0-9, higher runs first. 409 for a finished job.
+      summary: Change a queued or running job's priority
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - transcode-jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PriorityRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscodeJob"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/transcode-jobs/{id}/retry:
+    post:
+      operationId: transcode_jobs_retry
+      description: Attempts start from zero. 409 unless the job failed or was cancelled.
+      summary: Queue a failed or cancelled job again
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - transcode-jobs
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscodeJob"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/transcode-jobs/stream:
+    get:
+      operationId: transcode_jobs_stream
+      description: 'Server-sent events: first `snapshot` `{"jobs": [TranscodeJob]}`
+        with the queued and running jobs, then a `job` event `{id, status, progress,
+        fps, speed, eta_s, backend, encoder, priority, attempts, worker_host, error}`
+        for every update (progress at most once a second per job), and a keep-alive
+        comment after 15 s without one.'
+      summary: Live transcode progress as server-sent events
+      parameters:
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum:
+              - json
+              - sse
+      tags:
+        - transcode-jobs
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            text/event-stream:
+              schema:
+                type: string
+          description: An endless text/event-stream.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/auth/csrf:
     get:
       operationId: auth_csrf
@@ -4121,6 +4463,18 @@ components:
         - id
         - target_id
         - target_type
+    BackendEnum:
+      enum:
+        - cpu
+        - qsv
+        - vaapi
+        - nvenc
+      type: string
+      description: |-
+        * `cpu` - CPU (libx264)
+        * `qsv` - Intel QSV
+        * `vaapi` - VA-API
+        * `nvenc` - NVIDIA NVENC
     Breakdown:
       type: object
       description: "Each signal's score from 0 to 1 (null: not measurable); SPEC
@@ -5123,6 +5477,49 @@ components:
         - password
         - server_url
         - username
+    JobFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        library:
+          type: string
+          description: The library's name.
+        relative_path:
+          type: string
+          description: The path inside its library.
+        duration_ms:
+          type:
+            - integer
+            - "null"
+      required:
+        - duration_ms
+        - id
+        - library
+        - relative_path
+    JobTitle:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/JobTitleKindEnum"
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+        - id
+        - kind
+        - name
+    JobTitleKindEnum:
+      enum:
+        - movie
+        - episode
+      type: string
+      description: |-
+        * `movie` - movie
+        * `episode` - episode
     Kpis:
       type: object
       properties:
@@ -6047,6 +6444,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Session"
+    PaginatedTranscodeJobList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscodeJob"
     Parse:
       type: object
       description: What the file name says (P2 `ParseResult.to_json`).
@@ -6527,6 +6949,16 @@ components:
         - name
         - name_ar
         - tmdb_id
+    PriorityRequest:
+      type: object
+      properties:
+        priority:
+          type: integer
+          maximum: 9
+          minimum: 0
+          description: 0-9, higher runs first.
+      required:
+        - priority
     ProcessingPolicy:
       enum:
         - ingest
@@ -6537,6 +6969,11 @@ components:
         * `ingest` - At ingest
         * `on_demand` - On first play
         * `passthrough` - Never (serve the source)
+    ProfileEnum:
+      enum:
+        - compat_mp4
+      type: string
+      description: "* `compat_mp4` - Compat MP4"
     ProviderIds:
       type: object
       properties:
@@ -7574,6 +8011,128 @@ components:
       description: |-
         * `hidden` - Hide the title
         * `ready` - Show it again (its files decide the status)
+    TranscodeJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        file:
+          allOf:
+            - $ref: "#/components/schemas/JobFile"
+          readOnly: true
+        title:
+          oneOf:
+            - $ref: "#/components/schemas/JobTitle"
+            - type: "null"
+          readOnly: true
+          description: The movie or episode, if linked.
+        profile:
+          allOf:
+            - $ref: "#/components/schemas/ProfileEnum"
+          readOnly: true
+        remux:
+          type: boolean
+          readOnly: true
+        backend:
+          allOf:
+            - $ref: "#/components/schemas/BackendEnum"
+          readOnly: true
+        encoder:
+          type: string
+          readOnly: true
+        priority:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/TranscodeJobStatusEnum"
+          readOnly: true
+        progress:
+          type: number
+          format: double
+          readOnly: true
+        fps:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        speed:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        eta_s:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        worker_host:
+          type: string
+          readOnly: true
+        attempts:
+          type: integer
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        error_tail:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        finished_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+      required:
+        - attempts
+        - backend
+        - created_at
+        - encoder
+        - error
+        - error_tail
+        - eta_s
+        - file
+        - finished_at
+        - fps
+        - id
+        - priority
+        - profile
+        - progress
+        - remux
+        - speed
+        - started_at
+        - status
+        - title
+        - worker_host
+    TranscodeJobStatusEnum:
+      enum:
+        - queued
+        - running
+        - done
+        - failed
+        - cancelled
+      type: string
+      description: |-
+        * `queued` - Queued
+        * `running` - Running
+        * `done` - Done
+        * `failed` - Failed
+        * `cancelled` - Cancelled
     UserStatus:
       enum:
         - active
