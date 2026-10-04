@@ -2,12 +2,25 @@
 
 **A self-hosted OTT/VOD subscription platform with an Xtream Codes-compatible API.** It brings library management like Plex/Jellyfin together with an IPTV panel. IPTV Smarters, TiviMate, XCIPTV, OTT Navigator and similar apps work with it out of the box.
 
-> 🚧 **Status: the VOD platform is built and runs in production; live TV, monitoring, hardening and scale-out are next.**
+> 🚧 **Status: the VOD platform is built and runs in production at tv.mah007.net. Live TV and monitoring are being built; security hardening and scale-out come after.**
 > - **Working end to end:** an admin signs in with MFA and creates a customer, typing the IPTV username and password or generating them. Media is scanned, matched on TMDB (English and Arabic), transcoded and served by the signed-URL edge, and IPTV apps log in and play over the Xtream API. The contract suite and an automated IPTVnator journey prove it.
 > - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout).
-> - **Still to come:** live TV and EPG, monitoring, security hardening and scale-out.
+> - **Being built now:** live TV with EPG and catch-up (M12), and monitoring with dashboards and alerts (M13).
+> - **Still to come:** security hardening (M14), scale-out and CDN (M15), and testing on real TVs and phones (M10).
 >
 > See the [roadmap](#roadmap), [docs/PROGRESS.md](docs/PROGRESS.md) and the decisions in [docs/adr/](docs/adr/).
+
+## Recent updates
+
+Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
+
+- **2026-10-04:** live TV and EPG (M12) and monitoring (M13) started.
+- **2026-10-04:** the admin panel is complete (M11): billing pages, collections, storage and title media panels, with 88 browser tests in both languages and themes. Deployed.
+- **2026-10-04:** the customer portal is live (M11b): browse, Arabic search, the Shaka player with resume, account, TV-app logins with QR codes, checkout. Deployed.
+- **2026-10-04:** full transcoding (M8): the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles (old Windows-encoded Arabic too) and seek thumbnails.
+- **2026-10-04:** billing (M3) and the customer API (M6): plans, subscriptions, invoices, payments, emails; catalog, Arabic search, web playback.
+- **2026-10-04:** live TMDB metadata on the server (English and Arabic titles).
+- **2026-10-03:** proof of concept deployed: admin with MFA, customers with IPTV logins, scan, match, transcode, and IPTV apps playing.
 
 > ⚖️ **For content you own or are licensed to distribute.** Smart IPTV has no torrent, Usenet, indexer or scraper features, and never will. Media enters only through folders or storage buckets that you manage. Every title carries rights-holder and licence fields, and titles hide automatically when their licence expires.
 
@@ -45,39 +58,41 @@ From a file on disk to a TV screen:
 
 ## Features
 
+✅ built and running · 🔨 being built now · 🔜 planned (see the [roadmap](#roadmap))
+
 **Library and metadata**
-- Folder watcher plus scheduled reconciliation scans that detect new, changed, moved and removed files.
-- Filename parsing for movies, episodes, multi-episode files, anime absolute numbering and editions.
-- TMDB matching with a confidence score: confident matches publish automatically, and doubtful ones go to a review queue.
-- Metadata in English and Arabic, with posters in WebP/AVIF and blurhash placeholders.
+- ✅ Folder watcher plus scheduled reconciliation scans that detect new, changed, moved and removed files.
+- ✅ Filename parsing for movies, episodes, multi-episode files, anime absolute numbering and editions.
+- ✅ TMDB matching with a confidence score: confident matches publish automatically, and doubtful ones go to a review queue.
+- ✅ Metadata in English and Arabic, with posters in WebP/AVIF and blurhash placeholders. 🔜 TheTVDB as a fallback for TV.
 
 **Media processing**
-- **Transcode at ingest and direct-play at runtime.** Each title produces a compatible MP4 (H.264/AAC), an adaptive HLS ladder (1080p/720p/540p/360p) and an optional UHD variant.
-- Hardware encoding with Intel QSV/VAAPI and NVIDIA NVENC, detected automatically, with CPU fallback.
-- Subtitle extraction, Arabic encoding fixes (cp1256 to UTF-8), automatic timing sync, and preview thumbnails for seeking.
+- ✅ **Transcode at ingest and direct-play at runtime.** Each title produces a compatible MP4 (H.264/AAC), an adaptive HLS ladder (1080p/720p/540p/360p) and an optional UHD variant.
+- ✅ Hardware encoding with Intel QSV/VAAPI and NVIDIA NVENC, detected automatically, with CPU fallback.
+- ✅ Subtitle extraction and sidecar `.srt` pickup, Arabic encoding fixes (cp1256 to UTF-8), and preview thumbnails for seeking.
 
 **Streaming and anti-sharing**
-- Separate control and streaming planes. Media servers only verify signed tokens and serve bytes; the database never sees a media request.
-- Per-device credentials, server-side concurrency limits, new-device alerts and per-user risk scoring.
-- Live session view, with kill, block-device and block-IP actions.
+- ✅ Separate control and streaming planes. Media servers only verify signed tokens and serve bytes; the database never sees a media request.
+- ✅ Per-device credentials, server-side concurrency limits, device approval, IP and country rules, and new-device emails. 🔜 Per-user risk scoring.
+- ✅ Live session view, with kill, block-device and block-IP actions.
 
 **Xtream compatibility**
-- `player_api.php`, `get.php` (M3U), `xmltv.php` and `/movie`, `/series` and `/live` play URLs, with field types that exactly match the PHP panels apps expect.
-- Contract tests on every response, plus an automated end-to-end run with IPTVnator.
+- ✅ `player_api.php`, `get.php` (M3U) and `/movie` and `/series` play URLs, with field types that exactly match the PHP panels apps expect. 🔨 Live channels: `/live` and `/timeshift` URLs, `xmltv.php` and the EPG actions.
+- ✅ Contract tests on every response, plus an automated end-to-end run with IPTVnator.
 
 **Admin and customer apps**
-- Admin SPA in Arabic (RTL) and English, with dark and light themes, a ⌘K command palette, keyboard shortcuts and live dashboards.
-- Customer web portal with a Shaka Player-based player, Continue Watching, search, recommendations and device management.
+- ✅ Admin SPA in Arabic (RTL) and English, with dark and light themes, a ⌘K command palette, keyboard shortcuts and live dashboards.
+- ✅ Customer web portal with a Shaka Player-based player, Continue Watching, search, recommendations, device and TV-app management, and checkout.
 
 **Business**
-- Plans, subscriptions, trials, a grace period and expiry reminders.
-- Payments: manual, Stripe, PayPal and Moyasar (mada, Apple Pay, STC Pay). HyperPay and Tap are planned but not yet supported.
-- Sequential invoices with VAT, as PDFs in Arabic and English.
-- Notifications by email, Telegram and WhatsApp.
+- ✅ Plans, subscriptions, trials, a grace period and expiry reminders.
+- ✅ Payments: manual, Stripe and Moyasar (mada, Apple Pay, STC Pay); the card providers switch on with their keys. 🔜 PayPal, HyperPay and Tap.
+- ✅ Sequential invoices with VAT, as print-ready pages in Arabic and English (the browser saves them as PDF).
+- ✅ Notifications by email, with admin-editable Arabic and English templates. 🔜 Telegram and WhatsApp.
 
 **Operations**
-- Prometheus metrics, Grafana dashboards, Loki logs with credential redaction, alerts to email and Telegram.
-- Backups with a restore drill, an audit log of every admin action, and rate limiting with CrowdSec.
+- ✅ Prometheus metrics and credential redaction in every log. 🔨 Grafana dashboards, Loki logs and alerts to email and Telegram.
+- ✅ An audit log of every admin action; sign-in rate limits and lockouts. 🔜 Backups with a restore drill, and CrowdSec.
 
 ## Architecture
 
@@ -291,8 +306,8 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 | M10 | Client compatibility | Verified on Smarters, TiviMate, XCIPTV, OTT Navigator, UHF and a webOS/Tizen app; Arabic and English setup guides | Needs real devices |
 | M11 | Admin UI | Every admin page, both themes, Arabic RTL and English, shortcuts, live views, accessibility checks | ✅ Done |
 | M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, checkout (manual, Stripe, Moyasar) | ✅ Done (provider sandboxes need keys) |
-| M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up | Planned |
-| M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | Planned |
+| M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up | 🔨 In progress |
+| M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | 🔨 In progress |
 | M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | Partly (rate limits, lockouts) |
 | M15 | Scale & CDN | Standalone edges, S3 origin, Bunny CDN token auth, Postgres replica, load-test report at 1,000+ virtual users | Planned |
 | Later | Beyond v1 | Native TV apps, pluggable ML recommender | Ideas |
