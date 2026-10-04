@@ -137,6 +137,12 @@ export const KPIS: Kpis = {
   expiring_7d: 3,
   devices_total: 32,
   devices_blocked: 1,
+  streams_now: 4,
+  stream_users_now: 3,
+  reviews_open: 2,
+  transcode_queued: 5,
+  transcode_running: 1,
+  transcode_failed_24h: 0,
   as_of: "2026-10-03T21:00:00Z",
 };
 

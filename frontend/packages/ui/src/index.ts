@@ -124,6 +124,32 @@ export { toast, Toaster } from "./components/toaster";
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/tooltip";
 
 // Composites (SPEC §8.1)
+export {
+  BarList,
+  ChartLegend,
+  ColumnChart,
+  TimeSeriesChart,
+  type BarListItem,
+  type BarListProps,
+  type ChartTone,
+  type ColumnChartProps,
+  type ColumnSeries,
+  type TimeSeriesChartProps,
+  type TimeSeriesPoint,
+} from "./components/charts";
+export {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandLoading,
+  CommandSeparator,
+  CommandShortcut,
+  type CommandDialogProps,
+} from "./components/command";
 export { ConfirmDialog, type ConfirmDialogProps } from "./components/confirm-dialog";
 export { CopyField, useCopy, type CopyFieldProps } from "./components/copy-field";
 export {

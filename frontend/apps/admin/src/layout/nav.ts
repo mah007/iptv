@@ -5,10 +5,12 @@ import {
   Cpu,
   FolderTree,
   HardDrive,
+  HeartPulse,
   LayoutDashboard,
   ListChecks,
   ScrollText,
   Settings,
+  ShieldBan,
   ShieldCheck,
   Tv,
   Users,
@@ -107,6 +109,12 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         icon: ShieldCheck,
         permission: ["admins.manage", "roles.manage"],
       },
+      {
+        to: "/access-rules",
+        labelKey: "nav.accessRules",
+        icon: ShieldBan,
+        permission: "customers.view",
+      },
       { to: "/audit", labelKey: "nav.audit", icon: ScrollText, permission: "audit.view" },
     ],
   },
@@ -114,7 +122,24 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     id: "system",
     titleKey: "nav.sections.system",
     items: [
+      { to: "/health", labelKey: "nav.health", icon: HeartPulse, permission: "settings.view" },
       { to: "/settings", labelKey: "nav.settings", icon: Settings, permission: "settings.view" },
     ],
   },
 ];
+
+/**
+ * "Go to" shortcuts (SPEC §8.2: g d, g c, g l, g s; the rest follow the same
+ * pattern). Shown in the command palette and the shortcuts help.
+ */
+export const NAV_SHORTCUTS: Readonly<Partial<Record<NavItem["to"], string>>> = {
+  "/": "g d",
+  "/customers": "g c",
+  "/libraries": "g l",
+  "/sessions": "g s",
+  "/movies": "g m",
+  "/review": "g r",
+  "/transcode": "g t",
+  "/audit": "g a",
+  "/health": "g h",
+};

@@ -1,7 +1,7 @@
 import type {
   Candidate,
   Category,
-  File,
+  MediaFile,
   Image,
   Library,
   MovieDetail,
@@ -132,7 +132,7 @@ export function movieSummary(overrides: Partial<MovieSummary> = {}): MovieSummar
   };
 }
 
-export function mediaFile(overrides: Partial<File> = {}): File {
+export function mediaFile(overrides: Partial<MediaFile> = {}): MediaFile {
   return {
     id: "file-1",
     library: { id: "lib-1", name: "Movies" },

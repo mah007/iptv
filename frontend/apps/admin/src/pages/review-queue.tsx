@@ -23,6 +23,7 @@ import {
   DescriptionList,
   EmptyState,
   Input,
+  Kbd,
   Label,
   PageHeader,
   PosterImage,
@@ -54,6 +55,7 @@ import { LIBRARY_VIEW, useCan } from "../lib/auth";
 import { usePageTitle } from "../lib/page-title";
 import { notifyError } from "../lib/problems";
 import { compact, type SearchPatch } from "../lib/search";
+import { useShortcuts } from "../lib/shortcuts";
 
 const route = getRouteApi("/app/review");
 const PAGE_SIZE = 25;
@@ -81,11 +83,14 @@ function ScoreRow({ label, value }: { label: string; value: number | null | unde
 }
 
 function CandidateCard({
+  number,
   candidate,
   chosen,
   onChoose,
   pending,
 }: {
+  /** 1–5: the key that chooses this candidate (none for manual search results). */
+  number?: number | undefined;
   candidate: Candidate;
   chosen: boolean;
   onChoose: (() => void) | null;
@@ -160,9 +165,15 @@ function CandidateCard({
             size="sm"
             pending={pending}
             onClick={onChoose}
+            aria-keyshortcuts={number === undefined ? undefined : String(number)}
           >
             <Check aria-hidden="true" />
             {t("review.choose")}
+            {number === undefined ? null : (
+              <Kbd aria-hidden="true" className="ms-1 hidden sm:inline-flex">
+                {number}
+              </Kbd>
+            )}
           </Button>
         ) : null}
       </CardContent>
@@ -404,6 +415,46 @@ function ReviewDetail({
     );
   }
 
+  function skipReview(): void {
+    skip.mutate(
+      { id: review.id },
+      {
+        onSuccess: () => {
+          toast.success(t("review.skippedToast"));
+          onDone(next);
+          void refresh();
+        },
+        onError: (error) => {
+          notifyError(t, error);
+        },
+      },
+    );
+  }
+
+  // SPEC §8.3.7: 1–5 choose a candidate, s skips.
+  const candidates = review.candidates.slice(0, 5);
+  useShortcuts(
+    [
+      ...candidates.map((candidate, index) => ({
+        keys: String(index + 1),
+        labelKey: `review.shortcuts.choose${String(index + 1)}`,
+        group: "page" as const,
+        run: () => {
+          if (!pending) choose(candidate.id, candidate.kind, candidate.title);
+        },
+      })),
+      {
+        keys: "s",
+        labelKey: "review.shortcuts.skip",
+        group: "page",
+        run: () => {
+          if (!pending) skipReview();
+        },
+      },
+    ],
+    decide,
+  );
+
   return (
     <div className="grid gap-4">
       <div className="grid gap-2">
@@ -432,24 +483,14 @@ function ReviewDetail({
               size="sm"
               pending={skip.isPending}
               disabled={pending}
-              onClick={() => {
-                skip.mutate(
-                  { id: review.id },
-                  {
-                    onSuccess: () => {
-                      toast.success(t("review.skippedToast"));
-                      onDone(next);
-                      void refresh();
-                    },
-                    onError: (error) => {
-                      notifyError(t, error);
-                    },
-                  },
-                );
-              }}
+              onClick={skipReview}
+              aria-keyshortcuts="s"
             >
               <SkipForward aria-hidden="true" className="rtl:-scale-x-100" />
               {t("review.skip")}
+              <Kbd aria-hidden="true" className="ms-1 hidden sm:inline-flex">
+                S
+              </Kbd>
             </Button>
           </div>
         ) : null}
@@ -463,9 +504,10 @@ function ReviewDetail({
           <p className="text-ui text-muted-foreground">{t("review.noCandidates")}</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {review.candidates.slice(0, 5).map((candidate) => (
+            {candidates.map((candidate, index) => (
               <CandidateCard
                 key={`${candidate.kind}-${String(candidate.id)}`}
+                number={index + 1}
                 candidate={candidate}
                 chosen={review.chosen_provider_id === candidate.id}
                 pending={resolve.isPending && resolve.variables.data.tmdb_id === candidate.id}
@@ -514,6 +556,29 @@ function ReviewQueue() {
       : (items[items.indexOf(selected) + 1] ?? items[items.indexOf(selected) - 1])?.id;
   const pageCount = query.data ? Math.max(1, Math.ceil(query.data.count / PAGE_SIZE)) : 1;
   const page = search.page ?? 1;
+  const position = selected === undefined ? -1 : items.indexOf(selected);
+
+  // SPEC §8.3.7: j / k move to the next / previous item.
+  useShortcuts([
+    {
+      keys: "j",
+      labelKey: "review.shortcuts.next",
+      group: "page",
+      run: () => {
+        const item = items[position + 1];
+        if (item) update({ item: item.id });
+      },
+    },
+    {
+      keys: "k",
+      labelKey: "review.shortcuts.previous",
+      group: "page",
+      run: () => {
+        const item = items[position - 1];
+        if (item) update({ item: item.id });
+      },
+    },
+  ]);
 
   return (
     <>

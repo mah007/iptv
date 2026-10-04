@@ -12,7 +12,8 @@ describe("admin shell", () => {
     mockApi(signedIn());
     const { user } = renderApp();
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeTruthy();
-    expect(await screen.findByText("24")).toBeTruthy();
+    // The active-customers tile (KPIS.customers_active).
+    expect(await screen.findByText("19")).toBeTruthy();
     expect(document.title).toBe("Dashboard · Smart IPTV Admin");
 
     await user.click(screen.getByRole("button", { name: /Change language/ }));
@@ -32,7 +33,7 @@ describe("admin shell", () => {
           .getAllByRole("link")
           .filter((link) => link.getAttribute("data-slot") === "sidebar-item")
           .map((link) => link.textContent),
-      ).toEqual(["Dashboard", "Live sessions", "Customers"]);
+      ).toEqual(["Dashboard", "Live sessions", "Customers", "Access rules"]);
     });
     expect(within(nav).getByRole("link", { name: "Dashboard" }).getAttribute("aria-current")).toBe(
       "page",

@@ -65,6 +65,11 @@
 
   /* +1 in LTR, -1 in RTL: lets keyframes slide from the inline start edge. */
   --dir-sign: 1;
+
+  /* Charts (SPEC §8.1): the accent series, grey for the rest (3:1 on the card), hairlines. */
+  --chart-accent: var(--primary);
+  --chart-muted: #8a8a93;
+  --chart-grid: var(--border);
 }
 
 [data-theme="dark"] {
@@ -100,6 +105,8 @@
   --neutral-text: #a1a1aa;
 
   --elevation: 0 0 0 1px rgb(255 255 255 / 0.04), 0 12px 32px -8px rgb(0 0 0 / 0.7);
+
+  --chart-muted: #71717a;
 }
 
 [data-density="compact"] {

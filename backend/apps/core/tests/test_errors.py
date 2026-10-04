@@ -58,6 +58,7 @@ def test_problem_error_answers_with_its_code_and_field_errors() -> None:
         "code": "DEVICE_LIMIT",
         "detail": "Two devices at most.",
         "field_errors": {"name": ["taken"]},
+        "field_error_codes": {"name": ["invalid"]},
     }
 
 

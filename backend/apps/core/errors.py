@@ -1,8 +1,9 @@
 """RFC 9457 problem details for every API error (SPEC §10).
 
-Body: `{type, title, status, code, detail, field_errors?}` served as
-`application/problem+json`. `code` is a stable machine-readable value from
+Body: `{type, title, status, code, detail, field_errors?, field_error_codes?}` served
+as `application/problem+json`. `code` is a stable machine-readable value from
 `ErrorCode`; clients switch on it, never on `detail` (human text) or `title`.
+`field_error_codes` mirrors `field_errors` with a stable code per message (ADR-0015).
 
 - DRF views: `problem_exception_handler` (REST_FRAMEWORK["EXCEPTION_HANDLER"]).
 - Everything else: the `handler400/403/404/500` views wired into the admin, api
@@ -62,6 +63,11 @@ class ErrorCode(StrEnum):
     CONTENT_TYPE_NOT_ALLOWED = "CONTENT_TYPE_NOT_ALLOWED"
     QUALITY_NOT_ALLOWED = "QUALITY_NOT_ALLOWED"
     LICENSE_EXPIRED = "LICENSE_EXPIRED"
+    # Billing (SPEC §7.6, ADR-0012).
+    TRIAL_NOT_ELIGIBLE = "TRIAL_NOT_ELIGIBLE"
+    PAYMENT_PROVIDER_UNAVAILABLE = "PAYMENT_PROVIDER_UNAVAILABLE"
+    PAYMENT_PROVIDER_ERROR = "PAYMENT_PROVIDER_ERROR"
+    WEBHOOK_INVALID = "WEBHOOK_INVALID"
 
 
 # Default HTTP status and RFC 9457 title per code; a raise site may override the status.
@@ -93,6 +99,11 @@ _DEFAULTS: dict[ErrorCode, tuple[int, str]] = {
     ErrorCode.CONTENT_TYPE_NOT_ALLOWED: (403, "Content type not in plan"),
     ErrorCode.QUALITY_NOT_ALLOWED: (403, "Quality not in plan"),
     ErrorCode.LICENSE_EXPIRED: (403, "Title no longer available"),
+    # Billing (ADR-0012).
+    ErrorCode.TRIAL_NOT_ELIGIBLE: (409, "Free trial not available"),
+    ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE: (503, "Payment method unavailable"),
+    ErrorCode.PAYMENT_PROVIDER_ERROR: (502, "Payment provider error"),
+    ErrorCode.WEBHOOK_INVALID: (400, "Invalid webhook"),
 }
 
 # Key for errors that belong to no single field (DRF's convention).
@@ -131,7 +142,38 @@ class ProblemError(exceptions.APIException):
             name: [str(message) for message in messages]
             for name, messages in (field_errors or {}).items()
         }
+        # Messages made with `field_error(...)` (or DRF's ErrorDetail) carry their code.
+        self.field_error_codes: FieldErrors = {
+            name: [_code_of(message) for message in messages]
+            for name, messages in (field_errors or {}).items()
+        }
         super().__init__(detail=detail if detail is not None else title_for(code), code=code)
+
+
+# --- Field error codes (ADR-0015) ----------------------------------------------------
+# `field_error_codes` mirrors `field_errors`: the same keys, one stable code per message,
+# in the same order. Clients translate the codes (the messages are English) and show the
+# message only for a code they don't know.
+
+#: The code of a message that names none (DRF's default validation code).
+DEFAULT_FIELD_ERROR_CODE = "invalid"
+
+
+def field_error(message: str, *, code: str) -> exceptions.ErrorDetail:
+    """A field message with its stable code, for `ProblemError(field_errors=...)`."""
+    return exceptions.ErrorDetail(message, code=code)
+
+
+def _code_of(message: object) -> str:
+    """The code of a DRF ErrorDetail or Django ValidationError; the default for plain text."""
+    code = getattr(message, "code", None)
+    return str(code) if code else DEFAULT_FIELD_ERROR_CODE
+
+
+def _aligned_codes(messages: Sequence[str], codes: Sequence[str]) -> list[str]:
+    """Exactly one code per message: missing ones are the default, extra ones dropped."""
+    padding = [DEFAULT_FIELD_ERROR_CODE] * max(0, len(messages) - len(codes))
+    return [*codes[: len(messages)], *padding]
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +183,7 @@ class Problem:
     detail: str
     field_errors: FieldErrors = field(default_factory=dict)
     headers: dict[str, str] = field(default_factory=dict)
+    field_error_codes: FieldErrors = field(default_factory=dict)
 
     def body(self) -> dict[str, Any]:
         body: dict[str, Any] = {
@@ -152,34 +195,54 @@ class Problem:
         }
         if self.field_errors:
             body["field_errors"] = self.field_errors
+            body["field_error_codes"] = {
+                name: _aligned_codes(messages, self.field_error_codes.get(name, ()))
+                for name, messages in self.field_errors.items()
+            }
         return body
 
 
-def flatten_errors(detail: Any, prefix: str = "") -> FieldErrors:
-    """Flatten DRF/Django error structures into `{"a.b.0.c": [messages]}`."""
+def _flatten(detail: Any, prefix: str = "") -> dict[str, list[Any]]:
+    """Flatten DRF/Django error structures into `{"a.b.0.c": [message objects]}`."""
     if isinstance(detail, Mapping):
-        flat: FieldErrors = {}
+        flat: dict[str, list[Any]] = {}
         for name, value in detail.items():
             path = f"{prefix}.{name}" if prefix else str(name)
-            for key, messages in flatten_errors(value, path).items():
+            for key, messages in _flatten(value, path).items():
                 flat.setdefault(key, []).extend(messages)
         return flat
     if isinstance(detail, list | tuple):
         if all(not isinstance(item, Mapping | list | tuple) for item in detail):
-            return {prefix or NON_FIELD_ERRORS: [str(item) for item in detail]} if detail else {}
+            return {prefix or NON_FIELD_ERRORS: list(detail)} if detail else {}
         flat = {}
         for index, item in enumerate(detail):
             path = f"{prefix}.{index}" if prefix else str(index)
-            for key, messages in flatten_errors(item, path).items():
+            for key, messages in _flatten(item, path).items():
                 flat.setdefault(key, []).extend(messages)
         return flat
-    return {prefix or NON_FIELD_ERRORS: [str(detail)]}
+    return {prefix or NON_FIELD_ERRORS: [detail]}
 
 
-def _validation_problem(field_errors: FieldErrors, status: int = 400) -> Problem:
+def flatten_errors(detail: Any, prefix: str = "") -> FieldErrors:
+    """Flatten DRF/Django error structures into `{"a.b.0.c": [messages]}`."""
+    return {key: [str(item) for item in items] for key, items in _flatten(detail, prefix).items()}
+
+
+def flatten_error_codes(detail: Any, prefix: str = "") -> FieldErrors:
+    """The codes of `flatten_errors(detail)`: same keys, one code per message."""
+    return {
+        key: [_code_of(item) for item in items] for key, items in _flatten(detail, prefix).items()
+    }
+
+
+def _validation_problem(
+    field_errors: FieldErrors, status: int = 400, codes: FieldErrors | None = None
+) -> Problem:
     messages = [message for group in field_errors.values() for message in group]
     detail = messages[0] if len(messages) == 1 else str(exceptions.ValidationError.default_detail)
-    return Problem(ErrorCode.VALIDATION_ERROR, status, detail, field_errors)
+    return Problem(
+        ErrorCode.VALIDATION_ERROR, status, detail, field_errors, field_error_codes=codes or {}
+    )
 
 
 def _django_validation_errors(exc: DjangoValidationError) -> FieldErrors:
@@ -189,6 +252,16 @@ def _django_validation_errors(exc: DjangoValidationError) -> FieldErrors:
             for name, messages in exc.message_dict.items()
         }
     return {NON_FIELD_ERRORS: list(exc.messages)}
+
+
+def _django_validation_codes(exc: DjangoValidationError) -> FieldErrors:
+    """The codes of `_django_validation_errors(exc)`, aligned with its messages."""
+    if hasattr(exc, "error_dict"):
+        return {
+            (NON_FIELD_ERRORS if name == "__all__" else name): [_code_of(error) for error in group]
+            for name, group in exc.error_dict.items()
+        }
+    return {NON_FIELD_ERRORS: [_code_of(error) for error in exc.error_list]}
 
 
 _CODE_BY_EXCEPTION: tuple[tuple[type[exceptions.APIException], ErrorCode], ...] = (
@@ -222,9 +295,18 @@ def _api_exception_problem(exc: exceptions.APIException) -> Problem:
 
     if isinstance(exc, ProblemError):
         detail = str(exc.detail) if status < 500 else title_for(exc.problem_code)
-        return Problem(exc.problem_code, status, detail, exc.field_errors, headers)
+        return Problem(
+            exc.problem_code,
+            status,
+            detail,
+            exc.field_errors,
+            headers,
+            field_error_codes=exc.field_error_codes,
+        )
     if isinstance(exc, exceptions.ValidationError):
-        return _validation_problem(flatten_errors(exc.detail), status)
+        return _validation_problem(
+            flatten_errors(exc.detail), status, flatten_error_codes(exc.detail)
+        )
     if status >= 500:
         return Problem(ErrorCode.INTERNAL_ERROR, status, title_for(ErrorCode.INTERNAL_ERROR))
 
@@ -235,7 +317,14 @@ def _api_exception_problem(exc: exceptions.APIException) -> Problem:
     raw_detail = exc.detail
     if isinstance(raw_detail, list | dict):
         # ParseError and friends can carry structured detail; keep it as field errors.
-        return Problem(code, status, title_for(code), flatten_errors(raw_detail), headers)
+        return Problem(
+            code,
+            status,
+            title_for(code),
+            flatten_errors(raw_detail),
+            headers,
+            field_error_codes=flatten_error_codes(raw_detail),
+        )
     return Problem(code, status, str(raw_detail), headers=headers)
 
 
@@ -248,7 +337,9 @@ def to_problem(exc: BaseException) -> Problem | None:
             ErrorCode.PERMISSION_DENIED, 403, str(exceptions.PermissionDenied.default_detail)
         )
     if isinstance(exc, DjangoValidationError):
-        return _validation_problem(_django_validation_errors(exc))
+        return _validation_problem(
+            _django_validation_errors(exc), codes=_django_validation_codes(exc)
+        )
     if isinstance(exc, exceptions.APIException):
         return _api_exception_problem(exc)
     return None

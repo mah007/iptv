@@ -40,7 +40,9 @@ def _timezones() -> frozenset[str]:
 
 def validate_timezone(value: str) -> None:
     if value not in _timezones():
-        raise ValidationError("Enter a valid IANA time zone, e.g. Asia/Riyadh.", code="invalid")
+        raise ValidationError(
+            "Enter a valid IANA time zone, e.g. Asia/Riyadh.", code="invalid_timezone"
+        )
 
 
 def normalize_country(value: str) -> str:

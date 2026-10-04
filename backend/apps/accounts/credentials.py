@@ -20,6 +20,8 @@ import argon2
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from django.conf import settings
 
+from apps.core.errors import field_error
+
 # RFC 9106 Argon2id with OWASP's first recommended parameter set.
 ARGON2_TIME_COST = 2
 ARGON2_MEMORY_COST_KIB = 19 * 1024
@@ -56,18 +58,28 @@ PASSWORD_CHARACTERS_RULE = "Use only letters, digits and . _ - ~ @ ! *"  # noqa:
 
 def username_problems(username: str) -> list[str]:
     """Why an admin-chosen Xtream username is refused; empty when it's acceptable."""
-    return [] if USERNAME_PATTERN.fullmatch(username) else [USERNAME_RULE]
+    if USERNAME_PATTERN.fullmatch(username):
+        return []
+    return [field_error(USERNAME_RULE, code="username_rule")]
 
 
 def password_problems(password: str, *, min_length: int, username: str = "") -> list[str]:
     """Why an admin-chosen Xtream password is refused; empty when it's acceptable."""
-    problems = []
+    problems: list[str] = []
     if not min_length <= len(password) <= PASSWORD_MAX_LENGTH:
-        problems.append(f"Use {min_length} to {PASSWORD_MAX_LENGTH} characters.")
+        problems.append(
+            field_error(
+                f"Use {min_length} to {PASSWORD_MAX_LENGTH} characters.", code="password_length"
+            )
+        )
     if any(char not in PASSWORD_CHARACTERS for char in password):
-        problems.append(PASSWORD_CHARACTERS_RULE)
+        problems.append(field_error(PASSWORD_CHARACTERS_RULE, code="password_characters"))
     if username and password.lower() == username.lower():
-        problems.append("The password must differ from the username.")
+        problems.append(
+            field_error(
+                "The password must differ from the username.", code="password_equals_username"
+            )
+        )
     return problems
 
 

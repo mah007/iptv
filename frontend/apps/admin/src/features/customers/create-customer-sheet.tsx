@@ -143,7 +143,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
       setCreated(result);
       void invalidateCustomerLists(queryClient);
     } catch (error) {
-      const fields = applyFieldErrors(error, form.setError, WIZARD_FIELD_PATHS);
+      const fields = applyFieldErrors(error, form.setError, WIZARD_FIELD_PATHS, t);
       const first = fields[0];
       if (first === undefined) {
         notifyError(t, error);

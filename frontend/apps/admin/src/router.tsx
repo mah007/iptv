@@ -9,6 +9,7 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router";
 
+import { parseAccessRulesSearch } from "./features/access-rules/search";
 import { parseAdminsSearch } from "./features/admins/search";
 import { parseAuditSearch } from "./features/audit/search";
 import { AuthLayout } from "./features/auth/auth-layout";
@@ -141,6 +142,17 @@ const auditRoute = createRoute({
   validateSearch: parseAuditSearch,
   component: lazyRouteComponent(() => import("./pages/audit"), "AuditPage"),
 });
+const accessRulesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/access-rules",
+  validateSearch: parseAccessRulesSearch,
+  component: lazyRouteComponent(() => import("./pages/access-rules"), "AccessRulesPage"),
+});
+const healthRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/health",
+  component: lazyRouteComponent(() => import("./pages/health"), "HealthPage"),
+});
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
@@ -182,6 +194,8 @@ export const routeTree = rootRoute.addChildren([
     transcodeRoute,
     adminsRoute,
     auditRoute,
+    accessRulesRoute,
+    healthRoute,
     settingsRoute,
   ]),
   authRoute.addChildren([loginRoute, mfaRoute]),

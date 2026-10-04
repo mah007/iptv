@@ -11,6 +11,7 @@ import {
   type Column,
   type ColumnVisibilityState,
   type PaginationState,
+  type Row,
   type RowData,
   type RowSelectionState,
   type SortingState,
@@ -26,7 +27,14 @@ import {
   ChevronsUpDown,
   Columns3,
 } from "lucide-react";
-import { useId, useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  useId,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "../lib/cn";
@@ -270,6 +278,41 @@ export function DataTable<TData extends RowData>({
     onRowClick(row);
   }
 
+  /**
+   * Keyboard row actions (SPEC §8.2): j / k or the arrow keys move between rows,
+   * Enter or o opens one, x selects it. Rows take focus one at a time.
+   */
+  function handleRowKeyDown(
+    event: KeyboardEvent<HTMLTableRowElement>,
+    row: Row<DataTableFeatures, TData>,
+  ): void {
+    if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+    const step = key === "j" || key === "ArrowDown" ? 1 : key === "k" || key === "ArrowUp" ? -1 : 0;
+    if (step !== 0) {
+      const sibling =
+        step > 0
+          ? event.currentTarget.nextElementSibling
+          : event.currentTarget.previousElementSibling;
+      if (sibling instanceof HTMLElement && sibling.hasAttribute("data-row")) {
+        event.preventDefault();
+        sibling.focus();
+      }
+      return;
+    }
+    if ((key === "Enter" || key === "o") && onRowClick) {
+      event.preventDefault();
+      onRowClick(row.original);
+      return;
+    }
+    if (key === "x" && selectable && row.getCanSelect()) {
+      event.preventDefault();
+      row.toggleSelected();
+    }
+  }
+
   let body: ReactNode;
   if (loading) {
     body = Array.from({ length: Math.min(pagination.pageSize, 10) }, (_, index) => (
@@ -309,11 +352,19 @@ export function DataTable<TData extends RowData>({
       </TableRow>
     );
   } else {
-    body = rows.map((row) => (
+    body = rows.map((row, index) => (
       <TableRow
         key={row.id}
+        data-row=""
         data-state={row.getIsSelected() ? "selected" : undefined}
-        className={cn(onRowClick && "cursor-pointer")}
+        tabIndex={index === 0 ? 0 : -1}
+        className={cn(
+          "outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          onRowClick && "cursor-pointer",
+        )}
+        onKeyDown={(event) => {
+          handleRowKeyDown(event, row);
+        }}
         onClick={
           onRowClick
             ? (event) => {

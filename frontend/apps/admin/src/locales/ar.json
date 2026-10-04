@@ -29,7 +29,9 @@
     "series": "المسلسلات",
     "review": "قائمة المراجعة",
     "categories": "التصنيفات",
-    "transcode": "مهام التحويل"
+    "transcode": "مهام التحويل",
+    "accessRules": "قواعد الوصول",
+    "health": "حالة النظام"
   },
   "layout": {
     "skipToContent": "الانتقال إلى المحتوى",
@@ -37,7 +39,8 @@
   },
   "userMenu": {
     "label": "قائمة الحساب",
-    "signOut": "تسجيل الخروج"
+    "signOut": "تسجيل الخروج",
+    "shortcuts": "اختصارات لوحة المفاتيح"
   },
   "states": {
     "denied": {
@@ -62,7 +65,7 @@
   },
   "dashboard": {
     "title": "لوحة المعلومات",
-    "description": "العملاء والأجهزة في لمحة.",
+    "description": "البث والعملاء والمحتوى والنظام في لمحة.",
     "asOf": "آخر تحديث",
     "kpis": {
       "label": "الأرقام الرئيسية",
@@ -79,14 +82,66 @@
       "devicesBlocked_two": "المحظورة: {{formatted}}",
       "devicesBlocked_few": "المحظورة: {{formatted}}",
       "devicesBlocked_many": "المحظورة: {{formatted}}",
-      "devicesBlocked_other": "المحظورة: {{formatted}}"
+      "devicesBlocked_other": "المحظورة: {{formatted}}",
+      "streams": "البث المباشر",
+      "streamsPeak": "الذروة خلال 24 ساعة: {{peak}}",
+      "playsToday": "التشغيل اليوم",
+      "watchHours": "{{hours}} ساعة مشاهدة",
+      "reviews": "قائمة المراجعة",
+      "reviewsDetail": "ملفات بانتظار المطابقة",
+      "transcode": "قائمة التحويل",
+      "transcodeDetail": "{{running}} قيد التشغيل · {{failed}} فشلت خلال 24 ساعة",
+      "streamUsers_zero": "لا يشاهد أي عميل",
+      "streamUsers_one": "عميل واحد يشاهد",
+      "streamUsers_two": "عميلان يشاهدان",
+      "streamUsers_few": "{{formatted}} عملاء يشاهدون",
+      "streamUsers_many": "{{formatted}} عميلًا يشاهدون",
+      "streamUsers_other": "{{formatted}} عميل يشاهدون"
     },
     "expiringSoon": "ينتهي قريبًا",
     "newest": "أحدث العملاء",
     "viewAll": "عرض الكل",
     "noneExpiring": "لا ينتهي أي وصول خلال الأيام السبعة القادمة.",
     "noCustomers": "لا يوجد عملاء بعد.",
-    "panelError": "تعذّر تحميل هذه القائمة"
+    "panelError": "تعذّر تحميل هذه القائمة",
+    "kinds": {
+      "movie": "فيلم",
+      "series": "مسلسل"
+    },
+    "charts": {
+      "plays": "مرات التشغيل",
+      "noPlays": "لم يُشغَّل شيء خلال آخر 30 يومًا.",
+      "streams": {
+        "title": "البث المتزامن خلال آخر 24 ساعة",
+        "description": "عدد البث في كل فترة من {{minutes}} دقيقة.",
+        "value": "البث",
+        "peak": "الذروة {{peak}}"
+      },
+      "categories": {
+        "title": "التشغيل حسب التصنيف",
+        "description": "أعلى 8 تصنيفات خلال آخر 30 يومًا."
+      },
+      "signups": {
+        "title": "العملاء الجدد والانسحاب خلال آخر 30 يومًا",
+        "description": "الحسابات المنشأة مقابل فترات الوصول المنتهية، يوميًا.",
+        "new": "عملاء جدد",
+        "churned": "انتهى الوصول"
+      },
+      "topTitles": {
+        "title": "الأكثر مشاهدة",
+        "description": "العناوين حسب مرات التشغيل خلال آخر 30 يومًا.",
+        "plays_zero": "لا تشغيل",
+        "plays_one": "تشغيل واحد",
+        "plays_two": "تشغيلان",
+        "plays_few": "{{formatted}} مرات تشغيل",
+        "plays_many": "{{formatted}} مرة تشغيل",
+        "plays_other": "{{formatted}} مرة تشغيل"
+      }
+    },
+    "nowWatching": "يشاهدون الآن",
+    "recentActivity": "آخر النشاطات",
+    "recentlyAdded": "أضيف مؤخرًا",
+    "recentlyAddedEmpty": "لا توجد عناوين بعد. أضف مكتبة وافحصها."
   },
   "customers": {
     "title": "العملاء",
@@ -242,7 +297,10 @@
       "title": "العميل",
       "tabs": {
         "overview": "نظرة عامة",
-        "devices": "الأجهزة وبيانات الدخول"
+        "devices": "الأجهزة وبيانات الدخول",
+        "sessions": "الجلسات",
+        "security": "الأمان",
+        "activity": "النشاط"
       },
       "accessTitle": "ملف الوصول",
       "profileTitle": "الملف الشخصي",
@@ -260,7 +318,9 @@
       "categories": "التصنيفات",
       "allCategories": "كل التصنيفات",
       "account": "الحساب",
-      "created": "تاريخ الإنشاء"
+      "created": "تاريخ الإنشاء",
+      "activityTitle": "النشاط",
+      "activityDescription": "كل ما جرى على هذا العميل وأجهزته وقواعد وصوله وجلساته."
     },
     "edit": {
       "profileTitle": "تعديل الملف الشخصي",
@@ -1222,6 +1282,16 @@
         "title": "لا توجد ملفات متجاوزة",
         "description": "تظهر هنا الملفات التي تُجووزت من هذه القائمة."
       }
+    },
+    "shortcuts": {
+      "choose1": "اختيار المرشح 1",
+      "choose2": "اختيار المرشح 2",
+      "choose3": "اختيار المرشح 3",
+      "choose4": "اختيار المرشح 4",
+      "choose5": "اختيار المرشح 5",
+      "skip": "تخطي هذا الملف",
+      "next": "الملف التالي",
+      "previous": "الملف السابق"
     }
   },
   "categories": {
@@ -1386,5 +1456,288 @@
     "queuedCount_few": "{{value}} مهام في الانتظار",
     "queuedCount_many": "{{value}} مهمة في الانتظار",
     "queuedCount_other": "{{value}} مهمة في الانتظار"
+  },
+  "fieldErrors": {
+    "required": "هذا الحقل مطلوب.",
+    "blank": "لا يمكن ترك هذا الحقل فارغًا.",
+    "null": "هذا الحقل مطلوب.",
+    "invalid_choice": "اختر أحد الخيارات.",
+    "max_length": "استخدم {{max}} حرفًا على الأكثر.",
+    "min_length": "استخدم {{min}} أحرف على الأقل.",
+    "max_value": "أدخل {{max}} أو أقل.",
+    "min_value": "أدخل {{min}} أو أكثر.",
+    "unique": "هذه القيمة مستخدمة بالفعل.",
+    "does_not_exist": "لم يعد هذا موجودًا. حدّث الصفحة وحاول مرة أخرى.",
+    "username_taken": "اسم المستخدم هذا مستخدم بالفعل.",
+    "username_rule": "استخدم من 3 إلى 32 حرفًا لاتينيًا أو رقمًا أو نقطة أو شرطة أو شرطة سفلية.",
+    "customer_username_rule": "استخدم من 3 إلى 150 حرفًا لاتينيًا أو رقمًا أو من الرموز . _ @ + -",
+    "password_length": "استخدم من {{min}} إلى {{max}} حرفًا.",
+    "password_characters": "استخدم الحروف اللاتينية والأرقام والرموز . _ - ~ @ ! * فقط",
+    "password_equals_username": "يجب أن تختلف كلمة المرور عن اسم المستخدم.",
+    "email_taken": "يستخدم حساب آخر عنوان البريد الإلكتروني هذا.",
+    "invalid_phone": "أدخل رقم هاتف صحيحًا.",
+    "invalid_timezone": "اختر منطقة زمنية صحيحة، مثل Asia/Riyadh.",
+    "invalid_ip": "أدخل عنوان IPv4 أو IPv6 صحيحًا.",
+    "invalid_cidr": "أدخل شبكة بصيغة CIDR، مثل 203.0.113.0/24.",
+    "invalid_country": "أدخل رمز دولة من حرفين، مثل SA.",
+    "not_a_customer": "تنطبق القواعد على العملاء فقط.",
+    "not_in_future": "اختر وقتًا في المستقبل.",
+    "role_name_rule": "ابدأ بحرف، واستخدم الحروف اللاتينية الصغيرة والأرقام والشرطة السفلية.",
+    "role_name_taken": "يوجد دور بهذا الاسم بالفعل."
+  },
+  "activity": {
+    "label": "النشاط",
+    "empty": "لم يحدث شيء بعد.",
+    "pagination": "صفحات النشاط",
+    "customerEmpty": {
+      "title": "لا يوجد نشاط بعد",
+      "description": "تظهر هنا التغييرات على هذا العميل وأجهزته وقواعد وصوله وجلساته."
+    }
+  },
+  "health": {
+    "title": "حالة النظام",
+    "description": "الحالة المباشرة للخدمات وقوائم الانتظار والعمّال.",
+    "strip": "حالة النظام",
+    "refresh": "تحديث",
+    "grafana": "فتح في Grafana",
+    "unknown": "غير معروف",
+    "checked": "فُحص",
+    "heartbeat": "آخر نبضة قبل {{age}}",
+    "latency": "استجاب خلال {{ms}} ملّي ثانية",
+    "encoders": "المرمِّزات",
+    "gpus": "وحدات معالجة الرسوميات",
+    "ffmpeg": "FFmpeg",
+    "policy": "سياسة الإزاحة",
+    "evicted": "المفاتيح المُزاحة",
+    "memory": "{{used}} مستخدمة",
+    "memoryOf": "{{used}} من {{max}} مستخدمة",
+    "connections": "{{used}} من {{max}} اتصال مستخدم",
+    "stateEvictionsHelp": "تُخزَّن هنا الجلسات والحصص والصلاحيات: أي إزاحة تعني انقطاعًا.",
+    "queuesHelp": "المهام المنتظرة في كل قائمة من قوائم Celery.",
+    "transcodersHelp": "خوادم التحويل العاملة الآن، مع المرمِّزات التي اكتشفتها عند التشغيل.",
+    "noTranscoders": {
+      "title": "لا يعمل أي خادم تحويل",
+      "description": "تنتظر الملفات التي تحتاج إلى ترميز في قائمتها حتى يعمل أحدها."
+    },
+    "overall": {
+      "ok": "جميع الأنظمة تعمل بشكل طبيعي",
+      "degraded": "بعض الخدمات متدهورة",
+      "down": "بعض الخدمات متوقفة"
+    },
+    "status": {
+      "ok": "سليم",
+      "degraded": "متدهور",
+      "down": "متوقف"
+    },
+    "sections": {
+      "services": "الخدمات",
+      "queues": "قوائم الانتظار",
+      "transcoders": "خوادم التحويل",
+      "database": "PostgreSQL"
+    },
+    "columns": {
+      "queue": "القائمة",
+      "waiting": "بالانتظار"
+    },
+    "services": {
+      "postgres": "PostgreSQL",
+      "redis_state": "Redis (الحالة)",
+      "redis_cache": "Redis (التخزين المؤقت)",
+      "meilisearch": "Meilisearch",
+      "workers": "العمّال",
+      "watcher": "مراقب المكتبات",
+      "transcoders": "خوادم التحويل",
+      "edge": "خادم الوسائط ({{host}})"
+    },
+    "errors": {
+      "late_heartbeat": "تأخرت النبضة",
+      "no_heartbeat": "لا توجد نبضة",
+      "no_transcoder": "لا يعمل أي خادم تحويل",
+      "bad_url": "رابط الفحص غير صالح",
+      "failed": "فشل الفحص: {{error}}"
+    }
+  },
+  "accessRules": {
+    "title": "قواعد الوصول",
+    "description": "اسمح بالتشغيل أو امنعه حسب عنوان IP أو الشبكة أو الدولة. تُطبَّق القواعد عند فحص التشغيل التالي.",
+    "customerTitle": "قواعد الوصول",
+    "customerDescription": "قواعد لهذا العميل فقط. القواعد العامة موجودة في صفحة قواعد الوصول.",
+    "customerScopeHelp": "قواعد أُضيفت من صفحة العميل. افتح العميل لتغييرها.",
+    "openCustomer": "فتح العميل",
+    "never": "أبدًا",
+    "expired": "منتهية",
+    "added": "أُضيفت قاعدة الوصول",
+    "removed": "أُزيلت قاعدة الوصول",
+    "scopes": {
+      "global": "للجميع",
+      "customer": "لكل عميل"
+    },
+    "types": {
+      "ip_allow": "السماح بعنوان IP",
+      "ip_deny": "حظر عنوان IP",
+      "cidr_deny": "حظر شبكة",
+      "country_allow": "السماح بدولة",
+      "country_deny": "حظر دولة"
+    },
+    "columns": {
+      "type": "القاعدة",
+      "value": "القيمة",
+      "customer": "العميل",
+      "reason": "السبب",
+      "expires": "تنتهي",
+      "added": "أُضيفت",
+      "actions": "الإجراءات"
+    },
+    "fields": {
+      "type": "القاعدة",
+      "value": "القيمة",
+      "reason": "السبب (اختياري)",
+      "expires": "تنتهي في (اختياري)"
+    },
+    "help": {
+      "ip": "عنوان IPv4 أو IPv6، مثل 203.0.113.7.",
+      "cidr": "شبكة بصيغة CIDR، مثل 203.0.113.0/24.",
+      "country": "رمز دولة من حرفين، مثل SA.",
+      "expires": "تتوقف القاعدة في نهاية هذا اليوم. اتركه فارغًا لإبقائها."
+    },
+    "add": {
+      "button": "إضافة قاعدة",
+      "globalTitle": "قاعدة جديدة للجميع",
+      "customerTitle": "قاعدة جديدة لهذا العميل",
+      "description": "قواعد السماح تتيح التشغيل للعملاء المطابقين فقط، وقواعد الحظر ترفضهم.",
+      "submit": "إضافة القاعدة"
+    },
+    "remove": {
+      "action": "إزالة القاعدة {{value}}",
+      "title": "إزالة هذه القاعدة؟",
+      "description": "يتوقف تطبيق {{type}} {{value}} عند فحص التشغيل التالي.",
+      "confirm": "إزالة القاعدة"
+    },
+    "empty": {
+      "global": "لا توجد قواعد للجميع",
+      "customer": "لا توجد قواعد لهذا العميل",
+      "anyCustomer": "لا توجد قواعد لأي عميل",
+      "description": "بدون قواعد، يقتصر التشغيل على ملف الوصول الخاص بكل عميل."
+    },
+    "validation": {
+      "value": "أدخل قيمة.",
+      "reason": "استخدم 200 حرف على الأكثر.",
+      "expires": "اختر تاريخًا."
+    }
+  },
+  "customerSessions": {
+    "liveTitle": "يشاهد الآن",
+    "liveDescription": "الجلسات المفتوحة، تُحدَّث كل 5 ثوانٍ.",
+    "noneLive": "لا يشاهد شيئًا الآن.",
+    "historyTitle": "السجل",
+    "historyDescription": "الجلسات المنتهية، الأحدث أولًا، مع سبب انتهائها.",
+    "emptyHistory": "لا توجد جلسات بعد",
+    "pagination": "صفحات سجل الجلسات",
+    "live": "مباشر",
+    "endedAt": "انتهت {{time}}",
+    "lastSeen": "آخر ظهور {{time}}",
+    "columns": {
+      "title": "العنوان",
+      "device": "الجهاز",
+      "started": "البداية",
+      "duration": "المدة",
+      "status": "الحالة",
+      "ip": "عنوان IP",
+      "actions": "الإجراءات"
+    },
+    "endReasons": {
+      "stopped": "توقفت",
+      "kicked": "أوقفها مسؤول",
+      "expired": "انتهى الوصول",
+      "limit": "حد البث",
+      "idle": "خاملة",
+      "error": "خطأ"
+    }
+  },
+  "palette": {
+    "open": "ابحث أو انتقل إلى…",
+    "title": "لوحة الأوامر",
+    "description": "انتقل إلى صفحة أو عميل أو عنوان، أو نفّذ إجراءً.",
+    "placeholder": "ابحث في العملاء والعناوين والصفحات والإجراءات…",
+    "searching": "جارٍ البحث…",
+    "empty": "لا توجد نتائج مطابقة.",
+    "groups": {
+      "customers": "العملاء",
+      "titles": "العناوين",
+      "pages": "الصفحات",
+      "actions": "الإجراءات"
+    },
+    "actions": {
+      "newCustomer": "إنشاء عميل",
+      "addRule": "إضافة قاعدة وصول",
+      "scan": "فحص المكتبة {{name}}",
+      "lightTheme": "التبديل إلى المظهر الفاتح",
+      "darkTheme": "التبديل إلى المظهر الداكن",
+      "language": "Switch to English",
+      "shortcuts": "اختصارات لوحة المفاتيح"
+    }
+  },
+  "shortcuts": {
+    "title": "اختصارات لوحة المفاتيح",
+    "description": "تعمل الاختصارات في كل مكان إلا أثناء الكتابة في حقل.",
+    "then": "ثم",
+    "groups": {
+      "general": "عامة",
+      "navigation": "انتقال إلى",
+      "page": "في هذه الصفحة"
+    },
+    "palette": "فتح لوحة الأوامر",
+    "help": "عرض اختصارات لوحة المفاتيح",
+    "search": "البحث في هذه الصفحة",
+    "rows": "التنقل بين صفوف الجدول (j / k، و Enter للفتح)",
+    "newCustomer": "إنشاء عميل",
+    "goTo": {
+      "nav": {
+        "dashboard": "لوحة المعلومات",
+        "customers": "العملاء",
+        "libraries": "المكتبات",
+        "sessions": "الجلسات المباشرة",
+        "movies": "الأفلام",
+        "review": "قائمة المراجعة",
+        "transcode": "مهام التحويل",
+        "audit": "سجل التدقيق",
+        "health": "حالة النظام"
+      }
+    }
+  },
+  "topbar": {
+    "live_zero": "لا يوجد بث مباشر",
+    "live_one": "بث مباشر واحد",
+    "live_two": "بثّان مباشران",
+    "live_few": "{{count}} بث مباشر",
+    "live_many": "{{count}} بثًا مباشرًا",
+    "live_other": "{{count}} بث مباشر",
+    "alerts": {
+      "title": "بحاجة إلى انتباه",
+      "none": "لا شيء يحتاج إلى انتباه.",
+      "label_zero": "التنبيهات: لا شيء يحتاج إلى انتباه",
+      "label_one": "التنبيهات: عنصر واحد يحتاج إلى انتباه",
+      "label_two": "التنبيهات: عنصران يحتاجان إلى انتباه",
+      "label_few": "التنبيهات: {{count}} عناصر تحتاج إلى انتباه",
+      "label_many": "التنبيهات: {{count}} عنصرًا يحتاج إلى انتباه",
+      "label_other": "التنبيهات: {{count}} عنصر يحتاج إلى انتباه",
+      "reviews_zero": "لا توجد ملفات بانتظار المطابقة",
+      "reviews_one": "ملف واحد بانتظار المطابقة",
+      "reviews_two": "ملفان بانتظار المطابقة",
+      "reviews_few": "{{formatted}} ملفات بانتظار المطابقة",
+      "reviews_many": "{{formatted}} ملفًا بانتظار المطابقة",
+      "reviews_other": "{{formatted}} ملف بانتظار المطابقة",
+      "failedJobs_zero": "لم تفشل أي مهمة تحويل خلال 24 ساعة",
+      "failedJobs_one": "فشلت مهمة تحويل واحدة خلال 24 ساعة",
+      "failedJobs_two": "فشلت مهمتا تحويل خلال 24 ساعة",
+      "failedJobs_few": "فشلت {{formatted}} مهام تحويل خلال 24 ساعة",
+      "failedJobs_many": "فشلت {{formatted}} مهمة تحويل خلال 24 ساعة",
+      "failedJobs_other": "فشلت {{formatted}} مهمة تحويل خلال 24 ساعة"
+    }
+  },
+  "idle": {
+    "title": "هل ما زلت هنا؟",
+    "description": "سيتم تسجيل خروجك خلال {{time}} بسبب عدم النشاط.",
+    "stay": "البقاء متصلًا"
   }
 }

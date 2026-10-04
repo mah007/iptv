@@ -104,10 +104,15 @@ function NewRoleDialog({
       form.reset();
       onOpenChange(false);
     } catch (error) {
-      const fields = applyFieldErrors(error, form.setError, {
-        name: "name",
-        description: "description",
-      });
+      const fields = applyFieldErrors(
+        error,
+        form.setError,
+        {
+          name: "name",
+          description: "description",
+        },
+        t,
+      );
       if (fields.length === 0) notifyError(t, error);
     }
   });

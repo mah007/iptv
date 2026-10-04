@@ -97,7 +97,7 @@ function LibraryForm({ library, onDone }: { library: Library | null; onDone: () 
       );
       onDone();
     } catch (error) {
-      if (applyFieldErrors(error, form.setError, LIBRARY_FIELD_PATHS).length === 0) {
+      if (applyFieldErrors(error, form.setError, LIBRARY_FIELD_PATHS, t).length === 0) {
         notifyError(t, error);
       }
     }

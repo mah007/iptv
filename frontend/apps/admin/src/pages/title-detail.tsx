@@ -9,7 +9,7 @@ import {
   useSeriesRefreshMetadata,
   useSeriesRetrieve,
   useSeriesUpdate,
-  type File,
+  type MediaFile,
   type PatchedMovieUpdateRequest,
   type Season,
   type SeriesDetail,
@@ -71,7 +71,7 @@ function episodeCode(season: number, episode: number): string {
 }
 
 /** One file's cells: library-relative path, video summary, duration, size, state. */
-function FileCells({ file }: { file: File }) {
+function FileCells({ file }: { file: MediaFile }) {
   const { t } = useTranslation();
   const format = useFormatters();
   const channels = Math.max(0, ...file.audio.map((track) => track.channels));
@@ -143,7 +143,7 @@ function FilesHeader({ withEpisode = false }: { withEpisode?: boolean }) {
   );
 }
 
-function FilesTable({ files }: { files: readonly File[] }) {
+function FilesTable({ files }: { files: readonly MediaFile[] }) {
   return (
     <div className="overflow-x-auto">
       <Table>

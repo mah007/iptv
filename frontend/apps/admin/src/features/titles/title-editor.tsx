@@ -215,7 +215,7 @@ function EditorForm({
       await onSave(patch);
       onDone();
     } catch (error) {
-      if (applyFieldErrors(error, form.setError, FIELD_PATHS).length === 0) {
+      if (applyFieldErrors(error, form.setError, FIELD_PATHS, t).length === 0) {
         notifyError(t, error);
       }
     }

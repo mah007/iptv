@@ -28,5 +28,6 @@ export default defineConfig({
       },
     },
   },
-  test: { environment: "jsdom", setupFiles: ["./src/test-setup.ts"] },
+  // At most 4 workers: the dev container is capped at 3 GB and the packages test in parallel.
+  test: { environment: "jsdom", setupFiles: ["./src/test-setup.ts"], maxWorkers: 4 },
 });

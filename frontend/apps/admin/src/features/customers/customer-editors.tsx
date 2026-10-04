@@ -74,7 +74,7 @@ function ProfileForm({ customer, onDone }: { customer: CustomerDetail; onDone: (
       toast.success(t("customers.edit.saved"));
       onDone();
     } catch (error) {
-      if (applyFieldErrors(error, form.setError, PROFILE_FIELD_PATHS).length === 0) {
+      if (applyFieldErrors(error, form.setError, PROFILE_FIELD_PATHS, t).length === 0) {
         notifyError(t, error);
       }
     }
@@ -150,7 +150,7 @@ function AccessForm({ customer, onDone }: { customer: CustomerDetail; onDone: ()
       toast.success(t("customers.edit.accessSaved"));
       onDone();
     } catch (error) {
-      if (applyFieldErrors(error, form.setError, ACCESS_FIELD_PATHS).length === 0) {
+      if (applyFieldErrors(error, form.setError, ACCESS_FIELD_PATHS, t).length === 0) {
         notifyError(t, error);
       }
     }

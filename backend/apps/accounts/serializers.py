@@ -263,7 +263,9 @@ def _unique_email(value: str, instance: User | None) -> str:
     if instance is not None:
         clash = clash.exclude(pk=instance.pk)
     if clash.exists():
-        raise serializers.ValidationError("Another account already uses this email address.")
+        raise serializers.ValidationError(
+            "Another account already uses this email address.", code="email_taken"
+        )
     return email
 
 
@@ -296,13 +298,17 @@ class CustomerProfileSerializer(serializers.ModelSerializer[User]):
         try:
             return normalize_phone(value)
         except DjangoValidationError as exc:
-            raise serializers.ValidationError(exc.messages) from None
+            raise serializers.ValidationError(
+                exc.messages, code=getattr(exc, "code", None)
+            ) from None
 
     def validate_timezone(self, value: str) -> str:
         try:
             validate_timezone(value)
         except DjangoValidationError as exc:
-            raise serializers.ValidationError(exc.messages) from None
+            raise serializers.ValidationError(
+                exc.messages, code=getattr(exc, "code", None)
+            ) from None
         return value
 
 
@@ -483,13 +489,16 @@ class RoleSerializer(serializers.ModelSerializer[Role]):
         name = value.strip().lower()
         if not name.isascii() or not name.replace("_", "").isalnum() or not name[:1].isalpha():
             raise serializers.ValidationError(
-                "Start with a letter; use lowercase letters, digits and underscores."
+                "Start with a letter; use lowercase letters, digits and underscores.",
+                code="role_name_rule",
             )
         clash = Role.objects.filter(name=name)
         if self.instance is not None:
             clash = clash.exclude(pk=self.instance.pk)
         if clash.exists():
-            raise serializers.ValidationError("A role with this name already exists.")
+            raise serializers.ValidationError(
+                "A role with this name already exists.", code="role_name_taken"
+            )
         return name
 
     @extend_schema_field(serializers.BooleanField())

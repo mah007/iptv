@@ -15,8 +15,14 @@ const RTL_MESSAGE =
 const classContexts = ["JSXAttribute[name.name='className']", "CallExpression[callee.name='cva']"];
 
 export default defineConfig([
-  // Orval output (packages/api/src/generated) is regenerated, never hand-edited.
-  globalIgnores(["**/dist", "**/coverage", "**/node_modules", "packages/api/src/generated/**"]),
+  // Orval output (packages/api*/src/generated) is regenerated, never hand-edited.
+  globalIgnores([
+    "**/dist",
+    "**/coverage",
+    "**/node_modules",
+    "packages/api/src/generated/**",
+    "packages/api-portal/src/generated/**",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
@@ -27,7 +33,14 @@ export default defineConfig([
     ],
     languageOptions: {
       globals: globals.browser,
-      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+      parserOptions: {
+        projectService: {
+          // The Orval configs are type-checked under Node (tsconfig.node.json), outside the
+          // packages' browser tsconfig, so the DOM's File isn't shadowed in the clients.
+          allowDefaultProject: ["packages/*/orval.config.ts"],
+        },
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     rules: {
       "no-restricted-syntax": [

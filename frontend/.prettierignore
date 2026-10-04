@@ -3,3 +3,4 @@ pnpm-lock.yaml
 **/coverage
 # Orval output is regenerated, never hand-edited.
 packages/api/src/generated/**
+packages/api-portal/src/generated/**

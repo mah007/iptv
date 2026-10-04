@@ -217,12 +217,17 @@ function CreateAdminForm({
       void queryClient.invalidateQueries({ queryKey: getRolesListQueryKey() });
       onCreated(created);
     } catch (error) {
-      const fields = applyFieldErrors(error, form.setError, {
-        username: "username",
-        name: "name",
-        email: "email",
-        role_ids: "role_ids",
-      });
+      const fields = applyFieldErrors(
+        error,
+        form.setError,
+        {
+          username: "username",
+          name: "name",
+          email: "email",
+          role_ids: "role_ids",
+        },
+        t,
+      );
       if (fields.length === 0) notifyError(t, error);
     }
   });
@@ -344,12 +349,17 @@ function EditAdminForm({
       toast.success(t("admins.edit.saved"));
       onDone();
     } catch (error) {
-      const fields = applyFieldErrors(error, form.setError, {
-        name: "name",
-        email: "email",
-        status: "status",
-        role_ids: "role_ids",
-      });
+      const fields = applyFieldErrors(
+        error,
+        form.setError,
+        {
+          name: "name",
+          email: "email",
+          status: "status",
+          role_ids: "role_ids",
+        },
+        t,
+      );
       if (fields.length === 0) notifyError(t, error);
     }
   });

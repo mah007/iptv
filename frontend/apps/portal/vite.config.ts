@@ -16,5 +16,5 @@ export default defineConfig({
     allowedHosts: [`app.${domain}`],
     ...(hmrClientPort ? { hmr: { clientPort: Number(hmrClientPort) } } : {}),
   },
-  test: { environment: "jsdom" },
+  test: { environment: "jsdom", maxWorkers: 2 },
 });

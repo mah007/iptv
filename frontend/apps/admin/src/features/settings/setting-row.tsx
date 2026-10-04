@@ -24,7 +24,7 @@ import { RotateCcw } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { notifyError } from "../../lib/problems";
+import { notifyError, translatedFieldErrors } from "../../lib/problems";
 
 type Value = boolean | number | string;
 
@@ -103,8 +103,7 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
         },
         onError: (failure) => {
           if (isApiError(failure) && failure.code === "VALIDATION_ERROR") {
-            const messages = Object.values(failure.fieldErrors).flat();
-            setError(messages[0] ?? failure.detail);
+            setError(translatedFieldErrors(t, failure)[0] ?? failure.detail);
           } else {
             notifyError(t, failure);
           }

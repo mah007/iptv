@@ -26,7 +26,7 @@ export function parseCustomersSearch(raw: Record<string, unknown>) {
 
 export type CustomersSearch = ReturnType<typeof parseCustomersSearch>;
 
-export const CUSTOMER_TABS = ["overview", "devices"] as const;
+export const CUSTOMER_TABS = ["overview", "devices", "sessions", "security", "activity"] as const;
 export type CustomerTab = (typeof CUSTOMER_TABS)[number];
 
 export function parseCustomerSearch(raw: Record<string, unknown>) {

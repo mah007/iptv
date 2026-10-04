@@ -6,9 +6,10 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@smart-iptv/ui";
-import { LogOut, UserRound } from "lucide-react";
+import { Keyboard, LogOut, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export interface SignedInUser {
@@ -20,10 +21,12 @@ export interface UserMenuProps {
   /** The signed-in admin (from /api/v1/auth/me); null until it is known. */
   user: SignedInUser | null;
   onSignOut: () => void;
+  /** Opens the keyboard shortcuts overlay. */
+  onShowShortcuts?: () => void;
 }
 
 /** Avatar menu at the end of the topbar. */
-export function UserMenu({ user, onSignOut }: UserMenuProps) {
+export function UserMenu({ user, onSignOut, onShowShortcuts }: UserMenuProps) {
   const { t } = useTranslation();
   return (
     <DropdownMenu>
@@ -54,6 +57,13 @@ export function UserMenu({ user, onSignOut }: UserMenuProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
           </>
+        ) : null}
+        {onShowShortcuts ? (
+          <DropdownMenuItem onSelect={onShowShortcuts}>
+            <Keyboard aria-hidden="true" />
+            {t("userMenu.shortcuts")}
+            <DropdownMenuShortcut>?</DropdownMenuShortcut>
+          </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onSelect={onSignOut}>
           <LogOut aria-hidden="true" className="rtl:-scale-x-100" />

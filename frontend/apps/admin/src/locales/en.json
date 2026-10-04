@@ -29,7 +29,9 @@
     "series": "Series",
     "review": "Review queue",
     "categories": "Categories",
-    "transcode": "Transcode jobs"
+    "transcode": "Transcode jobs",
+    "accessRules": "Access rules",
+    "health": "Health"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -37,7 +39,8 @@
   },
   "userMenu": {
     "label": "Account menu",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "shortcuts": "Keyboard shortcuts"
   },
   "states": {
     "denied": {
@@ -62,7 +65,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "description": "Customers and devices at a glance.",
+    "description": "Streams, customers, content and the system at a glance.",
     "asOf": "Updated",
     "kpis": {
       "label": "Key figures",
@@ -75,14 +78,58 @@
       "suspended": "Suspended",
       "devices": "Devices",
       "devicesBlocked_one": "{{formatted}} blocked",
-      "devicesBlocked_other": "{{formatted}} blocked"
+      "devicesBlocked_other": "{{formatted}} blocked",
+      "streams": "Live streams",
+      "streamsPeak": "Peak in 24 h: {{peak}}",
+      "streamUsers_one": "{{formatted}} customer watching",
+      "streamUsers_other": "{{formatted}} customers watching",
+      "playsToday": "Plays today",
+      "watchHours": "{{hours}} h watched",
+      "reviews": "Review queue",
+      "reviewsDetail": "Files waiting for a match",
+      "transcode": "Transcode queue",
+      "transcodeDetail": "{{running}} running · {{failed}} failed in 24 h"
     },
     "expiringSoon": "Expiring soon",
     "newest": "Newest customers",
     "viewAll": "View all",
     "noneExpiring": "No access ends in the next 7 days.",
     "noCustomers": "No customers yet.",
-    "panelError": "Couldn't load this list"
+    "panelError": "Couldn't load this list",
+    "kinds": {
+      "movie": "Movie",
+      "series": "Series"
+    },
+    "charts": {
+      "plays": "Plays",
+      "noPlays": "Nothing played in the last 30 days.",
+      "streams": {
+        "title": "Concurrent streams, last 24 hours",
+        "description": "Streams that played in each {{minutes}}-minute interval.",
+        "value": "Streams",
+        "peak": "Peak {{peak}}"
+      },
+      "categories": {
+        "title": "Plays by category",
+        "description": "Top 8 categories, last 30 days."
+      },
+      "signups": {
+        "title": "New customers and churn, last 30 days",
+        "description": "Accounts created against access periods that ended, per day.",
+        "new": "New customers",
+        "churned": "Access ended"
+      },
+      "topTitles": {
+        "title": "Most watched",
+        "description": "Titles by plays, last 30 days.",
+        "plays_one": "{{formatted}} play",
+        "plays_other": "{{formatted}} plays"
+      }
+    },
+    "nowWatching": "Now watching",
+    "recentActivity": "Recent activity",
+    "recentlyAdded": "Recently added",
+    "recentlyAddedEmpty": "No titles yet. Add a library and scan it."
   },
   "customers": {
     "title": "Customers",
@@ -230,7 +277,10 @@
       "title": "Customer",
       "tabs": {
         "overview": "Overview",
-        "devices": "Devices & credentials"
+        "devices": "Devices & credentials",
+        "sessions": "Sessions",
+        "security": "Security",
+        "activity": "Activity"
       },
       "accessTitle": "Access profile",
       "profileTitle": "Profile",
@@ -248,7 +298,9 @@
       "categories": "Categories",
       "allCategories": "All categories",
       "account": "Account",
-      "created": "Created"
+      "created": "Created",
+      "activityTitle": "Activity",
+      "activityDescription": "Everything done to this customer, their devices, access rules and sessions."
     },
     "edit": {
       "profileTitle": "Edit profile",
@@ -1166,6 +1218,16 @@
         "title": "Nothing skipped",
         "description": "Files skipped from this queue are listed here."
       }
+    },
+    "shortcuts": {
+      "choose1": "Choose candidate 1",
+      "choose2": "Choose candidate 2",
+      "choose3": "Choose candidate 3",
+      "choose4": "Choose candidate 4",
+      "choose5": "Choose candidate 5",
+      "skip": "Skip this file",
+      "next": "Next file",
+      "previous": "Previous file"
     }
   },
   "categories": {
@@ -1318,5 +1380,272 @@
     "runningCount_other": "{{value}} running",
     "queuedCount_one": "{{value}} queued",
     "queuedCount_other": "{{value}} queued"
+  },
+  "fieldErrors": {
+    "required": "This field is required.",
+    "blank": "This field can't be empty.",
+    "null": "This field is required.",
+    "invalid_choice": "Pick one of the options.",
+    "max_length": "Use at most {{max}} characters.",
+    "min_length": "Use at least {{min}} characters.",
+    "max_value": "Enter {{max}} or less.",
+    "min_value": "Enter {{min}} or more.",
+    "unique": "This value is already in use.",
+    "does_not_exist": "This no longer exists. Refresh and try again.",
+    "username_taken": "This username is already taken.",
+    "username_rule": "Use 3 to 32 letters, digits, dots, hyphens or underscores.",
+    "customer_username_rule": "Use 3 to 150 letters, digits and . _ @ + -",
+    "password_length": "Use {{min}} to {{max}} characters.",
+    "password_characters": "Use only letters, digits and . _ - ~ @ ! *",
+    "password_equals_username": "The password must differ from the username.",
+    "email_taken": "Another account already uses this email address.",
+    "invalid_phone": "Enter a valid phone number.",
+    "invalid_timezone": "Pick a valid time zone, e.g. Asia/Riyadh.",
+    "invalid_ip": "Enter a valid IPv4 or IPv6 address.",
+    "invalid_cidr": "Enter a network in CIDR notation, e.g. 203.0.113.0/24.",
+    "invalid_country": "Enter a two-letter country code, e.g. SA.",
+    "not_a_customer": "Rules apply to customers only.",
+    "not_in_future": "Pick a time in the future.",
+    "role_name_rule": "Start with a letter; use lowercase letters, digits and underscores.",
+    "role_name_taken": "A role with this name already exists."
+  },
+  "activity": {
+    "label": "Activity",
+    "empty": "Nothing has happened yet.",
+    "pagination": "Activity pages",
+    "customerEmpty": {
+      "title": "No activity yet",
+      "description": "Changes to this customer, their devices, access rules and sessions appear here."
+    }
+  },
+  "health": {
+    "title": "System health",
+    "description": "Live status of the services, queues and workers.",
+    "strip": "System health",
+    "refresh": "Refresh",
+    "grafana": "Open in Grafana",
+    "unknown": "Unknown",
+    "checked": "Checked",
+    "heartbeat": "Last heartbeat {{age}} ago",
+    "latency": "Answered in {{ms}} ms",
+    "encoders": "Encoders",
+    "gpus": "GPUs",
+    "ffmpeg": "FFmpeg",
+    "policy": "Eviction policy",
+    "evicted": "Evicted keys",
+    "memory": "{{used}} in use",
+    "memoryOf": "{{used}} of {{max}} in use",
+    "connections": "{{used}} of {{max}} connections in use",
+    "stateEvictionsHelp": "Sessions, slots and entitlements live here: any eviction is an outage.",
+    "queuesHelp": "Tasks waiting in each Celery queue.",
+    "transcodersHelp": "Transcoders alive now, with the encoders they detected at start.",
+    "noTranscoders": {
+      "title": "No transcoder is running",
+      "description": "Files that need encoding wait in their queue until one starts."
+    },
+    "overall": {
+      "ok": "All systems normal",
+      "degraded": "Some services are degraded",
+      "down": "Some services are down"
+    },
+    "status": {
+      "ok": "OK",
+      "degraded": "Degraded",
+      "down": "Down"
+    },
+    "sections": {
+      "services": "Services",
+      "queues": "Queues",
+      "transcoders": "Transcoders",
+      "database": "PostgreSQL"
+    },
+    "columns": {
+      "queue": "Queue",
+      "waiting": "Waiting"
+    },
+    "services": {
+      "postgres": "PostgreSQL",
+      "redis_state": "Redis (state)",
+      "redis_cache": "Redis (cache)",
+      "meilisearch": "Meilisearch",
+      "workers": "Workers",
+      "watcher": "Library watcher",
+      "transcoders": "Transcoders",
+      "edge": "Media edge ({{host}})"
+    },
+    "errors": {
+      "late_heartbeat": "Heartbeat is late",
+      "no_heartbeat": "No heartbeat",
+      "no_transcoder": "No transcoder is running",
+      "bad_url": "The health URL is not valid",
+      "failed": "Check failed: {{error}}"
+    }
+  },
+  "accessRules": {
+    "title": "Access rules",
+    "description": "Allow or block playback by IP address, network or country. Rules apply at the next playback check.",
+    "customerTitle": "Access rules",
+    "customerDescription": "Rules for this customer only. Rules for everyone are on the Access rules page.",
+    "customerScopeHelp": "Rules set on a customer's page. Open the customer to change them.",
+    "openCustomer": "Open customer",
+    "never": "Never",
+    "expired": "Expired",
+    "added": "Access rule added",
+    "removed": "Access rule removed",
+    "scopes": {
+      "global": "Everyone",
+      "customer": "Per customer"
+    },
+    "types": {
+      "ip_allow": "Allow IP address",
+      "ip_deny": "Block IP address",
+      "cidr_deny": "Block network",
+      "country_allow": "Allow country",
+      "country_deny": "Block country"
+    },
+    "columns": {
+      "type": "Rule",
+      "value": "Value",
+      "customer": "Customer",
+      "reason": "Reason",
+      "expires": "Expires",
+      "added": "Added",
+      "actions": "Actions"
+    },
+    "fields": {
+      "type": "Rule",
+      "value": "Value",
+      "reason": "Reason (optional)",
+      "expires": "Ends on (optional)"
+    },
+    "help": {
+      "ip": "An IPv4 or IPv6 address, e.g. 203.0.113.7.",
+      "cidr": "A network in CIDR notation, e.g. 203.0.113.0/24.",
+      "country": "A two-letter country code, e.g. SA.",
+      "expires": "The rule stops at the end of this day. Leave empty to keep it."
+    },
+    "add": {
+      "button": "Add rule",
+      "globalTitle": "New rule for everyone",
+      "customerTitle": "New rule for this customer",
+      "description": "Allow rules let only matching clients play; block rules refuse them.",
+      "submit": "Add rule"
+    },
+    "remove": {
+      "action": "Remove rule {{value}}",
+      "title": "Remove this rule?",
+      "description": "{{type}} {{value}} stops applying at the next playback check.",
+      "confirm": "Remove rule"
+    },
+    "empty": {
+      "global": "No rules for everyone",
+      "customer": "No rules for this customer",
+      "anyCustomer": "No customer has rules",
+      "description": "Without rules, playback is limited only by each customer's access profile."
+    },
+    "validation": {
+      "value": "Enter a value.",
+      "reason": "Use at most 200 characters.",
+      "expires": "Pick a date."
+    }
+  },
+  "customerSessions": {
+    "liveTitle": "Watching now",
+    "liveDescription": "Open sessions, refreshed every 5 seconds.",
+    "noneLive": "Not watching anything right now.",
+    "historyTitle": "History",
+    "historyDescription": "Sessions that ended, newest first, with why they ended.",
+    "emptyHistory": "No sessions yet",
+    "pagination": "Session history pages",
+    "live": "Live",
+    "endedAt": "Ended {{time}}",
+    "lastSeen": "Last seen {{time}}",
+    "columns": {
+      "title": "Title",
+      "device": "Device",
+      "started": "Started",
+      "duration": "Duration",
+      "status": "Status",
+      "ip": "IP address",
+      "actions": "Actions"
+    },
+    "endReasons": {
+      "stopped": "Stopped",
+      "kicked": "Stopped by an admin",
+      "expired": "Access ended",
+      "limit": "Stream limit",
+      "idle": "Idle",
+      "error": "Error"
+    }
+  },
+  "palette": {
+    "open": "Search or jump to…",
+    "title": "Command palette",
+    "description": "Jump to a page, customer or title, or run an action.",
+    "placeholder": "Search customers, titles, pages and actions…",
+    "searching": "Searching…",
+    "empty": "Nothing matches.",
+    "groups": {
+      "customers": "Customers",
+      "titles": "Titles",
+      "pages": "Pages",
+      "actions": "Actions"
+    },
+    "actions": {
+      "newCustomer": "Create customer",
+      "addRule": "Add an access rule",
+      "scan": "Scan library {{name}}",
+      "lightTheme": "Switch to light theme",
+      "darkTheme": "Switch to dark theme",
+      "language": "التبديل إلى العربية",
+      "shortcuts": "Keyboard shortcuts"
+    }
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "description": "Shortcuts work anywhere except while you type in a field.",
+    "then": "then",
+    "groups": {
+      "general": "General",
+      "navigation": "Go to",
+      "page": "On this page"
+    },
+    "palette": "Open the command palette",
+    "help": "Show keyboard shortcuts",
+    "search": "Search on this page",
+    "rows": "Move through table rows (j / k, Enter opens)",
+    "newCustomer": "Create a customer",
+    "goTo": {
+      "nav": {
+        "dashboard": "Dashboard",
+        "customers": "Customers",
+        "libraries": "Libraries",
+        "sessions": "Live sessions",
+        "movies": "Movies",
+        "review": "Review queue",
+        "transcode": "Transcode jobs",
+        "audit": "Audit log",
+        "health": "System health"
+      }
+    }
+  },
+  "topbar": {
+    "live_one": "{{count}} live stream",
+    "live_other": "{{count}} live streams",
+    "alerts": {
+      "title": "Needs attention",
+      "none": "Nothing needs attention.",
+      "label_one": "Alerts: {{count}} item needs attention",
+      "label_other": "Alerts: {{count}} items need attention",
+      "reviews_one": "{{formatted}} file waits for a match",
+      "reviews_other": "{{formatted}} files wait for a match",
+      "failedJobs_one": "{{formatted}} transcode job failed in 24 h",
+      "failedJobs_other": "{{formatted}} transcode jobs failed in 24 h"
+    }
+  },
+  "idle": {
+    "title": "Still there?",
+    "description": "You'll be signed out in {{time}} because you've been inactive.",
+    "stay": "Stay signed in"
   }
 }

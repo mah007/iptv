@@ -60,6 +60,17 @@ def problem_components() -> dict[str, Any]:
                     "description": "Messages per field; nested fields use dotted paths.",
                     "additionalProperties": {"type": "array", "items": {"type": "string"}},
                 },
+                # ADR-0015: present whenever field_errors is.
+                "field_error_codes": {
+                    "type": "object",
+                    "description": (
+                        "A stable code per message of field_errors (same keys, same order): "
+                        "DRF's validation codes (required, max_length, invalid, unique, ...) "
+                        "or the API's own (username_taken, password_length, ...). Clients "
+                        "translate the codes and fall back to the messages."
+                    ),
+                    "additionalProperties": {"type": "array", "items": {"type": "string"}},
+                },
             },
             "required": ["type", "title", "status", "code", "detail"],
         },

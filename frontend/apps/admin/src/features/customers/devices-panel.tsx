@@ -190,7 +190,7 @@ function AddDeviceDialog({
       onIssued(credential);
       void invalidateCustomer(queryClient, customerId);
     } catch (error) {
-      const fields = applyFieldErrors(error, form.setError, DEVICE_FIELD_PATHS);
+      const fields = applyFieldErrors(error, form.setError, DEVICE_FIELD_PATHS, t);
       if (fields.length === 0) notifyError(t, error);
     }
   });
@@ -264,7 +264,7 @@ function ResetForm({
       onClose();
       onIssued(credential);
     } catch (error) {
-      const fields = applyFieldErrors(error, form.setError, RESET_FIELD_PATHS);
+      const fields = applyFieldErrors(error, form.setError, RESET_FIELD_PATHS, t);
       if (fields.length === 0) notifyError(t, error);
     }
   }

@@ -11,6 +11,7 @@ import {
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
   DescriptionItem,
@@ -31,6 +32,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError, RequirePermission } from "../components/states";
+import { AccessRulesTable, AddRuleButton } from "../features/access-rules/access-rules";
+import { CustomerActivity } from "../features/activity/activity";
 import {
   EditAccessSheet,
   EditProfileDialog,
@@ -39,6 +42,7 @@ import {
 } from "../features/customers/customer-editors";
 import { DevicesPanel } from "../features/customers/devices-panel";
 import { ExpiryText } from "../features/customers/expiry";
+import { CustomerSessions } from "../features/customers/sessions-panel";
 import { CUSTOMER_TABS, type CustomerTab } from "../features/customers/search";
 import { useCan } from "../lib/auth";
 import { usePageTitle } from "../lib/page-title";
@@ -324,6 +328,9 @@ function CustomerView({ customer }: { customer: CustomerDetail }) {
             {t("customers.detail.tabs.devices")}
             <Badge className="tabular-nums">{deviceCount}</Badge>
           </TabsTrigger>
+          <TabsTrigger value="sessions">{t("customers.detail.tabs.sessions")}</TabsTrigger>
+          <TabsTrigger value="security">{t("customers.detail.tabs.security")}</TabsTrigger>
+          <TabsTrigger value="activity">{t("customers.detail.tabs.activity")}</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <div className="grid items-start gap-4 lg:grid-cols-2">
@@ -342,6 +349,37 @@ function CustomerView({ customer }: { customer: CustomerDetail }) {
         </TabsContent>
         <TabsContent value="devices">
           <DevicesPanel customer={customer} />
+        </TabsContent>
+        <TabsContent value="sessions">
+          <CustomerSessions customerId={customer.id} customerName={name} />
+        </TabsContent>
+        <TabsContent value="security">
+          <Card className="p-0">
+            <CardHeader className="flex-row items-start justify-between gap-3 p-(--density-card)">
+              <div className="grid gap-1">
+                <CardTitle>{t("accessRules.customerTitle")}</CardTitle>
+                <CardDescription>{t("accessRules.customerDescription")}</CardDescription>
+              </div>
+              <AddRuleButton user={customer.id} />
+            </CardHeader>
+            <CardContent className="p-0">
+              <AccessRulesTable
+                params={{ user: customer.id }}
+                emptyTitle={t("accessRules.empty.customer")}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="activity">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("customers.detail.activityTitle")}</CardTitle>
+              <CardDescription>{t("customers.detail.activityDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CustomerActivity customerId={customer.id} showChanges={can("audit.view")} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

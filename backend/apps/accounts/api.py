@@ -44,7 +44,7 @@ from apps.accounts.serializers import (
     RoleSerializer,
     SuspendSerializer,
 )
-from apps.core.errors import ErrorCode, ProblemError
+from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
 
@@ -459,7 +459,10 @@ class AccessRuleListView(generics.ListCreateAPIView[AccessRule]):
             user = customers().filter(pk=data["user"]).first()
             if user is None:
                 raise ProblemError(
-                    ErrorCode.VALIDATION_ERROR, field_errors={"user": ["Unknown customer."]}
+                    ErrorCode.VALIDATION_ERROR,
+                    field_errors={
+                        "user": [field_error("Unknown customer.", code="does_not_exist")]
+                    },
                 )
         rule = services.create_access_rule(
             user=user,
