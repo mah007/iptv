@@ -1,8 +1,8 @@
 """The catalog queries the Xtream API needs (SPEC §7.5), behind one protocol.
 
-The Django-model implementation arrives with the catalog models (POC slice 4) and
-is installed with `set_catalog_source`; until then the API serves an empty
-catalog. Tests install an in-memory fake.
+XtreamApiConfig.ready() installs the one over the catalog models (catalog.py,
+ADR-0011) with `set_catalog_source`; `EmptyCatalogSource` is the default before
+that. Tests install an in-memory fake.
 
 Contract every implementation keeps:
 - Only titles the scope may see: allowed categories (all when `scope.categories`

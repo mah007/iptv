@@ -241,8 +241,14 @@ def guide_body(account: XtreamAccount) -> bytes:
 # --- Play URLs ------------------------------------------------------------------------------
 
 
-def start_play(
-    account: XtreamAccount, *, kind: TitleKind, xc_id: int, extension: str, ip: str | None
+def start_play(  # noqa: PLR0913 (keyword-only request context)
+    account: XtreamAccount,
+    *,
+    kind: TitleKind,
+    xc_id: int,
+    extension: str,
+    ip: str | None,
+    user_agent: str = "",
 ) -> PlayOutcome:
     """Resolve the title and ask the playback starter for a signed edge URL."""
     title = catalog_source().title(kind, xc_id)
@@ -255,6 +261,7 @@ def start_play(
             title=title,
             extension=extension.lower(),
             client_ip=ip,
+            user_agent=user_agent,
         )
         outcome = playback_starter().start(request)
     if isinstance(outcome, PlayRefused):
