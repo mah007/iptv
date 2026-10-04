@@ -217,6 +217,68 @@ describe("customer detail", () => {
     });
   });
 
+  it("creates a portal password link and shows it once when it wasn't emailed", async () => {
+    const api = mockApi(
+      signedIn({
+        [`GET ${DETAIL}`]: { body: customerDetail({ email: "" }) },
+        [`POST ${DETAIL}/password-invite`]: {
+          body: {
+            url: "http://app.localhost/set-password#one-time-token",
+            expires_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+            emailed: false,
+          },
+        },
+      }),
+    );
+    const { user } = renderApp("/customers/cust-1");
+    await user.click(await screen.findByRole("button", { name: "Portal password link" }));
+    const confirm = await screen.findByRole("alertdialog", {
+      name: "Send Sara Ahmed a password link?",
+    });
+    expect(confirm.textContent).toContain("The customer has no email address.");
+    await user.click(within(confirm).getByRole("button", { name: "Create link" }));
+    const shown = await screen.findByRole("dialog", { name: "Password link" });
+    expect(shown.textContent).toContain("The link was not emailed.");
+    expect(within(shown).getByRole("textbox", { name: "Single-use link" })).toHaveProperty(
+      "value",
+      "http://app.localhost/set-password#one-time-token",
+    );
+    expect(api.sent("POST", `${DETAIL}/password-invite`)).toHaveLength(1);
+  });
+
+  it("shows the watch history, newest first, with how far each title got", async () => {
+    mockApi(
+      signedIn({
+        [`GET ${DETAIL}`]: { body: customerDetail() },
+        [`GET ${DETAIL}/history`]: {
+          body: page([
+            {
+              id: "wp-1",
+              title: {
+                kind: "series",
+                id: "series-1",
+                title: "Breaking Bad",
+                title_ar: "بريكنج باد",
+                season: 1,
+                episode: 2,
+                episode_title: "Cat's in the Bag",
+              },
+              position_ms: 1_200_000,
+              duration_ms: 2_400_000,
+              completed: false,
+              updated_at: new Date().toISOString(),
+            },
+          ]),
+        },
+      }),
+    );
+    renderApp("/customers/cust-1?tab=history");
+    const link = await screen.findByRole("link", { name: "Breaking Bad" });
+    expect(link.getAttribute("href")).toBe("/series/series-1");
+    expect(screen.getByText("S1 E2")).toBeTruthy();
+    expect(screen.getByText("20:00 of 40:00")).toBeTruthy();
+  });
+
   it("says when the customer doesn't exist", async () => {
     mockApi(signedIn({ [`GET ${DETAIL}`]: problem(404, "NOT_FOUND") }));
     renderApp("/customers/cust-1");

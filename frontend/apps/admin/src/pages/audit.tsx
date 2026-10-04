@@ -78,6 +78,15 @@ const KNOWN_ACTIONS = [
   "auth.logout",
   "auth.mfa_enroll",
   "system.expire",
+  "subscription.activate",
+  "subscription.extend",
+  "subscription.change_plan",
+  "subscription.cancel",
+  "payment.record",
+  "payment.refund",
+  "plan.create",
+  "plan.update",
+  "session.kill",
 ];
 const KNOWN_TARGETS = [
   "accounts.user",
@@ -86,6 +95,11 @@ const KNOWN_TARGETS = [
   "core.setting",
   "library.library",
   "catalog.category",
+  "billing.plan",
+  "billing.subscription",
+  "billing.payment",
+  "billing.invoice",
+  "playback.playbacksession",
 ];
 
 /** i18next reads "." as nesting; action names use it too, so they are stored with "_". */

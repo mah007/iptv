@@ -8,6 +8,9 @@ export type StreamListener = (event: string, data: unknown) => void;
 /** After the server refuses a stream (EventSource gives up for good), try again this much later. */
 const REOPEN_MS = 5_000;
 
+/** While a stream is offline, pages poll the REST list this often instead (SPEC §8.2). */
+export const FALLBACK_POLL_MS = 5_000;
+
 function parse(raw: unknown): unknown {
   if (typeof raw !== "string") return undefined;
   try {

@@ -153,6 +153,8 @@ export interface TimeSeriesChartProps {
   /** A dashed horizontal reference, e.g. the peak or a capacity (label it beside the chart). */
   reference?: { value: number } | undefined;
   height?: number;
+  /** Room for the value ticks; widen it for long units such as "220 MB". */
+  yAxisWidth?: number;
   loading?: boolean;
   className?: string;
 }
@@ -167,6 +169,7 @@ export function TimeSeriesChart({
   formatValue,
   reference,
   height = 220,
+  yAxisWidth = 40,
   loading = false,
   className,
 }: TimeSeriesChartProps) {
@@ -212,7 +215,7 @@ export function TimeSeriesChart({
           tick={TICK}
           tickLine={false}
           axisLine={false}
-          width={40}
+          width={yAxisWidth}
         />
         {reference ? (
           // Unlabelled: SVG text can't mirror for Arabic; name the reference beside the chart.
@@ -431,7 +434,7 @@ export function BarList({
             <td className="relative w-full p-0">
               <span
                 aria-hidden="true"
-                className="absolute inset-y-0 start-0 rounded-e-[4px] bg-(--chart-accent)/15"
+                className="absolute inset-y-0 start-0 rounded-e-[4px] bg-(--chart-accent)/10"
                 style={{ width: `${String(Math.max(2, (item.value / max) * 100))}%` }}
               />
               <span className="relative block truncate px-2 py-1 text-foreground">

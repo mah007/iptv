@@ -217,6 +217,11 @@
     "matched": "Matched",
     "matching": "Matching",
     "error": "Error",
-    "enabled": "Enabled"
+    "enabled": "Enabled",
+    "succeeded": "Succeeded",
+    "paid": "Paid",
+    "partially_refunded": "Partly refunded",
+    "refunded": "Refunded",
+    "void": "Void"
   }
 }

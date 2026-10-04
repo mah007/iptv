@@ -56,6 +56,46 @@ describe("live sessions", () => {
     expect(screen.queryByRole("link", { name: "Sara Ahmed" })).toBeNull();
   });
 
+  it("polls the open sessions while the feed is refused", async () => {
+    const EventSource = installEventSource();
+    const listed = {
+      id: "sess-1",
+      user: { id: "cust-1", username: "sara", name: "Sara Ahmed" },
+      device: { id: "dev-1", name: "Living room TV", kind: "xtream", app_hint: "smarters" },
+      title_kind: "movie",
+      title_id: "movie-1",
+      title_name: "The Matrix",
+      rendition: "compat",
+      ip: "198.51.100.7",
+      country: "SA",
+      user_agent: "",
+      player: "",
+      started_at: new Date(Date.now() - 65_000).toISOString(),
+      last_heartbeat_at: new Date().toISOString(),
+      ended_at: null,
+      bytes_sent: 52_000_000,
+      end_reason: "",
+      is_active: true,
+      log_ref: "sess-1",
+    };
+    const api = mockApi(
+      mediaSignedIn({
+        "GET /api/v1/admin/sessions": {
+          body: { count: 1, next: null, previous: null, results: [listed] },
+        },
+      }),
+    );
+    renderApp("/sessions");
+    await waitFor(() => {
+      expect(EventSource.open(STREAM)).toHaveLength(1);
+    });
+    EventSource.open(STREAM)[0]?.refuse();
+    const row = (await screen.findByRole("link", { name: "Sara Ahmed" })).closest("tr");
+    expect(row?.textContent).toContain("Living room TV");
+    expect(screen.getByText("Reconnecting; refreshing every 5 s")).toBeTruthy();
+    expect(api.sent("GET", "/api/v1/admin/sessions")[0]?.query.get("active")).toBe("true");
+  });
+
   it("kills a session after confirmation and fades its row until the feed drops it", async () => {
     const EventSource = installEventSource();
     const api = mockApi(mediaSignedIn({ "POST /api/v1/admin/sessions/sess-1/kill": { body: {} } }));

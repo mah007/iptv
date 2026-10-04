@@ -593,7 +593,7 @@ function ReviewQueue() {
       >
         <TabsList>
           {STATUSES.map((value) => (
-            <TabsTrigger key={value} value={value}>
+            <TabsTrigger key={value} value={value} aria-controls="review-panel">
               {t(`ui:status.${value}`)}
               {value === status && query.data ? (
                 <Badge className="tabular-nums">{format.number(query.data.count)}</Badge>
@@ -602,100 +602,103 @@ function ReviewQueue() {
           ))}
         </TabsList>
       </Tabs>
-      {query.isPending ? (
-        <div
-          className="grid grid-cols-1 gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]"
-          role="status"
-          aria-live="polite"
-        >
-          <span className="sr-only">{t("layout.loading")}</span>
-          <Skeleton className="h-72 w-full" />
-          <Skeleton className="h-96 w-full" />
-        </div>
-      ) : query.isError ? (
-        <QueryError
-          className="min-h-[40vh]"
-          error={query.error}
-          onRetry={() => {
-            void query.refetch();
-          }}
-        />
-      ) : items.length === 0 || selected === undefined ? (
-        <EmptyState
-          icon={status === "open" ? <CheckCheck /> : <FileVideo />}
-          title={t(`review.empty.${status}.title`)}
-          description={t(`review.empty.${status}.description`)}
-        />
-      ) : (
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
-          <nav aria-label={t("review.listLabel")} className="grid gap-2">
-            <ul className="grid gap-1.5">
-              {items.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    aria-current={item.id === selected.id ? "true" : undefined}
-                    onClick={() => {
-                      update({ item: item.id });
-                    }}
-                    className={cn(
-                      "grid w-full gap-1 rounded-input border border-border bg-card px-3 py-2 text-start outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
-                      item.id === selected.id && "border-primary bg-primary/5",
-                    )}
-                  >
-                    <span className="truncate font-mono text-xs text-foreground">
-                      <bdi dir="ltr">{item.media_file.relative_path}</bdi>
-                    </span>
-                    <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                      <span>{item.media_file.library.name}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{reasonLabel(t, item.reason)}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {pageCount > 1 ? (
-              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={page <= 1}
-                  onClick={() => {
-                    update({ page: page > 2 ? page - 1 : undefined, item: undefined });
-                  }}
-                >
-                  {t("review.previous")}
-                </Button>
-                <span className="tabular-nums">
-                  {t("titles.pageOf", {
-                    page: format.number(page),
-                    pages: format.number(pageCount),
-                  })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  disabled={page >= pageCount}
-                  onClick={() => {
-                    update({ page: page + 1, item: undefined });
-                  }}
-                >
-                  {t("review.next")}
-                </Button>
-              </div>
-            ) : null}
-          </nav>
-          <ReviewDetail
-            key={selected.id}
-            review={selected}
-            next={nextItem}
-            onDone={(next) => {
-              update({ item: next });
+      {/* The tabs filter one panel: the queue of the chosen status. */}
+      <div id="review-panel" role="tabpanel" aria-label={t(`ui:status.${status}`)}>
+        {query.isPending ? (
+          <div
+            className="grid grid-cols-1 gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="sr-only">{t("layout.loading")}</span>
+            <Skeleton className="h-72 w-full" />
+            <Skeleton className="h-96 w-full" />
+          </div>
+        ) : query.isError ? (
+          <QueryError
+            className="min-h-[40vh]"
+            error={query.error}
+            onRetry={() => {
+              void query.refetch();
             }}
           />
-        </div>
-      )}
+        ) : items.length === 0 || selected === undefined ? (
+          <EmptyState
+            icon={status === "open" ? <CheckCheck /> : <FileVideo />}
+            title={t(`review.empty.${status}.title`)}
+            description={t(`review.empty.${status}.description`)}
+          />
+        ) : (
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
+            <nav aria-label={t("review.listLabel")} className="grid gap-2">
+              <ul className="grid gap-1.5">
+                {items.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      aria-current={item.id === selected.id ? "true" : undefined}
+                      onClick={() => {
+                        update({ item: item.id });
+                      }}
+                      className={cn(
+                        "grid w-full gap-1 rounded-input border border-border bg-card px-3 py-2 text-start outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
+                        item.id === selected.id && "border-primary bg-primary/5",
+                      )}
+                    >
+                      <span className="truncate font-mono text-xs text-foreground">
+                        <bdi dir="ltr">{item.media_file.relative_path}</bdi>
+                      </span>
+                      <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>{item.media_file.library.name}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{reasonLabel(t, item.reason)}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {pageCount > 1 ? (
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    disabled={page <= 1}
+                    onClick={() => {
+                      update({ page: page > 2 ? page - 1 : undefined, item: undefined });
+                    }}
+                  >
+                    {t("review.previous")}
+                  </Button>
+                  <span className="tabular-nums">
+                    {t("titles.pageOf", {
+                      page: format.number(page),
+                      pages: format.number(pageCount),
+                    })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    disabled={page >= pageCount}
+                    onClick={() => {
+                      update({ page: page + 1, item: undefined });
+                    }}
+                  >
+                    {t("review.next")}
+                  </Button>
+                </div>
+              ) : null}
+            </nav>
+            <ReviewDetail
+              key={selected.id}
+              review={selected}
+              next={nextItem}
+              onDone={(next) => {
+                update({ item: next });
+              }}
+            />
+          </div>
+        )}
+      </div>
     </>
   );
 }

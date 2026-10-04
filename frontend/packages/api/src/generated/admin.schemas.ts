@@ -1088,6 +1088,15 @@ export interface Genre {
   readonly name_ar: string;
 }
 
+export interface GrowthPoint {
+  /** A calendar day in the admin's time zone. */
+  date: string;
+  /** Source bytes at the end of the day. */
+  sources: number;
+  /** Rendition bytes at the end of the day. */
+  renditions: number;
+}
+
 export interface ServiceHealth {
   /** postgres, redis_state, redis_cache, meilisearch, workers, watcher, transcoders, or edge:<host>. */
   name: string;
@@ -1441,6 +1450,19 @@ export interface Library {
   readonly last_scan: ScanJob | null;
   readonly created_at: string;
   readonly updated_at: string;
+}
+
+export interface LibraryUsage {
+  id: string;
+  name: string;
+  /** movies, series or mixed. */
+  kind: string;
+  /** Source files present in the library. */
+  files: number;
+  /** Bytes of those files. */
+  sources: number;
+  /** Bytes of their renditions on disk (links to a source count nothing). */
+  renditions: number;
 }
 
 /**
@@ -2369,6 +2391,45 @@ export interface PaginatedTranscodeJobList {
   results: TranscodeJob[];
 }
 
+export interface WatchedTitle {
+  kind: TitleType;
+  /** The movie, or the series of the episode. */
+  id: string;
+  title: string;
+  title_ar: string;
+  /**
+   * Episodes only.
+   * @nullable
+   */
+  season: number | null;
+  /**
+   * Episodes only.
+   * @nullable
+   */
+  episode: number | null;
+  /** Episodes only; may be empty. */
+  episode_title: string;
+}
+
+export interface WatchHistory {
+  id: string;
+  readonly title: WatchedTitle;
+  position_ms: number;
+  duration_ms: number;
+  completed: boolean;
+  /** When the customer last watched it. */
+  updated_at: string;
+}
+
+export interface PaginatedWatchHistoryList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: WatchHistory[];
+}
+
 /**
  * Shown once. Send `url` to the customer if `emailed` is false (no email on file, or
  * no email sender configured).
@@ -3278,6 +3339,38 @@ export interface SettingEntry {
   readonly updated_by: string | null;
 }
 
+export interface TitleUsage {
+  kind: TitleType;
+  id: string;
+  title: string;
+  title_ar: string;
+  /** @nullable */
+  year: number | null;
+  /** Source files present (a series: every episode). */
+  files: number;
+  sources: number;
+  renditions: number;
+}
+
+export interface StorageUsage {
+  /** When the figures were computed (cached 30 s). */
+  as_of: string;
+  /** The admin's time zone; days are its days. */
+  time_zone: string;
+  /** Source files present in every library. */
+  files: number;
+  /** Bytes of the source files. */
+  sources: number;
+  /** Bytes of the renditions on disk. */
+  renditions: number;
+  /** Largest first. */
+  libraries: LibraryUsage[];
+  /** The last 90 days, oldest first. */
+  growth: GrowthPoint[];
+  /** The 10 titles that take the most space. */
+  largest: TitleUsage[];
+}
+
 export interface StreamPoint {
   /** Start of the bucket. */
   at: string;
@@ -3761,6 +3854,17 @@ export const CustomersListStatus = {
 } as const;
 
 export type CustomersDevicesListParams = {
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+};
+
+export type CustomersHistoryParams = {
   /**
    * A page number within the paginated result set.
    */

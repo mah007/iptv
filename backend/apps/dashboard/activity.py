@@ -17,8 +17,10 @@ from django.db.models.functions import Cast
 
 from apps.accounts.models import AccessRule, Device, Role, User
 from apps.audit.models import AuditLog
-from apps.catalog.models import Category, Movie, Series
+from apps.billing.models import Invoice, Payment, Plan, Subscription
+from apps.catalog.models import Category, Collection, Movie, Series
 from apps.library.models import Library
+from apps.notifications.models import NotificationTemplate
 from apps.playback.models import PlaybackSession
 
 #: Actions the dashboard leaves to the audit log.
@@ -86,6 +88,42 @@ def _sessions(ids: list[str]) -> dict[str, Subject]:
     return subjects
 
 
+def _subscriptions(ids: list[str]) -> dict[str, Subject]:
+    subjects = {}
+    rows = Subscription.objects.filter(pk__in=_uuids(ids)).select_related("user", "plan")
+    for subscription in rows:
+        customer_id, customer_name = _customer(subscription.user)
+        subjects[str(subscription.pk)] = Subject(
+            subscription.plan.name_en, customer_id, customer_name
+        )
+    return subjects
+
+
+def _payments(ids: list[str]) -> dict[str, Subject]:
+    subjects = {}
+    rows = Payment.objects.filter(pk__in=_uuids(ids)).select_related("user", "plan")
+    for payment in rows:
+        customer_id, customer_name = _customer(payment.user)
+        label = payment.plan.name_en if payment.plan is not None else ""
+        subjects[str(payment.pk)] = Subject(label, customer_id, customer_name)
+    return subjects
+
+
+def _invoices(ids: list[str]) -> dict[str, Subject]:
+    subjects = {}
+    for invoice in Invoice.objects.filter(pk__in=_uuids(ids)).select_related("user"):
+        customer_id, customer_name = _customer(invoice.user)
+        subjects[str(invoice.pk)] = Subject(invoice.number or "", customer_id, customer_name)
+    return subjects
+
+
+def _templates(ids: list[str]) -> dict[str, Subject]:
+    rows = NotificationTemplate.objects.filter(pk__in=_uuids(ids)).values_list(
+        "pk", "key", "locale"
+    )
+    return {str(pk): Subject(f"{key} ({locale})") for pk, key, locale in rows}
+
+
 def _named(model: Any, attribute: str) -> Resolver:
     def resolve(ids: list[str]) -> dict[str, Subject]:
         rows = model.objects.filter(pk__in=_uuids(ids)).values_list("pk", attribute)
@@ -109,6 +147,12 @@ RESOLVERS: Mapping[str, Resolver] = {
     "catalog.series": _named(Series, "title"),
     "library.library": _named(Library, "name"),
     "core.setting": _keys,
+    "catalog.collection": _named(Collection, "name_en"),
+    "billing.plan": _named(Plan, "name_en"),
+    "billing.subscription": _subscriptions,
+    "billing.payment": _payments,
+    "billing.invoice": _invoices,
+    "notifications.notificationtemplate": _templates,
 }
 
 
@@ -147,8 +191,8 @@ def _ids_of(queryset: QuerySet[Any]) -> QuerySet[Any]:
 
 
 def customer_scope(user_id: UUID) -> Q:
-    """Entries about the customer, their devices, access rules (also deleted ones) and
-    sessions."""
+    """Entries about the customer, their devices, access rules (also deleted ones),
+    sessions, subscriptions, payments and invoices."""
     text = str(user_id)
     rules = Q(target_type="accounts.accessrule") & (
         Q(after__user_id=text) | Q(before__user_id=text)
@@ -161,7 +205,21 @@ def customer_scope(user_id: UUID) -> Q:
         target_type="playback.playbacksession",
         target_id__in=_ids_of(PlaybackSession.objects.filter(user_id=user_id)),
     )
-    return Q(target_type="accounts.user", target_id=text) | devices | rules | sessions
+    billing = (
+        Q(
+            target_type="billing.subscription",
+            target_id__in=_ids_of(Subscription.objects.filter(user_id=user_id)),
+        )
+        | Q(
+            target_type="billing.payment",
+            target_id__in=_ids_of(Payment.objects.filter(user_id=user_id)),
+        )
+        | Q(
+            target_type="billing.invoice",
+            target_id__in=_ids_of(Invoice.objects.filter(user_id=user_id)),
+        )
+    )
+    return Q(target_type="accounts.user", target_id=text) | devices | rules | sessions | billing
 
 
 def feed(*, customer: UUID | None = None) -> QuerySet[AuditLog]:

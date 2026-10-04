@@ -51,6 +51,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError, RequirePermission } from "../components/states";
+import { FALLBACK_POLL_MS } from "../lib/event-stream";
 import { useLiveJobs, type JobUpdate } from "../features/transcode/live-jobs";
 import type { TranscodeSearch } from "../features/transcode/search";
 import { useCan } from "../lib/auth";
@@ -308,8 +309,14 @@ function TranscodeJobs() {
     page: search.page,
     page_size: PAGE_SIZE,
   });
-  const query = useTranscodeJobsList(params, { query: { placeholderData: keepPreviousData } });
   const { updates, state } = useLiveJobs();
+  // The feed is down: poll the list until it is back.
+  const query = useTranscodeJobsList(params, {
+    query: {
+      placeholderData: keepPreviousData,
+      refetchInterval: state === "offline" ? FALLBACK_POLL_MS : false,
+    },
+  });
   const retry = useTranscodeJobsRetry();
   const cancel = useTranscodeJobsCancel();
   const priority = useTranscodeJobsPriority();
@@ -367,7 +374,7 @@ function TranscodeJobs() {
         >
           <TabsList className="max-w-full overflow-x-auto">
             {STATUS_TABS.map((value) => (
-              <TabsTrigger key={value} value={value}>
+              <TabsTrigger key={value} value={value} aria-controls="transcode-panel">
                 {value === "all" ? t("transcode.all") : t(`ui:status.${value}`)}
               </TabsTrigger>
             ))}
@@ -392,7 +399,12 @@ function TranscodeJobs() {
           </SelectContent>
         </Select>
       </div>
-      <Card className="p-0">
+      <Card
+        className="p-0"
+        id="transcode-panel"
+        role="tabpanel"
+        aria-label={tab === "all" ? t("transcode.all") : t(`ui:status.${tab}`)}
+      >
         {query.isPending ? (
           <div className="grid gap-2 p-4" role="status" aria-live="polite">
             <span className="sr-only">{t("layout.loading")}</span>

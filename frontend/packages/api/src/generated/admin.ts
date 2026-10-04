@@ -48,6 +48,7 @@ import type {
   CustomerCreated,
   CustomerDetail,
   CustomersDevicesListParams,
+  CustomersHistoryParams,
   CustomersListParams,
   DashboardActivityParams,
   Device,
@@ -97,6 +98,7 @@ import type {
   PaginatedSessionList,
   PaginatedSubscriptionList,
   PaginatedTranscodeJobList,
+  PaginatedWatchHistoryList,
   PasswordInvitation,
   PatchedAccessProfileRequest,
   PatchedAdminUpdateRequest,
@@ -142,6 +144,7 @@ import type {
   SessionsListParams,
   SessionsStreamParams,
   SettingEntry,
+  StorageUsage,
   Subscription,
   SubscriptionCreateRequest,
   SubscriptionsListParams,
@@ -3328,6 +3331,149 @@ export const useCustomersDevicesCreate = <TError = ErrorType<Problem>, TContext 
 > => {
   return useMutation(getCustomersDevicesCreateMutationOptions(options), queryClient);
 };
+
+export const getCustomersHistoryUrl = (id: string, params?: CustomersHistoryParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/customers/${encodeURIComponent(String(id))}/history?${stringifiedParams}`
+    : `/api/v1/admin/customers/${encodeURIComponent(String(id))}/history`;
+};
+
+/**
+ * GET /api/v1/admin/customers/{id}/history: what the customer watched, newest first.
+ * @summary A customer's watch history (progress per title), newest first
+ */
+export const customersHistory = async (
+  id: string,
+  params?: CustomersHistoryParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedWatchHistoryList> => {
+  return apiFetch<PaginatedWatchHistoryList>(getCustomersHistoryUrl(id, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getCustomersHistoryQueryKey = (id: string, params?: CustomersHistoryParams) => {
+  return [`/api/v1/admin/customers/${id}/history`, ...(params ? [params] : [])] as const;
+};
+
+export const getCustomersHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof customersHistory>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: CustomersHistoryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersHistory>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getCustomersHistoryQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof customersHistory>>> = ({ signal }) =>
+    customersHistory(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof customersHistory>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type CustomersHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof customersHistory>>>;
+export type CustomersHistoryQueryError = ErrorType<Problem>;
+
+export function useCustomersHistory<
+  TData = Awaited<ReturnType<typeof customersHistory>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params: undefined | CustomersHistoryParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersHistory>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof customersHistory>>,
+          TError,
+          Awaited<ReturnType<typeof customersHistory>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useCustomersHistory<
+  TData = Awaited<ReturnType<typeof customersHistory>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: CustomersHistoryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersHistory>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof customersHistory>>,
+          TError,
+          Awaited<ReturnType<typeof customersHistory>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useCustomersHistory<
+  TData = Awaited<ReturnType<typeof customersHistory>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: CustomersHistoryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersHistory>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary A customer's watch history (progress per title), newest first
+ */
+
+export function useCustomersHistory<
+  TData = Awaited<ReturnType<typeof customersHistory>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: CustomersHistoryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersHistory>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getCustomersHistoryQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export const getCustomersPasswordInviteUrl = (id: string) => {
   return `/api/v1/admin/customers/${encodeURIComponent(String(id))}/password-invite`;
@@ -10511,6 +10657,120 @@ export const useSettingsUpdate = <TError = ErrorType<Problem>, TContext = unknow
 > => {
   return useMutation(getSettingsUpdateMutationOptions(options), queryClient);
 };
+
+export const getStorageUsageUrl = () => {
+  return `/api/v1/admin/storage`;
+};
+
+/**
+ * Storage usage (SPEC §8.3 Storage); the cleanup itself is `admin/renditions/cleanup`.
+ * @summary Storage usage: by library, sources against renditions, growth over 90 days and the largest titles (the admin's time zone; cached for 30 s)
+ */
+export const storageUsage = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<StorageUsage> => {
+  return apiFetch<StorageUsage>(getStorageUsageUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getStorageUsageQueryKey = () => {
+  return [`/api/v1/admin/storage`] as const;
+};
+
+export const getStorageUsageQueryOptions = <
+  TData = Awaited<ReturnType<typeof storageUsage>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof storageUsage>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getStorageUsageQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof storageUsage>>> = ({ signal }) =>
+    storageUsage({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof storageUsage>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type StorageUsageQueryResult = NonNullable<Awaited<ReturnType<typeof storageUsage>>>;
+export type StorageUsageQueryError = ErrorType<Problem>;
+
+export function useStorageUsage<
+  TData = Awaited<ReturnType<typeof storageUsage>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof storageUsage>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof storageUsage>>,
+          TError,
+          Awaited<ReturnType<typeof storageUsage>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useStorageUsage<
+  TData = Awaited<ReturnType<typeof storageUsage>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof storageUsage>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof storageUsage>>,
+          TError,
+          Awaited<ReturnType<typeof storageUsage>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useStorageUsage<
+  TData = Awaited<ReturnType<typeof storageUsage>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof storageUsage>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Storage usage: by library, sources against renditions, growth over 90 days and the largest titles (the admin's time zone; cached for 30 s)
+ */
+
+export function useStorageUsage<
+  TData = Awaited<ReturnType<typeof storageUsage>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof storageUsage>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getStorageUsageQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export const getSubscriptionsListUrl = (params?: SubscriptionsListParams) => {
   const normalizedParams = new URLSearchParams();

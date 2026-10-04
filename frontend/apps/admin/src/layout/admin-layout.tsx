@@ -240,9 +240,12 @@ export function AdminLayout() {
               <LiveStreams />
               <AlertsMenu />
               <LanguageToggle />
-              <DensityToggle />
+              {/* Density matters on wide tables; phones keep the room for the account menu. */}
+              <span className="hidden sm:contents">
+                <DensityToggle />
+              </span>
               <ThemeToggle />
-              <Separator orientation="vertical" className="mx-1 h-5" />
+              <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block" />
               <UserMenu
                 user={me ? { name: me.name || me.username, email: me.email || me.username } : null}
                 onSignOut={signOut}

@@ -450,6 +450,14 @@ export class FakeEventSource {
     });
   }
 
+  /** The server refused the stream (an error status): the browser gives up on it. */
+  refuse(): void {
+    act(() => {
+      this.readyState = FakeEventSource.CLOSED;
+      this.onerror?.();
+    });
+  }
+
   /** The server sent `event: name` with `data` as JSON. */
   emit(name: string, data: unknown): void {
     act(() => {

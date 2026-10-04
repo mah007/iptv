@@ -11,6 +11,13 @@ import {
 
 import { parseAccessRulesSearch } from "./features/access-rules/search";
 import { parseAdminsSearch } from "./features/admins/search";
+import {
+  parseInvoicesSearch,
+  parseNotificationsSearch,
+  parsePaymentsSearch,
+  parseSubscriptionsSearch,
+  parseTemplatesSearch,
+} from "./features/billing/search";
 import { parseAuditSearch } from "./features/audit/search";
 import { AuthLayout } from "./features/auth/auth-layout";
 import { createPendingSignIn, type PendingSignIn } from "./features/auth/pending-sign-in";
@@ -142,11 +149,56 @@ const auditRoute = createRoute({
   validateSearch: parseAuditSearch,
   component: lazyRouteComponent(() => import("./pages/audit"), "AuditPage"),
 });
+const subscriptionsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/subscriptions",
+  validateSearch: parseSubscriptionsSearch,
+  component: lazyRouteComponent(() => import("./pages/subscriptions"), "SubscriptionsPage"),
+});
+const plansRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/plans",
+  component: lazyRouteComponent(() => import("./pages/plans"), "PlansPage"),
+});
+const paymentsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/payments",
+  validateSearch: parsePaymentsSearch,
+  component: lazyRouteComponent(() => import("./pages/payments"), "PaymentsPage"),
+});
+const invoicesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/invoices",
+  validateSearch: parseInvoicesSearch,
+  component: lazyRouteComponent(() => import("./pages/invoices"), "InvoicesPage"),
+});
+const notificationsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/notifications",
+  validateSearch: parseNotificationsSearch,
+  component: lazyRouteComponent(() => import("./pages/notifications"), "NotificationsPage"),
+});
+const templatesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/templates",
+  validateSearch: parseTemplatesSearch,
+  component: lazyRouteComponent(() => import("./pages/templates"), "TemplatesPage"),
+});
+const collectionsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/collections",
+  component: lazyRouteComponent(() => import("./pages/collections"), "CollectionsPage"),
+});
 const accessRulesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/access-rules",
   validateSearch: parseAccessRulesSearch,
   component: lazyRouteComponent(() => import("./pages/access-rules"), "AccessRulesPage"),
+});
+const storageRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/storage",
+  component: lazyRouteComponent(() => import("./pages/storage"), "StoragePage"),
 });
 const healthRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -192,8 +244,16 @@ export const routeTree = rootRoute.addChildren([
     reviewRoute,
     categoriesRoute,
     transcodeRoute,
+    storageRoute,
     adminsRoute,
     auditRoute,
+    subscriptionsRoute,
+    plansRoute,
+    paymentsRoute,
+    invoicesRoute,
+    notificationsRoute,
+    templatesRoute,
+    collectionsRoute,
     accessRulesRoute,
     healthRoute,
     settingsRoute,

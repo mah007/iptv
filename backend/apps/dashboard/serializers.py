@@ -1,4 +1,4 @@
-"""Admin aggregates: KPIs, charts, the activity feed and system health."""
+"""Admin aggregates: KPIs, charts, the activity feed, system health and storage."""
 
 from typing import Any
 
@@ -221,3 +221,90 @@ class HealthSerializer(serializers.Serializer[Any]):
     redis = RedisHealthSerializer(many=True)
     database = DatabaseHealthSerializer()
     grafana_url = serializers.CharField(help_text="Base URL for Grafana links; empty: none.")
+
+
+# --- Storage -----------------------------------------------------------------------------
+
+
+class LibraryUsageSerializer(serializers.Serializer[Any]):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    kind = serializers.CharField(help_text="movies, series or mixed.")
+    files = serializers.IntegerField(help_text="Source files present in the library.")
+    sources = serializers.IntegerField(help_text="Bytes of those files.")
+    renditions = serializers.IntegerField(
+        help_text="Bytes of their renditions on disk (links to a source count nothing)."
+    )
+
+
+class GrowthPointSerializer(serializers.Serializer[Any]):
+    date = serializers.DateField(help_text="A calendar day in the admin's time zone.")
+    sources = serializers.IntegerField(help_text="Source bytes at the end of the day.")
+    renditions = serializers.IntegerField(help_text="Rendition bytes at the end of the day.")
+
+
+class TitleUsageSerializer(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=[("movie", "Movie"), ("series", "Series")])
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    title_ar = serializers.CharField()
+    year = serializers.IntegerField(allow_null=True)
+    files = serializers.IntegerField(help_text="Source files present (a series: every episode).")
+    sources = serializers.IntegerField()
+    renditions = serializers.IntegerField()
+
+
+class StorageUsageSerializer(serializers.Serializer[Any]):
+    as_of = serializers.DateTimeField(help_text="When the figures were computed (cached 30 s).")
+    time_zone = serializers.CharField(help_text="The admin's time zone; days are its days.")
+    files = serializers.IntegerField(help_text="Source files present in every library.")
+    sources = serializers.IntegerField(help_text="Bytes of the source files.")
+    renditions = serializers.IntegerField(help_text="Bytes of the renditions on disk.")
+    libraries = LibraryUsageSerializer(many=True, help_text="Largest first.")
+    growth = GrowthPointSerializer(many=True, help_text="The last 90 days, oldest first.")
+    largest = TitleUsageSerializer(many=True, help_text="The 10 titles that take the most space.")
+
+
+# --- Watch history -----------------------------------------------------------------------
+
+
+class WatchedTitleSerializer(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=[("movie", "Movie"), ("series", "Series")])
+    id = serializers.UUIDField(help_text="The movie, or the series of the episode.")
+    title = serializers.CharField()
+    title_ar = serializers.CharField()
+    season = serializers.IntegerField(allow_null=True, help_text="Episodes only.")
+    episode = serializers.IntegerField(allow_null=True, help_text="Episodes only.")
+    episode_title = serializers.CharField(help_text="Episodes only; may be empty.")
+
+
+class WatchHistorySerializer(serializers.Serializer[Any]):
+    id = serializers.UUIDField()
+    title = serializers.SerializerMethodField()
+    position_ms = serializers.IntegerField()
+    duration_ms = serializers.IntegerField()
+    completed = serializers.BooleanField()
+    updated_at = serializers.DateTimeField(help_text="When the customer last watched it.")
+
+    @extend_schema_field(WatchedTitleSerializer)
+    def get_title(self, row: Any) -> dict[str, Any]:
+        if row.episode is not None:
+            show = row.episode.season.series
+            return {
+                "kind": "series",
+                "id": str(show.pk),
+                "title": show.title,
+                "title_ar": show.title_ar,
+                "season": row.episode.season.number,
+                "episode": row.episode.number,
+                "episode_title": row.episode.title,
+            }
+        return {
+            "kind": "movie",
+            "id": str(row.movie.pk),
+            "title": row.movie.title,
+            "title_ar": row.movie.title_ar,
+            "season": None,
+            "episode": None,
+            "episode_title": "",
+        }

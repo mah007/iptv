@@ -12,6 +12,7 @@ from apps.accounts import services as accounts
 from apps.accounts.models import Device, User
 from apps.audit import services as audit
 from apps.audit.services import AuditTarget
+from apps.billing import services as billing
 from apps.catalog.models import Category
 from apps.conftest import AdminFactory, CustomerFactory
 from apps.dashboard import activity
@@ -159,3 +160,23 @@ def test_changes_need_audit_view_and_customer_feeds_customers_view(
 def test_subjects_skip_unknown_types() -> None:
     entry = audit.record("thing.happen", actor=None, target=AuditTarget("unknown.thing", "1"))
     assert activity.subjects([entry]) == {}
+
+
+def test_billing_entries_are_labelled_and_in_the_customers_feed(
+    owner: User, owner_client: APIClient, make_customer: CustomerFactory
+) -> None:
+    sara = make_customer(name="Sara")
+    plan = billing.create_plan(
+        {"code": "gold", "name_en": "Gold", "name_ar": "ذهبي", "price": 4900, "duration_days": 30},
+        category_ids=[],
+        actor=owner,
+    )
+    payment = billing.record_manual_payment(user=sara, plan=plan, actor=owner)
+    rows = owner_client.get(URL, {"customer": str(sara.pk)}, headers=ADMIN).json()["results"]
+    by_type = {row["target_type"]: row for row in rows}
+    assert by_type["billing.subscription"]["target_label"] == "Gold"
+    assert by_type["billing.subscription"]["customer"]["id"] == str(sara.pk)
+    assert by_type["billing.payment"]["target_id"] == str(payment.pk)
+    feed = owner_client.get(URL, headers=ADMIN).json()["results"]
+    created = next(row for row in feed if row["action"] == "plan.create")
+    assert created["target_label"] == "Gold"

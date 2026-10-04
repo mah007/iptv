@@ -48,12 +48,29 @@ import {
 } from "@smart-iptv/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, getRouteApi } from "@tanstack/react-router";
-import { Eye, EyeOff, FileVideo, FolderTree, Pencil, RefreshCw, Star } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  FileVideo,
+  FolderTree,
+  Layers,
+  Pencil,
+  RefreshCw,
+  Repeat,
+  Star,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError, RequirePermission } from "../components/states";
 import { imageSource, localName, localTitle, pickImage } from "../features/catalog/artwork";
+import {
+  EpisodeMediaSheet,
+  ImagesPanel,
+  MediaPanel,
+  RematchDialog,
+  ReprocessButton,
+} from "../features/titles/media-panels";
 import { SyntheticBadge, type TitleKind } from "../features/titles/synthetic-badge";
 import { TitleEditorSheet, type TitleDetail } from "../features/titles/title-editor";
 import { LIBRARY_VIEW, useCan } from "../lib/auth";
@@ -160,7 +177,19 @@ function FilesTable({ files }: { files: readonly MediaFile[] }) {
   );
 }
 
-function SeasonTable({ season }: { season: Season }) {
+interface EpisodeRef {
+  id: string;
+  code: string;
+  title: string;
+}
+
+function SeasonTable({
+  season,
+  onMedia,
+}: {
+  season: Season;
+  onMedia: (episode: EpisodeRef) => void;
+}) {
   const { t, i18n } = useTranslation();
   return (
     <div className="overflow-x-auto">
@@ -168,13 +197,30 @@ function SeasonTable({ season }: { season: Season }) {
         <FilesHeader withEpisode />
         <TableBody>
           {season.episodes.flatMap((episode) => {
+            const code = episodeCode(season.number, episode.number);
+            const name = localTitle(episode, i18n.language);
             const label = (
               <TableCell className="max-w-56">
-                <span className="block font-mono text-xs text-muted-foreground">
-                  <bdi dir="ltr">{episodeCode(season.number, episode.number)}</bdi>
+                <span className="flex items-center gap-1">
+                  <span className="font-mono text-xs text-muted-foreground">
+                    <bdi dir="ltr">{code}</bdi>
+                  </span>
+                  {episode.files.length > 0 ? (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={t("titleMedia.episodeMedia", { code })}
+                      title={t("titleMedia.episodeMedia", { code })}
+                      onClick={() => {
+                        onMedia({ id: episode.id, code, title: name });
+                      }}
+                    >
+                      <Layers aria-hidden="true" />
+                    </Button>
+                  ) : null}
                 </span>
                 <span className="block truncate text-ui text-foreground">
-                  <bdi>{localTitle(episode, i18n.language) || t("titles.seasons.untitled")}</bdi>
+                  <bdi>{name || t("titles.seasons.untitled")}</bdi>
                 </span>
               </TableCell>
             );
@@ -203,13 +249,14 @@ function SeasonTable({ season }: { season: Season }) {
 
 function SeasonsCard({ series }: { series: SeriesDetail }) {
   const { t } = useTranslation();
+  const [media, setMedia] = useState<EpisodeRef | null>(null);
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t("titles.seasons.title")}</CardTitle>
         <CardDescription>{t("titles.seasons.description")}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3">
+      <CardContent className="grid grid-cols-1 gap-3">
         {series.seasons.length === 0 ? (
           <p className="text-ui text-muted-foreground">{t("titles.seasons.none")}</p>
         ) : (
@@ -219,7 +266,7 @@ function SeasonsCard({ series }: { series: SeriesDetail }) {
               <details
                 key={season.id}
                 open={index === 0 || onDisk > 0}
-                className="rounded-input border border-border"
+                className="min-w-0 rounded-input border border-border"
               >
                 <summary className="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-ui font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <span>
@@ -238,7 +285,7 @@ function SeasonsCard({ series }: { series: SeriesDetail }) {
                   {season.episodes.length === 0 ? (
                     <p className="p-3 text-ui text-muted-foreground">{t("titles.seasons.none")}</p>
                   ) : (
-                    <SeasonTable season={season} />
+                    <SeasonTable season={season} onMedia={setMedia} />
                   )}
                 </div>
               </details>
@@ -246,6 +293,12 @@ function SeasonsCard({ series }: { series: SeriesDetail }) {
           })
         )}
       </CardContent>
+      <EpisodeMediaSheet
+        episode={media}
+        onOpenChange={(open) => {
+          if (!open) setMedia(null);
+        }}
+      />
     </Card>
   );
 }
@@ -485,7 +538,9 @@ function TitleView({
   const { t, i18n } = useTranslation();
   const can = useCan();
   const manage = can("library.manage");
+  const rematchable = manage && can("library.review");
   const [editing, setEditing] = useState(false);
+  const [rematching, setRematching] = useState(false);
   const hidden = title.status === "hidden";
   const name = localTitle(title, i18n.language);
 
@@ -524,6 +579,18 @@ function TitleView({
               <RefreshCw aria-hidden="true" />
               {t("titles.detail.refresh")}
             </Button>
+            {rematchable ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setRematching(true);
+                }}
+              >
+                <Repeat aria-hidden="true" />
+                {t("titleMedia.rematch.action")}
+              </Button>
+            ) : null}
+            {kind === "series" ? <ReprocessButton titleId={title.id} /> : null}
             <Button
               variant="secondary"
               pending={saving}
@@ -570,6 +637,17 @@ function TitleView({
           </CardContent>
         </Card>
       )}
+      {kind === "movie" ? <MediaPanel titleId={title.id} /> : null}
+      <ImagesPanel titleId={title.id} kind={kind} />
+      {rematchable && rematching ? (
+        <RematchDialog
+          titleId={title.id}
+          kind={kind}
+          initialQuery={title.title}
+          open={rematching}
+          onOpenChange={setRematching}
+        />
+      ) : null}
       {manage ? (
         <TitleEditorSheet
           title={title}

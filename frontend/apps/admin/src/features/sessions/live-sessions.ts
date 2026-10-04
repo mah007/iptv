@@ -1,7 +1,10 @@
-import { getSessionsStreamUrl } from "@smart-iptv/api";
-import { useState } from "react";
+import { getSessionsStreamUrl, useSessionsList, type Session } from "@smart-iptv/api";
+import { useMemo, useState } from "react";
 
-import { useEventStream, type StreamState } from "../../lib/event-stream";
+import { FALLBACK_POLL_MS, useEventStream, type StreamState } from "../../lib/event-stream";
+
+/** Open sessions read per poll while the feed is offline (far above any real concurrency). */
+const FALLBACK_PAGE_SIZE = 500;
 
 /**
  * A live session as the session feed sends it (`apps.playback.feed.entry`;
@@ -67,7 +70,30 @@ export function applySessionEvent(
   return current;
 }
 
-/** Live sessions from the SSE feed (a snapshot, then a diff every 2 s when something changed). */
+/** A session of the REST list in the feed's shape (the edge is not known there). */
+export function fromListed(session: Session): LiveSession {
+  return {
+    id: session.id,
+    user: { id: session.user.id, name: session.user.name || session.user.username },
+    device: session.device
+      ? { id: session.device.id, name: session.device.name }
+      : { id: "", name: "" },
+    title: { kind: session.title_kind, id: session.title_id, name: session.title_name },
+    rendition: session.rendition,
+    ip: session.ip,
+    country: session.country,
+    edge: "",
+    started_at: session.started_at,
+    last_seen_at: session.last_heartbeat_at,
+    bytes_sent: session.bytes_sent,
+  };
+}
+
+/**
+ * Live sessions from the SSE feed (a snapshot, then a diff every 2 s when
+ * something changed). While the feed is offline, the open sessions are polled
+ * from the REST list every 5 s instead.
+ */
 export function useLiveSessions(): {
   sessions: ReadonlyMap<string, LiveSession>;
   state: StreamState;
@@ -79,5 +105,18 @@ export function useLiveSessions(): {
     setSessions((current) => applySessionEvent(current, name, data));
     if (name === "snapshot") setReceived(true);
   });
+  const offline = state === "offline";
+  const polled = useSessionsList(
+    { active: true, page_size: FALLBACK_PAGE_SIZE },
+    { query: { enabled: offline, refetchInterval: offline ? FALLBACK_POLL_MS : false } },
+  );
+  const listed = useMemo(
+    () =>
+      polled.data
+        ? new Map(polled.data.results.map((session) => [session.id, fromListed(session)]))
+        : null,
+    [polled.data],
+  );
+  if (offline && listed) return { sessions: listed, state, received: true };
   return { sessions, state, received };
 }

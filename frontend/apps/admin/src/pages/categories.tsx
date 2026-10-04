@@ -464,13 +464,18 @@ function Categories() {
       >
         <TabsList>
           {KINDS.map((value) => (
-            <TabsTrigger key={value} value={value}>
+            <TabsTrigger key={value} value={value} aria-controls="categories-panel">
               {t(`categories.kinds.${value}`)}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
-      <Card className="p-0">
+      <Card
+        className="p-0"
+        id="categories-panel"
+        role="tabpanel"
+        aria-label={t(`categories.kinds.${kind}`)}
+      >
         {query.isPending ? (
           <div className="grid gap-2 p-4" role="status" aria-live="polite">
             <span className="sr-only">{t("layout.loading")}</span>

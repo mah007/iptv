@@ -1537,6 +1537,66 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/history:
+    get:
+      operationId: customers_history
+      description: "GET /api/v1/admin/customers/{id}/history: what the customer watched,
+        newest first."
+      summary: A customer's watch history (progress per title), newest first
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedWatchHistoryList"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/customers/{id}/password-invite:
     post:
       operationId: customers_password_invite
@@ -5146,6 +5206,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/SettingEntry"
           description: ""
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/storage:
+    get:
+      operationId: storage_usage
+      description: Storage usage (SPEC §8.3 Storage); the cleanup itself is `admin/renditions/cleanup`.
+      summary: "Storage usage: by library, sources against renditions, growth over
+        90 days and the largest titles (the admin's time zone; cached for 30 s)"
+      tags:
+        - storage
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageUsage"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
         default:
           description: Error (RFC 9457 problem details).
           content:
@@ -8960,6 +9055,23 @@ components:
         - name_ar
         - name_en
         - tmdb_id
+    GrowthPoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: A calendar day in the admin's time zone.
+        sources:
+          type: integer
+          description: Source bytes at the end of the day.
+        renditions:
+          type: integer
+          description: Rendition bytes at the end of the day.
+      required:
+        - date
+        - renditions
+        - sources
     HdrKind:
       enum:
         - sdr
@@ -9515,6 +9627,34 @@ components:
         pending:
           type: integer
           default: 0
+    LibraryUsage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+          description: movies, series or mixed.
+        files:
+          type: integer
+          description: Source files present in the library.
+        sources:
+          type: integer
+          description: Bytes of those files.
+        renditions:
+          type: integer
+          description: Bytes of their renditions on disk (links to a source count
+            nothing).
+      required:
+        - files
+        - id
+        - kind
+        - name
+        - renditions
+        - sources
     LibraryWriteRequest:
       type: object
       description: |-
@@ -10942,6 +11082,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TranscodeJob"
+    PaginatedWatchHistoryList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchHistory"
     Parse:
       type: object
       description: What the file name says (P2 `ParseResult.to_json`).
@@ -13516,6 +13681,49 @@ components:
         * `int` - INT
         * `float` - FLOAT
         * `str` - STR
+    StorageUsage:
+      type: object
+      properties:
+        as_of:
+          type: string
+          format: date-time
+          description: When the figures were computed (cached 30 s).
+        time_zone:
+          type: string
+          description: The admin's time zone; days are its days.
+        files:
+          type: integer
+          description: Source files present in every library.
+        sources:
+          type: integer
+          description: Bytes of the source files.
+        renditions:
+          type: integer
+          description: Bytes of the renditions on disk.
+        libraries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LibraryUsage"
+          description: Largest first.
+        growth:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrowthPoint"
+          description: The last 90 days, oldest first.
+        largest:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleUsage"
+          description: The 10 titles that take the most space.
+      required:
+        - as_of
+        - files
+        - growth
+        - largest
+        - libraries
+        - renditions
+        - sources
+        - time_zone
     StreamPoint:
       type: object
       properties:
@@ -14082,6 +14290,38 @@ components:
       description: |-
         * `movie` - Movie
         * `series` - Series
+    TitleUsage:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/TitleType"
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        title_ar:
+          type: string
+        year:
+          type:
+            - integer
+            - "null"
+        files:
+          type: integer
+          description: "Source files present (a series: every episode)."
+        sources:
+          type: integer
+        renditions:
+          type: integer
+      required:
+        - files
+        - id
+        - kind
+        - renditions
+        - sources
+        - title
+        - title_ar
+        - year
     TitleVisibility:
       enum:
         - hidden
@@ -14350,6 +14590,67 @@ components:
         * `active` - Active
         * `suspended` - Suspended
         * `disabled` - Disabled
+    WatchHistory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          allOf:
+            - $ref: "#/components/schemas/WatchedTitle"
+          readOnly: true
+        position_ms:
+          type: integer
+        duration_ms:
+          type: integer
+        completed:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+          description: When the customer last watched it.
+      required:
+        - completed
+        - duration_ms
+        - id
+        - position_ms
+        - title
+        - updated_at
+    WatchedTitle:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/TitleType"
+        id:
+          type: string
+          format: uuid
+          description: The movie, or the series of the episode.
+        title:
+          type: string
+        title_ar:
+          type: string
+        season:
+          type:
+            - integer
+            - "null"
+          description: Episodes only.
+        episode:
+          type:
+            - integer
+            - "null"
+          description: Episodes only.
+        episode_title:
+          type: string
+          description: Episodes only; may be empty.
+      required:
+        - episode
+        - episode_title
+        - id
+        - kind
+        - season
+        - title
+        - title_ar
     WebhookEvent:
       type: object
       properties:

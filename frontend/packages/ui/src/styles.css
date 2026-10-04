@@ -25,6 +25,8 @@
   --input: #d4d4d8;
   --primary: #0f766e;
   --primary-foreground: #ffffff;
+  /* Hover keeps text contrast: darker under white text, lighter under dark text. */
+  --primary-hover: color-mix(in oklab, var(--primary) 88%, black);
   --ring: #0f766e;
   --overlay: rgb(9 9 11 / 0.45);
 
@@ -88,6 +90,7 @@
   --input: #3f3f46;
   --primary: #2dd4bf;
   --primary-foreground: #042f2e;
+  --primary-hover: color-mix(in oklab, var(--primary) 85%, white);
   --ring: #2dd4bf;
   --overlay: rgb(0 0 0 / 0.65);
 
@@ -138,6 +141,7 @@
   --color-input: var(--input);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
   --color-ring: var(--ring);
   --color-overlay: var(--overlay);
   --color-success: var(--success);

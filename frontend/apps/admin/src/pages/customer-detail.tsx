@@ -27,7 +27,7 @@ import {
   useFormatters,
 } from "@smart-iptv/ui";
 import { Link, getRouteApi } from "@tanstack/react-router";
-import { Pause, Pencil, Play } from "lucide-react";
+import { KeyRound, Pause, Pencil, Play } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -42,6 +42,13 @@ import {
 } from "../features/customers/customer-editors";
 import { DevicesPanel } from "../features/customers/devices-panel";
 import { ExpiryText } from "../features/customers/expiry";
+import {
+  CustomerBilling,
+  CustomerSubscriptions,
+  GoverningSubscription,
+  InviteDialog,
+} from "../features/customers/billing-panels";
+import { CustomerHistory } from "../features/customers/history-panel";
 import { CustomerSessions } from "../features/customers/sessions-panel";
 import { CUSTOMER_TABS, type CustomerTab } from "../features/customers/search";
 import { useCan } from "../lib/auth";
@@ -49,7 +56,7 @@ import { usePageTitle } from "../lib/page-title";
 
 const route = getRouteApi("/app/customers/$customerId");
 
-type Editor = "profile" | "access" | "suspend" | "reactivate" | null;
+type Editor = "profile" | "access" | "suspend" | "reactivate" | "invite" | null;
 
 function categoryLabel(category: AccessProfile["categories"][number], language: string): string {
   return language.startsWith("ar") && category.name_ar ? category.name_ar : category.name_en;
@@ -286,6 +293,15 @@ function CustomerView({ customer }: { customer: CustomerDetail }) {
                 <Pencil aria-hidden="true" />
                 {t("customers.detail.editProfile")}
               </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setEditor("invite");
+                }}
+              >
+                <KeyRound aria-hidden="true" />
+                {t("customerBilling.invite.action")}
+              </Button>
               {suspended ? (
                 <Button
                   variant="secondary"
@@ -328,7 +344,16 @@ function CustomerView({ customer }: { customer: CustomerDetail }) {
             {t("customers.detail.tabs.devices")}
             <Badge className="tabular-nums">{deviceCount}</Badge>
           </TabsTrigger>
+          {can("subscriptions.view") ? (
+            <TabsTrigger value="subscriptions">
+              {t("customers.detail.tabs.subscriptions")}
+            </TabsTrigger>
+          ) : null}
+          {can("billing.view") ? (
+            <TabsTrigger value="billing">{t("customers.detail.tabs.billing")}</TabsTrigger>
+          ) : null}
           <TabsTrigger value="sessions">{t("customers.detail.tabs.sessions")}</TabsTrigger>
+          <TabsTrigger value="history">{t("customers.detail.tabs.history")}</TabsTrigger>
           <TabsTrigger value="security">{t("customers.detail.tabs.security")}</TabsTrigger>
           <TabsTrigger value="activity">{t("customers.detail.tabs.activity")}</TabsTrigger>
         </TabsList>
@@ -345,13 +370,23 @@ function CustomerView({ customer }: { customer: CustomerDetail }) {
               }
             />
             <ProfileCard customer={customer} />
+            {can("subscriptions.view") ? <GoverningSubscription customer={customer} /> : null}
           </div>
+        </TabsContent>
+        <TabsContent value="subscriptions">
+          {can("subscriptions.view") ? <CustomerSubscriptions customer={customer} /> : null}
+        </TabsContent>
+        <TabsContent value="billing">
+          {can("billing.view") ? <CustomerBilling customer={customer} /> : null}
         </TabsContent>
         <TabsContent value="devices">
           <DevicesPanel customer={customer} />
         </TabsContent>
         <TabsContent value="sessions">
           <CustomerSessions customerId={customer.id} customerName={name} />
+        </TabsContent>
+        <TabsContent value="history">
+          <CustomerHistory customerId={customer.id} />
         </TabsContent>
         <TabsContent value="security">
           <Card className="p-0">
@@ -389,6 +424,7 @@ function CustomerView({ customer }: { customer: CustomerDetail }) {
           <EditAccessSheet {...editorProps("access")} />
           <SuspendDialog {...editorProps("suspend")} />
           <ReactivateDialog {...editorProps("reactivate")} />
+          <InviteDialog {...editorProps("invite")} />
         </>
       ) : null}
     </>

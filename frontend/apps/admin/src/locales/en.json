@@ -21,7 +21,9 @@
       "security": "Security",
       "system": "System",
       "content": "Content",
-      "processing": "Processing"
+      "processing": "Processing",
+      "commerce": "Commerce",
+      "engage": "Engage"
     },
     "sessions": "Live sessions",
     "libraries": "Libraries",
@@ -31,7 +33,15 @@
     "categories": "Categories",
     "transcode": "Transcode jobs",
     "accessRules": "Access rules",
-    "health": "Health"
+    "health": "Health",
+    "subscriptions": "Subscriptions",
+    "collections": "Collections",
+    "plans": "Plans",
+    "payments": "Payments",
+    "invoices": "Invoices",
+    "notifications": "Notifications",
+    "templates": "Templates",
+    "storage": "Storage"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -129,7 +139,28 @@
     "nowWatching": "Now watching",
     "recentActivity": "Recent activity",
     "recentlyAdded": "Recently added",
-    "recentlyAddedEmpty": "No titles yet. Add a library and scan it."
+    "recentlyAddedEmpty": "No titles yet. Add a library and scan it.",
+    "billing": {
+      "title": "Billing",
+      "active": "Active subscriptions",
+      "activeDetail": "{{grace}} in grace · {{suspended}} suspended",
+      "revenue": "Revenue this month",
+      "revenueDetail": "vs last month",
+      "mrr": "Monthly recurring revenue",
+      "mrrNet": "{{amount}} before VAT",
+      "expiring": "Subscriptions ending in 7 days",
+      "expiringDetail": "Remind or renew before they end",
+      "trials": "Active trials",
+      "trialRequests_one": "{{formatted}} request waits for approval",
+      "trialRequests_other": "{{formatted}} requests wait for approval",
+      "churn": "Ended in 30 days",
+      "newSubscriptions_one": "{{formatted}} new subscription in 30 days",
+      "newSubscriptions_other": "{{formatted}} new subscriptions in 30 days",
+      "byPlan": "Subscribers by plan",
+      "byPlanHelp": "Active and grace subscriptions.",
+      "subscribers": "Subscribers",
+      "noSubscribers": "No subscribers yet."
+    }
   },
   "customers": {
     "title": "Customers",
@@ -280,7 +311,10 @@
         "devices": "Devices & credentials",
         "sessions": "Sessions",
         "security": "Security",
-        "activity": "Activity"
+        "activity": "Activity",
+        "subscriptions": "Subscriptions",
+        "billing": "Payments & invoices",
+        "history": "Watch history"
       },
       "accessTitle": "Access profile",
       "profileTitle": "Profile",
@@ -650,7 +684,60 @@
       "series_update": "Series changed",
       "review_resolve": "Match review resolved",
       "review_skip": "Match review skipped",
-      "session_kill": "Playback stopped"
+      "session_kill": "Playback stopped",
+      "auth_token_reuse": "Sign-in token reused",
+      "customer_password_invite": "Portal password link sent",
+      "customer_password_set": "Portal password set",
+      "customer_created": "Customer signed up",
+      "movie_refresh": "Movie metadata refreshed",
+      "series_refresh": "Series metadata refreshed",
+      "payment_record": "Payment recorded",
+      "payment_succeed": "Payment succeeded",
+      "payment_fail": "Payment failed",
+      "payment_refund": "Payment refunded",
+      "payment_checkout": "Checkout started",
+      "payment_webhook": "Payment webhook received",
+      "payment_amount_mismatch": "Payment amount mismatch",
+      "plan_create": "Plan created",
+      "plan_update": "Plan changed",
+      "plan_delete": "Plan deleted",
+      "plan_reorder": "Plans reordered",
+      "plan_migrate_subscriptions": "Subscribers moved to the new plan version",
+      "subscription_activate": "Subscription activated",
+      "subscription_start": "Subscription started",
+      "subscription_renew": "Subscription renewed",
+      "subscription_extend": "Subscription extended",
+      "subscription_change_plan": "Plan changed",
+      "subscription_cancel": "Subscription cancelled",
+      "subscription_suspend": "Subscription suspended",
+      "subscription_resume": "Subscription resumed",
+      "subscription_grace": "Grace period started",
+      "subscription_expire": "Subscription ended",
+      "subscription_merge": "Subscription merged",
+      "subscription_trial_request": "Trial requested",
+      "subscription_trial_approve": "Trial approved",
+      "invoice_number": "Invoice issued",
+      "notification_retry": "Message sent again",
+      "notification_test": "Test message sent",
+      "notification_template_create": "Template edited",
+      "notification_template_update": "Template changed",
+      "notification_template_delete": "Template restored to default",
+      "collection_create": "Collection created",
+      "collection_update": "Collection changed",
+      "collection_delete": "Collection deleted",
+      "title_image_add": "Artwork uploaded",
+      "title_image_delete": "Artwork removed",
+      "title_image_primary": "Artwork chosen",
+      "title_rematch": "Title re-matched",
+      "title_reprocess": "Title reprocessed",
+      "rendition_delete": "Rendition deleted",
+      "renditions_cleanup": "Orphaned renditions removed",
+      "track_update": "Track changed",
+      "track_upload": "Subtitle uploaded",
+      "track_delete": "Track removed",
+      "transcode_job_cancel": "Transcode job cancelled",
+      "transcode_job_priority": "Transcode priority changed",
+      "transcode_job_retry": "Transcode job retried"
     },
     "targets": {
       "accounts_user": "User",
@@ -663,7 +750,19 @@
       "catalog_movie": "Movie",
       "catalog_series": "Series",
       "catalog_matchreview": "Match review",
-      "playback_playbacksession": "Playback session"
+      "playback_playbacksession": "Playback session",
+      "billing_plan": "Plan",
+      "billing_subscription": "Subscription",
+      "billing_payment": "Payment",
+      "billing_invoice": "Invoice",
+      "catalog_collection": "Collection",
+      "notifications_notificationtemplate": "Template",
+      "notifications_notificationoutbox": "Message",
+      "media_rendition": "Rendition",
+      "media_transcodejob": "Transcode job",
+      "media_audiotrack": "Audio track",
+      "media_subtitletrack": "Subtitle track",
+      "catalog_mediaimage": "Artwork"
     }
   },
   "settings": {
@@ -751,6 +850,22 @@
         "https_port": {
           "label": "HTTPS port",
           "description": "The HTTPS port reported to IPTV apps."
+        },
+        "password_min_length": {
+          "label": "Shortest IPTV password",
+          "description": "The shortest password an admin may choose for an IPTV app login."
+        },
+        "auth_failures_per_username": {
+          "label": "Failed sign-ins per username",
+          "description": "Failed IPTV app sign-ins per username before sign-ins pause for the window."
+        },
+        "auth_failures_per_ip": {
+          "label": "Failed sign-ins per IP address",
+          "description": "Failed IPTV app sign-ins per client IP address before sign-ins pause for the window."
+        },
+        "auth_failure_window_s": {
+          "label": "Failed sign-in window",
+          "description": "The window, in seconds, over which failed IPTV app sign-ins are counted."
         }
       },
       "playback": {
@@ -773,12 +888,36 @@
         "realtime_transcode_max": {
           "label": "Real-time transcodes at once",
           "description": "The cap on real-time transcoding."
+        },
+        "progress_min_interval_s": {
+          "label": "Progress save interval",
+          "description": "Progress reports closer together than this, in seconds, are not saved."
+        },
+        "watched_ratio": {
+          "label": "Watched threshold",
+          "description": "The share of a title's runtime after which it counts as watched, e.g. 0.9 for 90%."
         }
       },
       "library": {
         "watcher_stable_s": {
           "label": "Wait before scanning a new file",
           "description": "A new file is scanned once its size hasn't changed for this many seconds."
+        },
+        "hls_enabled": {
+          "label": "HLS ladder",
+          "description": "Encode the HLS ladder (adaptive streaming for the portal) at ingest."
+        },
+        "uhd_enabled": {
+          "label": "4K versions",
+          "description": "Make a UHD version of 4K sources for plans with 2160p quality."
+        },
+        "uhd_cpu_encode": {
+          "label": "4K encodes on CPU",
+          "description": "Allow UHD HEVC encodes on transcoders without a GPU. They are very slow; a suitable source is kept without encoding."
+        },
+        "rendition_retention_days": {
+          "label": "Rendition retention",
+          "description": "Days the renditions of a removed file are kept before the cleanup deletes them."
         }
       },
       "metadata": {
@@ -811,6 +950,42 @@
         "grace_days": {
           "label": "Grace days",
           "description": "Days a subscription keeps working after it ends."
+        },
+        "prices_include_vat": {
+          "label": "Prices include VAT",
+          "description": "Plan prices include VAT; invoices carve the VAT out of them."
+        },
+        "invoice_prefix": {
+          "label": "Invoice number prefix",
+          "description": "The prefix of invoice numbers (PREFIX-YEAR-SEQUENCE)."
+        },
+        "vat_number": {
+          "label": "VAT number",
+          "description": "The seller's VAT registration number, printed on invoices."
+        },
+        "seller_address": {
+          "label": "Seller address",
+          "description": "The seller's address, printed on invoices."
+        },
+        "manual_instructions_en": {
+          "label": "Manual payment instructions (English)",
+          "description": "How to pay by bank transfer or cash, in English."
+        },
+        "manual_instructions_ar": {
+          "label": "Manual payment instructions (Arabic)",
+          "description": "How to pay by bank transfer or cash, in Arabic."
+        },
+        "stripe_enabled": {
+          "label": "Stripe card payments",
+          "description": "Offer card payments through Stripe. The server needs its Stripe keys."
+        },
+        "moyasar_enabled": {
+          "label": "Moyasar payments",
+          "description": "Offer mada, Apple Pay and STC Pay through Moyasar. The server needs its Moyasar keys."
+        },
+        "checkout_ttl_hours": {
+          "label": "Checkout lifetime",
+          "description": "Unpaid checkouts are voided after this many hours."
         }
       },
       "trials": {
@@ -821,12 +996,44 @@
         "limit_per_phone": {
           "label": "Trials per phone number",
           "description": "Free trials allowed per phone number."
+        },
+        "require_approval": {
+          "label": "Trials need approval",
+          "description": "A customer's free trial waits for an admin's approval."
         }
       },
       "security": {
         "admin_idle_timeout_min": {
           "label": "Admin idle timeout",
           "description": "Admins are signed out after this many idle minutes."
+        },
+        "customer_session_days": {
+          "label": "Portal session length",
+          "description": "Portal sign-ins end after this many idle days."
+        },
+        "customer_access_token_ttl_s": {
+          "label": "App access token lifetime",
+          "description": "The lifetime of app access tokens, in seconds."
+        },
+        "customer_refresh_token_days": {
+          "label": "App sign-in length",
+          "description": "App sign-ins end after this many days without a token refresh."
+        },
+        "customer_auth_requests_per_ip": {
+          "label": "Customer sign-in attempts per IP address",
+          "description": "Failed customer sign-ins and password-reset requests per client IP address in 15 minutes before they are refused."
+        },
+        "password_reset_ttl_min": {
+          "label": "Password reset link lifetime",
+          "description": "A password-reset link works for this many minutes."
+        },
+        "password_invite_ttl_days": {
+          "label": "Password invitation lifetime",
+          "description": "A set-your-password invitation works for this many days."
+        },
+        "password_reset_emails_per_hour": {
+          "label": "Password reset emails per hour",
+          "description": "Password-reset emails one customer can receive per hour."
         }
       },
       "features": {
@@ -1293,7 +1500,7 @@
     "connection": {
       "open": "Live",
       "connecting": "Connecting…",
-      "offline": "Reconnecting…"
+      "offline": "Reconnecting; refreshing every 5 s"
     },
     "stats": {
       "streams": "Streams now",
@@ -1625,7 +1832,9 @@
         "review": "Review queue",
         "transcode": "Transcode jobs",
         "audit": "Audit log",
-        "health": "System health"
+        "health": "System health",
+        "subscriptions": "Subscriptions",
+        "payments": "Payments"
       }
     }
   },
@@ -1647,5 +1856,715 @@
     "title": "Still there?",
     "description": "You'll be signed out in {{time}} because you've been inactive.",
     "stay": "Stay signed in"
+  },
+  "billing": {
+    "pickers": {
+      "customer": "Choose a customer",
+      "customerSearch": "Search by name, phone, email or username…",
+      "plan": "Choose a plan"
+    }
+  },
+  "plans": {
+    "title": "Plans",
+    "description": "What customers can buy: price, length, limits and content. Changes apply to new subscriptions.",
+    "new": "New plan",
+    "edit": "Edit",
+    "actions": "Actions for {{name}}",
+    "moveUp": "Move earlier",
+    "moveDown": "Move later",
+    "activate": "Put on sale",
+    "deactivate": "Take off sale",
+    "activated": "Plan is on sale",
+    "deactivated": "Plan taken off sale",
+    "inactive": "Off sale",
+    "reordered": "Plan order saved",
+    "version": "Version {{version}}",
+    "subscribers_one": "{{formatted}} active subscriber",
+    "subscribers_other": "{{formatted}} active subscribers",
+    "categoriesCount_one": "{{count}} category",
+    "categoriesCount_other": "{{count}} categories",
+    "duration": {
+      "months_one": "per month",
+      "months_other": "per {{count}} months",
+      "days_one": "per day",
+      "days_other": "per {{count}} days",
+      "both": "per {{months}} months and {{days}} days"
+    },
+    "empty": {
+      "title": "No plans yet",
+      "description": "Create the plans customers subscribe to, or trial plans for free trials."
+    },
+    "migrate": {
+      "action": "Move subscribers to this version",
+      "title": "Move subscribers of {{name}} to the current version?",
+      "description_one": "{{count}} subscription keeps its current end date but takes the plan's current limits and content. Type the plan code to confirm.",
+      "description_other": "{{count}} subscriptions keep their end dates but take the plan's current limits and content. Type the plan code to confirm.",
+      "confirm": "Move subscribers",
+      "done_one": "{{count}} subscription moved",
+      "done_other": "{{count}} subscriptions moved"
+    },
+    "delete": {
+      "action": "Delete plan",
+      "title": "Delete {{name}}?",
+      "description": "Nobody has bought this plan, so it can be deleted. This can't be undone.",
+      "done": "Plan deleted"
+    },
+    "preview": {
+      "title": "In the portal checkout",
+      "unnamed": "Plan name",
+      "free": "Free",
+      "vat": "Prices include VAT.",
+      "streams_one": "{{count}} screen at a time",
+      "streams_other": "{{count}} screens at a time",
+      "devices_one": "{{count}} device",
+      "devices_other": "{{count}} devices"
+    },
+    "form": {
+      "newTitle": "New plan",
+      "editTitle": "Edit plan",
+      "description": "The portal shows plans in this order. Prices are entered before VAT is added.",
+      "identity": "Name",
+      "price": "Price and length",
+      "limits": "Limits",
+      "availability": "Availability",
+      "create": "Create plan",
+      "created": "Plan created",
+      "saved": "Plan saved",
+      "versionTitle": "Existing subscriptions keep their snapshot",
+      "versionNotice_one": "Changes apply to new subscriptions. {{count}} active subscription keeps what it bought until you move it to the new version.",
+      "versionNotice_other": "Changes apply to new subscriptions. {{count}} active subscriptions keep what they bought until you move them to the new version."
+    },
+    "fields": {
+      "code": "Code",
+      "codeHelp": "Letters, digits, - and _. Used in links and reports.",
+      "nameEn": "Name (English)",
+      "nameAr": "Name (Arabic)",
+      "descriptionEn": "Description (English)",
+      "descriptionAr": "Description (Arabic)",
+      "price": "Price",
+      "priceHelp": "Before VAT, e.g. 29.00.",
+      "currency": "Currency",
+      "months": "Months",
+      "days": "Days",
+      "bandwidth": "Bandwidth cap (Mbps)",
+      "bandwidthHelp": "Leave empty for no cap.",
+      "download": "Downloads",
+      "categories": "Categories of this plan",
+      "active": "On sale",
+      "activeHelp": "Off: existing subscriptions continue; nobody new can buy it.",
+      "trial": "Free trial plan",
+      "trialHelp": "Used for free trials instead of being sold.",
+      "trialLimit": "Trials per phone number",
+      "trialLimitHelp": "Leave empty to use the setting."
+    },
+    "validation": {
+      "code": "Use 1 to 50 letters, digits, - or _.",
+      "name": "Enter a name of at most 100 characters.",
+      "description": "Use at most 2,000 characters.",
+      "months": "Enter 0 to 120 months.",
+      "days": "Enter 0 to 3,660 days.",
+      "duration": "A plan lasts at least one day.",
+      "price": "Enter a price such as 29 or 29.50.",
+      "currency": "Enter a three-letter currency code, e.g. SAR.",
+      "limit": "Enter a number from 1 to 50.",
+      "bandwidth": "Enter 1 to 100,000 Mbps, or leave empty.",
+      "trialLimit": "Enter 0 to 10, or leave empty."
+    }
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "description": "Every subscription with its plan, period and status. Activate, extend, change or cancel them here.",
+    "endedOn": "Ended {{date}}",
+    "trialRequest": "Trial request",
+    "reason": "Reason (optional)",
+    "columns": {
+      "customer": "Customer",
+      "plan": "Plan",
+      "status": "Status",
+      "source": "Source",
+      "starts": "Starts",
+      "ends": "Ends",
+      "actions": "Actions"
+    },
+    "sources": {
+      "manual": "Admin",
+      "payment": "Payment",
+      "trial": "Trial",
+      "import": "Import"
+    },
+    "fields": {
+      "customer": "Customer",
+      "plan": "Plan",
+      "starts": "Starts on",
+      "ends": "Ends on (optional)",
+      "note": "Note (optional)"
+    },
+    "filters": {
+      "search": "Search customers…",
+      "status": "Status",
+      "plan": "Plan",
+      "source": "Source",
+      "chipStatus": "Status: {{value}}",
+      "chipSource": "Source: {{value}}",
+      "chipPlan": "Plan: {{value}}"
+    },
+    "empty": {
+      "title": "No subscriptions yet",
+      "description": "Activate a plan for a customer, or let customers buy one in the portal."
+    },
+    "actions": {
+      "label": "Actions for the subscription of {{name}}"
+    },
+    "new": {
+      "button": "New subscription",
+      "title": "New subscription",
+      "description": "Activates the plan for the customer: their access follows the plan and they are notified.",
+      "submit": "Activate",
+      "startTrial": "Start trial",
+      "trial": "Free trial",
+      "trialHelp": "Start a trial plan instead; trial limits apply.",
+      "computedEnd": "From the plan: ends {{date}}.",
+      "endHelp": "Leave empty to use the plan's length.",
+      "done": "Subscription for {{name}} activated",
+      "trialDone": "Trial for {{name}} started"
+    },
+    "extend": {
+      "action": "Extend",
+      "title": "Extend subscription",
+      "description": "{{name}}'s subscription ends {{date}}.",
+      "days": "Days to add",
+      "preset_one": "+{{count}} day",
+      "preset_other": "+{{count}} days",
+      "newEnd": "New end: {{date}}.",
+      "range": "Enter 1 to 3,660 days.",
+      "submit": "Extend",
+      "done_one": "Subscription extended by {{count}} day",
+      "done_other": "Subscription extended by {{count}} days"
+    },
+    "change": {
+      "action": "Change plan",
+      "title": "Change plan",
+      "description": "Now on {{plan}}. The new plan's limits apply at once; the end date stays.",
+      "plan": "New plan",
+      "submit": "Change plan",
+      "done": "Plan changed"
+    },
+    "suspend": {
+      "action": "Suspend",
+      "title": "Suspend the subscription of {{name}}?",
+      "description": "Playback stops until you resume it. The end date doesn't move.",
+      "submit": "Suspend",
+      "done": "Subscription of {{name}} suspended"
+    },
+    "resume": {
+      "action": "Resume",
+      "done": "Subscription of {{name}} resumed"
+    },
+    "cancel": {
+      "action": "Cancel subscription",
+      "title": "Cancel the subscription of {{name}}?",
+      "description": "Access ends now and playback stops. Refund any payment separately.",
+      "submit": "Cancel subscription",
+      "done": "Subscription of {{name}} cancelled"
+    },
+    "approve": {
+      "action": "Approve trial",
+      "title": "Approve the trial of {{name}}?",
+      "description": "The trial starts now and the customer is notified.",
+      "done": "Trial of {{name}} approved"
+    }
+  },
+  "payments": {
+    "title": "Payments",
+    "description": "Card, Moyasar and manual payments with their status and refunds.",
+    "refunded": "{{amount}} refunded",
+    "columns": {
+      "customer": "Customer",
+      "amount": "Amount",
+      "status": "Status",
+      "method": "Method",
+      "plan": "Plan",
+      "invoice": "Invoice",
+      "paid": "Paid"
+    },
+    "providers": {
+      "manual": "Manual",
+      "stripe": "Stripe",
+      "moyasar": "Moyasar"
+    },
+    "methods": {
+      "bank_transfer": "Bank transfer",
+      "cash": "Cash",
+      "card": "Card",
+      "mada": "mada",
+      "apple_pay": "Apple Pay",
+      "stc_pay": "STC Pay",
+      "other": "Other"
+    },
+    "fields": {
+      "customer": "Customer",
+      "plan": "Plan (optional)",
+      "amount": "Amount ({{currency}})",
+      "method": "Method",
+      "reference": "Reference (optional)",
+      "paidOn": "Paid on (optional)",
+      "reason": "Reason (optional)"
+    },
+    "filters": {
+      "search": "Search customer or reference…",
+      "status": "Status",
+      "provider": "Provider",
+      "chipStatus": "Status: {{value}}",
+      "chipProvider": "Provider: {{value}}"
+    },
+    "empty": {
+      "title": "No payments yet",
+      "description": "Payments from the portal checkout and the ones you record appear here."
+    },
+    "record": {
+      "button": "Record payment",
+      "title": "Record a payment",
+      "description": "A bank transfer or cash payment you received. With a plan, it activates or renews the subscription and issues an invoice.",
+      "planHelp": "Leave empty to record money that isn't for a plan.",
+      "amountHelp": "Leave empty for the plan's price, {{price}} with VAT.",
+      "amountRequired": "Enter the amount received.",
+      "submit": "Record payment",
+      "done": "Payment from {{name}} recorded"
+    },
+    "refund": {
+      "action": "Refund",
+      "title": "Refund this payment?",
+      "description": "Up to {{amount}} can be refunded. The money goes back through the original provider.",
+      "cancelSubscription": "Also cancel the subscription",
+      "cancelHelp": "Access ends now; otherwise the subscription keeps running.",
+      "submit": "Refund",
+      "done": "{{amount}} refunded"
+    },
+    "detail": {
+      "title": "Payment",
+      "invoice": "Invoice {{number}}",
+      "providerRef": "Provider reference",
+      "recordedBy": "Recorded by",
+      "failure": "Failure",
+      "events": "Webhook events",
+      "noEvents": "No webhook events for this payment.",
+      "processed": "Processed",
+      "unprocessed": "Not processed yet",
+      "raw": "Raw provider data",
+      "reference": "Reference"
+    },
+    "validation": {
+      "amount": "Enter an amount such as 29 or 29.50.",
+      "refund": "Enter an amount up to {{max}}."
+    }
+  },
+  "invoices": {
+    "title": "Invoices",
+    "description": "Tax invoices issued for payments, in Arabic and English.",
+    "draft": "Draft",
+    "columns": {
+      "number": "Number",
+      "customer": "Customer",
+      "total": "Total",
+      "status": "Status",
+      "issued": "Issued"
+    },
+    "filters": {
+      "search": "Search number or customer…",
+      "status": "Status",
+      "chipStatus": "Status: {{value}}"
+    },
+    "empty": {
+      "title": "No invoices yet",
+      "description": "An invoice is issued for every successful payment."
+    },
+    "detail": {
+      "title": "Invoice {{number}}",
+      "draftTitle": "Draft invoice",
+      "plan": "Plan",
+      "lines": "Invoice lines",
+      "description": "Description",
+      "quantity": "Qty",
+      "amount": "Amount",
+      "subtotal": "Subtotal",
+      "vat": "VAT ({{rate}})",
+      "refunded": "Refunded",
+      "preview": "Printable invoice",
+      "english": "English",
+      "arabic": "Arabic",
+      "open": "Open to print or save"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Every message sent to customers and admins, with its delivery status.",
+    "detail": "Message",
+    "retry": "Send again",
+    "retried": "Message queued again",
+    "sentAt": "Sent",
+    "nextAttempt": "Next attempt",
+    "payload": "Values",
+    "attempts_one": "{{count}} attempt",
+    "attempts_other": "{{count}} attempts",
+    "channels": {
+      "email": "Email"
+    },
+    "columns": {
+      "when": "When",
+      "recipient": "Recipient",
+      "event": "Message",
+      "status": "Status",
+      "error": "Error",
+      "actions": "Actions"
+    },
+    "filters": {
+      "search": "Search recipient or subject…",
+      "status": "Status",
+      "chipStatus": "Status: {{value}}"
+    },
+    "empty": {
+      "title": "No messages yet",
+      "description": "Messages appear here when a subscription, payment or device event sends one."
+    }
+  },
+  "templates": {
+    "title": "Templates",
+    "description": "The messages customers receive, in Arabic and English. Use variables for names, dates and links.",
+    "empty": "No templates.",
+    "custom": "Edited",
+    "off": "Off",
+    "enabled": "Send this message",
+    "enabledHelp": "Off: this event sends nothing in this language.",
+    "subject": "Subject",
+    "bodyText": "Message (plain text)",
+    "bodyHtml": "HTML version (optional)",
+    "bodyHtmlHelp": "Shown by email apps that display HTML; the plain text is the fallback.",
+    "discard": "Discard changes",
+    "saveFirst": "Save your changes first",
+    "test": "Send test to me",
+    "testSent": "Test message sent to your email",
+    "reset": "Restore default",
+    "resetTitle": "Restore the default message?",
+    "resetDescription": "Your changes to this language are replaced by the built-in text.",
+    "restored": "Default message restored",
+    "saved": "Template saved",
+    "variables": "Variables",
+    "variablesHelp": "Click to insert at the cursor in the message.",
+    "variablesReadOnly": "Values filled in when the message is sent.",
+    "preview": "Preview",
+    "previewHelp": "With sample values; updates as you type.",
+    "secretHelp": "This message carries a password link: it's sent at once and never stored or resent.",
+    "events": {
+      "label": "Messages",
+      "account_activated": "Account activated",
+      "subscription_renewed": "Subscription renewed",
+      "payment_succeeded": "Payment received",
+      "payment_failed": "Payment failed",
+      "payment_refunded": "Payment refunded",
+      "expiring_7d": "Ends in 7 days",
+      "expiring_1d": "Ends tomorrow",
+      "expired": "Subscription ended",
+      "new_device": "New device",
+      "device_limit_reached": "Device limit reached",
+      "credentials_reset": "Login reset",
+      "password_reset": "Password reset",
+      "password_invite": "Password invitation",
+      "suspicious_activity": "Suspicious activity"
+    },
+    "eventHelp": {
+      "account_activated": "Sent when a customer's first subscription or trial starts.",
+      "subscription_renewed": "Sent when a subscription is renewed or extended.",
+      "payment_succeeded": "Sent with the invoice when a payment succeeds.",
+      "payment_failed": "Sent when a card or online payment fails.",
+      "payment_refunded": "Sent when a payment is refunded.",
+      "expiring_7d": "Sent seven days before a subscription ends.",
+      "expiring_1d": "Sent one day before a subscription ends.",
+      "expired": "Sent when a subscription ends after its grace period.",
+      "new_device": "Sent when a new device is added to the account.",
+      "device_limit_reached": "Sent when the account reaches its device limit.",
+      "credentials_reset": "Sent when an IPTV app login is reset.",
+      "password_reset": "Sent when the customer asks to reset their portal password.",
+      "password_invite": "Sent when an admin invites the customer to set a portal password.",
+      "suspicious_activity": "Sent when the account looks shared."
+    }
+  },
+  "collections": {
+    "title": "Collections",
+    "description": "Hand-picked rows of titles for the portal's home page.",
+    "new": "New collection",
+    "edit": "Edit {{name}}",
+    "itemsLabel": "Titles in the collection",
+    "published": "Published",
+    "draft": "Draft",
+    "onHome": "On home",
+    "count_one": "{{formatted}} title",
+    "count_other": "{{formatted}} titles",
+    "created": "Collection created",
+    "saved": "Collection saved",
+    "deleted": "Collection deleted",
+    "empty": {
+      "title": "No collections yet",
+      "description": "Group titles into rows such as \"Ramadan picks\" for the portal's home page."
+    },
+    "fields": {
+      "nameEn": "Name (English)",
+      "nameAr": "Name (Arabic)",
+      "slug": "Slug (optional)",
+      "slugHelp": "Used in links; made from the English name when empty.",
+      "descriptionEn": "Description (English)",
+      "descriptionAr": "Description (Arabic)",
+      "published": "Published",
+      "home": "Show on the home page"
+    },
+    "form": {
+      "newTitle": "New collection",
+      "editTitle": "Edit collection",
+      "description": "Name the row and choose its titles in order.",
+      "add": "Add titles",
+      "search": "Search movies and series…",
+      "items_one": "{{count}} title",
+      "items_other": "{{count}} titles",
+      "noItems": "No titles yet. Search above to add some.",
+      "moveUp": "Move {{name}} earlier",
+      "moveDown": "Move {{name}} later",
+      "remove": "Remove {{name}}",
+      "create": "Create collection"
+    },
+    "delete": {
+      "action": "Delete {{name}}",
+      "title": "Delete {{name}}?",
+      "description": "The row disappears from the portal. The titles stay in the library.",
+      "confirm": "Delete collection"
+    }
+  },
+  "customerBilling": {
+    "period": "{{start}} – {{end}}",
+    "endReasons": {
+      "expired": "expired",
+      "cancelled": "cancelled",
+      "refunded": "refunded",
+      "rejected": "trial refused",
+      "merged": "replaced by a renewal"
+    },
+    "subscription": {
+      "title": "Subscription",
+      "none": "No active subscription. Access follows the access profile.",
+      "graceUntil": "Grace until"
+    },
+    "subscriptions": {
+      "title": "Subscriptions",
+      "description": "Every subscription of this customer and how it ended.",
+      "empty": "No subscriptions yet"
+    },
+    "invite": {
+      "action": "Portal password link",
+      "title": "Send {{name}} a password link?",
+      "descriptionEmail": "A single-use link to set a portal password is emailed to {{email}}. You also see it once, to send it another way.",
+      "descriptionNoEmail": "The customer has no email address. You'll see a single-use link once; send it to them yourself.",
+      "confirm": "Create link",
+      "emailed": "Password link emailed to {{name}}",
+      "linkTitle": "Password link",
+      "linkEmailed": "The link was emailed. Copy it now if you also want to send it another way.",
+      "linkSendYourself": "The link was not emailed. Copy it and send it to the customer, e.g. by WhatsApp.",
+      "link": "Single-use link",
+      "expires": "Valid until {{time}}.",
+      "once": "Shown only once"
+    }
+  },
+  "customerHistory": {
+    "title": "Watch history",
+    "description": "Titles this customer watched and how far, newest first.",
+    "empty": "Nothing watched yet",
+    "episode": "S{{season}} E{{episode}}",
+    "finished": "Finished",
+    "position": "{{position}} of {{duration}}",
+    "pagination": "Watch history pages"
+  },
+  "titleMedia": {
+    "title": "Files and renditions",
+    "description": "Each source file with its outputs, running jobs and tracks.",
+    "renditions": "Renditions",
+    "primary": "Primary file",
+    "unknown": "Unknown codec",
+    "disk": "{{size}} on disk",
+    "linked": "Linked",
+    "none": "None.",
+    "noRenditions": "No renditions yet.",
+    "audio": "Audio tracks",
+    "episodeMedia": "Files and renditions of {{code}}",
+    "job": "{{profile}} on {{backend}}: {{status}}",
+    "deleteRendition": "Delete {{name}}",
+    "deleteTitle": "Delete this rendition?",
+    "deleteDescription": "{{name}} is removed from disk. Reprocess the title to make it again.",
+    "deleteConfirm": "Delete rendition",
+    "deleted": "Rendition deleted",
+    "columns": {
+      "output": "Output",
+      "status": "Status",
+      "video": "Video",
+      "bitrate": "Bitrate",
+      "size": "Size",
+      "encoder": "Encoder",
+      "actions": "Actions"
+    },
+    "kinds": {
+      "compat_mp4": "Compatibility MP4",
+      "source": "Source (direct play)",
+      "hls_variant": "HLS variant",
+      "hls_master": "HLS master playlist",
+      "uhd": "4K",
+      "thumbnails": "Thumbnails"
+    },
+    "outputs": {
+      "compat_mp4": "Compatibility MP4",
+      "hls": "HLS ladder",
+      "uhd": "4K",
+      "thumbnails": "Thumbnails",
+      "subtitles": "Subtitles"
+    },
+    "origins": {
+      "embedded": "Embedded",
+      "sidecar": "Sidecar file",
+      "upload": "Uploaded"
+    },
+    "subtitleStatus": {
+      "pending": "Converting",
+      "ready": "Ready",
+      "failed": "Failed",
+      "unsupported": "Image-based, not converted"
+    },
+    "subtitles": {
+      "title": "Subtitles",
+      "description": "SRT, ASS, SSA or WebVTT in any encoding; it is converted to UTF-8 WebVTT and added to the HLS playlists.",
+      "upload": "Upload subtitle",
+      "uploadTitle": "Upload a subtitle",
+      "editTitle": "Edit subtitle",
+      "edit": "Edit",
+      "file": "Subtitle file",
+      "language": "Language code",
+      "label": "Label",
+      "default": "Default",
+      "forced": "Forced",
+      "uploaded": "Subtitle uploaded",
+      "saved": "Subtitle saved",
+      "delete": "Delete the {{language}} subtitle",
+      "deleteTitle": "Delete this subtitle?",
+      "deleteDescription": "The uploaded subtitle is removed from the title and its playlists.",
+      "deleteConfirm": "Delete subtitle",
+      "deleted": "Subtitle deleted"
+    },
+    "reprocess": {
+      "action": "Reprocess",
+      "title": "Reprocess this title",
+      "description": "Queues transcode jobs again. Players keep the current renditions until the new ones are ready.",
+      "outputs": "Outputs",
+      "allHelp": "Choose none to redo every output of the library's policy.",
+      "submit": "Queue jobs",
+      "done_one": "Reprocessing {{count}} file",
+      "done_other": "Reprocessing {{count}} files"
+    },
+    "rematch": {
+      "action": "Re-match",
+      "title": "Re-match this title",
+      "description": "Link its files to another TMDB title, or let the matcher try again. Metadata and artwork are fetched again.",
+      "search": "Search TMDB",
+      "use": "Use this",
+      "automatic": "Match automatically",
+      "done_one": "{{count}} file re-matched",
+      "done_other": "{{count}} files re-matched",
+      "automaticDone_one": "Matching {{count}} file again",
+      "automaticDone_other": "Matching {{count}} files again",
+      "tmdbId": "TMDB {{id}}",
+      "candidate": "{{year}} · TMDB {{id}}"
+    },
+    "images": {
+      "title": "Artwork",
+      "description": "Stored images. The primary one of each kind is shown in apps and the portal.",
+      "kind": "Kind",
+      "kinds": {
+        "poster": "Poster",
+        "backdrop": "Backdrop",
+        "logo": "Logo",
+        "still": "Still",
+        "profile": "Profile"
+      },
+      "primary": "Primary",
+      "makePrimary": "Make primary",
+      "primarySet": "Primary image changed",
+      "upload": "Upload an image",
+      "alternatives": "Alternatives from TMDB",
+      "useAlternative": "Use this image ({{size}})",
+      "unavailable": "TMDB could not be reached; try again later.",
+      "noAlternatives": "TMDB has no other images of this kind.",
+      "queued": "Image added; it appears once converted",
+      "delete": "Delete image",
+      "deleteTitle": "Delete this image?",
+      "deleteDescription": "Every stored size of the image is removed.",
+      "deleted": "Image deleted"
+    },
+    "audioFormat": "{{codec}} · {{channels}} ch"
+  },
+  "storage": {
+    "title": "Storage",
+    "description": "Space taken by source files and by the renditions made from them.",
+    "total": "Total on disk",
+    "sources": "Sources",
+    "renditions": "Renditions",
+    "files": "Source files",
+    "since90": "over 90 days",
+    "byLibrary": {
+      "title": "By library",
+      "description": "Sources against renditions; links to a source take no space.",
+      "empty": "No libraries yet.",
+      "split": "{{sources}} sources · {{renditions}} renditions · {{files}} files"
+    },
+    "growth": {
+      "title": "Growth, last 90 days",
+      "description": "Bytes on disk at the end of each day. Deleted renditions no longer count."
+    },
+    "largest": {
+      "title": "Largest titles",
+      "description": "The 10 titles that take the most space; a series counts every episode.",
+      "empty": "No files yet.",
+      "movie": "Movie",
+      "series": "Series",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} files",
+      "columns": {
+        "title": "Title",
+        "total": "Total"
+      }
+    },
+    "cleanup": {
+      "title": "Rendition cleanup",
+      "description": "Finds orphaned outputs, those of files removed past the retention, superseded ones and leftovers of interrupted jobs. Run a dry run first, then delete what it found.",
+      "none": "No cleanup has run yet. Start with a dry run.",
+      "runDry": "Dry run",
+      "run": "Delete files",
+      "dryRunQueued": "Dry run started on the worker",
+      "runQueued": "Cleanup started on the worker",
+      "dryRun": "Dry run",
+      "deletedRun": "Deleted",
+      "wouldFree_one": "{{count}} entry would free {{size}}",
+      "wouldFree_other": "{{count}} entries would free {{size}}",
+      "freed_one": "{{count}} entry deleted, {{size}} freed",
+      "freed_other": "{{count}} entries deleted, {{size}} freed",
+      "more_one": "And {{count}} more entry.",
+      "more_other": "And {{count}} more entries.",
+      "confirmTitle": "Delete these renditions?",
+      "confirmDescription_one": "The worker checks again and deletes the {{count}} entry the dry run found. This cannot be undone.",
+      "confirmDescription_other": "The worker checks again and deletes the {{count}} entries the dry run found. This cannot be undone.",
+      "columns": {
+        "entry": "Entry",
+        "reason": "Reason",
+        "size": "Size"
+      },
+      "reasons": {
+        "orphaned": "Orphaned",
+        "removed_file": "Source removed",
+        "superseded": "Superseded",
+        "leftover": "Interrupted job"
+      }
+    }
   }
 }

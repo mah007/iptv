@@ -265,11 +265,13 @@ export { copyToClipboard } from "./lib/clipboard";
 export { cn } from "./lib/cn";
 export {
   createFormatters,
+  currencyDigits,
   DEFAULT_TIME_ZONE,
   formatBitrate,
   formatBytes,
   formatDuration,
   formatLocale,
+  formatMoney,
   formatNumber,
   isoDuration,
   useFormatters,

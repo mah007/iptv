@@ -229,6 +229,11 @@
     "matched": "مُطابَق",
     "matching": "قيد المطابقة",
     "error": "خطأ",
-    "enabled": "مُفعَّل"
+    "enabled": "مُفعَّل",
+    "succeeded": "ناجح",
+    "paid": "مدفوعة",
+    "partially_refunded": "مستردّ جزئيًا",
+    "refunded": "مستردّ",
+    "void": "ملغاة"
   }
 }

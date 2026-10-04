@@ -1,8 +1,16 @@
 import type { LinkProps } from "@tanstack/react-router";
 import {
   Activity,
+  CalendarCheck,
+  FileCode,
+  FileText,
+  Library,
+  Mail,
+  Package,
+  Receipt,
   Clapperboard,
   Cpu,
+  Database,
   FolderTree,
   HardDrive,
   HeartPulse,
@@ -63,6 +71,12 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     titleKey: "nav.sections.customers",
     items: [
       { to: "/customers", labelKey: "nav.customers", icon: Users, permission: "customers.view" },
+      {
+        to: "/subscriptions",
+        labelKey: "nav.subscriptions",
+        icon: CalendarCheck,
+        permission: "subscriptions.view",
+      },
     ],
   },
   {
@@ -85,6 +99,12 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         icon: FolderTree,
         permission: LIBRARY_VIEW,
       },
+      {
+        to: "/collections",
+        labelKey: "nav.collections",
+        icon: Library,
+        permission: LIBRARY_VIEW,
+      },
     ],
   },
   {
@@ -96,6 +116,39 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         labelKey: "nav.transcode",
         icon: Cpu,
         permission: ["library.view", "library.manage"],
+      },
+      {
+        to: "/storage",
+        labelKey: "nav.storage",
+        icon: Database,
+        permission: ["library.view", "library.manage"],
+      },
+    ],
+  },
+  {
+    id: "commerce",
+    titleKey: "nav.sections.commerce",
+    items: [
+      { to: "/plans", labelKey: "nav.plans", icon: Package, permission: "plans.view" },
+      { to: "/payments", labelKey: "nav.payments", icon: Receipt, permission: "billing.view" },
+      { to: "/invoices", labelKey: "nav.invoices", icon: FileText, permission: "billing.view" },
+    ],
+  },
+  {
+    id: "engage",
+    titleKey: "nav.sections.engage",
+    items: [
+      {
+        to: "/notifications",
+        labelKey: "nav.notifications",
+        icon: Mail,
+        permission: "notifications.view",
+      },
+      {
+        to: "/templates",
+        labelKey: "nav.templates",
+        icon: FileCode,
+        permission: "notifications.view",
       },
     ],
   },
@@ -135,6 +188,8 @@ export const NAV_SECTIONS: readonly NavSection[] = [
 export const NAV_SHORTCUTS: Readonly<Partial<Record<NavItem["to"], string>>> = {
   "/": "g d",
   "/customers": "g c",
+  "/subscriptions": "g b",
+  "/payments": "g p",
   "/libraries": "g l",
   "/sessions": "g s",
   "/movies": "g m",

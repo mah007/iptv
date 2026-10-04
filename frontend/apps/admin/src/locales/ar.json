@@ -21,7 +21,9 @@
       "security": "الأمان",
       "system": "النظام",
       "content": "المحتوى",
-      "processing": "المعالجة"
+      "processing": "المعالجة",
+      "commerce": "التجارة",
+      "engage": "التواصل"
     },
     "sessions": "الجلسات المباشرة",
     "libraries": "المكتبات",
@@ -31,7 +33,15 @@
     "categories": "التصنيفات",
     "transcode": "مهام التحويل",
     "accessRules": "قواعد الوصول",
-    "health": "حالة النظام"
+    "health": "حالة النظام",
+    "subscriptions": "الاشتراكات",
+    "collections": "المجموعات",
+    "plans": "الباقات",
+    "payments": "المدفوعات",
+    "invoices": "الفواتير",
+    "notifications": "الإشعارات",
+    "templates": "القوالب",
+    "storage": "التخزين"
   },
   "layout": {
     "skipToContent": "الانتقال إلى المحتوى",
@@ -141,7 +151,36 @@
     "nowWatching": "يشاهدون الآن",
     "recentActivity": "آخر النشاطات",
     "recentlyAdded": "أضيف مؤخرًا",
-    "recentlyAddedEmpty": "لا توجد عناوين بعد. أضف مكتبة وافحصها."
+    "recentlyAddedEmpty": "لا توجد عناوين بعد. أضف مكتبة وافحصها.",
+    "billing": {
+      "title": "الفوترة",
+      "active": "الاشتراكات النشطة",
+      "activeDetail": "{{grace}} في فترة السماح · {{suspended}} موقوفة",
+      "revenue": "إيرادات هذا الشهر",
+      "revenueDetail": "مقارنة بالشهر الماضي",
+      "mrr": "الإيراد الشهري المتكرر",
+      "mrrNet": "{{amount}} قبل الضريبة",
+      "expiring": "اشتراكات تنتهي خلال 7 أيام",
+      "expiringDetail": "ذكّر أو جدّد قبل انتهائها",
+      "trials": "التجارب النشطة",
+      "trialRequests_zero": "لا توجد طلبات بانتظار الموافقة",
+      "trialRequests_one": "طلب واحد بانتظار الموافقة",
+      "trialRequests_two": "طلبان بانتظار الموافقة",
+      "trialRequests_few": "{{formatted}} طلبات بانتظار الموافقة",
+      "trialRequests_many": "{{formatted}} طلبًا بانتظار الموافقة",
+      "trialRequests_other": "{{formatted}} طلب بانتظار الموافقة",
+      "churn": "انتهت خلال 30 يومًا",
+      "newSubscriptions_zero": "لا اشتراكات جديدة خلال 30 يومًا",
+      "newSubscriptions_one": "اشتراك جديد واحد خلال 30 يومًا",
+      "newSubscriptions_two": "اشتراكان جديدان خلال 30 يومًا",
+      "newSubscriptions_few": "{{formatted}} اشتراكات جديدة خلال 30 يومًا",
+      "newSubscriptions_many": "{{formatted}} اشتراكًا جديدًا خلال 30 يومًا",
+      "newSubscriptions_other": "{{formatted}} اشتراك جديد خلال 30 يومًا",
+      "byPlan": "المشتركون حسب الباقة",
+      "byPlanHelp": "الاشتراكات النشطة وفي فترة السماح.",
+      "subscribers": "المشتركون",
+      "noSubscribers": "لا يوجد مشتركون بعد."
+    }
   },
   "customers": {
     "title": "العملاء",
@@ -300,7 +339,10 @@
         "devices": "الأجهزة وبيانات الدخول",
         "sessions": "الجلسات",
         "security": "الأمان",
-        "activity": "النشاط"
+        "activity": "النشاط",
+        "subscriptions": "الاشتراكات",
+        "billing": "المدفوعات والفواتير",
+        "history": "سجل المشاهدة"
       },
       "accessTitle": "ملف الوصول",
       "profileTitle": "الملف الشخصي",
@@ -686,7 +728,60 @@
       "series_update": "تعديل مسلسل",
       "review_resolve": "حسم مراجعة مطابقة",
       "review_skip": "تخطي مراجعة مطابقة",
-      "session_kill": "إيقاف تشغيل"
+      "session_kill": "إيقاف تشغيل",
+      "auth_token_reuse": "إعادة استخدام رمز تسجيل الدخول",
+      "customer_password_invite": "إرسال رابط كلمة مرور البوابة",
+      "customer_password_set": "تعيين كلمة مرور البوابة",
+      "customer_created": "تسجيل عميل",
+      "movie_refresh": "تحديث بيانات الفيلم",
+      "series_refresh": "تحديث بيانات المسلسل",
+      "payment_record": "تسجيل دفعة",
+      "payment_succeed": "نجاح الدفع",
+      "payment_fail": "فشل الدفع",
+      "payment_refund": "استرداد دفعة",
+      "payment_checkout": "بدء الدفع",
+      "payment_webhook": "استلام إشعار دفع آلي",
+      "payment_amount_mismatch": "عدم تطابق مبلغ الدفع",
+      "plan_create": "إنشاء باقة",
+      "plan_update": "تعديل باقة",
+      "plan_delete": "حذف باقة",
+      "plan_reorder": "إعادة ترتيب الباقات",
+      "plan_migrate_subscriptions": "نقل المشتركين إلى إصدار الباقة الجديد",
+      "subscription_activate": "تفعيل اشتراك",
+      "subscription_start": "بدء اشتراك",
+      "subscription_renew": "تجديد اشتراك",
+      "subscription_extend": "تمديد اشتراك",
+      "subscription_change_plan": "تغيير الباقة",
+      "subscription_cancel": "إلغاء اشتراك",
+      "subscription_suspend": "إيقاف اشتراك مؤقتًا",
+      "subscription_resume": "استئناف اشتراك",
+      "subscription_grace": "بدء فترة السماح",
+      "subscription_expire": "انتهاء اشتراك",
+      "subscription_merge": "دمج اشتراك",
+      "subscription_trial_request": "طلب تجربة",
+      "subscription_trial_approve": "الموافقة على تجربة",
+      "invoice_number": "إصدار فاتورة",
+      "notification_retry": "إعادة إرسال رسالة",
+      "notification_test": "إرسال رسالة تجريبية",
+      "notification_template_create": "تعديل قالب",
+      "notification_template_update": "تغيير قالب",
+      "notification_template_delete": "استعادة القالب الافتراضي",
+      "collection_create": "إنشاء مجموعة",
+      "collection_update": "تعديل مجموعة",
+      "collection_delete": "حذف مجموعة",
+      "title_image_add": "رفع صورة",
+      "title_image_delete": "حذف صورة",
+      "title_image_primary": "اختيار صورة",
+      "title_rematch": "إعادة مطابقة العنوان",
+      "title_reprocess": "إعادة معالجة العنوان",
+      "rendition_delete": "حذف نسخة",
+      "renditions_cleanup": "حذف النسخ اليتيمة",
+      "track_update": "تعديل مسار",
+      "track_upload": "رفع ترجمة",
+      "track_delete": "حذف مسار",
+      "transcode_job_cancel": "إلغاء مهمة تحويل",
+      "transcode_job_priority": "تغيير أولوية التحويل",
+      "transcode_job_retry": "إعادة محاولة التحويل"
     },
     "targets": {
       "accounts_user": "مستخدم",
@@ -699,7 +794,19 @@
       "catalog_movie": "فيلم",
       "catalog_series": "مسلسل",
       "catalog_matchreview": "مراجعة مطابقة",
-      "playback_playbacksession": "جلسة تشغيل"
+      "playback_playbacksession": "جلسة تشغيل",
+      "billing_plan": "باقة",
+      "billing_subscription": "اشتراك",
+      "billing_payment": "دفعة",
+      "billing_invoice": "فاتورة",
+      "catalog_collection": "مجموعة",
+      "notifications_notificationtemplate": "قالب",
+      "notifications_notificationoutbox": "رسالة",
+      "media_rendition": "نسخة",
+      "media_transcodejob": "مهمة تحويل",
+      "media_audiotrack": "مسار صوت",
+      "media_subtitletrack": "مسار ترجمة",
+      "catalog_mediaimage": "صورة"
     }
   },
   "settings": {
@@ -787,6 +894,22 @@
         "https_port": {
           "label": "منفذ HTTPS",
           "description": "منفذ HTTPS الذي تُبلَّغ به تطبيقات IPTV."
+        },
+        "password_min_length": {
+          "label": "أقصر كلمة مرور لتطبيقات IPTV",
+          "description": "أقصر كلمة مرور يمكن للمشرف اختيارها لدخول تطبيق IPTV."
+        },
+        "auth_failures_per_username": {
+          "label": "محاولات الدخول الفاشلة لكل اسم مستخدم",
+          "description": "عدد محاولات الدخول الفاشلة إلى تطبيقات IPTV لكل اسم مستخدم قبل إيقاف الدخول مؤقتًا طوال الفترة."
+        },
+        "auth_failures_per_ip": {
+          "label": "محاولات الدخول الفاشلة لكل عنوان IP",
+          "description": "عدد محاولات الدخول الفاشلة إلى تطبيقات IPTV لكل عنوان IP قبل إيقاف الدخول مؤقتًا طوال الفترة."
+        },
+        "auth_failure_window_s": {
+          "label": "فترة احتساب المحاولات الفاشلة",
+          "description": "الفترة بالثواني التي تُحتسب خلالها محاولات الدخول الفاشلة إلى تطبيقات IPTV."
         }
       },
       "playback": {
@@ -809,12 +932,36 @@
         "realtime_transcode_max": {
           "label": "عدد التحويلات الفورية المتزامنة",
           "description": "الحد الأقصى للتحويل الفوري."
+        },
+        "progress_min_interval_s": {
+          "label": "الفاصل الأدنى لحفظ التقدم",
+          "description": "لا تُحفظ تقارير التقدم المتقاربة أكثر من هذا العدد من الثواني."
+        },
+        "watched_ratio": {
+          "label": "حد المشاهدة",
+          "description": "نسبة مدة العنوان التي يُعدّ بعدها مُشاهَدًا، مثل 0.9 لنسبة 90٪."
         }
       },
       "library": {
         "watcher_stable_s": {
           "label": "الانتظار قبل فحص ملف جديد",
           "description": "يُفحص الملف الجديد بعد ثبات حجمه هذا العدد من الثواني."
+        },
+        "hls_enabled": {
+          "label": "سلّم HLS",
+          "description": "ترميز سلّم HLS (البث المتكيف للبوابة) عند الاستيعاب."
+        },
+        "uhd_enabled": {
+          "label": "نسخ 4K",
+          "description": "إنشاء نسخة UHD من مصادر 4K للباقات التي تتضمن جودة 2160p."
+        },
+        "uhd_cpu_encode": {
+          "label": "ترميز 4K على المعالج",
+          "description": "السماح بترميز UHD HEVC على المحوّلات التي لا تملك معالج رسوميات. الترميز بطيء جدًا؛ ويُحتفظ بالمصدر المناسب دون ترميز."
+        },
+        "rendition_retention_days": {
+          "label": "مدة الاحتفاظ بالنسخ",
+          "description": "عدد الأيام التي تُحفظ فيها نسخ الملف المحذوف قبل أن يحذفها التنظيف."
         }
       },
       "metadata": {
@@ -847,6 +994,42 @@
         "grace_days": {
           "label": "أيام السماح",
           "description": "عدد الأيام التي يظل فيها الاشتراك يعمل بعد انتهائه."
+        },
+        "prices_include_vat": {
+          "label": "الأسعار شاملة الضريبة",
+          "description": "أسعار الباقات تشمل ضريبة القيمة المضافة، وتُستخرج الضريبة منها في الفواتير."
+        },
+        "invoice_prefix": {
+          "label": "بادئة رقم الفاتورة",
+          "description": "بادئة أرقام الفواتير (البادئة-السنة-التسلسل)."
+        },
+        "vat_number": {
+          "label": "الرقم الضريبي",
+          "description": "رقم تسجيل البائع في ضريبة القيمة المضافة، ويُطبع على الفواتير."
+        },
+        "seller_address": {
+          "label": "عنوان البائع",
+          "description": "عنوان البائع، ويُطبع على الفواتير."
+        },
+        "manual_instructions_en": {
+          "label": "تعليمات الدفع اليدوي (بالإنجليزية)",
+          "description": "طريقة الدفع بالتحويل البنكي أو نقدًا، بالإنجليزية."
+        },
+        "manual_instructions_ar": {
+          "label": "تعليمات الدفع اليدوي (بالعربية)",
+          "description": "طريقة الدفع بالتحويل البنكي أو نقدًا، بالعربية."
+        },
+        "stripe_enabled": {
+          "label": "الدفع بالبطاقة عبر Stripe",
+          "description": "إتاحة الدفع بالبطاقة عبر Stripe. يحتاج الخادم إلى مفاتيح Stripe."
+        },
+        "moyasar_enabled": {
+          "label": "الدفع عبر ميسر",
+          "description": "إتاحة مدى وApple Pay وSTC Pay عبر ميسر. يحتاج الخادم إلى مفاتيح ميسر."
+        },
+        "checkout_ttl_hours": {
+          "label": "مدة صلاحية عملية الدفع",
+          "description": "تُلغى عمليات الدفع غير المكتملة بعد هذا العدد من الساعات."
         }
       },
       "trials": {
@@ -857,12 +1040,44 @@
         "limit_per_phone": {
           "label": "عدد التجارب لكل رقم جوال",
           "description": "التجارب المجانية المسموح بها لكل رقم جوال."
+        },
+        "require_approval": {
+          "label": "التجارب تحتاج إلى موافقة",
+          "description": "تنتظر التجربة المجانية للعميل موافقة أحد المشرفين."
         }
       },
       "security": {
         "admin_idle_timeout_min": {
           "label": "مهلة خمول المشرف",
           "description": "يُسجَّل خروج المشرف بعد هذا العدد من دقائق الخمول."
+        },
+        "customer_session_days": {
+          "label": "مدة جلسة البوابة",
+          "description": "تنتهي جلسات البوابة بعد هذا العدد من أيام الخمول."
+        },
+        "customer_access_token_ttl_s": {
+          "label": "صلاحية رمز وصول التطبيق",
+          "description": "مدة صلاحية رموز وصول التطبيقات بالثواني."
+        },
+        "customer_refresh_token_days": {
+          "label": "مدة جلسة التطبيق",
+          "description": "تنتهي جلسات التطبيقات بعد هذا العدد من الأيام دون تجديد الرمز."
+        },
+        "customer_auth_requests_per_ip": {
+          "label": "محاولات دخول العملاء لكل عنوان IP",
+          "description": "عدد محاولات الدخول الفاشلة وطلبات إعادة تعيين كلمة المرور لكل عنوان IP خلال 15 دقيقة قبل رفضها."
+        },
+        "password_reset_ttl_min": {
+          "label": "صلاحية رابط إعادة التعيين",
+          "description": "يعمل رابط إعادة تعيين كلمة المرور لهذا العدد من الدقائق."
+        },
+        "password_invite_ttl_days": {
+          "label": "صلاحية دعوة تعيين كلمة المرور",
+          "description": "تعمل دعوة تعيين كلمة المرور لهذا العدد من الأيام."
+        },
+        "password_reset_emails_per_hour": {
+          "label": "رسائل إعادة التعيين في الساعة",
+          "description": "عدد رسائل إعادة تعيين كلمة المرور التي يمكن أن يتلقاها العميل في الساعة."
         }
       },
       "features": {
@@ -1357,7 +1572,7 @@
     "connection": {
       "open": "مباشر",
       "connecting": "جارٍ الاتصال…",
-      "offline": "جارٍ إعادة الاتصال…"
+      "offline": "جارٍ إعادة الاتصال؛ التحديث كل 5 ثوانٍ"
     },
     "stats": {
       "streams": "البث الآن",
@@ -1701,7 +1916,9 @@
         "review": "قائمة المراجعة",
         "transcode": "مهام التحويل",
         "audit": "سجل التدقيق",
-        "health": "حالة النظام"
+        "health": "حالة النظام",
+        "subscriptions": "الاشتراكات",
+        "payments": "المدفوعات"
       }
     }
   },
@@ -1739,5 +1956,803 @@
     "title": "هل ما زلت هنا؟",
     "description": "سيتم تسجيل خروجك خلال {{time}} بسبب عدم النشاط.",
     "stay": "البقاء متصلًا"
+  },
+  "billing": {
+    "pickers": {
+      "customer": "اختر عميلًا",
+      "customerSearch": "ابحث بالاسم أو الهاتف أو البريد أو اسم المستخدم…",
+      "plan": "اختر باقة"
+    }
+  },
+  "plans": {
+    "title": "الباقات",
+    "description": "ما يمكن للعملاء شراؤه: السعر والمدة والحدود والمحتوى. تنطبق التغييرات على الاشتراكات الجديدة.",
+    "new": "باقة جديدة",
+    "edit": "تعديل",
+    "actions": "إجراءات {{name}}",
+    "moveUp": "تقديم",
+    "moveDown": "تأخير",
+    "activate": "طرح للبيع",
+    "deactivate": "إيقاف البيع",
+    "activated": "الباقة معروضة للبيع",
+    "deactivated": "أُوقف بيع الباقة",
+    "inactive": "غير معروضة",
+    "reordered": "حُفظ ترتيب الباقات",
+    "version": "الإصدار {{version}}",
+    "subscribers_zero": "لا يوجد مشتركون نشطون",
+    "subscribers_one": "مشترك نشط واحد",
+    "subscribers_two": "مشتركان نشطان",
+    "subscribers_few": "{{formatted}} مشتركين نشطين",
+    "subscribers_many": "{{formatted}} مشتركًا نشطًا",
+    "subscribers_other": "{{formatted}} مشترك نشط",
+    "categoriesCount_zero": "بدون تصنيفات",
+    "categoriesCount_one": "تصنيف واحد",
+    "categoriesCount_two": "تصنيفان",
+    "categoriesCount_few": "{{count}} تصنيفات",
+    "categoriesCount_many": "{{count}} تصنيفًا",
+    "categoriesCount_other": "{{count}} تصنيف",
+    "duration": {
+      "months_zero": "شهريًا",
+      "months_one": "شهريًا",
+      "months_two": "لكل شهرين",
+      "months_few": "لكل {{count}} أشهر",
+      "months_many": "لكل {{count}} شهرًا",
+      "months_other": "لكل {{count}} شهر",
+      "days_zero": "يوميًا",
+      "days_one": "يوميًا",
+      "days_two": "لكل يومين",
+      "days_few": "لكل {{count}} أيام",
+      "days_many": "لكل {{count}} يومًا",
+      "days_other": "لكل {{count}} يوم",
+      "both": "لكل {{months}} شهر و{{days}} يوم"
+    },
+    "empty": {
+      "title": "لا توجد باقات بعد",
+      "description": "أنشئ الباقات التي يشترك فيها العملاء، أو باقات تجريبية للتجارب المجانية."
+    },
+    "migrate": {
+      "action": "نقل المشتركين إلى هذا الإصدار",
+      "title": "نقل مشتركي {{name}} إلى الإصدار الحالي؟",
+      "description_zero": "لا توجد اشتراكات لنقلها.",
+      "description_one": "يحتفظ اشتراك واحد بتاريخ انتهائه ويأخذ حدود الباقة ومحتواها الحاليين. اكتب رمز الباقة للتأكيد.",
+      "description_two": "يحتفظ اشتراكان بتاريخ انتهائهما ويأخذان حدود الباقة ومحتواها الحاليين. اكتب رمز الباقة للتأكيد.",
+      "description_few": "تحتفظ {{count}} اشتراكات بتواريخ انتهائها وتأخذ حدود الباقة ومحتواها الحاليين. اكتب رمز الباقة للتأكيد.",
+      "description_many": "يحتفظ {{count}} اشتراكًا بتواريخ انتهائها ويأخذ حدود الباقة ومحتواها الحاليين. اكتب رمز الباقة للتأكيد.",
+      "description_other": "يحتفظ {{count}} اشتراك بتواريخ انتهائها ويأخذ حدود الباقة ومحتواها الحاليين. اكتب رمز الباقة للتأكيد.",
+      "confirm": "نقل المشتركين",
+      "done_zero": "لم يُنقل أي اشتراك",
+      "done_one": "نُقل اشتراك واحد",
+      "done_two": "نُقل اشتراكان",
+      "done_few": "نُقلت {{count}} اشتراكات",
+      "done_many": "نُقل {{count}} اشتراكًا",
+      "done_other": "نُقل {{count}} اشتراك"
+    },
+    "delete": {
+      "action": "حذف الباقة",
+      "title": "حذف {{name}}؟",
+      "description": "لم يشترِ أحد هذه الباقة، لذا يمكن حذفها. لا يمكن التراجع عن ذلك.",
+      "done": "حُذفت الباقة"
+    },
+    "preview": {
+      "title": "في صفحة الدفع بالبوابة",
+      "unnamed": "اسم الباقة",
+      "free": "مجانًا",
+      "vat": "الأسعار شاملة ضريبة القيمة المضافة.",
+      "streams_zero": "بدون شاشات",
+      "streams_one": "شاشة واحدة في الوقت نفسه",
+      "streams_two": "شاشتان في الوقت نفسه",
+      "streams_few": "{{count}} شاشات في الوقت نفسه",
+      "streams_many": "{{count}} شاشة في الوقت نفسه",
+      "streams_other": "{{count}} شاشة في الوقت نفسه",
+      "devices_zero": "بدون أجهزة",
+      "devices_one": "جهاز واحد",
+      "devices_two": "جهازان",
+      "devices_few": "{{count}} أجهزة",
+      "devices_many": "{{count}} جهازًا",
+      "devices_other": "{{count}} جهاز"
+    },
+    "form": {
+      "newTitle": "باقة جديدة",
+      "editTitle": "تعديل الباقة",
+      "description": "تعرض البوابة الباقات بهذا الترتيب. تُدخل الأسعار قبل إضافة الضريبة.",
+      "identity": "الاسم",
+      "price": "السعر والمدة",
+      "limits": "الحدود",
+      "availability": "التوفر",
+      "create": "إنشاء الباقة",
+      "created": "أُنشئت الباقة",
+      "saved": "حُفظت الباقة",
+      "versionTitle": "تحتفظ الاشتراكات الحالية بنسختها",
+      "versionNotice_zero": "تنطبق التغييرات على الاشتراكات الجديدة.",
+      "versionNotice_one": "تنطبق التغييرات على الاشتراكات الجديدة. يحتفظ اشتراك نشط واحد بما اشتراه حتى تنقله إلى الإصدار الجديد.",
+      "versionNotice_two": "تنطبق التغييرات على الاشتراكات الجديدة. يحتفظ اشتراكان نشطان بما اشترياه حتى تنقلهما إلى الإصدار الجديد.",
+      "versionNotice_few": "تنطبق التغييرات على الاشتراكات الجديدة. تحتفظ {{count}} اشتراكات نشطة بما اشترته حتى تنقلها إلى الإصدار الجديد.",
+      "versionNotice_many": "تنطبق التغييرات على الاشتراكات الجديدة. يحتفظ {{count}} اشتراكًا نشطًا بما اشتراه حتى تنقله إلى الإصدار الجديد.",
+      "versionNotice_other": "تنطبق التغييرات على الاشتراكات الجديدة. يحتفظ {{count}} اشتراك نشط بما اشتراه حتى تنقله إلى الإصدار الجديد."
+    },
+    "fields": {
+      "code": "الرمز",
+      "codeHelp": "حروف لاتينية وأرقام و- و_. يُستخدم في الروابط والتقارير.",
+      "nameEn": "الاسم (بالإنجليزية)",
+      "nameAr": "الاسم (بالعربية)",
+      "descriptionEn": "الوصف (بالإنجليزية)",
+      "descriptionAr": "الوصف (بالعربية)",
+      "price": "السعر",
+      "priceHelp": "قبل الضريبة، مثل 29.00.",
+      "currency": "العملة",
+      "months": "الأشهر",
+      "days": "الأيام",
+      "bandwidth": "حد عرض النطاق (ميغابت/ث)",
+      "bandwidthHelp": "اتركه فارغًا لعدم التقييد.",
+      "download": "التنزيل",
+      "categories": "تصنيفات هذه الباقة",
+      "active": "معروضة للبيع",
+      "activeHelp": "عند الإيقاف: تستمر الاشتراكات الحالية ولا يمكن لأحد جديد شراؤها.",
+      "trial": "باقة تجربة مجانية",
+      "trialHelp": "تُستخدم للتجارب المجانية بدل بيعها.",
+      "trialLimit": "عدد التجارب لكل رقم هاتف",
+      "trialLimitHelp": "اتركه فارغًا لاستخدام الإعداد."
+    },
+    "validation": {
+      "code": "استخدم من 1 إلى 50 حرفًا لاتينيًا أو رقمًا أو - أو _.",
+      "name": "أدخل اسمًا من 100 حرف على الأكثر.",
+      "description": "استخدم 2,000 حرف على الأكثر.",
+      "months": "أدخل من 0 إلى 120 شهرًا.",
+      "days": "أدخل من 0 إلى 3,660 يومًا.",
+      "duration": "مدة الباقة يوم واحد على الأقل.",
+      "price": "أدخل سعرًا مثل 29 أو 29.50.",
+      "currency": "أدخل رمز عملة من ثلاثة أحرف، مثل SAR.",
+      "limit": "أدخل رقمًا من 1 إلى 50.",
+      "bandwidth": "أدخل من 1 إلى 100,000 ميغابت/ث، أو اتركه فارغًا.",
+      "trialLimit": "أدخل من 0 إلى 10، أو اتركه فارغًا."
+    }
+  },
+  "subscriptions": {
+    "title": "الاشتراكات",
+    "description": "كل اشتراك مع باقته ومدته وحالته. فعّل الاشتراكات أو مدّدها أو غيّرها أو ألغها من هنا.",
+    "endedOn": "انتهى في {{date}}",
+    "trialRequest": "طلب تجربة",
+    "reason": "السبب (اختياري)",
+    "columns": {
+      "customer": "العميل",
+      "plan": "الباقة",
+      "status": "الحالة",
+      "source": "المصدر",
+      "starts": "يبدأ",
+      "ends": "ينتهي",
+      "actions": "الإجراءات"
+    },
+    "sources": {
+      "manual": "مسؤول",
+      "payment": "دفع",
+      "trial": "تجربة",
+      "import": "استيراد"
+    },
+    "fields": {
+      "customer": "العميل",
+      "plan": "الباقة",
+      "starts": "يبدأ في",
+      "ends": "ينتهي في (اختياري)",
+      "note": "ملاحظة (اختياري)"
+    },
+    "filters": {
+      "search": "ابحث في العملاء…",
+      "status": "الحالة",
+      "plan": "الباقة",
+      "source": "المصدر",
+      "chipStatus": "الحالة: {{value}}",
+      "chipSource": "المصدر: {{value}}",
+      "chipPlan": "الباقة: {{value}}"
+    },
+    "empty": {
+      "title": "لا توجد اشتراكات بعد",
+      "description": "فعّل باقة لعميل، أو دع العملاء يشترونها من البوابة."
+    },
+    "actions": {
+      "label": "إجراءات اشتراك {{name}}"
+    },
+    "new": {
+      "button": "اشتراك جديد",
+      "title": "اشتراك جديد",
+      "description": "يُفعّل الباقة للعميل: يتبع وصوله الباقة ويُرسل إليه إشعار.",
+      "submit": "تفعيل",
+      "startTrial": "بدء التجربة",
+      "trial": "تجربة مجانية",
+      "trialHelp": "ابدأ باقة تجريبية بدلًا من ذلك؛ تنطبق حدود التجربة.",
+      "computedEnd": "حسب الباقة: ينتهي في {{date}}.",
+      "endHelp": "اتركه فارغًا لاستخدام مدة الباقة.",
+      "done": "فُعّل اشتراك {{name}}",
+      "trialDone": "بدأت تجربة {{name}}"
+    },
+    "extend": {
+      "action": "تمديد",
+      "title": "تمديد الاشتراك",
+      "description": "ينتهي اشتراك {{name}} في {{date}}.",
+      "days": "الأيام المضافة",
+      "preset_zero": "+{{count}} يوم",
+      "preset_one": "+يوم",
+      "preset_two": "+يومان",
+      "preset_few": "+{{count}} أيام",
+      "preset_many": "+{{count}} يومًا",
+      "preset_other": "+{{count}} يوم",
+      "newEnd": "الانتهاء الجديد: {{date}}.",
+      "range": "أدخل من 1 إلى 3,660 يومًا.",
+      "submit": "تمديد",
+      "done_zero": "لم يُمدد الاشتراك",
+      "done_one": "مُدد الاشتراك يومًا واحدًا",
+      "done_two": "مُدد الاشتراك يومين",
+      "done_few": "مُدد الاشتراك {{count}} أيام",
+      "done_many": "مُدد الاشتراك {{count}} يومًا",
+      "done_other": "مُدد الاشتراك {{count}} يوم"
+    },
+    "change": {
+      "action": "تغيير الباقة",
+      "title": "تغيير الباقة",
+      "description": "الباقة الحالية {{plan}}. تنطبق حدود الباقة الجديدة فورًا ويبقى تاريخ الانتهاء كما هو.",
+      "plan": "الباقة الجديدة",
+      "submit": "تغيير الباقة",
+      "done": "غُيّرت الباقة"
+    },
+    "suspend": {
+      "action": "إيقاف مؤقت",
+      "title": "إيقاف اشتراك {{name}} مؤقتًا؟",
+      "description": "يتوقف التشغيل حتى تستأنفه. لا يتغير تاريخ الانتهاء.",
+      "submit": "إيقاف مؤقت",
+      "done": "أُوقف اشتراك {{name}} مؤقتًا"
+    },
+    "resume": {
+      "action": "استئناف",
+      "done": "استُؤنف اشتراك {{name}}"
+    },
+    "cancel": {
+      "action": "إلغاء الاشتراك",
+      "title": "إلغاء اشتراك {{name}}؟",
+      "description": "ينتهي الوصول الآن ويتوقف التشغيل. استرد أي مبلغ مدفوع بشكل منفصل.",
+      "submit": "إلغاء الاشتراك",
+      "done": "أُلغي اشتراك {{name}}"
+    },
+    "approve": {
+      "action": "الموافقة على التجربة",
+      "title": "الموافقة على تجربة {{name}}؟",
+      "description": "تبدأ التجربة الآن ويُرسل إشعار إلى العميل.",
+      "done": "تمت الموافقة على تجربة {{name}}"
+    }
+  },
+  "payments": {
+    "title": "المدفوعات",
+    "description": "مدفوعات البطاقات وميسّر والمدفوعات اليدوية مع حالتها والمبالغ المستردة.",
+    "refunded": "استُرد {{amount}}",
+    "columns": {
+      "customer": "العميل",
+      "amount": "المبلغ",
+      "status": "الحالة",
+      "method": "طريقة الدفع",
+      "plan": "الباقة",
+      "invoice": "الفاتورة",
+      "paid": "تاريخ الدفع"
+    },
+    "providers": {
+      "manual": "يدوي",
+      "stripe": "Stripe",
+      "moyasar": "ميسّر"
+    },
+    "methods": {
+      "bank_transfer": "تحويل بنكي",
+      "cash": "نقدًا",
+      "card": "بطاقة",
+      "mada": "مدى",
+      "apple_pay": "Apple Pay",
+      "stc_pay": "STC Pay",
+      "other": "أخرى"
+    },
+    "fields": {
+      "customer": "العميل",
+      "plan": "الباقة (اختياري)",
+      "amount": "المبلغ ({{currency}})",
+      "method": "طريقة الدفع",
+      "reference": "المرجع (اختياري)",
+      "paidOn": "تاريخ الدفع (اختياري)",
+      "reason": "السبب (اختياري)"
+    },
+    "filters": {
+      "search": "ابحث بالعميل أو المرجع…",
+      "status": "الحالة",
+      "provider": "مزوّد الدفع",
+      "chipStatus": "الحالة: {{value}}",
+      "chipProvider": "المزوّد: {{value}}"
+    },
+    "empty": {
+      "title": "لا توجد مدفوعات بعد",
+      "description": "تظهر هنا مدفوعات صفحة الدفع في البوابة والمدفوعات التي تسجلها."
+    },
+    "record": {
+      "button": "تسجيل دفعة",
+      "title": "تسجيل دفعة",
+      "description": "تحويل بنكي أو دفعة نقدية استلمتها. مع باقة، تُفعّل الاشتراك أو تجدده وتُصدر فاتورة.",
+      "planHelp": "اتركها فارغة لتسجيل مبلغ لا يخص باقة.",
+      "amountHelp": "اتركه فارغًا لسعر الباقة، {{price}} شامل الضريبة.",
+      "amountRequired": "أدخل المبلغ المستلم.",
+      "submit": "تسجيل الدفعة",
+      "done": "سُجلت دفعة {{name}}"
+    },
+    "refund": {
+      "action": "استرداد",
+      "title": "استرداد هذه الدفعة؟",
+      "description": "يمكن استرداد حتى {{amount}}. يعود المبلغ عبر مزوّد الدفع الأصلي.",
+      "cancelSubscription": "إلغاء الاشتراك أيضًا",
+      "cancelHelp": "ينتهي الوصول الآن؛ وإلا يستمر الاشتراك.",
+      "submit": "استرداد",
+      "done": "استُرد {{amount}}"
+    },
+    "detail": {
+      "title": "الدفعة",
+      "invoice": "الفاتورة {{number}}",
+      "providerRef": "مرجع المزوّد",
+      "recordedBy": "سجّلها",
+      "failure": "سبب الفشل",
+      "events": "أحداث الإشعارات الآلية",
+      "noEvents": "لا توجد أحداث لهذه الدفعة.",
+      "processed": "عولج",
+      "unprocessed": "لم يُعالج بعد",
+      "raw": "بيانات المزوّد الأصلية",
+      "reference": "المرجع"
+    },
+    "validation": {
+      "amount": "أدخل مبلغًا مثل 29 أو 29.50.",
+      "refund": "أدخل مبلغًا حتى {{max}}."
+    }
+  },
+  "invoices": {
+    "title": "الفواتير",
+    "description": "الفواتير الضريبية الصادرة للمدفوعات بالعربية والإنجليزية.",
+    "draft": "مسودة",
+    "columns": {
+      "number": "الرقم",
+      "customer": "العميل",
+      "total": "الإجمالي",
+      "status": "الحالة",
+      "issued": "تاريخ الإصدار"
+    },
+    "filters": {
+      "search": "ابحث بالرقم أو العميل…",
+      "status": "الحالة",
+      "chipStatus": "الحالة: {{value}}"
+    },
+    "empty": {
+      "title": "لا توجد فواتير بعد",
+      "description": "تُصدر فاتورة لكل دفعة ناجحة."
+    },
+    "detail": {
+      "title": "الفاتورة {{number}}",
+      "draftTitle": "مسودة فاتورة",
+      "plan": "الباقة",
+      "lines": "بنود الفاتورة",
+      "description": "الوصف",
+      "quantity": "الكمية",
+      "amount": "المبلغ",
+      "subtotal": "المجموع الفرعي",
+      "vat": "ضريبة القيمة المضافة ({{rate}})",
+      "refunded": "المسترد",
+      "preview": "الفاتورة القابلة للطباعة",
+      "english": "الإنجليزية",
+      "arabic": "العربية",
+      "open": "فتح للطباعة أو الحفظ"
+    }
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "description": "كل رسالة أُرسلت إلى العملاء والمسؤولين مع حالة تسليمها.",
+    "detail": "الرسالة",
+    "retry": "إعادة الإرسال",
+    "retried": "أُعيدت الرسالة إلى قائمة الإرسال",
+    "sentAt": "أُرسلت",
+    "nextAttempt": "المحاولة التالية",
+    "payload": "القيم",
+    "attempts_zero": "بدون محاولات",
+    "attempts_one": "محاولة واحدة",
+    "attempts_two": "محاولتان",
+    "attempts_few": "{{count}} محاولات",
+    "attempts_many": "{{count}} محاولة",
+    "attempts_other": "{{count}} محاولة",
+    "channels": {
+      "email": "البريد الإلكتروني"
+    },
+    "columns": {
+      "when": "الوقت",
+      "recipient": "المستلم",
+      "event": "الرسالة",
+      "status": "الحالة",
+      "error": "الخطأ",
+      "actions": "الإجراءات"
+    },
+    "filters": {
+      "search": "ابحث بالمستلم أو الموضوع…",
+      "status": "الحالة",
+      "chipStatus": "الحالة: {{value}}"
+    },
+    "empty": {
+      "title": "لا توجد رسائل بعد",
+      "description": "تظهر الرسائل هنا عندما يرسل حدث اشتراك أو دفع أو جهاز رسالة."
+    }
+  },
+  "templates": {
+    "title": "القوالب",
+    "description": "الرسائل التي يتلقاها العملاء بالعربية والإنجليزية. استخدم المتغيرات للأسماء والتواريخ والروابط.",
+    "empty": "لا توجد قوالب.",
+    "custom": "معدّل",
+    "off": "متوقف",
+    "enabled": "إرسال هذه الرسالة",
+    "enabledHelp": "عند الإيقاف: لا يرسل هذا الحدث شيئًا بهذه اللغة.",
+    "subject": "الموضوع",
+    "bodyText": "الرسالة (نص عادي)",
+    "bodyHtml": "نسخة HTML (اختياري)",
+    "bodyHtmlHelp": "تعرضها تطبيقات البريد التي تدعم HTML؛ والنص العادي هو البديل.",
+    "discard": "تجاهل التغييرات",
+    "saveFirst": "احفظ تغييراتك أولًا",
+    "test": "إرسال تجربة إليّ",
+    "testSent": "أُرسلت رسالة تجريبية إلى بريدك",
+    "reset": "استعادة الافتراضي",
+    "resetTitle": "استعادة الرسالة الافتراضية؟",
+    "resetDescription": "يُستبدل بتغييراتك على هذه اللغة النص المدمج.",
+    "restored": "استُعيدت الرسالة الافتراضية",
+    "saved": "حُفظ القالب",
+    "variables": "المتغيرات",
+    "variablesHelp": "انقر لإدراجها عند المؤشر في الرسالة.",
+    "variablesReadOnly": "قيم تُملأ عند إرسال الرسالة.",
+    "preview": "معاينة",
+    "previewHelp": "بقيم تجريبية؛ تتحدث أثناء الكتابة.",
+    "secretHelp": "تحمل هذه الرسالة رابط كلمة مرور: تُرسل فورًا ولا تُخزن أو يُعاد إرسالها أبدًا.",
+    "events": {
+      "label": "الرسائل",
+      "account_activated": "تفعيل الحساب",
+      "subscription_renewed": "تجديد الاشتراك",
+      "payment_succeeded": "استلام الدفعة",
+      "payment_failed": "فشل الدفع",
+      "payment_refunded": "استرداد الدفعة",
+      "expiring_7d": "ينتهي خلال 7 أيام",
+      "expiring_1d": "ينتهي غدًا",
+      "expired": "انتهاء الاشتراك",
+      "new_device": "جهاز جديد",
+      "device_limit_reached": "بلوغ حد الأجهزة",
+      "credentials_reset": "إعادة تعيين بيانات الدخول",
+      "password_reset": "إعادة تعيين كلمة المرور",
+      "password_invite": "دعوة لتعيين كلمة المرور",
+      "suspicious_activity": "نشاط مريب"
+    },
+    "eventHelp": {
+      "account_activated": "تُرسل عند بدء أول اشتراك أو تجربة للعميل.",
+      "subscription_renewed": "تُرسل عند تجديد الاشتراك أو تمديده.",
+      "payment_succeeded": "تُرسل مع الفاتورة عند نجاح الدفع.",
+      "payment_failed": "تُرسل عند فشل الدفع بالبطاقة أو عبر الإنترنت.",
+      "payment_refunded": "تُرسل عند استرداد دفعة.",
+      "expiring_7d": "تُرسل قبل انتهاء الاشتراك بسبعة أيام.",
+      "expiring_1d": "تُرسل قبل انتهاء الاشتراك بيوم.",
+      "expired": "تُرسل عند انتهاء الاشتراك بعد فترة السماح.",
+      "new_device": "تُرسل عند إضافة جهاز جديد إلى الحساب.",
+      "device_limit_reached": "تُرسل عند بلوغ الحساب حد الأجهزة.",
+      "credentials_reset": "تُرسل عند إعادة تعيين بيانات دخول تطبيق IPTV.",
+      "password_reset": "تُرسل عندما يطلب العميل إعادة تعيين كلمة مرور البوابة.",
+      "password_invite": "تُرسل عندما يدعو مسؤول العميلَ لتعيين كلمة مرور البوابة.",
+      "suspicious_activity": "تُرسل عندما يبدو الحساب مشتركًا بين عدة أشخاص."
+    }
+  },
+  "collections": {
+    "title": "المجموعات",
+    "description": "صفوف عناوين مختارة يدويًا للصفحة الرئيسية في البوابة.",
+    "new": "مجموعة جديدة",
+    "edit": "تعديل {{name}}",
+    "itemsLabel": "العناوين في المجموعة",
+    "published": "منشورة",
+    "draft": "مسودة",
+    "onHome": "في الرئيسية",
+    "count_zero": "بدون عناوين",
+    "count_one": "عنوان واحد",
+    "count_two": "عنوانان",
+    "count_few": "{{formatted}} عناوين",
+    "count_many": "{{formatted}} عنوانًا",
+    "count_other": "{{formatted}} عنوان",
+    "created": "أُنشئت المجموعة",
+    "saved": "حُفظت المجموعة",
+    "deleted": "حُذفت المجموعة",
+    "empty": {
+      "title": "لا توجد مجموعات بعد",
+      "description": "اجمع العناوين في صفوف مثل \"مختارات رمضان\" للصفحة الرئيسية في البوابة."
+    },
+    "fields": {
+      "nameEn": "الاسم (بالإنجليزية)",
+      "nameAr": "الاسم (بالعربية)",
+      "slug": "المعرّف (اختياري)",
+      "slugHelp": "يُستخدم في الروابط؛ يُنشأ من الاسم الإنجليزي إذا تُرك فارغًا.",
+      "descriptionEn": "الوصف (بالإنجليزية)",
+      "descriptionAr": "الوصف (بالعربية)",
+      "published": "منشورة",
+      "home": "عرض في الصفحة الرئيسية"
+    },
+    "form": {
+      "newTitle": "مجموعة جديدة",
+      "editTitle": "تعديل المجموعة",
+      "description": "سمِّ الصف واختر عناوينه بالترتيب.",
+      "add": "إضافة عناوين",
+      "search": "ابحث في الأفلام والمسلسلات…",
+      "items_zero": "بدون عناوين",
+      "items_one": "عنوان واحد",
+      "items_two": "عنوانان",
+      "items_few": "{{count}} عناوين",
+      "items_many": "{{count}} عنوانًا",
+      "items_other": "{{count}} عنوان",
+      "noItems": "لا توجد عناوين بعد. ابحث أعلاه لإضافة بعضها.",
+      "moveUp": "تقديم {{name}}",
+      "moveDown": "تأخير {{name}}",
+      "remove": "إزالة {{name}}",
+      "create": "إنشاء المجموعة"
+    },
+    "delete": {
+      "action": "حذف {{name}}",
+      "title": "حذف {{name}}؟",
+      "description": "يختفي الصف من البوابة. تبقى العناوين في المكتبة.",
+      "confirm": "حذف المجموعة"
+    }
+  },
+  "customerBilling": {
+    "period": "{{start}} – {{end}}",
+    "endReasons": {
+      "expired": "انتهى",
+      "cancelled": "أُلغي",
+      "refunded": "استُرد",
+      "rejected": "رُفضت التجربة",
+      "merged": "استُبدل بتجديد"
+    },
+    "subscription": {
+      "title": "الاشتراك",
+      "none": "لا يوجد اشتراك نشط. يتبع الوصول ملف الوصول.",
+      "graceUntil": "فترة السماح حتى"
+    },
+    "subscriptions": {
+      "title": "الاشتراكات",
+      "description": "كل اشتراكات هذا العميل وكيف انتهت.",
+      "empty": "لا توجد اشتراكات بعد"
+    },
+    "invite": {
+      "action": "رابط كلمة مرور البوابة",
+      "title": "إرسال رابط كلمة المرور إلى {{name}}؟",
+      "descriptionEmail": "يُرسل رابط لمرة واحدة لتعيين كلمة مرور البوابة إلى {{email}}. ستراه أيضًا مرة واحدة لإرساله بطريقة أخرى.",
+      "descriptionNoEmail": "لا يوجد بريد إلكتروني للعميل. سترى رابطًا لمرة واحدة؛ أرسله إليه بنفسك.",
+      "confirm": "إنشاء الرابط",
+      "emailed": "أُرسل رابط كلمة المرور إلى {{name}}",
+      "linkTitle": "رابط كلمة المرور",
+      "linkEmailed": "أُرسل الرابط بالبريد. انسخه الآن إن أردت إرساله بطريقة أخرى أيضًا.",
+      "linkSendYourself": "لم يُرسل الرابط بالبريد. انسخه وأرسله إلى العميل، مثلًا عبر واتساب.",
+      "link": "رابط لمرة واحدة",
+      "expires": "صالح حتى {{time}}.",
+      "once": "يُعرض مرة واحدة فقط"
+    }
+  },
+  "customerHistory": {
+    "title": "سجل المشاهدة",
+    "description": "العناوين التي شاهدها هذا العميل ومدى تقدمه، الأحدث أولًا.",
+    "empty": "لم يشاهد شيئًا بعد",
+    "episode": "S{{season}} E{{episode}}",
+    "finished": "اكتملت",
+    "position": "{{position}} من {{duration}}",
+    "pagination": "صفحات سجل المشاهدة"
+  },
+  "titleMedia": {
+    "title": "الملفات والنسخ",
+    "description": "كل ملف مصدر مع مخرجاته ومهامه الجارية ومساراته.",
+    "renditions": "النسخ",
+    "primary": "الملف الأساسي",
+    "unknown": "ترميز غير معروف",
+    "disk": "{{size}} على القرص",
+    "linked": "مرتبط",
+    "none": "لا يوجد.",
+    "noRenditions": "لا توجد نسخ بعد.",
+    "audio": "مسارات الصوت",
+    "episodeMedia": "ملفات {{code}} ونسخها",
+    "job": "{{profile}} على {{backend}}: {{status}}",
+    "deleteRendition": "حذف {{name}}",
+    "deleteTitle": "حذف هذه النسخة؟",
+    "deleteDescription": "ستُحذف {{name}} من القرص. أعد معالجة العنوان لإنشائها من جديد.",
+    "deleteConfirm": "حذف النسخة",
+    "deleted": "حُذفت النسخة",
+    "columns": {
+      "output": "المخرج",
+      "status": "الحالة",
+      "video": "الفيديو",
+      "bitrate": "معدل البت",
+      "size": "الحجم",
+      "encoder": "المرمّز",
+      "actions": "الإجراءات"
+    },
+    "kinds": {
+      "compat_mp4": "MP4 المتوافق",
+      "source": "المصدر (تشغيل مباشر)",
+      "hls_variant": "مستوى HLS",
+      "hls_master": "قائمة HLS الرئيسية",
+      "uhd": "4K",
+      "thumbnails": "الصور المصغرة"
+    },
+    "outputs": {
+      "compat_mp4": "MP4 المتوافق",
+      "hls": "سلّم HLS",
+      "uhd": "4K",
+      "thumbnails": "الصور المصغرة",
+      "subtitles": "الترجمات"
+    },
+    "origins": {
+      "embedded": "مضمّنة",
+      "sidecar": "ملف مرافق",
+      "upload": "مرفوعة"
+    },
+    "subtitleStatus": {
+      "pending": "قيد التحويل",
+      "ready": "جاهزة",
+      "failed": "فشلت",
+      "unsupported": "مصوّرة، لم تُحوَّل"
+    },
+    "subtitles": {
+      "title": "الترجمات",
+      "description": "SRT أو ASS أو SSA أو WebVTT بأي ترميز؛ تُحوَّل إلى WebVTT بترميز UTF-8 وتُضاف إلى قوائم HLS.",
+      "upload": "رفع ترجمة",
+      "uploadTitle": "رفع ترجمة",
+      "editTitle": "تعديل الترجمة",
+      "edit": "تعديل",
+      "file": "ملف الترجمة",
+      "language": "رمز اللغة",
+      "label": "التسمية",
+      "default": "افتراضية",
+      "forced": "إجبارية",
+      "uploaded": "رُفعت الترجمة",
+      "saved": "حُفظت الترجمة",
+      "delete": "حذف ترجمة {{language}}",
+      "deleteTitle": "حذف هذه الترجمة؟",
+      "deleteDescription": "تُزال الترجمة المرفوعة من العنوان ومن قوائم تشغيله.",
+      "deleteConfirm": "حذف الترجمة",
+      "deleted": "حُذفت الترجمة"
+    },
+    "reprocess": {
+      "action": "إعادة المعالجة",
+      "title": "إعادة معالجة هذا العنوان",
+      "description": "تُضاف مهام التحويل إلى الطابور من جديد. تبقى النسخ الحالية متاحة للمشغلات حتى تجهز الجديدة.",
+      "outputs": "المخرجات",
+      "allHelp": "لا تختر شيئًا لإعادة كل مخرجات سياسة المكتبة.",
+      "submit": "إضافة المهام",
+      "done_zero": "لا ملفات لإعادة معالجتها",
+      "done_one": "تجري إعادة معالجة ملف واحد",
+      "done_two": "تجري إعادة معالجة ملفين",
+      "done_few": "تجري إعادة معالجة {{count}} ملفات",
+      "done_many": "تجري إعادة معالجة {{count}} ملفًا",
+      "done_other": "تجري إعادة معالجة {{count}} ملف"
+    },
+    "rematch": {
+      "action": "إعادة المطابقة",
+      "title": "إعادة مطابقة هذا العنوان",
+      "description": "اربط ملفاته بعنوان آخر في TMDB، أو دع المطابِق يحاول من جديد. تُجلب البيانات الوصفية والصور مرة أخرى.",
+      "search": "البحث في TMDB",
+      "use": "استخدام هذا",
+      "automatic": "مطابقة تلقائية",
+      "done_zero": "لم تُطابَق أي ملفات",
+      "done_one": "أُعيدت مطابقة ملف واحد",
+      "done_two": "أُعيدت مطابقة ملفين",
+      "done_few": "أُعيدت مطابقة {{count}} ملفات",
+      "done_many": "أُعيدت مطابقة {{count}} ملفًا",
+      "done_other": "أُعيدت مطابقة {{count}} ملف",
+      "automaticDone_zero": "لا ملفات للمطابقة",
+      "automaticDone_one": "تجري مطابقة ملف واحد من جديد",
+      "automaticDone_two": "تجري مطابقة ملفين من جديد",
+      "automaticDone_few": "تجري مطابقة {{count}} ملفات من جديد",
+      "automaticDone_many": "تجري مطابقة {{count}} ملفًا من جديد",
+      "automaticDone_other": "تجري مطابقة {{count}} ملف من جديد",
+      "tmdbId": "TMDB {{id}}",
+      "candidate": "{{year}} · TMDB {{id}}"
+    },
+    "images": {
+      "title": "الصور",
+      "description": "الصور المخزنة. تظهر الصورة الأساسية من كل نوع في التطبيقات والبوابة.",
+      "kind": "النوع",
+      "kinds": {
+        "poster": "ملصق",
+        "backdrop": "خلفية",
+        "logo": "شعار",
+        "still": "لقطة",
+        "profile": "صورة شخصية"
+      },
+      "primary": "أساسية",
+      "makePrimary": "جعلها أساسية",
+      "primarySet": "تغيّرت الصورة الأساسية",
+      "upload": "رفع صورة",
+      "alternatives": "بدائل من TMDB",
+      "useAlternative": "استخدام هذه الصورة ({{size}})",
+      "unavailable": "تعذّر الوصول إلى TMDB؛ حاول لاحقًا.",
+      "noAlternatives": "لا يملك TMDB صورًا أخرى من هذا النوع.",
+      "queued": "أُضيفت الصورة؛ ستظهر بعد تحويلها",
+      "delete": "حذف الصورة",
+      "deleteTitle": "حذف هذه الصورة؟",
+      "deleteDescription": "تُحذف كل الأحجام المخزنة من الصورة.",
+      "deleted": "حُذفت الصورة"
+    },
+    "audioFormat": "{{codec}} · {{channels}} قناة"
+  },
+  "storage": {
+    "title": "التخزين",
+    "description": "المساحة التي تشغلها ملفات المصدر والنسخ المصنوعة منها.",
+    "total": "الإجمالي على القرص",
+    "sources": "المصادر",
+    "renditions": "النسخ",
+    "files": "ملفات المصدر",
+    "since90": "خلال 90 يومًا",
+    "byLibrary": {
+      "title": "حسب المكتبة",
+      "description": "المصادر مقابل النسخ؛ الروابط إلى المصدر لا تشغل مساحة.",
+      "empty": "لا توجد مكتبات بعد.",
+      "split": "{{sources}} مصادر · {{renditions}} نسخ · {{files}} ملفات"
+    },
+    "growth": {
+      "title": "النمو خلال آخر 90 يومًا",
+      "description": "البايتات على القرص في نهاية كل يوم. النسخ المحذوفة لم تعد تُحتسب."
+    },
+    "largest": {
+      "title": "أكبر العناوين",
+      "description": "العناوين العشرة الأكثر استهلاكًا للمساحة؛ يُحتسب كل حلقات المسلسل.",
+      "empty": "لا توجد ملفات بعد.",
+      "movie": "فيلم",
+      "series": "مسلسل",
+      "files_zero": "لا ملفات",
+      "files_one": "ملف واحد",
+      "files_two": "ملفان",
+      "files_few": "{{count}} ملفات",
+      "files_many": "{{count}} ملفًا",
+      "files_other": "{{count}} ملف",
+      "columns": {
+        "title": "العنوان",
+        "total": "الإجمالي"
+      }
+    },
+    "cleanup": {
+      "title": "تنظيف النسخ",
+      "description": "يجد المخرجات اليتيمة، ومخرجات الملفات المحذوفة بعد مدة الاحتفاظ، والمخرجات المستبدلة، وبقايا المهام المتوقفة. ابدأ بتشغيل تجريبي، ثم احذف ما وجده.",
+      "none": "لم يُشغَّل أي تنظيف بعد. ابدأ بتشغيل تجريبي.",
+      "runDry": "تشغيل تجريبي",
+      "run": "حذف الملفات",
+      "dryRunQueued": "بدأ التشغيل التجريبي على العامل",
+      "runQueued": "بدأ التنظيف على العامل",
+      "dryRun": "تشغيل تجريبي",
+      "deletedRun": "محذوف",
+      "wouldFree_zero": "لا شيء لحذفه",
+      "wouldFree_one": "عنصر واحد سيحرّر {{size}}",
+      "wouldFree_two": "عنصران سيحرّران {{size}}",
+      "wouldFree_few": "{{count}} عناصر ستحرّر {{size}}",
+      "wouldFree_many": "{{count}} عنصرًا ستحرّر {{size}}",
+      "wouldFree_other": "{{count}} عنصر ستحرّر {{size}}",
+      "freed_zero": "لم يُحذف شيء",
+      "freed_one": "حُذف عنصر واحد وتحرّر {{size}}",
+      "freed_two": "حُذف عنصران وتحرّر {{size}}",
+      "freed_few": "حُذفت {{count}} عناصر وتحرّر {{size}}",
+      "freed_many": "حُذف {{count}} عنصرًا وتحرّر {{size}}",
+      "freed_other": "حُذف {{count}} عنصر وتحرّر {{size}}",
+      "more_zero": "",
+      "more_one": "وعنصر آخر.",
+      "more_two": "وعنصران آخران.",
+      "more_few": "و{{count}} عناصر أخرى.",
+      "more_many": "و{{count}} عنصرًا آخر.",
+      "more_other": "و{{count}} عنصر آخر.",
+      "confirmTitle": "حذف هذه النسخ؟",
+      "confirmDescription_zero": "لا عناصر للحذف.",
+      "confirmDescription_one": "يتحقق العامل مجددًا ويحذف العنصر الذي وجده التشغيل التجريبي. لا يمكن التراجع عن ذلك.",
+      "confirmDescription_two": "يتحقق العامل مجددًا ويحذف العنصرين اللذين وجدهما التشغيل التجريبي. لا يمكن التراجع عن ذلك.",
+      "confirmDescription_few": "يتحقق العامل مجددًا ويحذف {{count}} عناصر وجدها التشغيل التجريبي. لا يمكن التراجع عن ذلك.",
+      "confirmDescription_many": "يتحقق العامل مجددًا ويحذف {{count}} عنصرًا وجدها التشغيل التجريبي. لا يمكن التراجع عن ذلك.",
+      "confirmDescription_other": "يتحقق العامل مجددًا ويحذف {{count}} عنصر وجدها التشغيل التجريبي. لا يمكن التراجع عن ذلك.",
+      "columns": {
+        "entry": "العنصر",
+        "reason": "السبب",
+        "size": "الحجم"
+      },
+      "reasons": {
+        "orphaned": "يتيم",
+        "removed_file": "حُذف المصدر",
+        "superseded": "مستبدل",
+        "leftover": "مهمة متوقفة"
+      }
+    }
   }
 }

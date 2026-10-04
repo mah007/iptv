@@ -129,8 +129,39 @@ export function isoDuration(seconds: number): string {
   return `PT${String(hours)}H${String(minutes)}M${String(total % 60)}S`;
 }
 
+/** Digits after the decimal point of a currency (SAR 2, KWD 3, JPY 0). */
+export function currencyDigits(currency: string): number {
+  try {
+    return (
+      new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2
+    );
+  } catch {
+    return 2;
+  }
+}
+
+/** An amount in minor units (2900 = 29.00 SAR) as money: "SAR 29.00" / "29.00 ر.س.". */
+export function formatMoney(minor: number, currency: string, language = "en"): string {
+  const locale = formatLocale(language);
+  const digits = currencyDigits(currency);
+  const value = finite(minor) / 10 ** digits;
+  try {
+    return numberFormat(locale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(value);
+  } catch {
+    return `${numberFormat(locale, { minimumFractionDigits: digits }).format(value)} ${currency}`;
+  }
+}
+
 export interface Formatters {
   locale: string;
+  /** Minor units of `currency` as money. */
+  money: (minor: number, currency: string) => string;
   number: (value: number, options?: Intl.NumberFormatOptions) => string;
   percent: (ratio: number, options?: Intl.NumberFormatOptions) => string;
   dateTime: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => string;
@@ -148,6 +179,7 @@ export function createFormatters(
   const locale = formatLocale(language, numerals);
   return {
     locale,
+    money: (minor, currency) => formatMoney(minor, currency, language),
     number: (value, options) => numberFormat(locale, options).format(value),
     percent: (ratio, options) =>
       numberFormat(locale, {

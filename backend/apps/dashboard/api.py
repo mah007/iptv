@@ -3,24 +3,30 @@
 from typing import Any, ClassVar
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from django.db.models import QuerySet
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import User
 from apps.accounts.permissions import HasPermission, Requirements, request_permission_codes
 from apps.audit.models import AuditLog
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.schema import problems
-from apps.dashboard import activity, charts, health, services
+from apps.dashboard import activity, charts, health, services, storage
 from apps.dashboard.serializers import (
     ActivityQuerySerializer,
     ActivitySerializer,
     HealthSerializer,
     KpisSerializer,
+    StorageUsageSerializer,
     TimeseriesSerializer,
+    WatchHistorySerializer,
 )
+from apps.engagement.models import WatchProgress
 
 DEFAULT_TIME_ZONE = "Asia/Riyadh"
 
@@ -57,6 +63,22 @@ class TimeseriesView(APIView):
     )
     def get(self, request: Request) -> Response:
         return Response(TimeseriesSerializer(charts.timeseries(_time_zone(request))).data)
+
+
+class StorageView(APIView):
+    """Storage usage (SPEC §8.3 Storage); the cleanup itself is `admin/renditions/cleanup`."""
+
+    permission_classes = (HasPermission,)
+    required_permissions: ClassVar[Requirements] = {"GET": ("library.view", "library.manage")}
+
+    @extend_schema(
+        operation_id="storage_usage",
+        summary="Storage usage: by library, sources against renditions, growth over 90 days "
+        "and the largest titles (the admin's time zone; cached for 30 s)",
+        responses={200: StorageUsageSerializer, **problems(401, 403)},
+    )
+    def get(self, request: Request) -> Response:
+        return Response(StorageUsageSerializer(storage.storage(_time_zone(request))).data)
 
 
 class ActivityView(generics.ListAPIView[AuditLog]):
@@ -127,3 +149,28 @@ class HealthView(APIView):
     )
     def get(self, request: Request) -> Response:
         return Response(HealthSerializer(health.collect()).data)
+
+
+class CustomerHistoryView(generics.ListAPIView[WatchProgress]):
+    """GET /api/v1/admin/customers/{id}/history: what the customer watched, newest first."""
+
+    permission_classes = (HasPermission,)
+    required_permissions: ClassVar[Requirements] = {"GET": "customers.view"}
+    serializer_class = WatchHistorySerializer
+    filter_backends = ()
+
+    def get_queryset(self) -> QuerySet[WatchProgress]:
+        customer = get_object_or_404(User.objects.filter(is_staff=False), pk=self.kwargs["pk"])
+        return (
+            WatchProgress.objects.filter(user=customer)
+            .select_related("movie", "episode__season__series")
+            .order_by("-updated_at", "-id")
+        )
+
+    @extend_schema(
+        operation_id="customers_history",
+        summary="A customer's watch history (progress per title), newest first",
+        responses={200: WatchHistorySerializer(many=True), **problems(401, 403, 404)},
+    )
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        return super().get(request, *args, **kwargs)

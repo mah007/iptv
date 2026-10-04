@@ -68,7 +68,7 @@ function outOfRange(entry: SettingEntry, value: Value | null): boolean {
 
 /** One setting: label, description, a typed control, its default and who changed it last. */
 export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const id = useId();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(() => (entry.sensitive ? "" : displayValue(entry.value)));
@@ -82,6 +82,9 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
     if (!entry.sensitive) setDraft(displayValue(entry.value));
   }
 
+  // A key the registry gained before the locale files did: shown humanised, and
+  // flagged for the end-to-end check that every setting is translated.
+  const untranslated = !i18n.exists(`settings.keys.${entry.key}.label`);
   const label = t(`settings.keys.${entry.key}.label`, { defaultValue: humanize(entry.key) });
   const description = t(`settings.keys.${entry.key}.description`, {
     defaultValue: entry.description,
@@ -208,6 +211,7 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
   return (
     <div
       data-setting={entry.key}
+      data-untranslated={untranslated ? "" : undefined}
       className="grid gap-x-8 gap-y-3 border-b border-border py-4 last:border-b-0 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
     >
       <div className="grid content-start gap-1">
@@ -227,7 +231,7 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
         <p id={descriptionId} className="text-xs text-muted-foreground">
           {description}
         </p>
-        <code className="w-fit font-mono text-[11px] text-muted-foreground/80" dir="ltr">
+        <code className="w-fit font-mono text-[11px] text-muted-foreground" dir="ltr">
           {entry.key}
         </code>
       </div>

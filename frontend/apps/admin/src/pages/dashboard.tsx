@@ -48,6 +48,7 @@ import { useTranslation } from "react-i18next";
 
 import { QueryError, RequirePermission } from "../components/states";
 import { RecentActivity } from "../features/activity/activity";
+import { BillingKpis } from "../features/billing/billing-kpis";
 import { imageSource, localName, localTitle } from "../features/catalog/artwork";
 import { ExpiryText } from "../features/customers/expiry";
 import { HealthStrip } from "../features/health/health-strip";
@@ -665,6 +666,7 @@ function Dashboard() {
       />
       {can("settings.view") ? <HealthStrip /> : null}
       <KpiTiles series={timeseries.data} />
+      {can("billing.view") ? <BillingKpis /> : null}
       <Charts
         data={timeseries.data}
         error={timeseries.error}
