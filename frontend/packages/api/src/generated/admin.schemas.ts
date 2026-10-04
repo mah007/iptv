@@ -177,6 +177,98 @@ export interface AccessRuleCreateRequest {
 }
 
 /**
+ * * `compat_mp4` - Compat MP4
+ * * `hls` - HLS ladder
+ * * `uhd` - UHD version
+ * * `thumbnails` - Thumbnails
+ * * `subtitles` - Subtitles
+ */
+export type TranscodeProfile = (typeof TranscodeProfile)[keyof typeof TranscodeProfile];
+
+export const TranscodeProfile = {
+  compat_mp4: "compat_mp4",
+  hls: "hls",
+  uhd: "uhd",
+  thumbnails: "thumbnails",
+  subtitles: "subtitles",
+} as const;
+
+/**
+ * * `queued` - Queued
+ * * `running` - Running
+ * * `done` - Done
+ * * `failed` - Failed
+ * * `cancelled` - Cancelled
+ */
+export type TranscodeJobStatusEnum =
+  (typeof TranscodeJobStatusEnum)[keyof typeof TranscodeJobStatusEnum];
+
+export const TranscodeJobStatusEnum = {
+  queued: "queued",
+  running: "running",
+  done: "done",
+  failed: "failed",
+  cancelled: "cancelled",
+} as const;
+
+/**
+ * * `cpu` - CPU (libx264)
+ * * `qsv` - Intel QSV
+ * * `vaapi` - VA-API
+ * * `nvenc` - NVIDIA NVENC
+ */
+export type BackendEnum = (typeof BackendEnum)[keyof typeof BackendEnum];
+
+export const BackendEnum = {
+  cpu: "cpu",
+  qsv: "qsv",
+  vaapi: "vaapi",
+  nvenc: "nvenc",
+} as const;
+
+export interface ActiveJob {
+  readonly id: string;
+  readonly profile: TranscodeProfile;
+  readonly status: TranscodeJobStatusEnum;
+  readonly progress: number;
+  readonly backend: BackendEnum;
+  readonly priority: number;
+  /** @nullable */
+  readonly eta_s: number | null;
+}
+
+export interface ActivityActor {
+  id: string;
+  /** The admin's name, or their username. */
+  name: string;
+}
+
+export interface ActivityCustomer {
+  id: string;
+  name: string;
+}
+
+export interface Activity {
+  id: string;
+  at: string;
+  /** e.g. customer.create, session.kill. */
+  action: string;
+  /** Null for the system. */
+  readonly actor: ActivityActor | null;
+  /** `app_label.model`, e.g. accounts.device. */
+  target_type: string;
+  target_id: string;
+  /** A readable name for the target; empty when it no longer exists. */
+  readonly target_label: string;
+  /** The customer the target belongs to, if any. */
+  readonly customer: ActivityCustomer | null;
+  /** The redacted snapshot before the change, for admins with audit.view. */
+  readonly before: unknown | null;
+  /** The redacted snapshot after the change, for admins with audit.view. */
+  readonly after: unknown | null;
+}
+
+/**
  * * `active` - Active
  * * `suspended` - Suspended
  * * `disabled` - Disabled
@@ -228,6 +320,11 @@ export interface AdminCreated {
   readonly admin: Admin;
   /** Shown once. */
   readonly password: string;
+}
+
+export interface Amount {
+  currency: string;
+  amount: number;
 }
 
 /**
@@ -284,20 +381,29 @@ export interface AuditLog {
   readonly after: unknown | null;
 }
 
-/**
- * * `cpu` - CPU (libx264)
- * * `qsv` - Intel QSV
- * * `vaapi` - VA-API
- * * `nvenc` - NVIDIA NVENC
- */
-export type BackendEnum = (typeof BackendEnum)[keyof typeof BackendEnum];
+export interface PlanCount {
+  code: string;
+  name_en: string;
+  name_ar: string;
+  subscribers: number;
+}
 
-export const BackendEnum = {
-  cpu: "cpu",
-  qsv: "qsv",
-  vaapi: "vaapi",
-  nvenc: "nvenc",
-} as const;
+export interface BillingKpis {
+  active_subscribers: number;
+  grace: number;
+  suspended: number;
+  trials_active: number;
+  trial_requests: number;
+  expiring_7d: number;
+  new_subscriptions_30d: number;
+  churned_30d: number;
+  mrr: Amount[];
+  mrr_net: Amount[];
+  revenue_mtd: Amount[];
+  revenue_last_month: Amount[];
+  by_plan: PlanCount[];
+  as_of: string;
+}
 
 /**
  * Each signal's score from 0 to 1 (null: not measurable); SPEC §7.2 step 4.
@@ -363,6 +469,15 @@ export interface Category {
   readonly parent: string | null;
 }
 
+export interface CategoryPlays {
+  id: string;
+  /** vod, series or live. */
+  kind: string;
+  name_en: string;
+  name_ar: string;
+  plays: number;
+}
+
 export interface CategoryReorderRequest {
   kind: CategoryKind;
   /** @maxItems 1000 */
@@ -402,6 +517,177 @@ export interface CategoryWriteRequest {
   icon?: string;
   /** @nullable */
   parent?: string | null;
+}
+
+export interface ChangePlanRequest {
+  plan_id: string;
+}
+
+/**
+ * * `orphaned` - orphaned
+ * * `removed_file` - removed_file
+ * * `superseded` - superseded
+ * * `leftover` - leftover
+ */
+export type ReasonEnum = (typeof ReasonEnum)[keyof typeof ReasonEnum];
+
+export const ReasonEnum = {
+  orphaned: "orphaned",
+  removed_file: "removed_file",
+  superseded: "superseded",
+  leftover: "leftover",
+} as const;
+
+export interface CleanupRemoval {
+  /** `<asset key>/<entry>`, never a library path. */
+  path: string;
+  reason: ReasonEnum;
+  bytes: number;
+}
+
+export interface CleanupReport {
+  dry_run: boolean;
+  finished_at: string;
+  bytes: number;
+  entries: number;
+  removals: CleanupRemoval[];
+}
+
+export interface CleanupRequestRequest {
+  dry_run?: boolean;
+}
+
+/**
+ * * `movie` - Movie
+ * * `series` - Series
+ */
+export type TitleType = (typeof TitleType)[keyof typeof TitleType];
+
+export const TitleType = {
+  movie: "movie",
+  series: "series",
+} as const;
+
+/**
+ * * `processing` - Processing
+ * * `review` - Needs review
+ * * `ready` - Ready
+ * * `hidden` - Hidden
+ * * `license_expired` - License expired
+ */
+export type TitleStatus = (typeof TitleStatus)[keyof typeof TitleStatus];
+
+export const TitleStatus = {
+  processing: "processing",
+  review: "review",
+  ready: "ready",
+  hidden: "hidden",
+  license_expired: "license_expired",
+} as const;
+
+/**
+ * * `poster` - Poster
+ * * `backdrop` - Backdrop
+ * * `logo` - Logo
+ * * `still` - Still
+ * * `profile` - Profile
+ */
+export type ImageKind = (typeof ImageKind)[keyof typeof ImageKind];
+
+export const ImageKind = {
+  poster: "poster",
+  backdrop: "backdrop",
+  logo: "logo",
+  still: "still",
+  profile: "profile",
+} as const;
+
+/**
+ * URLs per size and format: {"w500": {"webp": url, "avif": url}, ...}
+ */
+export type ImageSizes = { [key: string]: { [key: string]: string } };
+
+export interface Image {
+  readonly id: string;
+  readonly kind: ImageKind;
+  readonly language: string;
+  /**
+   * The default display size, as WebP.
+   * @nullable
+   */
+  readonly url: string | null;
+  /** URLs per size and format: {"w500": {"webp": url, "avif": url}, ...} */
+  readonly sizes: ImageSizes;
+  readonly width: number;
+  readonly height: number;
+  readonly blurhash: string;
+  readonly is_primary: boolean;
+}
+
+export interface CollectionItem {
+  type: TitleType;
+  id: string;
+  readonly title: string;
+  readonly title_ar: string;
+  /** @nullable */
+  readonly year: number | null;
+  readonly status: TitleStatus;
+  readonly poster: Image | null;
+}
+
+export interface Collection {
+  readonly id: string;
+  /** @pattern ^[-a-zA-Z0-9_]+$ */
+  readonly slug: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly description_en: string;
+  readonly description_ar: string;
+  readonly sort: number;
+  readonly published: boolean;
+  readonly show_on_home: boolean;
+  readonly items: readonly CollectionItem[];
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface CollectionItemRefRequest {
+  type: TitleType;
+  id: string;
+}
+
+/**
+ * Create (names required; the slug defaults to one made from name_en) or change a
+ * collection. `items` replaces its titles, in order.
+ */
+export interface CollectionWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   * @pattern ^[-a-zA-Z0-9_]+$
+   */
+  slug?: string;
+  /**
+   * @minLength 1
+   * @maxLength 150
+   */
+  name_en: string;
+  /**
+   * @minLength 1
+   * @maxLength 150
+   */
+  name_ar: string;
+  description_en?: string;
+  description_ar?: string;
+  /**
+   * @minimum -2147483648
+   * @maximum 2147483647
+   */
+  sort?: number;
+  published?: boolean;
+  show_on_home?: boolean;
+  /** @maxItems 500 */
+  items?: CollectionItemRefRequest[];
 }
 
 /**
@@ -594,6 +880,15 @@ export interface CustomerCreated {
   readonly credential: IssuedCredential | null;
 }
 
+export interface CustomerRef {
+  readonly id: string;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly username: string;
+  readonly name: string;
+  readonly email: string;
+  readonly phone: string;
+}
+
 export interface CustomerSummary {
   readonly id: string;
   /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
@@ -613,67 +908,44 @@ export interface CustomerSummary {
   readonly created_at: string;
 }
 
+/**
+ * * `ok` - OK
+ * * `degraded` - DEGRADED
+ * * `down` - DOWN
+ */
+export type HealthStatus = (typeof HealthStatus)[keyof typeof HealthStatus];
+
+export const HealthStatus = {
+  ok: "ok",
+  degraded: "degraded",
+  down: "down",
+} as const;
+
+export interface DatabaseHealth {
+  status: HealthStatus;
+  /** @nullable */
+  connections: number | null;
+  /** @nullable */
+  max_connections: number | null;
+  error: string;
+}
+
+export interface DayPoint {
+  /** A calendar day in the admin's time zone. */
+  date: string;
+  /** New customer accounts. */
+  signups: number;
+  /** Customer access periods that ended. */
+  churned: number;
+  /** Playback sessions started. */
+  plays: number;
+  /** Hours played by the sessions started. */
+  watch_hours: number;
+}
+
 export interface DeviceBlockRequest {
   /** @maxLength 200 */
   reason?: string;
-}
-
-/**
- * * `stopped` - Stopped
- * * `kicked` - Kicked
- * * `expired` - Access expired
- * * `limit` - Stream limit
- * * `idle` - Idle
- * * `error` - Error
- */
-export type EndReasonEnum = (typeof EndReasonEnum)[keyof typeof EndReasonEnum];
-
-export const EndReasonEnum = {
-  stopped: "stopped",
-  kicked: "kicked",
-  expired: "expired",
-  limit: "limit",
-  idle: "idle",
-  error: "error",
-} as const;
-
-/**
- * * `poster` - Poster
- * * `backdrop` - Backdrop
- * * `logo` - Logo
- * * `still` - Still
- * * `profile` - Profile
- */
-export type ImageKind = (typeof ImageKind)[keyof typeof ImageKind];
-
-export const ImageKind = {
-  poster: "poster",
-  backdrop: "backdrop",
-  logo: "logo",
-  still: "still",
-  profile: "profile",
-} as const;
-
-/**
- * URLs per size and format: {"w500": {"webp": url, "avif": url}, ...}
- */
-export type ImageSizes = { [key: string]: { [key: string]: string } };
-
-export interface Image {
-  readonly id: string;
-  readonly kind: ImageKind;
-  readonly language: string;
-  /**
-   * The default display size, as WebP.
-   * @nullable
-   */
-  readonly url: string | null;
-  /** URLs per size and format: {"w500": {"webp": url, "avif": url}, ...} */
-  readonly sizes: ImageSizes;
-  readonly width: number;
-  readonly height: number;
-  readonly blurhash: string;
-  readonly is_primary: boolean;
 }
 
 export interface LibraryBrief {
@@ -730,7 +1002,7 @@ export const FileState = {
  * A media file as the admin sees it: its path inside its library, technical summary
  * and pipeline state. Never the storage path.
  */
-export interface File {
+export interface MediaFile {
   readonly id: string;
   readonly library: LibraryBrief;
   readonly relative_path: string;
@@ -784,7 +1056,7 @@ export interface Episode {
   /** @nullable */
   readonly rating: number | null;
   readonly still: Image | null;
-  readonly files: readonly File[];
+  readonly files: readonly MediaFile[];
 }
 
 /**
@@ -800,12 +1072,208 @@ export const EpisodeOrderingEnum = {
   tvdb_dvd: "tvdb_dvd",
 } as const;
 
+export interface ExtendRequest {
+  /**
+   * @minimum 1
+   * @maximum 3660
+   */
+  days: number;
+}
+
 export interface Genre {
   readonly id: string;
   /** @nullable */
   readonly tmdb_id: number | null;
   readonly name_en: string;
   readonly name_ar: string;
+}
+
+export interface ServiceHealth {
+  /** postgres, redis_state, redis_cache, meilisearch, workers, watcher, transcoders, or edge:<host>. */
+  name: string;
+  status: HealthStatus;
+  /** @nullable */
+  latency_ms: number | null;
+  /**
+   * Seconds since the last heartbeat, for background services.
+   * @nullable
+   */
+  age_s: number | null;
+  /** An exception class name or a short reason. */
+  error: string;
+}
+
+export interface QueueDepth {
+  name: string;
+  /**
+   * Null when the broker is down.
+   * @nullable
+   */
+  depth: number | null;
+}
+
+/**
+ * Backend -> codecs it encodes on this host.
+ */
+export type TranscoderBackends = { [key: string]: string[] };
+
+export interface Transcoder {
+  host: string;
+  /** The backend jobs prefer here: nvenc, qsv, vaapi, cpu. */
+  best: string;
+  queues: string[];
+  /** Backend -> codecs it encodes on this host. */
+  backends: TranscoderBackends;
+  gpus: string[];
+  /** FFmpeg version. */
+  ffmpeg: string;
+  /** @nullable */
+  checked_at: string | null;
+}
+
+export interface RedisHealth {
+  /** redis_state or redis_cache. */
+  name: string;
+  status: HealthStatus;
+  /**
+   * Bytes.
+   * @nullable
+   */
+  used_memory: number | null;
+  /**
+   * Bytes; null: no limit.
+   * @nullable
+   */
+  max_memory: number | null;
+  /** maxmemory-policy. */
+  policy: string;
+  /**
+   * Must stay 0 on redis_state.
+   * @nullable
+   */
+  evicted_keys: number | null;
+  error: string;
+}
+
+export interface Health {
+  as_of: string;
+  /**
+   * The worst of the parts.
+   *
+   * * `ok` - OK
+   * * `degraded` - DEGRADED
+   * * `down` - DOWN
+   */
+  status: HealthStatus;
+  services: ServiceHealth[];
+  queues: QueueDepth[];
+  transcoders: Transcoder[];
+  redis: RedisHealth[];
+  database: DatabaseHealth;
+  /** Base URL for Grafana links; empty: none. */
+  grafana_url: string;
+}
+
+/**
+ * * `poster` - poster
+ * * `backdrop` - backdrop
+ * * `logo` - logo
+ * * `still` - still
+ */
+export type ImageAddKindEnum = (typeof ImageAddKindEnum)[keyof typeof ImageAddKindEnum];
+
+export const ImageAddKindEnum = {
+  poster: "poster",
+  backdrop: "backdrop",
+  logo: "logo",
+  still: "still",
+} as const;
+
+export interface ImageAddRequest {
+  kind: ImageAddKindEnum;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  tmdb_path?: string;
+  /** An uploaded image (15 MB at most). */
+  file?: Blob | File;
+  primary?: boolean;
+}
+
+/**
+ * * `poster` - poster
+ * * `backdrop` - backdrop
+ * * `logo` - logo
+ */
+export type ImageAlternativeKindEnum =
+  (typeof ImageAlternativeKindEnum)[keyof typeof ImageAlternativeKindEnum];
+
+export const ImageAlternativeKindEnum = {
+  poster: "poster",
+  backdrop: "backdrop",
+  logo: "logo",
+} as const;
+
+export interface ImageAlternative {
+  kind: ImageAlternativeKindEnum;
+  /** The TMDB image path to send back to pick it. */
+  path: string;
+  language: string;
+  width: number;
+  height: number;
+  /** A small preview on TMDB's image CDN. */
+  preview_url: string;
+}
+
+/**
+ * * `pending` - Awaiting payment
+ * * `paid` - Paid
+ * * `void` - Void
+ * * `refunded` - Refunded
+ */
+export type InvoiceStatus = (typeof InvoiceStatus)[keyof typeof InvoiceStatus];
+
+export const InvoiceStatus = {
+  pending: "pending",
+  paid: "paid",
+  void: "void",
+  refunded: "refunded",
+} as const;
+
+export interface PlanRef {
+  readonly id: string;
+  /** @pattern ^[-a-zA-Z0-9_]+$ */
+  readonly code: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly is_trial: boolean;
+}
+
+export interface Invoice {
+  readonly id: string;
+  /** @nullable */
+  readonly number: string | null;
+  readonly status: InvoiceStatus;
+  readonly user: CustomerRef;
+  readonly plan: PlanRef;
+  /** @nullable */
+  readonly subscription_id: string | null;
+  readonly locale: string;
+  readonly currency: string;
+  readonly lines: unknown;
+  readonly subtotal: number;
+  /** @pattern ^-?\d{0,1}(?:\.\d{0,4})?$ */
+  readonly vat_rate: string;
+  readonly vat_amount: number;
+  readonly total: number;
+  readonly prices_include_vat: boolean;
+  readonly refunded_amount: number;
+  readonly bill_to: unknown;
+  readonly seller: unknown;
+  /** @nullable */
+  readonly issued_at: string | null;
+  readonly created_at: string;
 }
 
 export interface JobFile {
@@ -850,6 +1318,18 @@ export interface Kpis {
   devices_total: number;
   /** Blocked devices (not revoked). */
   devices_blocked: number;
+  /** Playback sessions open now. */
+  streams_now: number;
+  /** Customers with a session open now. */
+  stream_users_now: number;
+  /** Open items in the review queue. */
+  reviews_open: number;
+  /** Transcode jobs waiting for a worker. */
+  transcode_queued: number;
+  /** Transcode jobs running now. */
+  transcode_running: number;
+  /** Transcode jobs that failed in the last 24 hours. */
+  transcode_failed_24h: number;
   /** When the figures were computed (cached 30 s). */
   as_of: string;
 }
@@ -1021,6 +1501,44 @@ export interface LoginResponse {
 }
 
 /**
+ * * `bank_transfer` - bank_transfer
+ * * `cash` - cash
+ * * `other` - other
+ */
+export type ManualPaymentMethodEnum =
+  (typeof ManualPaymentMethodEnum)[keyof typeof ManualPaymentMethodEnum];
+
+export const ManualPaymentMethodEnum = {
+  bank_transfer: "bank_transfer",
+  cash: "cash",
+  other: "other",
+} as const;
+
+export interface ManualPaymentRequest {
+  user_id: string;
+  /** @nullable */
+  plan_id?: string | null;
+  /** @nullable */
+  invoice_id?: string | null;
+  /**
+   * Minor units received; default: the plan's price (VAT included).
+   * @minimum 1
+   * @nullable
+   */
+  amount?: number | null;
+  method?: ManualPaymentMethodEnum;
+  /** @maxLength 100 */
+  reference?: string;
+  /** @nullable */
+  paid_at?: string | null;
+  /**
+   * Send the same key again to get the first recording back (double clicks).
+   * @maxLength 64
+   */
+  idempotency_key?: string;
+}
+
+/**
  * The signed-in admin. `permissions` is what the UI may offer; the API checks again.
  */
 export interface Me {
@@ -1034,6 +1552,88 @@ export interface Me {
   readonly mfa_enabled: boolean;
   readonly roles: readonly string[];
   readonly permissions: readonly string[];
+}
+
+export interface MediaAudioTrack {
+  readonly id: string;
+  readonly stream_index: number;
+  readonly language: string;
+  readonly codec: string;
+  readonly channels: number;
+  readonly title: string;
+  readonly default: boolean;
+  readonly forced: boolean;
+  readonly commentary: boolean;
+}
+
+export interface MediaQueued {
+  queued: boolean;
+}
+
+export type OriginEnum = (typeof OriginEnum)[keyof typeof OriginEnum];
+
+export const OriginEnum = {
+  embedded: "embedded",
+  sidecar: "sidecar",
+  upload: "upload",
+} as const;
+
+/**
+ * * `srt` - SubRip
+ * * `vtt` - WebVTT
+ * * `ass` - ASS/SSA
+ * * `pgs` - PGS (image)
+ * * `vobsub` - VobSub (image)
+ * * `other` - Other
+ */
+export type SubtitleFormat = (typeof SubtitleFormat)[keyof typeof SubtitleFormat];
+
+export const SubtitleFormat = {
+  srt: "srt",
+  vtt: "vtt",
+  ass: "ass",
+  pgs: "pgs",
+  vobsub: "vobsub",
+  other: "other",
+} as const;
+
+/**
+ * * `pending` - Pending
+ * * `ready` - Ready
+ * * `failed` - Failed
+ * * `unsupported` - Image (burn-in only)
+ */
+export type SubtitleStatus = (typeof SubtitleStatus)[keyof typeof SubtitleStatus];
+
+export const SubtitleStatus = {
+  pending: "pending",
+  ready: "ready",
+  failed: "failed",
+  unsupported: "unsupported",
+} as const;
+
+export interface MediaSubtitleTrack {
+  readonly id: string;
+  /** embedded, sidecar or upload. */
+  readonly origin: OriginEnum;
+  /** @nullable */
+  readonly stream_index: number | null;
+  /** A sidecar's path inside its library. */
+  relative_path: string;
+  readonly upload_name: string;
+  readonly codec: string;
+  readonly format: SubtitleFormat;
+  readonly language: string;
+  readonly title: string;
+  readonly default: boolean;
+  readonly forced: boolean;
+  readonly hearing_impaired: boolean;
+  readonly encoding: string;
+  readonly status: SubtitleStatus;
+  readonly error: string;
+  readonly cues: number;
+  /** False for image subtitles. */
+  text: boolean;
 }
 
 /**
@@ -1058,22 +1658,9 @@ export interface MfaVerifyRequest {
   code: string;
 }
 
-/**
- * * `processing` - Processing
- * * `review` - Needs review
- * * `ready` - Ready
- * * `hidden` - Hidden
- * * `license_expired` - License expired
- */
-export type TitleStatus = (typeof TitleStatus)[keyof typeof TitleStatus];
-
-export const TitleStatus = {
-  processing: "processing",
-  review: "review",
-  ready: "ready",
-  hidden: "hidden",
-  license_expired: "license_expired",
-} as const;
+export interface Migrated {
+  migrated: number;
+}
 
 export interface MovieDetail {
   readonly id: string;
@@ -1124,7 +1711,7 @@ export interface MovieDetail {
   readonly release_date: string | null;
   /** @nullable */
   readonly runtime_min: number | null;
-  readonly files: readonly File[];
+  readonly files: readonly MediaFile[];
 }
 
 /**
@@ -1158,6 +1745,77 @@ export interface MovieSummary {
   readonly runtime_min: number | null;
 }
 
+/**
+ * * `email` - Email
+ */
+export type NotificationChannel = (typeof NotificationChannel)[keyof typeof NotificationChannel];
+
+export const NotificationChannel = {
+  email: "email",
+} as const;
+
+export interface Recipient {
+  readonly id: string;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly username: string;
+  readonly name: string;
+  readonly email: string;
+  /** Designates whether the user can log into this admin site. */
+  readonly is_staff: boolean;
+}
+
+/**
+ * * `queued` - Queued
+ * * `sent` - Sent
+ * * `failed` - Failed
+ * * `skipped` - Skipped
+ */
+export type OutboxStatus = (typeof OutboxStatus)[keyof typeof OutboxStatus];
+
+export const OutboxStatus = {
+  queued: "queued",
+  sent: "sent",
+  failed: "failed",
+  skipped: "skipped",
+} as const;
+
+export interface Outbox {
+  readonly id: string;
+  readonly user: Recipient | null;
+  readonly channel: NotificationChannel;
+  readonly template_key: string;
+  readonly locale: Locale;
+  readonly status: OutboxStatus;
+  readonly attempts: number;
+  /** @nullable */
+  readonly next_attempt_at: string | null;
+  readonly to_address: string;
+  readonly subject: string;
+  /** @nullable */
+  readonly sent_at: string | null;
+  readonly error: string;
+  readonly created_at: string;
+}
+
+export interface OutboxDetail {
+  readonly id: string;
+  readonly user: Recipient | null;
+  readonly channel: NotificationChannel;
+  readonly template_key: string;
+  readonly locale: Locale;
+  readonly status: OutboxStatus;
+  readonly attempts: number;
+  /** @nullable */
+  readonly next_attempt_at: string | null;
+  readonly to_address: string;
+  readonly subject: string;
+  /** @nullable */
+  readonly sent_at: string | null;
+  readonly error: string;
+  readonly created_at: string;
+  readonly payload: unknown;
+}
+
 export interface PaginatedAccessRuleList {
   count: number;
   /** @nullable */
@@ -1165,6 +1823,15 @@ export interface PaginatedAccessRuleList {
   /** @nullable */
   previous: string | null;
   results: AccessRule[];
+}
+
+export interface PaginatedActivityList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Activity[];
 }
 
 export interface PaginatedAdminList {
@@ -1194,6 +1861,15 @@ export interface PaginatedCategoryList {
   results: Category[];
 }
 
+export interface PaginatedCollectionList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Collection[];
+}
+
 export interface PaginatedCustomerSummaryList {
   count: number;
   /** @nullable */
@@ -1212,6 +1888,15 @@ export interface PaginatedDeviceList {
   results: Device[];
 }
 
+export interface PaginatedInvoiceList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Invoice[];
+}
+
 export interface PaginatedLibraryList {
   count: number;
   /** @nullable */
@@ -1228,6 +1913,103 @@ export interface PaginatedMovieSummaryList {
   /** @nullable */
   previous: string | null;
   results: MovieSummary[];
+}
+
+export interface PaginatedOutboxList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Outbox[];
+}
+
+/**
+ * * `manual` - Manual (bank transfer or cash)
+ * * `stripe` - Stripe
+ * * `moyasar` - Moyasar
+ */
+export type PaymentProviderCode = (typeof PaymentProviderCode)[keyof typeof PaymentProviderCode];
+
+export const PaymentProviderCode = {
+  manual: "manual",
+  stripe: "stripe",
+  moyasar: "moyasar",
+} as const;
+
+/**
+ * * `bank_transfer` - Bank transfer
+ * * `cash` - Cash
+ * * `card` - Card
+ * * `mada` - mada
+ * * `apple_pay` - Apple Pay
+ * * `stc_pay` - STC Pay
+ * * `other` - Other
+ */
+export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];
+
+export const PaymentMethod = {
+  bank_transfer: "bank_transfer",
+  cash: "cash",
+  card: "card",
+  mada: "mada",
+  apple_pay: "apple_pay",
+  stc_pay: "stc_pay",
+  other: "other",
+} as const;
+
+/**
+ * * `pending` - Pending
+ * * `succeeded` - Succeeded
+ * * `failed` - Failed
+ * * `cancelled` - Cancelled
+ * * `partially_refunded` - Partially refunded
+ * * `refunded` - Refunded
+ */
+export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus];
+
+export const PaymentStatus = {
+  pending: "pending",
+  succeeded: "succeeded",
+  failed: "failed",
+  cancelled: "cancelled",
+  partially_refunded: "partially_refunded",
+  refunded: "refunded",
+} as const;
+
+export interface Payment {
+  readonly id: string;
+  readonly user: CustomerRef;
+  readonly plan: PlanRef | null;
+  /** @nullable */
+  readonly subscription_id: string | null;
+  /** @nullable */
+  readonly invoice_id: string | null;
+  readonly invoice_number: string;
+  readonly provider: PaymentProviderCode;
+  readonly method: PaymentMethod;
+  readonly checkout_ref: string;
+  readonly provider_ref: string;
+  readonly amount: number;
+  readonly currency: string;
+  readonly status: PaymentStatus;
+  readonly refunded_amount: number;
+  readonly reference: string;
+  readonly failure_reason: string;
+  /** @nullable */
+  readonly paid_at: string | null;
+  /** @nullable */
+  readonly recorded_by: string | null;
+  readonly created_at: string;
+}
+
+export interface PaginatedPaymentList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Payment[];
 }
 
 /**
@@ -1407,6 +2189,25 @@ export const TitleKindEnum = {
   episode: "episode",
 } as const;
 
+/**
+ * * `stopped` - Stopped
+ * * `kicked` - Kicked
+ * * `expired` - Access expired
+ * * `limit` - Stream limit
+ * * `idle` - Idle
+ * * `error` - Error
+ */
+export type SessionEndReasonEnum = (typeof SessionEndReasonEnum)[keyof typeof SessionEndReasonEnum];
+
+export const SessionEndReasonEnum = {
+  stopped: "stopped",
+  kicked: "kicked",
+  expired: "expired",
+  limit: "limit",
+  idle: "idle",
+  error: "error",
+} as const;
+
 export interface Session {
   readonly id: string;
   readonly user: SessionUser;
@@ -1425,7 +2226,7 @@ export interface Session {
   /** @nullable */
   readonly ended_at: string | null;
   readonly bytes_sent: number;
-  readonly end_reason: EndReasonEnum;
+  readonly end_reason: SessionEndReasonEnum;
   /** Not ended yet. */
   readonly is_active: boolean;
   /** The session id prefix the media edge's access log shows. */
@@ -1442,38 +2243,100 @@ export interface PaginatedSessionList {
 }
 
 /**
- * * `compat_mp4` - Compat MP4
+ * * `pending` - Pending
+ * * `active` - Active
+ * * `grace` - Grace
+ * * `expired` - Expired
+ * * `suspended` - Suspended
+ * * `cancelled` - Cancelled
  */
-export type ProfileEnum = (typeof ProfileEnum)[keyof typeof ProfileEnum];
+export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
 
-export const ProfileEnum = {
-  compat_mp4: "compat_mp4",
+export const SubscriptionStatus = {
+  pending: "pending",
+  active: "active",
+  grace: "grace",
+  expired: "expired",
+  suspended: "suspended",
+  cancelled: "cancelled",
 } as const;
 
 /**
- * * `queued` - Queued
- * * `running` - Running
- * * `done` - Done
- * * `failed` - Failed
- * * `cancelled` - Cancelled
+ * * `manual` - Manual (admin)
+ * * `payment` - Payment
+ * * `trial` - Trial
+ * * `import` - Import
  */
-export type TranscodeJobStatusEnum =
-  (typeof TranscodeJobStatusEnum)[keyof typeof TranscodeJobStatusEnum];
+export type SubscriptionSource = (typeof SubscriptionSource)[keyof typeof SubscriptionSource];
 
-export const TranscodeJobStatusEnum = {
-  queued: "queued",
-  running: "running",
-  done: "done",
-  failed: "failed",
-  cancelled: "cancelled",
+export const SubscriptionSource = {
+  manual: "manual",
+  payment: "payment",
+  trial: "trial",
+  import: "import",
 } as const;
+
+/**
+ * * `expired` - Expired
+ * * `cancelled` - Cancelled
+ * * `refunded` - Refunded
+ * * `rejected` - Trial request rejected
+ * * `merged` - Merged into the current subscription
+ */
+export type SubscriptionEndReason =
+  (typeof SubscriptionEndReason)[keyof typeof SubscriptionEndReason];
+
+export const SubscriptionEndReason = {
+  expired: "expired",
+  cancelled: "cancelled",
+  refunded: "refunded",
+  rejected: "rejected",
+  merged: "merged",
+} as const;
+
+export interface Subscription {
+  readonly id: string;
+  readonly user: CustomerRef;
+  readonly plan: PlanRef;
+  readonly plan_snapshot: unknown;
+  readonly status: SubscriptionStatus;
+  readonly starts_at: string;
+  readonly ends_at: string;
+  readonly grace_days: number;
+  /** @nullable */
+  readonly grace_until: string | null;
+  readonly source: SubscriptionSource;
+  readonly auto_renew: boolean;
+  readonly trial_identity: string;
+  /** @nullable */
+  readonly reminded_7d_at: string | null;
+  /** @nullable */
+  readonly reminded_1d_at: string | null;
+  /** @nullable */
+  readonly ended_at: string | null;
+  readonly end_reason: SubscriptionEndReason;
+  readonly note: string;
+  /** @nullable */
+  readonly created_by: string | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface PaginatedSubscriptionList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Subscription[];
+}
 
 export interface TranscodeJob {
   readonly id: string;
   readonly file: JobFile;
   /** The movie or episode, if linked. */
   readonly title: JobTitle | null;
-  readonly profile: ProfileEnum;
+  readonly profile: TranscodeProfile;
   readonly remux: boolean;
   readonly backend: BackendEnum;
   readonly encoder: string;
@@ -1504,6 +2367,17 @@ export interface PaginatedTranscodeJobList {
   /** @nullable */
   previous: string | null;
   results: TranscodeJob[];
+}
+
+/**
+ * Shown once. Send `url` to the customer if `emailed` is false (no email on file, or
+ * no email sender configured).
+ */
+export interface PasswordInvitation {
+  /** The single-use link that sets the password. */
+  url: string;
+  expires_at: string;
+  emailed: boolean;
 }
 
 /**
@@ -1579,6 +2453,40 @@ export interface PatchedCategoryWriteRequest {
   icon?: string;
   /** @nullable */
   parent?: string | null;
+}
+
+/**
+ * Create (names required; the slug defaults to one made from name_en) or change a
+ * collection. `items` replaces its titles, in order.
+ */
+export interface PatchedCollectionWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   * @pattern ^[-a-zA-Z0-9_]+$
+   */
+  slug?: string;
+  /**
+   * @minLength 1
+   * @maxLength 150
+   */
+  name_en?: string;
+  /**
+   * @minLength 1
+   * @maxLength 150
+   */
+  name_ar?: string;
+  description_en?: string;
+  description_ar?: string;
+  /**
+   * @minimum -2147483648
+   * @maximum 2147483647
+   */
+  sort?: number;
+  published?: boolean;
+  show_on_home?: boolean;
+  /** @maxItems 500 */
+  items?: CollectionItemRefRequest[];
 }
 
 /**
@@ -1701,6 +2609,80 @@ export interface PatchedMovieUpdateRequest {
   runtime_min?: number | null;
 }
 
+export interface PatchedPlanWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 50
+   * @pattern ^[-a-zA-Z0-9_]+$
+   */
+  code?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name_en?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name_ar?: string;
+  description_en?: string;
+  description_ar?: string;
+  /**
+   * @minimum 0
+   * @maximum 120
+   */
+  duration_months?: number;
+  /**
+   * @minimum 0
+   * @maximum 3660
+   */
+  duration_days?: number;
+  /**
+   * Minor units: 2900 = 29.00 SAR.
+   * @minimum 0
+   */
+  price?: number;
+  /**
+   * @minLength 1
+   * @maxLength 3
+   * @pattern ^[A-Z]{3}$
+   */
+  currency?: string;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_streams?: number;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_devices?: number;
+  max_quality?: MaxQuality;
+  allow_movies?: boolean;
+  allow_series?: boolean;
+  allow_live?: boolean;
+  allow_download?: boolean;
+  /**
+   * @minimum 1
+   * @maximum 100000
+   * @nullable
+   */
+  bandwidth_cap_mbps?: number | null;
+  concurrency_policy?: ConcurrencyPolicy;
+  is_trial?: boolean;
+  /**
+   * @minimum 0
+   * @maximum 10
+   * @nullable
+   */
+  trial_limit_per_phone?: number | null;
+  category_ids?: string[];
+  sort?: number;
+  active?: boolean;
+}
+
 /**
  * A role and its permission codes. The owner role always lists every permission.
  */
@@ -1713,7 +2695,7 @@ export interface PatchedRoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 18
+   * @maxItems 22
    * @items.minLength 1
    * @items.maxLength 64
    */
@@ -1788,9 +2770,211 @@ export interface PatchedSettingRequest {
   value?: boolean | number | string;
 }
 
+export interface PatchedTrackUpdateRequest {
+  /**
+   * @minLength 1
+   * @maxLength 16
+   */
+  language?: string;
+  /** @maxLength 200 */
+  title?: string;
+  default?: boolean;
+  forced?: boolean;
+}
+
+export interface WebhookEvent {
+  readonly id: string;
+  readonly provider: PaymentProviderCode;
+  readonly event_id: string;
+  readonly type: string;
+  readonly attempts: number;
+  /** @nullable */
+  readonly processed_at: string | null;
+  readonly error: string;
+  readonly payload: unknown;
+  readonly created_at: string;
+}
+
+export interface PaymentDetail {
+  readonly id: string;
+  readonly user: CustomerRef;
+  readonly plan: PlanRef | null;
+  /** @nullable */
+  readonly subscription_id: string | null;
+  /** @nullable */
+  readonly invoice_id: string | null;
+  readonly invoice_number: string;
+  readonly provider: PaymentProviderCode;
+  readonly method: PaymentMethod;
+  readonly checkout_ref: string;
+  readonly provider_ref: string;
+  readonly amount: number;
+  readonly currency: string;
+  readonly status: PaymentStatus;
+  readonly refunded_amount: number;
+  readonly reference: string;
+  readonly failure_reason: string;
+  /** @nullable */
+  readonly paid_at: string | null;
+  /** @nullable */
+  readonly recorded_by: string | null;
+  readonly created_at: string;
+  readonly raw: unknown;
+  readonly webhook_events: readonly WebhookEvent[];
+}
+
 export interface Permission {
   readonly code: string;
   readonly description: string;
+}
+
+/**
+ * What the customer pays for a plan, in minor units, with the VAT split.
+ */
+export interface Price {
+  net: number;
+  vat: number;
+  total: number;
+  /** @pattern ^-?\d{0,1}(?:\.\d{0,4})?$ */
+  vat_rate: string;
+  display_en: string;
+  display_ar: string;
+}
+
+export interface Plan {
+  readonly id: string;
+  /** @pattern ^[-a-zA-Z0-9_]+$ */
+  readonly code: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly description_en: string;
+  readonly description_ar: string;
+  readonly duration_months: number;
+  readonly duration_days: number;
+  readonly price: number;
+  readonly currency: string;
+  readonly price_total: Price;
+  readonly max_streams: number;
+  readonly max_devices: number;
+  readonly max_quality: MaxQuality;
+  readonly allow_movies: boolean;
+  readonly allow_series: boolean;
+  readonly allow_live: boolean;
+  readonly allow_download: boolean;
+  /** @nullable */
+  readonly bandwidth_cap_mbps: number | null;
+  readonly concurrency_policy: ConcurrencyPolicy;
+  readonly is_trial: boolean;
+  /** @nullable */
+  readonly trial_limit_per_phone: number | null;
+  readonly category_ids: readonly string[];
+  readonly sort: number;
+  readonly active: boolean;
+  readonly version: number;
+  readonly subscribers: number;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface PlanWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 50
+   * @pattern ^[-a-zA-Z0-9_]+$
+   */
+  code: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name_en: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name_ar: string;
+  description_en?: string;
+  description_ar?: string;
+  /**
+   * @minimum 0
+   * @maximum 120
+   */
+  duration_months?: number;
+  /**
+   * @minimum 0
+   * @maximum 3660
+   */
+  duration_days?: number;
+  /**
+   * Minor units: 2900 = 29.00 SAR.
+   * @minimum 0
+   */
+  price: number;
+  /**
+   * @minLength 1
+   * @maxLength 3
+   * @pattern ^[A-Z]{3}$
+   */
+  currency?: string;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_streams?: number;
+  /**
+   * @minimum 1
+   * @maximum 50
+   */
+  max_devices?: number;
+  max_quality?: MaxQuality;
+  allow_movies?: boolean;
+  allow_series?: boolean;
+  allow_live?: boolean;
+  allow_download?: boolean;
+  /**
+   * @minimum 1
+   * @maximum 100000
+   * @nullable
+   */
+  bandwidth_cap_mbps?: number | null;
+  concurrency_policy?: ConcurrencyPolicy;
+  is_trial?: boolean;
+  /**
+   * @minimum 0
+   * @maximum 10
+   * @nullable
+   */
+  trial_limit_per_phone?: number | null;
+  category_ids?: string[];
+  sort?: number;
+  active?: boolean;
+}
+
+export interface Preview {
+  subject: string;
+  text: string;
+  html: string;
+}
+
+export interface PreviewRequestRequest {
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  key: string;
+  locale: Locale;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  subject: string;
+  /**
+   * @minLength 1
+   * @maxLength 20000
+   */
+  body_text: string;
+  /** @maxLength 20000 */
+  body_html?: string;
 }
 
 export interface PriorityRequest {
@@ -1804,6 +2988,125 @@ export interface PriorityRequest {
 
 export interface Queued {
   queued: boolean;
+}
+
+export interface ReasonRequest {
+  /** @maxLength 200 */
+  reason?: string;
+}
+
+export interface RefundRequest {
+  /**
+   * Minor units; default: everything not refunded yet.
+   * @minimum 1
+   * @nullable
+   */
+  amount?: number | null;
+  /** @maxLength 200 */
+  reason?: string;
+  cancel_subscription?: boolean;
+}
+
+/**
+ * * `movie` - movie
+ * * `tv` - tv
+ */
+export type RematchKindEnum = (typeof RematchKindEnum)[keyof typeof RematchKindEnum];
+
+export const RematchKindEnum = {
+  movie: "movie",
+  tv: "tv",
+} as const;
+
+export interface RematchRequest {
+  /**
+   * Omit to match the files again automatically.
+   * @minimum 1
+   */
+  tmdb_id?: number;
+  kind?: RematchKindEnum;
+}
+
+export interface RematchResult {
+  files: number;
+  automatic: boolean;
+  title_ids: string[];
+}
+
+/**
+ * * `compat_mp4` - Compat MP4
+ * * `source` - Source (direct play)
+ * * `hls_variant` - HLS variant
+ * * `hls_master` - HLS master
+ * * `uhd` - UHD
+ * * `thumbnails` - Thumbnails
+ */
+export type RenditionKind = (typeof RenditionKind)[keyof typeof RenditionKind];
+
+export const RenditionKind = {
+  compat_mp4: "compat_mp4",
+  source: "source",
+  hls_variant: "hls_variant",
+  hls_master: "hls_master",
+  uhd: "uhd",
+  thumbnails: "thumbnails",
+} as const;
+
+/**
+ * * `pending` - Pending
+ * * `running` - Running
+ * * `ready` - Ready
+ * * `failed` - Failed
+ */
+export type RenditionStatus = (typeof RenditionStatus)[keyof typeof RenditionStatus];
+
+export const RenditionStatus = {
+  pending: "pending",
+  running: "running",
+  ready: "ready",
+  failed: "failed",
+} as const;
+
+export interface Rendition {
+  readonly id: string;
+  readonly kind: RenditionKind;
+  readonly name: string;
+  readonly status: RenditionStatus;
+  /** @nullable */
+  readonly width: number | null;
+  /** @nullable */
+  readonly height: number | null;
+  /** @nullable */
+  readonly bitrate: number | null;
+  readonly codec: string;
+  readonly container: string;
+  readonly size: number;
+  /** Bytes on the media volume (0 for a link to the source file). */
+  readonly disk_bytes: number;
+  readonly encoder_used: string;
+  /** @nullable */
+  readonly duration_s: number | null;
+  readonly error: string;
+  readonly details: unknown;
+  /** @nullable */
+  readonly ready_at: string | null;
+  readonly created_at: string;
+}
+
+export interface ReorderRequest {
+  ids: string[];
+}
+
+export interface ReprocessRequest {
+  /** Outputs to make again; all of them when omitted. */
+  outputs?: TranscodeProfile[];
+  /** One file of the title; all of them when omitted. */
+  media_file?: string;
+}
+
+export interface ReprocessResult {
+  files: string[];
+  outputs: string[];
 }
 
 export interface ResolveRequest {
@@ -1828,7 +3131,7 @@ export interface Role {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 18
+   * @maxItems 22
    * @items.maxLength 64
    */
   permissions?: string[];
@@ -1850,7 +3153,7 @@ export interface RoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 18
+   * @maxItems 22
    * @items.minLength 1
    * @items.maxLength 64
    */
@@ -1975,9 +3278,213 @@ export interface SettingEntry {
   readonly updated_by: string | null;
 }
 
+export interface StreamPoint {
+  /** Start of the bucket. */
+  at: string;
+  /** Sessions that played during the bucket. */
+  streams: number;
+}
+
+/**
+ * * `manual` - manual
+ * * `import` - import
+ */
+export type SubscriptionCreateSourceEnum =
+  (typeof SubscriptionCreateSourceEnum)[keyof typeof SubscriptionCreateSourceEnum];
+
+export const SubscriptionCreateSourceEnum = {
+  manual: "manual",
+  import: "import",
+} as const;
+
+export interface SubscriptionCreateRequest {
+  user_id: string;
+  plan_id: string;
+  source?: SubscriptionCreateSourceEnum;
+  /** @nullable */
+  starts_at?: string | null;
+  /** @nullable */
+  ends_at?: string | null;
+  /** @maxLength 200 */
+  note?: string;
+}
+
+export interface SubtitleUploadRequest {
+  /** An .srt, .ass, .ssa or .vtt file, any encoding. */
+  file: Blob | File;
+  /**
+   * ISO 639: ar, ara, en, eng...
+   * @minLength 1
+   * @maxLength 16
+   */
+  language: string;
+  /** @maxLength 200 */
+  title?: string;
+  default?: boolean;
+  forced?: boolean;
+  /** Required when the title has several files. */
+  media_file?: string;
+}
+
 export interface SuspendRequest {
   /** @maxLength 200 */
   reason?: string;
+}
+
+/**
+ * The template in effect for one event, channel and language.
+ */
+export interface Template {
+  key: string;
+  channel: NotificationChannel;
+  locale: Locale;
+  description: string;
+  variables: string[];
+  subject: string;
+  body_text: string;
+  body_html: string;
+  enabled: boolean;
+  is_default: boolean;
+  /** Carries a password link: sent at once, never stored or resent. */
+  secret: boolean;
+  /** @nullable */
+  updated_at: string | null;
+}
+
+export interface TemplateWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  subject?: string;
+  /**
+   * @minLength 1
+   * @maxLength 20000
+   */
+  body_text?: string;
+  /** @maxLength 20000 */
+  body_html?: string;
+  enabled?: boolean;
+}
+
+export interface TopTitle {
+  kind: TitleType;
+  id: string;
+  title: string;
+  title_ar: string;
+  /** @nullable */
+  year: number | null;
+  /** Sessions in 30 days (a series counts its episodes). */
+  plays: number;
+  watch_hours: number;
+  /** The poster, as the titles list has it. */
+  readonly poster: Image | null;
+}
+
+export interface Timeseries {
+  as_of: string;
+  /** The admin's time zone; days are its days. */
+  time_zone: string;
+  /** Width of a stream bucket. */
+  bucket_minutes: number;
+  /** The last 24 hours, oldest first. */
+  streams: StreamPoint[];
+  /** The highest bucket of the 24 hours. */
+  streams_peak: number;
+  /** @nullable */
+  streams_peak_at: string | null;
+  /** The last 30 days, oldest first. */
+  days: DayPoint[];
+  /** Top 8 categories by plays, 30 d. */
+  categories: CategoryPlays[];
+  /** Top 10 titles by plays, 30 days. */
+  top_titles: TopTitle[];
+}
+
+/**
+ * A file of the title with its outputs, tracks and running jobs.
+ */
+export interface TitleFile {
+  id: string;
+  /** The path inside its library. */
+  relative_path: string;
+  library: string;
+  size: number;
+  /** @nullable */
+  duration_ms: number | null;
+  video_codec: string;
+  /** @nullable */
+  width: number | null;
+  /** @nullable */
+  height: number | null;
+  hdr: string;
+  is_primary: boolean;
+  /** Bytes its renditions occupy. */
+  readonly disk_bytes: number;
+  renditions: Rendition[];
+  audio: MediaAudioTrack[];
+  subtitles: MediaSubtitleTrack[];
+  jobs: ActiveJob[];
+}
+
+/**
+ * * `movie` - movie
+ * * `series` - series
+ * * `episode` - episode
+ */
+export type TitleRefKindEnum = (typeof TitleRefKindEnum)[keyof typeof TitleRefKindEnum];
+
+export const TitleRefKindEnum = {
+  movie: "movie",
+  series: "series",
+  episode: "episode",
+} as const;
+
+export interface TitleRef {
+  kind: TitleRefKindEnum;
+  id: string;
+  name: string;
+}
+
+export interface TitleImages {
+  title: TitleRef;
+  images: Image[];
+  alternatives: ImageAlternative[];
+  /**
+   * provider_unavailable when TMDB could not be asked.
+   * @nullable
+   */
+  alternatives_error: string | null;
+}
+
+export interface TitleMedia {
+  title: TitleRef;
+  files: TitleFile[];
+}
+
+/**
+ * * `audio` - audio
+ * * `subtitle` - subtitle
+ */
+export type TrackKindEnum = (typeof TrackKindEnum)[keyof typeof TrackKindEnum];
+
+export const TrackKindEnum = {
+  audio: "audio",
+  subtitle: "subtitle",
+} as const;
+
+/**
+ * An audio or subtitle track after an edit.
+ */
+export interface Track {
+  kind: TrackKindEnum;
+  audio: MediaAudioTrack | null;
+  subtitle: MediaSubtitleTrack | null;
+}
+
+export interface TrialStartRequest {
+  user_id: string;
+  plan_id: string;
 }
 
 /**
@@ -2013,12 +3520,21 @@ export const ErrorCode = {
   CONTENT_TYPE_NOT_ALLOWED: "CONTENT_TYPE_NOT_ALLOWED",
   QUALITY_NOT_ALLOWED: "QUALITY_NOT_ALLOWED",
   LICENSE_EXPIRED: "LICENSE_EXPIRED",
+  TRIAL_NOT_ELIGIBLE: "TRIAL_NOT_ELIGIBLE",
+  PAYMENT_PROVIDER_UNAVAILABLE: "PAYMENT_PROVIDER_UNAVAILABLE",
+  PAYMENT_PROVIDER_ERROR: "PAYMENT_PROVIDER_ERROR",
+  WEBHOOK_INVALID: "WEBHOOK_INVALID",
 } as const;
 
 /**
  * Messages per field; nested fields use dotted paths.
  */
 export type ProblemFieldErrors = { [key: string]: string[] };
+
+/**
+ * A stable code per message of field_errors (same keys, same order): DRF's validation codes (required, max_length, invalid, unique, ...) or the API's own (username_taken, password_length, ...). Clients translate the codes and fall back to the messages.
+ */
+export type ProblemFieldErrorCodes = { [key: string]: string[] };
 
 /**
  * RFC 9457 problem details, served as application/problem+json.
@@ -2032,6 +3548,8 @@ export interface Problem {
   detail: string;
   /** Messages per field; nested fields use dotted paths. */
   field_errors?: ProblemFieldErrors;
+  /** A stable code per message of field_errors (same keys, same order): DRF's validation codes (required, max_length, invalid, unique, ...) or the API's own (username_taken, password_length, ...). Clients translate the codes and fall back to the messages. */
+  field_error_codes?: ProblemFieldErrorCodes;
 }
 
 export type AccessRulesListParams = {
@@ -2146,6 +3664,21 @@ export const CategoriesListKind = {
   vod: "vod",
 } as const;
 
+export type CollectionsListParams = {
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * A search term.
+   */
+  search?: string;
+};
+
 export type CustomersListParams = {
   /**
    * What the customer may do right now: active, expired, suspended, disabled.
@@ -2237,6 +3770,96 @@ export type CustomersDevicesListParams = {
    */
   page_size?: number;
 };
+
+export type DashboardActivityParams = {
+  /**
+   * Only what was done to this customer, their devices, access rules and sessions (needs customers.view). Without it: the dashboard feed (needs dashboard.view), sign-ins left out.
+   */
+  customer?: string;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+};
+
+export type InvoicesListParams = {
+  /**
+   * Sort key; prefix with - for descending. Default: -created_at.
+   *
+   * * `created_at` - Created at
+   * * `-created_at` - Created at (descending)
+   * * `issued_at` - Issued at
+   * * `-issued_at` - Issued at (descending)
+   * * `total` - Total
+   * * `-total` - Total (descending)
+   */
+  ordering?: InvoicesListOrderingItem[];
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * A search term.
+   */
+  search?: string;
+  /**
+   * * `pending` - Awaiting payment
+   * * `paid` - Paid
+   * * `void` - Void
+   * * `refunded` - Refunded
+   */
+  status?: InvoicesListStatusItem[];
+  /**
+   * Customer id.
+   */
+  user?: string;
+  year?: number;
+};
+
+export type InvoicesListOrderingItem =
+  (typeof InvoicesListOrderingItem)[keyof typeof InvoicesListOrderingItem];
+
+export const InvoicesListOrderingItem = {
+  "-created_at": "-created_at",
+  "-issued_at": "-issued_at",
+  "-total": "-total",
+  created_at: "created_at",
+  issued_at: "issued_at",
+  total: "total",
+} as const;
+
+export type InvoicesListStatusItem =
+  (typeof InvoicesListStatusItem)[keyof typeof InvoicesListStatusItem];
+
+export const InvoicesListStatusItem = {
+  paid: "paid",
+  pending: "pending",
+  refunded: "refunded",
+  void: "void",
+} as const;
+
+export type InvoicesDocumentParams = {
+  /**
+   * Default: the invoice's.
+   */
+  locale?: InvoicesDocumentLocale;
+};
+
+export type InvoicesDocumentLocale =
+  (typeof InvoicesDocumentLocale)[keyof typeof InvoicesDocumentLocale];
+
+export const InvoicesDocumentLocale = {
+  ar: "ar",
+  en: "en",
+} as const;
 
 export type LibrariesListParams = {
   /**
@@ -2339,6 +3962,149 @@ export const MoviesListStatusItem = {
   ready: "ready",
   review: "review",
 } as const;
+
+export type NotificationsListParams = {
+  /**
+   * * `email` - Email
+   */
+  channel?: NotificationsListChannel;
+  created_after?: string;
+  created_before?: string;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * A search term.
+   */
+  search?: string;
+  /**
+   * * `queued` - Queued
+   * * `sent` - Sent
+   * * `failed` - Failed
+   * * `skipped` - Skipped
+   */
+  status?: NotificationsListStatusItem[];
+  /**
+   * The event, e.g. payment_succeeded.
+   */
+  template_key?: string;
+  /**
+   * Recipient id.
+   */
+  user?: string;
+};
+
+export type NotificationsListChannel =
+  (typeof NotificationsListChannel)[keyof typeof NotificationsListChannel];
+
+export const NotificationsListChannel = {
+  email: "email",
+} as const;
+
+export type NotificationsListStatusItem =
+  (typeof NotificationsListStatusItem)[keyof typeof NotificationsListStatusItem];
+
+export const NotificationsListStatusItem = {
+  failed: "failed",
+  queued: "queued",
+  sent: "sent",
+  skipped: "skipped",
+} as const;
+
+export type PaymentsListParams = {
+  /**
+   * Sort key; prefix with - for descending. Default: -created_at.
+   *
+   * * `created_at` - Created at
+   * * `-created_at` - Created at (descending)
+   * * `paid_at` - Paid at
+   * * `-paid_at` - Paid at (descending)
+   * * `amount` - Amount
+   * * `-amount` - Amount (descending)
+   */
+  ordering?: PaymentsListOrderingItem[];
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  paid_after?: string;
+  paid_before?: string;
+  /**
+   * * `manual` - Manual (bank transfer or cash)
+   * * `stripe` - Stripe
+   * * `moyasar` - Moyasar
+   */
+  provider?: PaymentsListProvider;
+  /**
+   * A search term.
+   */
+  search?: string;
+  /**
+   * * `pending` - Pending
+   * * `succeeded` - Succeeded
+   * * `failed` - Failed
+   * * `cancelled` - Cancelled
+   * * `partially_refunded` - Partially refunded
+   * * `refunded` - Refunded
+   */
+  status?: PaymentsListStatusItem[];
+  /**
+   * Customer id.
+   */
+  user?: string;
+};
+
+export type PaymentsListOrderingItem =
+  (typeof PaymentsListOrderingItem)[keyof typeof PaymentsListOrderingItem];
+
+export const PaymentsListOrderingItem = {
+  "-amount": "-amount",
+  "-created_at": "-created_at",
+  "-paid_at": "-paid_at",
+  amount: "amount",
+  created_at: "created_at",
+  paid_at: "paid_at",
+} as const;
+
+export type PaymentsListProvider = (typeof PaymentsListProvider)[keyof typeof PaymentsListProvider];
+
+export const PaymentsListProvider = {
+  manual: "manual",
+  moyasar: "moyasar",
+  stripe: "stripe",
+} as const;
+
+export type PaymentsListStatusItem =
+  (typeof PaymentsListStatusItem)[keyof typeof PaymentsListStatusItem];
+
+export const PaymentsListStatusItem = {
+  cancelled: "cancelled",
+  failed: "failed",
+  partially_refunded: "partially_refunded",
+  pending: "pending",
+  refunded: "refunded",
+  succeeded: "succeeded",
+} as const;
+
+export type PlansListParams = {
+  /**
+   * Plans on sale (true) or switched off (false).
+   */
+  active?: boolean;
+  /**
+   * Trial plans only (true) or paid ones (false).
+   */
+  is_trial?: boolean;
+};
 
 export type ReviewQueueListParams = {
   /**
@@ -2585,6 +4351,96 @@ export type SessionsStreamFormat = (typeof SessionsStreamFormat)[keyof typeof Se
 export const SessionsStreamFormat = {
   json: "json",
   sse: "sse",
+} as const;
+
+export type SubscriptionsListParams = {
+  /**
+   * Active subscriptions that end within this many days.
+   */
+  expiring_within_days?: unknown;
+  /**
+   * Sort key; prefix with - for descending. Default: -created_at.
+   *
+   * * `created_at` - Created at
+   * * `-created_at` - Created at (descending)
+   * * `starts_at` - Starts at
+   * * `-starts_at` - Starts at (descending)
+   * * `ends_at` - Ends at
+   * * `-ends_at` - Ends at (descending)
+   */
+  ordering?: SubscriptionsListOrderingItem[];
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * Plan id.
+   */
+  plan?: string;
+  /**
+   * A search term.
+   */
+  search?: string;
+  /**
+   * * `manual` - Manual (admin)
+   * * `payment` - Payment
+   * * `trial` - Trial
+   * * `import` - Import
+   */
+  source?: SubscriptionsListSource;
+  /**
+   * One or more statuses.
+   *
+   * * `pending` - Pending
+   * * `active` - Active
+   * * `grace` - Grace
+   * * `expired` - Expired
+   * * `suspended` - Suspended
+   * * `cancelled` - Cancelled
+   */
+  status?: SubscriptionsListStatusItem[];
+  /**
+   * Customer id.
+   */
+  user?: string;
+};
+
+export type SubscriptionsListOrderingItem =
+  (typeof SubscriptionsListOrderingItem)[keyof typeof SubscriptionsListOrderingItem];
+
+export const SubscriptionsListOrderingItem = {
+  "-created_at": "-created_at",
+  "-ends_at": "-ends_at",
+  "-starts_at": "-starts_at",
+  created_at: "created_at",
+  ends_at: "ends_at",
+  starts_at: "starts_at",
+} as const;
+
+export type SubscriptionsListSource =
+  (typeof SubscriptionsListSource)[keyof typeof SubscriptionsListSource];
+
+export const SubscriptionsListSource = {
+  import: "import",
+  manual: "manual",
+  payment: "payment",
+  trial: "trial",
+} as const;
+
+export type SubscriptionsListStatusItem =
+  (typeof SubscriptionsListStatusItem)[keyof typeof SubscriptionsListStatusItem];
+
+export const SubscriptionsListStatusItem = {
+  active: "active",
+  cancelled: "cancelled",
+  expired: "expired",
+  grace: "grace",
+  pending: "pending",
+  suspended: "suspended",
 } as const;
 
 export type TranscodeJobsListParams = {

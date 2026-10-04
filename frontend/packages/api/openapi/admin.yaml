@@ -777,6 +777,263 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/collections:
+    get:
+      operationId: collections_list
+      summary: Collections, in home-row order
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+      tags:
+        - collections
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedCollectionList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: collections_create
+      summary: Create a collection
+      tags:
+        - collections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionWriteRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/collections/{id}:
+    get:
+      operationId: collections_retrieve
+      summary: One collection with its titles
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - collections
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: collections_update
+      summary: Change a collection; `items` replaces its titles in order
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - collections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedCollectionWriteRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: collections_delete
+      summary: Delete a collection (its titles stay)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - collections
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/customers:
     get:
       operationId: customers_list
@@ -1280,6 +1537,60 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/password-invite:
+    post:
+      operationId: customers_password_invite
+      description: Emails the link when the customer has an email and a sender is
+        configured; the response holds the link either way, shown once.
+      summary: Invite the customer to set a portal password (single-use link)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordInvitation"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/customers/{id}/reactivate:
     post:
       operationId: customers_reactivate
@@ -1391,10 +1702,104 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/dashboard/activity:
+    get:
+      operationId: dashboard_activity
+      description: Recent activity from the audit log, newest first; one customer's
+        with `?customer=`.
+      summary: Recent activity (audit entries with readable targets), newest first
+      parameters:
+        - in: query
+          name: customer
+          schema:
+            type: string
+          description: "Only what was done to this customer, their devices, access rules
+            and sessions (needs customers.view). Without it: the dashboard feed (needs
+            dashboard.view), sign-ins left out."
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+      tags:
+        - dashboard
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedActivityList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/dashboard/billing:
+    get:
+      operationId: dashboard_billing
+      summary: "Billing KPIs: subscribers, MRR, revenue (cached 30 s)"
+      tags:
+        - dashboard
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingKpis"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/dashboard/kpis:
     get:
       operationId: dashboard_kpis
-      summary: Customer and device KPIs (cached for 30 s)
+      summary: Customer, device, stream and queue KPIs (cached for 30 s)
       tags:
         - dashboard
       security:
@@ -1405,6 +1810,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Kpis"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/dashboard/timeseries:
+    get:
+      operationId: dashboard_timeseries
+      summary: "Dashboard charts: streams over 24 h, days over 30 d, top categories
+        and titles (the admin's time zone; cached for 30 s)"
+      tags:
+        - dashboard
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Timeseries"
           description: ""
         "401":
           content:
@@ -1671,6 +2110,249 @@ paths:
               schema:
                 $ref: "#/components/schemas/Device"
           description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/health:
+    get:
+      operationId: system_health
+      summary: Service status, queue depths, transcoders, Redis and Postgres (live)
+      tags:
+        - health
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/invoices:
+    get:
+      operationId: invoices_list
+      summary: Invoices, newest first
+      parameters:
+        - in: query
+          name: ordering
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - -created_at
+                - -issued_at
+                - -total
+                - created_at
+                - issued_at
+                - total
+          description: |-
+            Sort key; prefix with - for descending. Default: -created_at.
+
+            * `created_at` - Created at
+            * `-created_at` - Created at (descending)
+            * `issued_at` - Issued at
+            * `-issued_at` - Issued at (descending)
+            * `total` - Total
+            * `-total` - Total (descending)
+          explode: false
+          style: form
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - paid
+                - pending
+                - refunded
+                - void
+          description: |-
+            * `pending` - Awaiting payment
+            * `paid` - Paid
+            * `void` - Void
+            * `refunded` - Refunded
+          explode: true
+          style: form
+        - in: query
+          name: user
+          schema:
+            type: string
+            format: uuid
+          description: Customer id.
+        - in: query
+          name: year
+          schema:
+            type: integer
+      tags:
+        - invoices
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedInvoiceList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/invoices/{id}:
+    get:
+      operationId: invoices_retrieve
+      summary: An invoice
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - invoices
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/invoices/{id}/document:
+    get:
+      operationId: invoices_document
+      summary: The invoice as a print-ready HTML page (Arabic or English)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: query
+          name: locale
+          schema:
+            type: string
+            enum:
+              - ar
+              - en
+          description: "Default: the invoice's."
+      tags:
+        - invoices
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            text/html:
+              schema:
+                type: string
+          description: The page.
         "401":
           content:
             application/problem+json:
@@ -2333,6 +3015,505 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/notifications:
+    get:
+      operationId: notifications_list
+      summary: Messages sent, waiting or failed, newest first
+      parameters:
+        - in: query
+          name: channel
+          schema:
+            type: string
+            enum:
+              - email
+          description: "* `email` - Email"
+        - in: query
+          name: created_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: created_before
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - failed
+                - queued
+                - sent
+                - skipped
+          description: |-
+            * `queued` - Queued
+            * `sent` - Sent
+            * `failed` - Failed
+            * `skipped` - Skipped
+          explode: true
+          style: form
+        - in: query
+          name: template_key
+          schema:
+            type: string
+          description: The event, e.g. payment_succeeded.
+        - in: query
+          name: user
+          schema:
+            type: string
+            format: uuid
+          description: Recipient id.
+      tags:
+        - notifications
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedOutboxList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/notifications/{id}:
+    get:
+      operationId: notifications_retrieve
+      summary: A message with its template variables
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - notifications
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutboxDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/notifications/{id}/retry:
+    post:
+      operationId: notifications_retry
+      summary: Queue a failed or skipped message again
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - notifications
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutboxDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/payments:
+    get:
+      operationId: payments_list
+      summary: Payments, newest first
+      parameters:
+        - in: query
+          name: ordering
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - -amount
+                - -created_at
+                - -paid_at
+                - amount
+                - created_at
+                - paid_at
+          description: |-
+            Sort key; prefix with - for descending. Default: -created_at.
+
+            * `created_at` - Created at
+            * `-created_at` - Created at (descending)
+            * `paid_at` - Paid at
+            * `-paid_at` - Paid at (descending)
+            * `amount` - Amount
+            * `-amount` - Amount (descending)
+          explode: false
+          style: form
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - in: query
+          name: paid_after
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: paid_before
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: provider
+          schema:
+            type: string
+            enum:
+              - manual
+              - moyasar
+              - stripe
+          description: |-
+            * `manual` - Manual (bank transfer or cash)
+            * `stripe` - Stripe
+            * `moyasar` - Moyasar
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - cancelled
+                - failed
+                - partially_refunded
+                - pending
+                - refunded
+                - succeeded
+          description: |-
+            * `pending` - Pending
+            * `succeeded` - Succeeded
+            * `failed` - Failed
+            * `cancelled` - Cancelled
+            * `partially_refunded` - Partially refunded
+            * `refunded` - Refunded
+          explode: true
+          style: form
+        - in: query
+          name: user
+          schema:
+            type: string
+            format: uuid
+          description: Customer id.
+      tags:
+        - payments
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedPaymentList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: payments_record_manual
+      summary: Record a bank transfer or cash payment; activates or extends the subscription
+      tags:
+        - payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualPaymentRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentDetail"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/payments/{id}:
+    get:
+      operationId: payments_retrieve
+      summary: A payment with its provider payload and webhook timeline
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - payments
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/payments/{id}/refund:
+    post:
+      operationId: payments_refund
+      summary: Refund all or part of a payment through its provider
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentDetail"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/permissions:
     get:
       operationId: permissions_list
@@ -2351,6 +3532,425 @@ paths:
                 items:
                   $ref: "#/components/schemas/Permission"
           description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/plans:
+    get:
+      operationId: plans_list
+      summary: Plans, in their order, with their current subscriber counts
+      parameters:
+        - in: query
+          name: active
+          schema:
+            type: boolean
+          description: Plans on sale (true) or switched off (false).
+        - in: query
+          name: is_trial
+          schema:
+            type: boolean
+          description: Trial plans only (true) or paid ones (false).
+      tags:
+        - plans
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: plans_create
+      summary: Create a plan
+      tags:
+        - plans
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanWriteRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/plans/{id}:
+    get:
+      operationId: plans_retrieve
+      summary: A plan
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - plans
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: plans_update
+      description: Existing subscriptions keep their snapshot; see migrate-subscriptions.
+      summary: Change a plan (a new version for new subscriptions)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - plans
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedPlanWriteRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: plans_destroy
+      summary: Delete a plan nobody bought (else switch it off)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - plans
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/plans/{id}/migrate-subscriptions:
+    post:
+      operationId: plans_migrate_subscriptions
+      summary: Give the plan's current subscriptions its latest version
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - plans
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Migrated"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/plans/reorder:
+    post:
+      operationId: plans_reorder
+      summary: Put the plans in this order
+      tags:
+        - plans
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/renditions/cleanup:
+    get:
+      operationId: renditions_cleanup_report
+      description: 404 until a cleanup (or a dry run) has run.
+      summary: The latest rendition cleanup report
+      tags:
+        - renditions
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CleanupReport"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: renditions_cleanup_run
+      description: Orphaned asset folders, folders of files removed longer than the
+        retention, superseded outputs and leftovers of interrupted jobs. Runs on the
+        worker; read the report with GET.
+      summary: Run the rendition cleanup (a dry run unless dry_run is false)
+      tags:
+        - renditions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CleanupRequestRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaQueued"
+          description: Queued.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
         "401":
           content:
             application/problem+json:
@@ -3552,6 +5152,1662 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/subscriptions:
+    get:
+      operationId: subscriptions_list
+      summary: Subscriptions, newest first
+      parameters:
+        - in: query
+          name: expiring_within_days
+          schema: {}
+          description: Active subscriptions that end within this many days.
+        - in: query
+          name: ordering
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - -created_at
+                - -ends_at
+                - -starts_at
+                - created_at
+                - ends_at
+                - starts_at
+          description: |-
+            Sort key; prefix with - for descending. Default: -created_at.
+
+            * `created_at` - Created at
+            * `-created_at` - Created at (descending)
+            * `starts_at` - Starts at
+            * `-starts_at` - Starts at (descending)
+            * `ends_at` - Ends at
+            * `-ends_at` - Ends at (descending)
+          explode: false
+          style: form
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - in: query
+          name: plan
+          schema:
+            type: string
+            format: uuid
+          description: Plan id.
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+        - in: query
+          name: source
+          schema:
+            type: string
+            enum:
+              - import
+              - manual
+              - payment
+              - trial
+          description: |-
+            * `manual` - Manual (admin)
+            * `payment` - Payment
+            * `trial` - Trial
+            * `import` - Import
+        - in: query
+          name: status
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - active
+                - cancelled
+                - expired
+                - grace
+                - pending
+                - suspended
+          description: |-
+            One or more statuses.
+
+            * `pending` - Pending
+            * `active` - Active
+            * `grace` - Grace
+            * `expired` - Expired
+            * `suspended` - Suspended
+            * `cancelled` - Cancelled
+          explode: true
+          style: form
+        - in: query
+          name: user
+          schema:
+            type: string
+            format: uuid
+          description: Customer id.
+      tags:
+        - subscriptions
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedSubscriptionList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: subscriptions_create
+      description: With a current subscription, it is extended from its end and moved
+        to the plan; otherwise a new one starts at starts_at (default now).
+      summary: Activate or extend a customer's subscription (subscriptions.activate)
+      tags:
+        - subscriptions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionCreateRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/subscriptions/{id}:
+    get:
+      operationId: subscriptions_retrieve
+      summary: A subscription
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - subscriptions
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/subscriptions/{id}/approve:
+    post:
+      operationId: subscriptions_approve_trial
+      summary: Start a customer's waiting trial request now
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - subscriptions
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/subscriptions/{id}/cancel:
+    post:
+      operationId: subscriptions_cancel
+      summary: End the subscription now; playback stops
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - subscriptions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReasonRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/subscriptions/{id}/change-plan:
+    post:
+      operationId: subscriptions_change_plan
+      summary: Move the subscription to another plan; its dates stay
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - subscriptions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePlanRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/subscriptions/{id}/extend:
+    post:
+      operationId: subscriptions_extend
+      summary: "Add days: from max(now, end); reopens an ended subscription"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - subscriptions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExtendRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/subscriptions/{id}/resume:
+    post:
+      operationId: subscriptions_resume
+      summary: Resume a suspended subscription
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - subscriptions
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/subscriptions/{id}/suspend:
+    post:
+      operationId: subscriptions_suspend
+      summary: Stop playback and keep the period (resume undoes it)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - subscriptions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReasonRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/subscriptions/trial:
+    post:
+      operationId: subscriptions_start_trial
+      summary: Start a free trial for a customer (within the trial limits)
+      tags:
+        - subscriptions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrialStartRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/templates:
+    get:
+      operationId: templates_list
+      summary: Every event's template in effect, per channel and language
+      tags:
+        - templates
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Template"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/templates/{key}/{channel}/{locale}:
+    get:
+      operationId: templates_retrieve
+      summary: One template in effect
+      parameters:
+        - in: path
+          name: channel
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: locale
+          schema:
+            type: string
+          required: true
+      tags:
+        - templates
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    put:
+      operationId: templates_update
+      summary: Save the admin's version of a template (checked in the sandbox)
+      parameters:
+        - in: path
+          name: channel
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: locale
+          schema:
+            type: string
+          required: true
+      tags:
+        - templates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateWriteRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: templates_reset
+      summary: "Drop the admin's version: the default applies again"
+      parameters:
+        - in: path
+          name: channel
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: locale
+          schema:
+            type: string
+          required: true
+      tags:
+        - templates
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/templates/{key}/{channel}/{locale}/test:
+    post:
+      operationId: templates_test
+      summary: Send the template in effect to me, with sample values
+      parameters:
+        - in: path
+          name: channel
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: locale
+          schema:
+            type: string
+          required: true
+      tags:
+        - templates
+      security:
+        - sessionAuth: []
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Outbox"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/templates/preview:
+    post:
+      operationId: templates_preview
+      summary: Render template text with the event's sample values (nothing is saved)
+      tags:
+        - templates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreviewRequestRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preview"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/titles/{id}/images:
+    get:
+      operationId: titles_images_list
+      summary: A title's artwork and TMDB's alternatives
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TitleImages"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: titles_images_create
+      description: Send `tmdb_path` (from the alternatives) as JSON, or `file` as
+        multipart. The worker converts it (WebP and AVIF, every size); the image appears
+        in the list a few seconds later.
+      summary: "Add artwork: a TMDB alternative or an upload"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageAddRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImageAddRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaQueued"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/titles/{id}/images/{image}:
+    delete:
+      operationId: titles_images_delete
+      description: The newest image of the same kind becomes primary if this one was.
+      summary: Delete an image
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: path
+          name: image
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/titles/{id}/images/{image}/primary:
+    post:
+      operationId: titles_images_primary
+      summary: Make an image the primary one of its kind
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: path
+          name: image
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TitleImages"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/titles/{id}/rematch:
+    post:
+      operationId: titles_rematch
+      description: "With `tmdb_id`: every file is linked to that TMDB movie or series
+        (episodes by their season and episode numbers). Without it: the files are
+        matched again automatically and may land in the review queue."
+      summary: Link the title's files to another TMDB title, or match them again
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RematchRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RematchResult"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Error.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/titles/{id}/renditions:
+    get:
+      operationId: titles_renditions_list
+      summary: A title's files with their renditions, tracks and running jobs
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TitleMedia"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/titles/{id}/renditions/{rendition}:
+    delete:
+      operationId: titles_renditions_delete
+      description: Players stop getting it at once; the next cleanup deletes its files.
+        Deleting the ladder (`hls`) deletes its rungs and capped presentations, deleting
+        `uhd` its HLS rung. 409 for the source, a rung or while a job of the file
+        runs.
+      summary: Delete a rendition
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: path
+          name: rendition
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/titles/{id}/reprocess:
+    post:
+      operationId: titles_reprocess
+      description: "Queued on the worker: each file is probed again and one job per
+        output is queued (an output whose job is running is left alone). A ready output
+        keeps playing until the new one replaces it."
+      summary: Make a title's outputs again
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReprocessRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReprocessResult"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/titles/{id}/tracks:
+    get:
+      operationId: titles_tracks_list
+      summary: A title's files with their audio and subtitle tracks
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TitleMedia"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: titles_tracks_create
+      description: An .srt, .ass, .ssa or .vtt file in any encoding (Windows-1256
+        Arabic included); it is converted to UTF-8 WebVTT and SRT and added to the
+        HLS masters, and to the compat MP4 at its next reprocess.
+      summary: Upload a subtitle
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/SubtitleUploadRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaSubtitleTrack"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/titles/{id}/tracks/{track}:
+    patch:
+      operationId: titles_tracks_update
+      description: "One default per kind and file: making a track default clears the
+        others. The HLS masters follow at once; the compat MP4 at its next reprocess."
+      summary: Edit a track's language, title, default or forced flag
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: path
+          name: track
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedTrackUpdateRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Track"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: titles_tracks_delete
+      description: "409 for embedded and sidecar subtitles: they follow the library
+        files."
+      summary: Delete an uploaded subtitle
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: path
+          name: track
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - titles
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/transcode-jobs:
     get:
       operationId: transcode_jobs_list
@@ -4251,6 +7507,124 @@ components:
         * `expired` - EXPIRED
         * `suspended` - SUSPENDED
         * `disabled` - DISABLED
+    ActiveJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        profile:
+          allOf:
+            - $ref: "#/components/schemas/TranscodeProfile"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/TranscodeJobStatusEnum"
+          readOnly: true
+        progress:
+          type: number
+          format: double
+          readOnly: true
+        backend:
+          allOf:
+            - $ref: "#/components/schemas/BackendEnum"
+          readOnly: true
+        priority:
+          type: integer
+          readOnly: true
+        eta_s:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+      required:
+        - backend
+        - eta_s
+        - id
+        - priority
+        - profile
+        - progress
+        - status
+    Activity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        at:
+          type: string
+          format: date-time
+        action:
+          type: string
+          description: e.g. customer.create, session.kill.
+        actor:
+          oneOf:
+            - $ref: "#/components/schemas/ActivityActor"
+            - type: "null"
+          readOnly: true
+          description: Null for the system.
+        target_type:
+          type: string
+          description: "`app_label.model`, e.g. accounts.device."
+        target_id:
+          type: string
+        target_label:
+          type: string
+          readOnly: true
+          description: A readable name for the target; empty when it no longer exists.
+        customer:
+          oneOf:
+            - $ref: "#/components/schemas/ActivityCustomer"
+            - type: "null"
+          readOnly: true
+          description: The customer the target belongs to, if any.
+        before:
+          oneOf:
+            - {}
+            - type: "null"
+          readOnly: true
+          description: The redacted snapshot before the change, for admins with audit.view.
+        after:
+          oneOf:
+            - {}
+            - type: "null"
+          readOnly: true
+          description: The redacted snapshot after the change, for admins with audit.view.
+      required:
+        - action
+        - actor
+        - after
+        - at
+        - before
+        - customer
+        - id
+        - target_id
+        - target_label
+        - target_type
+    ActivityActor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: The admin's name, or their username.
+      required:
+        - id
+        - name
+    ActivityCustomer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+        - id
+        - name
     Admin:
       type: object
       properties:
@@ -4351,6 +7725,16 @@ components:
       required:
         - admin
         - password
+    Amount:
+      type: object
+      properties:
+        currency:
+          type: string
+        amount:
+          type: integer
+      required:
+        - amount
+        - currency
     AppHint:
       enum:
         - smarters
@@ -4475,6 +7859,63 @@ components:
         * `qsv` - Intel QSV
         * `vaapi` - VA-API
         * `nvenc` - NVIDIA NVENC
+    BillingKpis:
+      type: object
+      properties:
+        active_subscribers:
+          type: integer
+        grace:
+          type: integer
+        suspended:
+          type: integer
+        trials_active:
+          type: integer
+        trial_requests:
+          type: integer
+        expiring_7d:
+          type: integer
+        new_subscriptions_30d:
+          type: integer
+        churned_30d:
+          type: integer
+        mrr:
+          type: array
+          items:
+            $ref: "#/components/schemas/Amount"
+        mrr_net:
+          type: array
+          items:
+            $ref: "#/components/schemas/Amount"
+        revenue_mtd:
+          type: array
+          items:
+            $ref: "#/components/schemas/Amount"
+        revenue_last_month:
+          type: array
+          items:
+            $ref: "#/components/schemas/Amount"
+        by_plan:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanCount"
+        as_of:
+          type: string
+          format: date-time
+      required:
+        - active_subscribers
+        - as_of
+        - by_plan
+        - churned_30d
+        - expiring_7d
+        - grace
+        - mrr
+        - mrr_net
+        - new_subscriptions_30d
+        - revenue_last_month
+        - revenue_mtd
+        - suspended
+        - trial_requests
+        - trials_active
     Breakdown:
       type: object
       description: "Each signal's score from 0 to 1 (null: not measurable); SPEC
@@ -4642,6 +8083,27 @@ components:
         * `vod` - Movies
         * `series` - Series
         * `live` - Live TV
+    CategoryPlays:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: vod, series or live.
+        name_en:
+          type: string
+        name_ar:
+          type: string
+        plays:
+          type: integer
+      required:
+        - id
+        - kind
+        - name_ar
+        - name_en
+        - plays
     CategoryReorderRequest:
       type: object
       properties:
@@ -4695,6 +8157,200 @@ components:
           format: uuid
       required:
         - kind
+        - name_ar
+        - name_en
+    ChangePlanRequest:
+      type: object
+      properties:
+        plan_id:
+          type: string
+          format: uuid
+      required:
+        - plan_id
+    CleanupRemoval:
+      type: object
+      properties:
+        path:
+          type: string
+          description: "`<asset key>/<entry>`, never a library path."
+        reason:
+          $ref: "#/components/schemas/ReasonEnum"
+        bytes:
+          type: integer
+      required:
+        - bytes
+        - path
+        - reason
+    CleanupReport:
+      type: object
+      properties:
+        dry_run:
+          type: boolean
+        finished_at:
+          type: string
+          format: date-time
+        bytes:
+          type: integer
+        entries:
+          type: integer
+        removals:
+          type: array
+          items:
+            $ref: "#/components/schemas/CleanupRemoval"
+      required:
+        - bytes
+        - dry_run
+        - entries
+        - finished_at
+        - removals
+    CleanupRequestRequest:
+      type: object
+      properties:
+        dry_run:
+          type: boolean
+          default: true
+    Collection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        name_en:
+          type: string
+          readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
+        description_en:
+          type: string
+          readOnly: true
+        description_ar:
+          type: string
+          readOnly: true
+        sort:
+          type: integer
+          readOnly: true
+        published:
+          type: boolean
+          readOnly: true
+        show_on_home:
+          type: boolean
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionItem"
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - created_at
+        - description_ar
+        - description_en
+        - id
+        - items
+        - name_ar
+        - name_en
+        - published
+        - show_on_home
+        - slug
+        - sort
+        - updated_at
+    CollectionItem:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/TitleType"
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          readOnly: true
+        title_ar:
+          type: string
+          readOnly: true
+        year:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/TitleStatus"
+          readOnly: true
+        poster:
+          oneOf:
+            - $ref: "#/components/schemas/Image"
+            - type: "null"
+          readOnly: true
+      required:
+        - id
+        - poster
+        - status
+        - title
+        - title_ar
+        - type
+        - year
+    CollectionItemRefRequest:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/TitleType"
+        id:
+          type: string
+          format: uuid
+      required:
+        - id
+        - type
+    CollectionWriteRequest:
+      type: object
+      description: |-
+        Create (names required; the slug defaults to one made from name_en) or change a
+        collection. `items` replaces its titles, in order.
+      properties:
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: ^[-a-zA-Z0-9_]+$
+        name_en:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_ar:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description_en:
+          type: string
+        description_ar:
+          type: string
+        sort:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        published:
+          type: boolean
+        show_on_home:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionItemRefRequest"
+          maxItems: 500
+      required:
         - name_ar
         - name_en
     ConcurrencyPolicy:
@@ -4898,6 +8554,35 @@ components:
         - timezone
         - updated_at
         - username
+    CustomerRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        phone:
+          type: string
+          readOnly: true
+      required:
+        - email
+        - id
+        - name
+        - phone
+        - username
     CustomerSummary:
       type: object
       properties:
@@ -4966,6 +8651,52 @@ components:
         - phone
         - status
         - username
+    DatabaseHealth:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/HealthStatus"
+        connections:
+          type:
+            - integer
+            - "null"
+        max_connections:
+          type:
+            - integer
+            - "null"
+        error:
+          type: string
+      required:
+        - connections
+        - error
+        - max_connections
+        - status
+    DayPoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: A calendar day in the admin's time zone.
+        signups:
+          type: integer
+          description: New customer accounts.
+        churned:
+          type: integer
+          description: Customer access periods that ended.
+        plays:
+          type: integer
+          description: Playback sessions started.
+        watch_hours:
+          type: number
+          format: double
+          description: Hours played by the sessions started.
+      required:
+        - churned
+        - date
+        - plays
+        - signups
+        - watch_hours
     Device:
       type: object
       properties:
@@ -5102,22 +8833,6 @@ components:
         * `pending` - PENDING
         * `blocked` - BLOCKED
         * `revoked` - REVOKED
-    EndReasonEnum:
-      enum:
-        - stopped
-        - kicked
-        - expired
-        - limit
-        - idle
-        - error
-      type: string
-      description: |-
-        * `stopped` - Stopped
-        * `kicked` - Kicked
-        * `expired` - Access expired
-        * `limit` - Stream limit
-        * `idle` - Idle
-        * `error` - Error
     Episode:
       type: object
       properties:
@@ -5173,7 +8888,7 @@ components:
         files:
           type: array
           items:
-            $ref: "#/components/schemas/File"
+            $ref: "#/components/schemas/MediaFile"
           readOnly: true
       required:
         - absolute_number
@@ -5199,144 +8914,15 @@ components:
         * `tmdb_default` - TMDB default
         * `tvdb_aired` - TVDB aired
         * `tvdb_dvd` - TVDB DVD
-    File:
+    ExtendRequest:
       type: object
-      description: |-
-        A media file as the admin sees it: its path inside its library, technical summary
-        and pipeline state. Never the storage path.
       properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        library:
-          allOf:
-            - $ref: "#/components/schemas/LibraryBrief"
-          readOnly: true
-        relative_path:
-          type: string
-          readOnly: true
-        size:
+        days:
           type: integer
-          readOnly: true
-        mtime:
-          type:
-            - string
-            - "null"
-          format: date-time
-          readOnly: true
-        container:
-          type: string
-          readOnly: true
-        duration_ms:
-          type:
-            - integer
-            - "null"
-          readOnly: true
-        bitrate:
-          type:
-            - integer
-            - "null"
-          readOnly: true
-        video_codec:
-          type: string
-          readOnly: true
-        video_profile:
-          type: string
-          readOnly: true
-        video_level:
-          type:
-            - integer
-            - "null"
-          readOnly: true
-        width:
-          type:
-            - integer
-            - "null"
-          readOnly: true
-        height:
-          type:
-            - integer
-            - "null"
-          readOnly: true
-        fps:
-          type:
-            - number
-            - "null"
-          format: double
-          readOnly: true
-        hdr:
-          allOf:
-            - $ref: "#/components/schemas/HdrKind"
-          readOnly: true
-        audio:
-          type: array
-          items:
-            $ref: "#/components/schemas/AudioTrack"
-          readOnly: true
-        subtitles:
-          type: array
-          items:
-            $ref: "#/components/schemas/SubtitleTrack"
-          readOnly: true
-        direct_play:
-          type: boolean
-          readOnly: true
-        match_confidence:
-          type:
-            - number
-            - "null"
-          format: double
-          readOnly: true
-        state:
-          allOf:
-            - $ref: "#/components/schemas/FileState"
-          readOnly: true
-        error:
-          type: string
-          readOnly: true
-        version_label:
-          type: string
-          readOnly: true
-        is_primary:
-          type: boolean
-          readOnly: true
-        removed_at:
-          type:
-            - string
-            - "null"
-          format: date-time
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
+          maximum: 3660
+          minimum: 1
       required:
-        - audio
-        - bitrate
-        - container
-        - created_at
-        - direct_play
-        - duration_ms
-        - error
-        - fps
-        - hdr
-        - height
-        - id
-        - is_primary
-        - library
-        - match_confidence
-        - mtime
-        - relative_path
-        - removed_at
-        - size
-        - state
-        - subtitles
-        - version_label
-        - video_codec
-        - video_level
-        - video_profile
-        - width
+        - days
     FileState:
       enum:
         - pending
@@ -5386,6 +8972,61 @@ components:
         * `hdr10` - HDR10
         * `hlg` - HLG
         * `dv` - Dolby Vision
+    Health:
+      type: object
+      properties:
+        as_of:
+          type: string
+          format: date-time
+        status:
+          allOf:
+            - $ref: "#/components/schemas/HealthStatus"
+          description: |-
+            The worst of the parts.
+
+            * `ok` - OK
+            * `degraded` - DEGRADED
+            * `down` - DOWN
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceHealth"
+        queues:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueueDepth"
+        transcoders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transcoder"
+        redis:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedisHealth"
+        database:
+          $ref: "#/components/schemas/DatabaseHealth"
+        grafana_url:
+          type: string
+          description: "Base URL for Grafana links; empty: none."
+      required:
+        - as_of
+        - database
+        - grafana_url
+        - queues
+        - redis
+        - services
+        - status
+        - transcoders
+    HealthStatus:
+      enum:
+        - ok
+        - degraded
+        - down
+      type: string
+      description: |-
+        * `ok` - OK
+        * `degraded` - DEGRADED
+        * `down` - DOWN
     Image:
       type: object
       properties:
@@ -5439,6 +9080,71 @@ components:
         - sizes
         - url
         - width
+    ImageAddKindEnum:
+      enum:
+        - poster
+        - backdrop
+        - logo
+        - still
+      type: string
+      description: |-
+        * `poster` - poster
+        * `backdrop` - backdrop
+        * `logo` - logo
+        * `still` - still
+    ImageAddRequest:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/ImageAddKindEnum"
+        tmdb_path:
+          type: string
+          minLength: 1
+          maxLength: 200
+        file:
+          type: string
+          format: binary
+          description: An uploaded image (15 MB at most).
+        primary:
+          type: boolean
+          default: true
+      required:
+        - kind
+    ImageAlternative:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/ImageAlternativeKindEnum"
+        path:
+          type: string
+          description: The TMDB image path to send back to pick it.
+        language:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        preview_url:
+          type: string
+          format: uri
+          description: A small preview on TMDB's image CDN.
+      required:
+        - height
+        - kind
+        - language
+        - path
+        - preview_url
+        - width
+    ImageAlternativeKindEnum:
+      enum:
+        - poster
+        - backdrop
+        - logo
+      type: string
+      description: |-
+        * `poster` - poster
+        * `backdrop` - backdrop
+        * `logo` - logo
     ImageKind:
       enum:
         - poster
@@ -5453,6 +9159,110 @@ components:
         * `logo` - Logo
         * `still` - Still
         * `profile` - Profile
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        number:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/InvoiceStatus"
+          readOnly: true
+        user:
+          allOf:
+            - $ref: "#/components/schemas/CustomerRef"
+          readOnly: true
+        plan:
+          allOf:
+            - $ref: "#/components/schemas/PlanRef"
+          readOnly: true
+        subscription_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+        locale:
+          type: string
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        lines:
+          readOnly: true
+        subtotal:
+          type: integer
+          readOnly: true
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,4})?$
+          readOnly: true
+        vat_amount:
+          type: integer
+          readOnly: true
+        total:
+          type: integer
+          readOnly: true
+        prices_include_vat:
+          type: boolean
+          readOnly: true
+        refunded_amount:
+          type: integer
+          readOnly: true
+        bill_to:
+          readOnly: true
+        seller:
+          readOnly: true
+        issued_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - bill_to
+        - created_at
+        - currency
+        - id
+        - issued_at
+        - lines
+        - locale
+        - number
+        - plan
+        - prices_include_vat
+        - refunded_amount
+        - seller
+        - status
+        - subscription_id
+        - subtotal
+        - total
+        - user
+        - vat_amount
+        - vat_rate
+    InvoiceStatus:
+      enum:
+        - pending
+        - paid
+        - void
+        - refunded
+      type: string
+      description: |-
+        * `pending` - Awaiting payment
+        * `paid` - Paid
+        * `void` - Void
+        * `refunded` - Refunded
     IssuedCredential:
       type: object
       description: "Shown once: the plaintext password can never be read again (reset
@@ -5544,6 +9354,24 @@ components:
         devices_blocked:
           type: integer
           description: Blocked devices (not revoked).
+        streams_now:
+          type: integer
+          description: Playback sessions open now.
+        stream_users_now:
+          type: integer
+          description: Customers with a session open now.
+        reviews_open:
+          type: integer
+          description: Open items in the review queue.
+        transcode_queued:
+          type: integer
+          description: Transcode jobs waiting for a worker.
+        transcode_running:
+          type: integer
+          description: Transcode jobs running now.
+        transcode_failed_24h:
+          type: integer
+          description: Transcode jobs that failed in the last 24 hours.
         as_of:
           type: string
           format: date-time
@@ -5557,6 +9385,12 @@ components:
         - devices_blocked
         - devices_total
         - expiring_7d
+        - reviews_open
+        - stream_users_now
+        - streams_now
+        - transcode_failed_24h
+        - transcode_queued
+        - transcode_running
     Library:
       type: object
       properties:
@@ -5756,6 +9590,59 @@ components:
       description: |-
         * `mfa_required` - MFA_REQUIRED
         * `mfa_setup_required` - MFA_SETUP_REQUIRED
+    ManualPaymentMethodEnum:
+      enum:
+        - bank_transfer
+        - cash
+        - other
+      type: string
+      description: |-
+        * `bank_transfer` - bank_transfer
+        * `cash` - cash
+        * `other` - other
+    ManualPaymentRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        plan_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        invoice_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        amount:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          description: "Minor units received; default: the plan's price (VAT included)."
+        method:
+          allOf:
+            - $ref: "#/components/schemas/ManualPaymentMethodEnum"
+          default: bank_transfer
+        reference:
+          type: string
+          default: ""
+          maxLength: 100
+        paid_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        idempotency_key:
+          type: string
+          default: ""
+          description: Send the same key again to get the first recording back (double
+            clicks).
+          maxLength: 64
+      required:
+        - user_id
     MaxQuality:
       enum:
         - 480
@@ -5820,6 +9707,271 @@ components:
         - roles
         - timezone
         - username
+    MediaAudioTrack:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        stream_index:
+          type: integer
+          readOnly: true
+        language:
+          type: string
+          readOnly: true
+        codec:
+          type: string
+          readOnly: true
+        channels:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        default:
+          type: boolean
+          readOnly: true
+        forced:
+          type: boolean
+          readOnly: true
+        commentary:
+          type: boolean
+          readOnly: true
+      required:
+        - channels
+        - codec
+        - commentary
+        - default
+        - forced
+        - id
+        - language
+        - stream_index
+        - title
+    MediaFile:
+      type: object
+      description: |-
+        A media file as the admin sees it: its path inside its library, technical summary
+        and pipeline state. Never the storage path.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        library:
+          allOf:
+            - $ref: "#/components/schemas/LibraryBrief"
+          readOnly: true
+        relative_path:
+          type: string
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+        mtime:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        container:
+          type: string
+          readOnly: true
+        duration_ms:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        bitrate:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        video_codec:
+          type: string
+          readOnly: true
+        video_profile:
+          type: string
+          readOnly: true
+        video_level:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        width:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        height:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        fps:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        hdr:
+          allOf:
+            - $ref: "#/components/schemas/HdrKind"
+          readOnly: true
+        audio:
+          type: array
+          items:
+            $ref: "#/components/schemas/AudioTrack"
+          readOnly: true
+        subtitles:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubtitleTrack"
+          readOnly: true
+        direct_play:
+          type: boolean
+          readOnly: true
+        match_confidence:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        state:
+          allOf:
+            - $ref: "#/components/schemas/FileState"
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        version_label:
+          type: string
+          readOnly: true
+        is_primary:
+          type: boolean
+          readOnly: true
+        removed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - audio
+        - bitrate
+        - container
+        - created_at
+        - direct_play
+        - duration_ms
+        - error
+        - fps
+        - hdr
+        - height
+        - id
+        - is_primary
+        - library
+        - match_confidence
+        - mtime
+        - relative_path
+        - removed_at
+        - size
+        - state
+        - subtitles
+        - version_label
+        - video_codec
+        - video_level
+        - video_profile
+        - width
+    MediaQueued:
+      type: object
+      properties:
+        queued:
+          type: boolean
+      required:
+        - queued
+    MediaSubtitleTrack:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        origin:
+          allOf:
+            - $ref: "#/components/schemas/OriginEnum"
+          description: embedded, sidecar or upload.
+          readOnly: true
+        stream_index:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        relative_path:
+          type: string
+          description: A sidecar's path inside its library.
+        upload_name:
+          type: string
+          readOnly: true
+        codec:
+          type: string
+          readOnly: true
+        format:
+          allOf:
+            - $ref: "#/components/schemas/SubtitleFormat"
+          readOnly: true
+        language:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        default:
+          type: boolean
+          readOnly: true
+        forced:
+          type: boolean
+          readOnly: true
+        hearing_impaired:
+          type: boolean
+          readOnly: true
+        encoding:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/SubtitleStatus"
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        cues:
+          type: integer
+          readOnly: true
+        text:
+          type: boolean
+          description: False for image subtitles.
+      required:
+        - codec
+        - cues
+        - default
+        - encoding
+        - error
+        - forced
+        - format
+        - hearing_impaired
+        - id
+        - language
+        - origin
+        - relative_path
+        - status
+        - stream_index
+        - text
+        - title
+        - upload_name
     MetadataSource:
       enum:
         - tmdb
@@ -5840,6 +9992,13 @@ components:
           maxLength: 16
       required:
         - code
+    Migrated:
+      type: object
+      properties:
+        migrated:
+          type: integer
+      required:
+        - migrated
     MovieDetail:
       type: object
       properties:
@@ -6000,7 +10159,7 @@ components:
         files:
           type: array
           items:
-            $ref: "#/components/schemas/File"
+            $ref: "#/components/schemas/MediaFile"
           readOnly: true
       required:
         - alt_titles
@@ -6144,6 +10303,170 @@ components:
         - updated_at
         - xc_id
         - year
+    NotificationChannel:
+      enum:
+        - email
+      type: string
+      description: "* `email` - Email"
+    OriginEnum:
+      enum:
+        - embedded
+        - sidecar
+        - upload
+      type: string
+    Outbox:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/Recipient"
+            - type: "null"
+          readOnly: true
+        channel:
+          allOf:
+            - $ref: "#/components/schemas/NotificationChannel"
+          readOnly: true
+        template_key:
+          type: string
+          readOnly: true
+        locale:
+          allOf:
+            - $ref: "#/components/schemas/Locale"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/OutboxStatus"
+          readOnly: true
+        attempts:
+          type: integer
+          readOnly: true
+        next_attempt_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        to_address:
+          type: string
+          readOnly: true
+        subject:
+          type: string
+          readOnly: true
+        sent_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - attempts
+        - channel
+        - created_at
+        - error
+        - id
+        - locale
+        - next_attempt_at
+        - sent_at
+        - status
+        - subject
+        - template_key
+        - to_address
+        - user
+    OutboxDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/Recipient"
+            - type: "null"
+          readOnly: true
+        channel:
+          allOf:
+            - $ref: "#/components/schemas/NotificationChannel"
+          readOnly: true
+        template_key:
+          type: string
+          readOnly: true
+        locale:
+          allOf:
+            - $ref: "#/components/schemas/Locale"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/OutboxStatus"
+          readOnly: true
+        attempts:
+          type: integer
+          readOnly: true
+        next_attempt_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        to_address:
+          type: string
+          readOnly: true
+        subject:
+          type: string
+          readOnly: true
+        sent_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        payload:
+          readOnly: true
+      required:
+        - attempts
+        - channel
+        - created_at
+        - error
+        - id
+        - locale
+        - next_attempt_at
+        - payload
+        - sent_at
+        - status
+        - subject
+        - template_key
+        - to_address
+        - user
+    OutboxStatus:
+      enum:
+        - queued
+        - sent
+        - failed
+        - skipped
+      type: string
+      description: |-
+        * `queued` - Queued
+        * `sent` - Sent
+        * `failed` - Failed
+        * `skipped` - Skipped
     PaginatedAccessRuleList:
       type: object
       required:
@@ -6169,6 +10492,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AccessRule"
+    PaginatedActivityList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Activity"
     PaginatedAdminList:
       type: object
       required:
@@ -6244,6 +10592,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Category"
+    PaginatedCollectionList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Collection"
     PaginatedCustomerSummaryList:
       type: object
       required:
@@ -6294,6 +10667,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Device"
+    PaginatedInvoiceList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
     PaginatedLibraryList:
       type: object
       required:
@@ -6344,6 +10742,56 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MovieSummary"
+    PaginatedOutboxList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Outbox"
+    PaginatedPaymentList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
     PaginatedReviewList:
       type: object
       required:
@@ -6444,6 +10892,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Session"
+    PaginatedSubscriptionList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Subscription"
     PaginatedTranscodeJobList:
       type: object
       required:
@@ -6564,6 +11037,25 @@ components:
         - subtitle_languages
         - title
         - year
+    PasswordInvitation:
+      type: object
+      description: |-
+        Shown once. Send `url` to the customer if `emailed` is false (no email on file, or
+        no email sender configured).
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The single-use link that sets the password.
+        expires_at:
+          type: string
+          format: date-time
+        emailed:
+          type: boolean
+      required:
+        - emailed
+        - expires_at
+        - url
     PatchedAccessProfileRequest:
       type: object
       description: A customer's access profile. Empty `category_ids` means every category.
@@ -6661,6 +11153,42 @@ components:
             - string
             - "null"
           format: uuid
+    PatchedCollectionWriteRequest:
+      type: object
+      description: |-
+        Create (names required; the slug defaults to one made from name_en) or change a
+        collection. `items` replaces its titles, in order.
+      properties:
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: ^[-a-zA-Z0-9_]+$
+        name_en:
+          type: string
+          minLength: 1
+          maxLength: 150
+        name_ar:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description_en:
+          type: string
+        description_ar:
+          type: string
+        sort:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        published:
+          type: boolean
+        show_on_home:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionItemRefRequest"
+          maxItems: 500
     PatchedCustomerProfileRequest:
       type: object
       description: Writable profile fields. Phones are stored in E.164 (+966 when
@@ -6803,6 +11331,103 @@ components:
             - "null"
           maximum: 2000
           minimum: 1
+    PatchedPlanWriteRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+        name_en:
+          type: string
+          minLength: 1
+          maxLength: 100
+        name_ar:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description_en:
+          type: string
+          default: ""
+        description_ar:
+          type: string
+          default: ""
+        duration_months:
+          type: integer
+          maximum: 120
+          minimum: 0
+          default: 0
+        duration_days:
+          type: integer
+          maximum: 3660
+          minimum: 0
+          default: 30
+        price:
+          type: integer
+          minimum: 0
+          description: "Minor units: 2900 = 29.00 SAR."
+        currency:
+          type: string
+          minLength: 1
+          pattern: ^[A-Z]{3}$
+          maxLength: 3
+        max_streams:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 1
+        max_devices:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 2
+        max_quality:
+          allOf:
+            - $ref: "#/components/schemas/MaxQuality"
+          default: 1080
+        allow_movies:
+          type: boolean
+          default: true
+        allow_series:
+          type: boolean
+          default: true
+        allow_live:
+          type: boolean
+          default: true
+        allow_download:
+          type: boolean
+          default: false
+        bandwidth_cap_mbps:
+          type:
+            - integer
+            - "null"
+          maximum: 100000
+          minimum: 1
+        concurrency_policy:
+          allOf:
+            - $ref: "#/components/schemas/ConcurrencyPolicy"
+          default: reject
+        is_trial:
+          type: boolean
+          default: false
+        trial_limit_per_phone:
+          type:
+            - integer
+            - "null"
+          maximum: 10
+          minimum: 0
+        category_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        sort:
+          type: integer
+          default: 0
+        active:
+          type: boolean
+          default: true
     PatchedRoleRequest:
       type: object
       description: A role and its permission codes. The owner role always lists every
@@ -6821,7 +11446,7 @@ components:
             type: string
             minLength: 1
             maxLength: 64
-          maxItems: 18
+          maxItems: 22
     PatchedSeriesUpdateRequest:
       type: object
       description: |-
@@ -6914,6 +11539,271 @@ components:
             - boolean
             - number
             - string
+    PatchedTrackUpdateRequest:
+      type: object
+      properties:
+        language:
+          type: string
+          minLength: 1
+          maxLength: 16
+        title:
+          type: string
+          maxLength: 200
+        default:
+          type: boolean
+        forced:
+          type: boolean
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          allOf:
+            - $ref: "#/components/schemas/CustomerRef"
+          readOnly: true
+        plan:
+          oneOf:
+            - $ref: "#/components/schemas/PlanRef"
+            - type: "null"
+          readOnly: true
+        subscription_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+        invoice_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+        invoice_number:
+          type: string
+          readOnly: true
+        provider:
+          allOf:
+            - $ref: "#/components/schemas/PaymentProviderCode"
+          readOnly: true
+        method:
+          allOf:
+            - $ref: "#/components/schemas/PaymentMethod"
+          readOnly: true
+        checkout_ref:
+          type: string
+          readOnly: true
+        provider_ref:
+          type: string
+          readOnly: true
+        amount:
+          type: integer
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/PaymentStatus"
+          readOnly: true
+        refunded_amount:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        failure_reason:
+          type: string
+          readOnly: true
+        paid_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        recorded_by:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - amount
+        - checkout_ref
+        - created_at
+        - currency
+        - failure_reason
+        - id
+        - invoice_id
+        - invoice_number
+        - method
+        - paid_at
+        - plan
+        - provider
+        - provider_ref
+        - recorded_by
+        - reference
+        - refunded_amount
+        - status
+        - subscription_id
+        - user
+    PaymentDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          allOf:
+            - $ref: "#/components/schemas/CustomerRef"
+          readOnly: true
+        plan:
+          oneOf:
+            - $ref: "#/components/schemas/PlanRef"
+            - type: "null"
+          readOnly: true
+        subscription_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+        invoice_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+        invoice_number:
+          type: string
+          readOnly: true
+        provider:
+          allOf:
+            - $ref: "#/components/schemas/PaymentProviderCode"
+          readOnly: true
+        method:
+          allOf:
+            - $ref: "#/components/schemas/PaymentMethod"
+          readOnly: true
+        checkout_ref:
+          type: string
+          readOnly: true
+        provider_ref:
+          type: string
+          readOnly: true
+        amount:
+          type: integer
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/PaymentStatus"
+          readOnly: true
+        refunded_amount:
+          type: integer
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        failure_reason:
+          type: string
+          readOnly: true
+        paid_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        recorded_by:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        raw:
+          readOnly: true
+        webhook_events:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEvent"
+          readOnly: true
+      required:
+        - amount
+        - checkout_ref
+        - created_at
+        - currency
+        - failure_reason
+        - id
+        - invoice_id
+        - invoice_number
+        - method
+        - paid_at
+        - plan
+        - provider
+        - provider_ref
+        - raw
+        - recorded_by
+        - reference
+        - refunded_amount
+        - status
+        - subscription_id
+        - user
+        - webhook_events
+    PaymentMethod:
+      enum:
+        - bank_transfer
+        - cash
+        - card
+        - mada
+        - apple_pay
+        - stc_pay
+        - other
+      type: string
+      description: |-
+        * `bank_transfer` - Bank transfer
+        * `cash` - Cash
+        * `card` - Card
+        * `mada` - mada
+        * `apple_pay` - Apple Pay
+        * `stc_pay` - STC Pay
+        * `other` - Other
+    PaymentProviderCode:
+      enum:
+        - manual
+        - stripe
+        - moyasar
+      type: string
+      description: |-
+        * `manual` - Manual (bank transfer or cash)
+        * `stripe` - Stripe
+        * `moyasar` - Moyasar
+    PaymentStatus:
+      enum:
+        - pending
+        - succeeded
+        - failed
+        - cancelled
+        - partially_refunded
+        - refunded
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `succeeded` - Succeeded
+        * `failed` - Failed
+        * `cancelled` - Cancelled
+        * `partially_refunded` - Partially refunded
+        * `refunded` - Refunded
     Permission:
       type: object
       properties:
@@ -6949,6 +11839,350 @@ components:
         - name
         - name_ar
         - tmdb_id
+    Plan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        name_en:
+          type: string
+          readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
+        description_en:
+          type: string
+          readOnly: true
+        description_ar:
+          type: string
+          readOnly: true
+        duration_months:
+          type: integer
+          readOnly: true
+        duration_days:
+          type: integer
+          readOnly: true
+        price:
+          type: integer
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        price_total:
+          allOf:
+            - $ref: "#/components/schemas/Price"
+          readOnly: true
+        max_streams:
+          type: integer
+          readOnly: true
+        max_devices:
+          type: integer
+          readOnly: true
+        max_quality:
+          allOf:
+            - $ref: "#/components/schemas/MaxQuality"
+          readOnly: true
+        allow_movies:
+          type: boolean
+          readOnly: true
+        allow_series:
+          type: boolean
+          readOnly: true
+        allow_live:
+          type: boolean
+          readOnly: true
+        allow_download:
+          type: boolean
+          readOnly: true
+        bandwidth_cap_mbps:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        concurrency_policy:
+          allOf:
+            - $ref: "#/components/schemas/ConcurrencyPolicy"
+          readOnly: true
+        is_trial:
+          type: boolean
+          readOnly: true
+        trial_limit_per_phone:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        category_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          readOnly: true
+        sort:
+          type: integer
+          readOnly: true
+        active:
+          type: boolean
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
+        subscribers:
+          type: integer
+          readOnly: true
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - active
+        - allow_download
+        - allow_live
+        - allow_movies
+        - allow_series
+        - bandwidth_cap_mbps
+        - category_ids
+        - code
+        - concurrency_policy
+        - created_at
+        - currency
+        - description_ar
+        - description_en
+        - duration_days
+        - duration_months
+        - id
+        - is_trial
+        - max_devices
+        - max_quality
+        - max_streams
+        - name_ar
+        - name_en
+        - price
+        - price_total
+        - sort
+        - subscribers
+        - trial_limit_per_phone
+        - updated_at
+        - version
+    PlanCount:
+      type: object
+      properties:
+        code:
+          type: string
+        name_en:
+          type: string
+        name_ar:
+          type: string
+        subscribers:
+          type: integer
+      required:
+        - code
+        - name_ar
+        - name_en
+        - subscribers
+    PlanRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        name_en:
+          type: string
+          readOnly: true
+        name_ar:
+          type: string
+          readOnly: true
+        is_trial:
+          type: boolean
+          readOnly: true
+      required:
+        - code
+        - id
+        - is_trial
+        - name_ar
+        - name_en
+    PlanWriteRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+        name_en:
+          type: string
+          minLength: 1
+          maxLength: 100
+        name_ar:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description_en:
+          type: string
+          default: ""
+        description_ar:
+          type: string
+          default: ""
+        duration_months:
+          type: integer
+          maximum: 120
+          minimum: 0
+          default: 0
+        duration_days:
+          type: integer
+          maximum: 3660
+          minimum: 0
+          default: 30
+        price:
+          type: integer
+          minimum: 0
+          description: "Minor units: 2900 = 29.00 SAR."
+        currency:
+          type: string
+          minLength: 1
+          pattern: ^[A-Z]{3}$
+          maxLength: 3
+        max_streams:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 1
+        max_devices:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 2
+        max_quality:
+          allOf:
+            - $ref: "#/components/schemas/MaxQuality"
+          default: 1080
+        allow_movies:
+          type: boolean
+          default: true
+        allow_series:
+          type: boolean
+          default: true
+        allow_live:
+          type: boolean
+          default: true
+        allow_download:
+          type: boolean
+          default: false
+        bandwidth_cap_mbps:
+          type:
+            - integer
+            - "null"
+          maximum: 100000
+          minimum: 1
+        concurrency_policy:
+          allOf:
+            - $ref: "#/components/schemas/ConcurrencyPolicy"
+          default: reject
+        is_trial:
+          type: boolean
+          default: false
+        trial_limit_per_phone:
+          type:
+            - integer
+            - "null"
+          maximum: 10
+          minimum: 0
+        category_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        sort:
+          type: integer
+          default: 0
+        active:
+          type: boolean
+          default: true
+      required:
+        - code
+        - name_ar
+        - name_en
+        - price
+    Preview:
+      type: object
+      properties:
+        subject:
+          type: string
+        text:
+          type: string
+        html:
+          type: string
+      required:
+        - html
+        - subject
+        - text
+    PreviewRequestRequest:
+      type: object
+      properties:
+        key:
+          type: string
+          minLength: 1
+          maxLength: 64
+        locale:
+          $ref: "#/components/schemas/Locale"
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 200
+        body_text:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        body_html:
+          type: string
+          default: ""
+          maxLength: 20000
+      required:
+        - body_text
+        - key
+        - locale
+        - subject
+    Price:
+      type: object
+      description: What the customer pays for a plan, in minor units, with the VAT
+        split.
+      properties:
+        net:
+          type: integer
+        vat:
+          type: integer
+        total:
+          type: integer
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,4})?$
+        display_en:
+          type: string
+        display_ar:
+          type: string
+      required:
+        - display_ar
+        - display_en
+        - net
+        - total
+        - vat
+        - vat_rate
     PriorityRequest:
       type: object
       properties:
@@ -6969,11 +12203,6 @@ components:
         * `ingest` - At ingest
         * `on_demand` - On first play
         * `passthrough` - Never (serve the source)
-    ProfileEnum:
-      enum:
-        - compat_mp4
-      type: string
-      description: "* `compat_mp4` - Compat MP4"
     ProviderIds:
       type: object
       properties:
@@ -6993,6 +12222,19 @@ components:
         - imdb
         - tmdb
         - tvdb
+    QueueDepth:
+      type: object
+      properties:
+        name:
+          type: string
+        depth:
+          type:
+            - integer
+            - "null"
+          description: Null when the broker is down.
+      required:
+        - depth
+        - name
     Queued:
       type: object
       properties:
@@ -7000,6 +12242,294 @@ components:
           type: boolean
       required:
         - queued
+    ReasonEnum:
+      enum:
+        - orphaned
+        - removed_file
+        - superseded
+        - leftover
+      type: string
+      description: |-
+        * `orphaned` - orphaned
+        * `removed_file` - removed_file
+        * `superseded` - superseded
+        * `leftover` - leftover
+    ReasonRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          default: ""
+          maxLength: 200
+    Recipient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+      required:
+        - email
+        - id
+        - is_staff
+        - name
+        - username
+    RedisHealth:
+      type: object
+      properties:
+        name:
+          type: string
+          description: redis_state or redis_cache.
+        status:
+          $ref: "#/components/schemas/HealthStatus"
+        used_memory:
+          type:
+            - integer
+            - "null"
+          description: Bytes.
+        max_memory:
+          type:
+            - integer
+            - "null"
+          description: "Bytes; null: no limit."
+        policy:
+          type: string
+          description: maxmemory-policy.
+        evicted_keys:
+          type:
+            - integer
+            - "null"
+          description: Must stay 0 on redis_state.
+        error:
+          type: string
+      required:
+        - error
+        - evicted_keys
+        - max_memory
+        - name
+        - policy
+        - status
+        - used_memory
+    RefundRequest:
+      type: object
+      properties:
+        amount:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          description: "Minor units; default: everything not refunded yet."
+        reason:
+          type: string
+          default: ""
+          maxLength: 200
+        cancel_subscription:
+          type: boolean
+          default: false
+    RematchKindEnum:
+      enum:
+        - movie
+        - tv
+      type: string
+      description: |-
+        * `movie` - movie
+        * `tv` - tv
+    RematchRequest:
+      type: object
+      properties:
+        tmdb_id:
+          type: integer
+          minimum: 1
+          description: Omit to match the files again automatically.
+        kind:
+          $ref: "#/components/schemas/RematchKindEnum"
+    RematchResult:
+      type: object
+      properties:
+        files:
+          type: integer
+        automatic:
+          type: boolean
+        title_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+        - automatic
+        - files
+        - title_ids
+    Rendition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/RenditionKind"
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/RenditionStatus"
+          readOnly: true
+        width:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        height:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        bitrate:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        codec:
+          type: string
+          readOnly: true
+        container:
+          type: string
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+        disk_bytes:
+          type: integer
+          readOnly: true
+          description: Bytes on the media volume (0 for a link to the source file).
+        encoder_used:
+          type: string
+          readOnly: true
+        duration_s:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        details:
+          readOnly: true
+        ready_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - bitrate
+        - codec
+        - container
+        - created_at
+        - details
+        - disk_bytes
+        - duration_s
+        - encoder_used
+        - error
+        - height
+        - id
+        - kind
+        - name
+        - ready_at
+        - size
+        - status
+        - width
+    RenditionKind:
+      enum:
+        - compat_mp4
+        - source
+        - hls_variant
+        - hls_master
+        - uhd
+        - thumbnails
+      type: string
+      description: |-
+        * `compat_mp4` - Compat MP4
+        * `source` - Source (direct play)
+        * `hls_variant` - HLS variant
+        * `hls_master` - HLS master
+        * `uhd` - UHD
+        * `thumbnails` - Thumbnails
+    RenditionStatus:
+      enum:
+        - pending
+        - running
+        - ready
+        - failed
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `running` - Running
+        * `ready` - Ready
+        * `failed` - Failed
+    ReorderRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+        - ids
+    ReprocessRequest:
+      type: object
+      properties:
+        outputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscodeProfile"
+          description: Outputs to make again; all of them when omitted.
+        media_file:
+          type: string
+          format: uuid
+          description: One file of the title; all of them when omitted.
+    ReprocessResult:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            type: string
+            format: uuid
+        outputs:
+          type: array
+          items:
+            type: string
+      required:
+        - files
+        - outputs
     ResolveRequest:
       type: object
       properties:
@@ -7176,7 +12706,7 @@ components:
           items:
             type: string
             maxLength: 64
-          maxItems: 18
+          maxItems: 22
         is_system:
           type: boolean
           readOnly: true
@@ -7230,7 +12760,7 @@ components:
             type: string
             minLength: 1
             maxLength: 64
-          maxItems: 18
+          maxItems: 22
       required:
         - name
     ScanJob:
@@ -7714,6 +13244,34 @@ components:
         - updated_at
         - xc_id
         - year
+    ServiceHealth:
+      type: object
+      properties:
+        name:
+          type: string
+          description: postgres, redis_state, redis_cache, meilisearch, workers, watcher,
+            transcoders, or edge:<host>.
+        status:
+          $ref: "#/components/schemas/HealthStatus"
+        latency_ms:
+          type:
+            - number
+            - "null"
+          format: double
+        age_s:
+          type:
+            - integer
+            - "null"
+          description: Seconds since the last heartbeat, for background services.
+        error:
+          type: string
+          description: An exception class name or a short reason.
+      required:
+        - age_s
+        - error
+        - latency_ms
+        - name
+        - status
     Session:
       type: object
       properties:
@@ -7777,7 +13335,7 @@ components:
           readOnly: true
         end_reason:
           allOf:
-            - $ref: "#/components/schemas/EndReasonEnum"
+            - $ref: "#/components/schemas/SessionEndReasonEnum"
           readOnly: true
         is_active:
           type: boolean
@@ -7829,6 +13387,22 @@ components:
         - id
         - kind
         - name
+    SessionEndReasonEnum:
+      enum:
+        - stopped
+        - kicked
+        - expired
+        - limit
+        - idle
+        - error
+      type: string
+      description: |-
+        * `stopped` - Stopped
+        * `kicked` - Kicked
+        * `expired` - Access expired
+        * `limit` - Stream limit
+        * `idle` - Idle
+        * `error` - Error
     SessionUser:
       type: object
       properties:
@@ -7942,6 +13516,234 @@ components:
         * `int` - INT
         * `float` - FLOAT
         * `str` - STR
+    StreamPoint:
+      type: object
+      properties:
+        at:
+          type: string
+          format: date-time
+          description: Start of the bucket.
+        streams:
+          type: integer
+          description: Sessions that played during the bucket.
+      required:
+        - at
+        - streams
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          allOf:
+            - $ref: "#/components/schemas/CustomerRef"
+          readOnly: true
+        plan:
+          allOf:
+            - $ref: "#/components/schemas/PlanRef"
+          readOnly: true
+        plan_snapshot:
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/SubscriptionStatus"
+          readOnly: true
+        starts_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ends_at:
+          type: string
+          format: date-time
+          readOnly: true
+        grace_days:
+          type: integer
+          readOnly: true
+        grace_until:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        source:
+          allOf:
+            - $ref: "#/components/schemas/SubscriptionSource"
+          readOnly: true
+        auto_renew:
+          type: boolean
+          readOnly: true
+        trial_identity:
+          type: string
+          readOnly: true
+        reminded_7d_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        reminded_1d_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        ended_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        end_reason:
+          allOf:
+            - $ref: "#/components/schemas/SubscriptionEndReason"
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        created_by:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - auto_renew
+        - created_at
+        - created_by
+        - end_reason
+        - ended_at
+        - ends_at
+        - grace_days
+        - grace_until
+        - id
+        - note
+        - plan
+        - plan_snapshot
+        - reminded_1d_at
+        - reminded_7d_at
+        - source
+        - starts_at
+        - status
+        - trial_identity
+        - updated_at
+        - user
+    SubscriptionCreateRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        plan_id:
+          type: string
+          format: uuid
+        source:
+          allOf:
+            - $ref: "#/components/schemas/SubscriptionCreateSourceEnum"
+          default: manual
+        starts_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ends_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        note:
+          type: string
+          default: ""
+          maxLength: 200
+      required:
+        - plan_id
+        - user_id
+    SubscriptionCreateSourceEnum:
+      enum:
+        - manual
+        - import
+      type: string
+      description: |-
+        * `manual` - manual
+        * `import` - import
+    SubscriptionEndReason:
+      enum:
+        - expired
+        - cancelled
+        - refunded
+        - rejected
+        - merged
+      type: string
+      description: |-
+        * `expired` - Expired
+        * `cancelled` - Cancelled
+        * `refunded` - Refunded
+        * `rejected` - Trial request rejected
+        * `merged` - Merged into the current subscription
+    SubscriptionSource:
+      enum:
+        - manual
+        - payment
+        - trial
+        - import
+      type: string
+      description: |-
+        * `manual` - Manual (admin)
+        * `payment` - Payment
+        * `trial` - Trial
+        * `import` - Import
+    SubscriptionStatus:
+      enum:
+        - pending
+        - active
+        - grace
+        - expired
+        - suspended
+        - cancelled
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `active` - Active
+        * `grace` - Grace
+        * `expired` - Expired
+        * `suspended` - Suspended
+        * `cancelled` - Cancelled
+    SubtitleFormat:
+      enum:
+        - srt
+        - vtt
+        - ass
+        - pgs
+        - vobsub
+        - other
+      type: string
+      description: |-
+        * `srt` - SubRip
+        * `vtt` - WebVTT
+        * `ass` - ASS/SSA
+        * `pgs` - PGS (image)
+        * `vobsub` - VobSub (image)
+        * `other` - Other
+    SubtitleStatus:
+      enum:
+        - pending
+        - ready
+        - failed
+        - unsupported
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `ready` - Ready
+        * `failed` - Failed
+        * `unsupported` - Image (burn-in only)
     SubtitleTrack:
       type: object
       properties:
@@ -7974,6 +13776,35 @@ components:
         - stream_index
         - text
         - title
+    SubtitleUploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+          description: An .srt, .ass, .ssa or .vtt file, any encoding.
+        language:
+          type: string
+          minLength: 1
+          description: "ISO 639: ar, ara, en, eng..."
+          maxLength: 16
+        title:
+          type: string
+          default: ""
+          maxLength: 200
+        default:
+          type: boolean
+          default: false
+        forced:
+          type: boolean
+          default: false
+        media_file:
+          type: string
+          format: uuid
+          description: Required when the title has several files.
+      required:
+        - file
+        - language
     SuspendRequest:
       type: object
       properties:
@@ -7981,6 +13812,210 @@ components:
           type: string
           default: ""
           maxLength: 200
+    Template:
+      type: object
+      description: The template in effect for one event, channel and language.
+      properties:
+        key:
+          type: string
+        channel:
+          $ref: "#/components/schemas/NotificationChannel"
+        locale:
+          $ref: "#/components/schemas/Locale"
+        description:
+          type: string
+        variables:
+          type: array
+          items:
+            type: string
+        subject:
+          type: string
+        body_text:
+          type: string
+        body_html:
+          type: string
+        enabled:
+          type: boolean
+        is_default:
+          type: boolean
+        secret:
+          type: boolean
+          description: "Carries a password link: sent at once, never stored or resent."
+        updated_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - body_html
+        - body_text
+        - channel
+        - description
+        - enabled
+        - is_default
+        - key
+        - locale
+        - secret
+        - subject
+        - updated_at
+        - variables
+    TemplateWriteRequest:
+      type: object
+      properties:
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 200
+        body_text:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        body_html:
+          type: string
+          maxLength: 20000
+        enabled:
+          type: boolean
+    Timeseries:
+      type: object
+      properties:
+        as_of:
+          type: string
+          format: date-time
+        time_zone:
+          type: string
+          description: The admin's time zone; days are its days.
+        bucket_minutes:
+          type: integer
+          description: Width of a stream bucket.
+        streams:
+          type: array
+          items:
+            $ref: "#/components/schemas/StreamPoint"
+          description: The last 24 hours, oldest first.
+        streams_peak:
+          type: integer
+          description: The highest bucket of the 24 hours.
+        streams_peak_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayPoint"
+          description: The last 30 days, oldest first.
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryPlays"
+          description: Top 8 categories by plays, 30 d.
+        top_titles:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopTitle"
+          description: Top 10 titles by plays, 30 days.
+      required:
+        - as_of
+        - bucket_minutes
+        - categories
+        - days
+        - streams
+        - streams_peak
+        - streams_peak_at
+        - time_zone
+        - top_titles
+    TitleFile:
+      type: object
+      description: A file of the title with its outputs, tracks and running jobs.
+      properties:
+        id:
+          type: string
+          format: uuid
+        relative_path:
+          type: string
+          description: The path inside its library.
+        library:
+          type: string
+        size:
+          type: integer
+        duration_ms:
+          type:
+            - integer
+            - "null"
+        video_codec:
+          type: string
+        width:
+          type:
+            - integer
+            - "null"
+        height:
+          type:
+            - integer
+            - "null"
+        hdr:
+          type: string
+        is_primary:
+          type: boolean
+        disk_bytes:
+          type: integer
+          readOnly: true
+          description: Bytes its renditions occupy.
+        renditions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rendition"
+        audio:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaAudioTrack"
+        subtitles:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaSubtitleTrack"
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActiveJob"
+      required:
+        - audio
+        - disk_bytes
+        - duration_ms
+        - hdr
+        - height
+        - id
+        - is_primary
+        - jobs
+        - library
+        - relative_path
+        - renditions
+        - size
+        - subtitles
+        - video_codec
+        - width
+    TitleImages:
+      type: object
+      properties:
+        title:
+          $ref: "#/components/schemas/TitleRef"
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/Image"
+        alternatives:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageAlternative"
+        alternatives_error:
+          type:
+            - string
+            - "null"
+          description: provider_unavailable when TMDB could not be asked.
+      required:
+        - alternatives
+        - alternatives_error
+        - images
+        - title
     TitleKindEnum:
       enum:
         - movie
@@ -7989,6 +14024,42 @@ components:
       description: |-
         * `movie` - Movie
         * `episode` - Episode
+    TitleMedia:
+      type: object
+      properties:
+        title:
+          $ref: "#/components/schemas/TitleRef"
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/TitleFile"
+      required:
+        - files
+        - title
+    TitleRef:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/TitleRefKindEnum"
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+        - id
+        - kind
+        - name
+    TitleRefKindEnum:
+      enum:
+        - movie
+        - series
+        - episode
+      type: string
+      description: |-
+        * `movie` - movie
+        * `series` - series
+        * `episode` - episode
     TitleStatus:
       enum:
         - processing
@@ -8003,6 +14074,14 @@ components:
         * `ready` - Ready
         * `hidden` - Hidden
         * `license_expired` - License expired
+    TitleType:
+      enum:
+        - movie
+        - series
+      type: string
+      description: |-
+        * `movie` - Movie
+        * `series` - Series
     TitleVisibility:
       enum:
         - hidden
@@ -8011,6 +14090,69 @@ components:
       description: |-
         * `hidden` - Hide the title
         * `ready` - Show it again (its files decide the status)
+    TopTitle:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/TitleType"
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        title_ar:
+          type: string
+        year:
+          type:
+            - integer
+            - "null"
+        plays:
+          type: integer
+          description: Sessions in 30 days (a series counts its episodes).
+        watch_hours:
+          type: number
+          format: double
+        poster:
+          oneOf:
+            - $ref: "#/components/schemas/Image"
+            - type: "null"
+          readOnly: true
+          description: The poster, as the titles list has it.
+      required:
+        - id
+        - kind
+        - plays
+        - poster
+        - title
+        - title_ar
+        - watch_hours
+        - year
+    Track:
+      type: object
+      description: An audio or subtitle track after an edit.
+      properties:
+        kind:
+          $ref: "#/components/schemas/TrackKindEnum"
+        audio:
+          oneOf:
+            - $ref: "#/components/schemas/MediaAudioTrack"
+            - type: "null"
+        subtitle:
+          oneOf:
+            - $ref: "#/components/schemas/MediaSubtitleTrack"
+            - type: "null"
+      required:
+        - audio
+        - kind
+        - subtitle
+    TrackKindEnum:
+      enum:
+        - audio
+        - subtitle
+      type: string
+      description: |-
+        * `audio` - audio
+        * `subtitle` - subtitle
     TranscodeJob:
       type: object
       properties:
@@ -8030,7 +14172,7 @@ components:
           description: The movie or episode, if linked.
         profile:
           allOf:
-            - $ref: "#/components/schemas/ProfileEnum"
+            - $ref: "#/components/schemas/TranscodeProfile"
           readOnly: true
         remux:
           type: boolean
@@ -8133,6 +14275,71 @@ components:
         * `done` - Done
         * `failed` - Failed
         * `cancelled` - Cancelled
+    TranscodeProfile:
+      enum:
+        - compat_mp4
+        - hls
+        - uhd
+        - thumbnails
+        - subtitles
+      type: string
+      description: |-
+        * `compat_mp4` - Compat MP4
+        * `hls` - HLS ladder
+        * `uhd` - UHD version
+        * `thumbnails` - Thumbnails
+        * `subtitles` - Subtitles
+    Transcoder:
+      type: object
+      properties:
+        host:
+          type: string
+        best:
+          type: string
+          description: "The backend jobs prefer here: nvenc, qsv, vaapi, cpu."
+        queues:
+          type: array
+          items:
+            type: string
+        backends:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Backend -> codecs it encodes on this host.
+        gpus:
+          type: array
+          items:
+            type: string
+        ffmpeg:
+          type: string
+          description: FFmpeg version.
+        checked_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - backends
+        - best
+        - checked_at
+        - ffmpeg
+        - gpus
+        - host
+        - queues
+    TrialStartRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        plan_id:
+          type: string
+          format: uuid
+      required:
+        - plan_id
+        - user_id
     UserStatus:
       enum:
         - active
@@ -8143,6 +14350,51 @@ components:
         * `active` - Active
         * `suspended` - Suspended
         * `disabled` - Disabled
+    WebhookEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        provider:
+          allOf:
+            - $ref: "#/components/schemas/PaymentProviderCode"
+          readOnly: true
+        event_id:
+          type: string
+          readOnly: true
+        type:
+          type: string
+          readOnly: true
+        attempts:
+          type: integer
+          readOnly: true
+        processed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        payload:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - attempts
+        - created_at
+        - error
+        - event_id
+        - id
+        - payload
+        - processed_at
+        - provider
+        - type
     ErrorCode:
       type: string
       enum:
@@ -8173,6 +14425,10 @@ components:
         - CONTENT_TYPE_NOT_ALLOWED
         - QUALITY_NOT_ALLOWED
         - LICENSE_EXPIRED
+        - TRIAL_NOT_ELIGIBLE
+        - PAYMENT_PROVIDER_UNAVAILABLE
+        - PAYMENT_PROVIDER_ERROR
+        - WEBHOOK_INVALID
       description: Stable machine-readable error code.
     Problem:
       type: object
@@ -8192,6 +14448,16 @@ components:
         field_errors:
           type: object
           description: Messages per field; nested fields use dotted paths.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        field_error_codes:
+          type: object
+          description: "A stable code per message of field_errors (same keys, same
+            order): DRF's validation codes (required, max_length, invalid, unique,
+            ...) or the API's own (username_taken, password_length, ...). Clients
+            translate the codes and fall back to the messages."
           additionalProperties:
             type: array
             items:
