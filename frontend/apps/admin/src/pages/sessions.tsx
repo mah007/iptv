@@ -62,7 +62,7 @@ function SessionRow({
       data-state={stopping ? "stopping" : undefined}
       className={cn("transition-opacity duration-200", stopping && "opacity-50")}
     >
-      <TableCell>
+      <TableCell className="min-w-40">
         <div className="grid min-w-0">
           <Link
             to="/customers/$customerId"
@@ -76,7 +76,7 @@ function SessionRow({
           </span>
         </div>
       </TableCell>
-      <TableCell className="max-w-72">
+      <TableCell className="min-w-40 max-w-72">
         <span className="flex min-w-0 items-center gap-2">
           <TitleIcon
             aria-label={t(
@@ -139,6 +139,7 @@ function Sessions() {
   const { sessions, state, received } = useLiveSessions();
   const kill = useSessionsKill();
   const [target, setTarget] = useState<LiveSession | null>(null);
+  const [confirming, setConfirming] = useState(false);
   /** Kills the API accepted: the row stays, faded, until the feed drops it. */
   const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set());
   /** Sessions the API says already ended: hidden even if the feed still lists them. */
@@ -178,7 +179,7 @@ function Sessions() {
         description={t("sessions.description")}
         actions={<ConnectionBadge state={state} />}
       />
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <StatTile
           label={t("sessions.stats.streams")}
           value={format.number(rows.length)}
@@ -230,6 +231,7 @@ function Sessions() {
                       can("sessions.kill")
                         ? () => {
                             setTarget(session);
+                            setConfirming(true);
                           }
                         : null
                     }
@@ -241,10 +243,8 @@ function Sessions() {
         )}
       </Card>
       <ConfirmDialog
-        open={target !== null}
-        onOpenChange={(open) => {
-          if (!open) setTarget(null);
-        }}
+        open={confirming}
+        onOpenChange={setConfirming}
         tone="danger"
         title={t("sessions.kill.title")}
         description={t("sessions.kill.description", {

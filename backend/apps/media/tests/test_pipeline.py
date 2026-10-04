@@ -163,6 +163,19 @@ def test_a_direct_play_source_is_served_as_is(library: Library, sent: Sent) -> N
     assert services.prepare_file(file.pk) is Prepared.EXISTING
 
 
+def test_a_moved_source_is_linked_again(library: Library, sent: Sent) -> None:
+    file = matched_movie(library, direct_play_mp4, "Old.mp4")
+    services.prepare_file(file.pk)
+    moved = Path(library.path) / "Sub" / "New.mp4"
+    moved.parent.mkdir()
+    (Path(library.path) / "Old.mp4").rename(moved)
+    file.storage_key = "Sub/New.mp4"
+    file.save()
+
+    assert services.prepare_file(file.pk) is Prepared.EXISTING
+    assert os.readlink(asset(file) / "source.mp4") == str(moved)
+
+
 def test_passthrough_serves_any_source(library: Library, sent: Sent) -> None:
     library.processing_policy = ProcessingPolicy.PASSTHROUGH
     library.save()

@@ -1096,9 +1096,10 @@
       "released": "تاريخ الإصدار",
       "firstAired": "أول عرض",
       "runtime": "المدة",
-      "refreshed": "آخر تحديث للبيانات",
+      "refreshed": "آخر تحديث",
       "locked": "الحقول المقفلة",
-      "posterOf": "ملصق {{title}}"
+      "posterOf": "ملصق {{title}}",
+      "categories": "التصنيفات"
     },
     "files": {
       "title": "الملفات",
@@ -1111,7 +1112,8 @@
       "size": "الحجم",
       "state": "الحالة",
       "removed": "محذوف",
-      "directPlay": "تشغيل مباشر"
+      "directPlay": "تشغيل مباشر",
+      "episode": "الحلقة"
     },
     "seasons": {
       "title": "المواسم والحلقات",
@@ -1120,12 +1122,8 @@
       "season": "الموسم {{number}}",
       "specials": "حلقات خاصة",
       "untitled": "حلقة بلا عنوان",
-      "episodes_zero": "لا حلقات",
-      "episodes_one": "حلقة واحدة",
-      "episodes_two": "حلقتان",
-      "episodes_few": "{{count}} حلقات",
-      "episodes_many": "{{count}} حلقة",
-      "episodes_other": "{{count}} حلقة"
+      "noFile": "لا يوجد ملف",
+      "onDisk": "{{have}} من {{total}} حلقة على القرص"
     },
     "editor": {
       "title": "تعديل البيانات الوصفية",
@@ -1175,7 +1173,7 @@
       "episode_not_found": "الحلقة غير موجودة"
     },
     "skip": "تجاوز",
-    "skippedToast": "تم التجاوز",
+    "skippedToast": "تم تجاوز الملف",
     "resolved": "طوبق مع {{title}}",
     "choose": "اختيار",
     "chosen": "المختار",
@@ -1192,7 +1190,7 @@
     "noCandidates": "لا يوجد مرشحون. ابحث في TMDB أو أدخل معرّفًا أدناه.",
     "file": {
       "title": "ما يقوله الملف",
-      "parsedTitle": "العنوان من اسم الملف",
+      "parsedTitle": "العنوان المستخرج",
       "year": "السنة",
       "episode": "الحلقة",
       "duration": "المدة",

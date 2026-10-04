@@ -1040,9 +1040,10 @@
       "released": "Released",
       "firstAired": "First aired",
       "runtime": "Runtime",
-      "refreshed": "Metadata refreshed",
+      "refreshed": "Refreshed",
       "locked": "Locked fields",
-      "posterOf": "Poster of {{title}}"
+      "posterOf": "Poster of {{title}}",
+      "categories": "Categories"
     },
     "files": {
       "title": "Files",
@@ -1055,7 +1056,8 @@
       "size": "Size",
       "state": "State",
       "removed": "removed",
-      "directPlay": "Direct play"
+      "directPlay": "Direct play",
+      "episode": "Episode"
     },
     "seasons": {
       "title": "Seasons and episodes",
@@ -1064,8 +1066,8 @@
       "season": "Season {{number}}",
       "specials": "Specials",
       "untitled": "Untitled episode",
-      "episodes_one": "{{count}} episode",
-      "episodes_other": "{{count}} episodes"
+      "noFile": "No file",
+      "onDisk": "{{have}} of {{total}} episodes on disk"
     },
     "editor": {
       "title": "Edit metadata",
@@ -1115,7 +1117,7 @@
       "episode_not_found": "Episode not found"
     },
     "skip": "Skip",
-    "skippedToast": "Skipped",
+    "skippedToast": "File skipped",
     "resolved": "Matched to {{title}}",
     "choose": "Choose",
     "chosen": "Chosen",
@@ -1132,7 +1134,7 @@
     "noCandidates": "No candidates. Search TMDB or enter an ID below.",
     "file": {
       "title": "What the file says",
-      "parsedTitle": "Title from the name",
+      "parsedTitle": "Parsed title",
       "year": "Year",
       "episode": "Episode",
       "duration": "Duration",

@@ -46,6 +46,15 @@ generate() {
   }'
 }
 
+# The Xtream contract-check account (make compat-live): empty keys get the user
+# compat-check and a random password. Only lines this run adds are filled.
+compat_account() {
+  local file="$1" password
+  password="$(openssl rand -hex 16)"
+  sed -i.bak -e 's/^COMPAT_XC_USER=$/COMPAT_XC_USER=compat-check/' \
+    -e "s/^COMPAT_XC_PASS=\$/COMPAT_XC_PASS=${password}/" "$file" && rm -f "$file.bak"
+}
+
 # The dev stack moves Traefik to 8080 when something already listens on port 80.
 pick_port() {
   local file="$1"
@@ -86,6 +95,7 @@ if [[ -f "$out" && -s "$out" ]]; then
     exit 0
   fi
   pick_port "$additions"
+  compat_account "$additions"
   # Keep the current last line intact when the file lacks a final newline.
   [[ -z "$(tail -c 1 "$out")" ]] || printf '\n' >> "$out"
   cat "$additions" >> "$out"
@@ -97,6 +107,7 @@ tmp="$(mktemp "${out}.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 generate < .env.example > "$tmp"
 pick_port "$tmp"
+compat_account "$tmp"
 mv "$tmp" "$out"
 trap - EXIT
 echo "Created $out with generated secrets (mode 600). Keep it out of git."

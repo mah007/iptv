@@ -287,11 +287,8 @@ function ScanHistory() {
                     <TableCell className="font-medium">
                       {scan.library.name}
                       {scan.path ? (
-                        <span
-                          dir="ltr"
-                          className="block truncate font-mono text-xs text-muted-foreground"
-                        >
-                          {scan.path}
+                        <span className="block truncate font-mono text-xs text-muted-foreground">
+                          <bdi dir="ltr">{scan.path}</bdi>
                         </span>
                       ) : null}
                     </TableCell>

@@ -10,7 +10,6 @@ import {
   Checkbox,
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -303,7 +302,7 @@ function EditorForm({
             )}
           />
           <CategoryChoices kind={kind === "movie" ? "vod" : "series"} />
-          <FormDescription>{t("titles.editor.lockHelp")}</FormDescription>
+          <p className="text-xs text-muted-foreground">{t("titles.editor.lockHelp")}</p>
         </SheetBody>
         <SheetFooter>
           <Button type="button" variant="secondary" onClick={onDone}>

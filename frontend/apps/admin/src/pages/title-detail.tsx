@@ -48,7 +48,7 @@ import {
 } from "@smart-iptv/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, getRouteApi } from "@tanstack/react-router";
-import { Eye, EyeOff, FileVideo, Pencil, RefreshCw, Star } from "lucide-react";
+import { Eye, EyeOff, FileVideo, FolderTree, Pencil, RefreshCw, Star } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -66,85 +66,134 @@ const seriesRoute = getRouteApi("/app/series/$titleId");
 /** A refresh runs in the background; look again after this long. */
 const REFRESH_RECHECK_MS = 4_000;
 
-function FilesTable({ files }: { files: readonly File[] }) {
+function episodeCode(season: number, episode: number): string {
+  return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;
+}
+
+/** One file's cells: library-relative path, video summary, duration, size, state. */
+function FileCells({ file }: { file: File }) {
   const { t } = useTranslation();
   const format = useFormatters();
-  if (files.length === 0) {
-    return <p className="text-ui text-muted-foreground">{t("titles.files.none")}</p>;
-  }
+  const channels = Math.max(0, ...file.audio.map((track) => track.channels));
+  return (
+    <>
+      <TableCell className="max-w-96">
+        <span className="block truncate font-mono text-xs" title={file.relative_path}>
+          <bdi dir="ltr">{file.relative_path}</bdi>
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {file.library.name}
+          {file.removed_at ? ` · ${t("titles.files.removed")}` : ""}
+        </span>
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-wrap items-center gap-1">
+          <QualityBadges
+            media={{
+              width: file.width,
+              height: file.height,
+              video_codec: file.video_codec,
+              hdr: file.hdr,
+              audio_channels: channels,
+            }}
+          />
+          <span dir="ltr" className="text-xs tabular-nums text-muted-foreground">
+            {[
+              file.width && file.height ? `${String(file.width)}×${String(file.height)}` : null,
+              file.video_codec || null,
+              file.container || null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="text-end tabular-nums">
+        {file.duration_ms === null ? "" : format.duration(file.duration_ms / 1000)}
+      </TableCell>
+      <TableCell className="text-end tabular-nums">{format.bytes(file.size)}</TableCell>
+      <TableCell>
+        <span className="flex flex-wrap items-center gap-1">
+          <StatusBadge status={file.state} />
+          {file.direct_play ? <Badge tone="success">{t("titles.files.directPlay")}</Badge> : null}
+        </span>
+        {file.error ? (
+          <span className="mt-1 block text-xs text-danger-text" dir="auto">
+            {file.error}
+          </span>
+        ) : null}
+      </TableCell>
+    </>
+  );
+}
+
+function FilesHeader({ withEpisode = false }: { withEpisode?: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <TableHeader>
+      <TableRow>
+        {withEpisode ? <TableHead>{t("titles.files.episode")}</TableHead> : null}
+        <TableHead>{t("titles.files.path")}</TableHead>
+        <TableHead>{t("titles.files.quality")}</TableHead>
+        <TableHead className="text-end">{t("titles.files.duration")}</TableHead>
+        <TableHead className="text-end">{t("titles.files.size")}</TableHead>
+        <TableHead>{t("titles.files.state")}</TableHead>
+      </TableRow>
+    </TableHeader>
+  );
+}
+
+function FilesTable({ files }: { files: readonly File[] }) {
   return (
     <div className="overflow-x-auto">
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("titles.files.path")}</TableHead>
-            <TableHead>{t("titles.files.quality")}</TableHead>
-            <TableHead className="text-end">{t("titles.files.duration")}</TableHead>
-            <TableHead className="text-end">{t("titles.files.size")}</TableHead>
-            <TableHead>{t("titles.files.state")}</TableHead>
-          </TableRow>
-        </TableHeader>
+        <FilesHeader />
         <TableBody>
-          {files.map((file) => {
-            const channels = Math.max(0, ...file.audio.map((track) => track.channels));
-            return (
-              <TableRow key={file.id}>
-                <TableCell className="max-w-96">
-                  <span
-                    className="block truncate font-mono text-xs"
-                    dir="ltr"
-                    title={file.relative_path}
-                  >
-                    {file.relative_path}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {file.library.name}
-                    {file.removed_at ? ` · ${t("titles.files.removed")}` : ""}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap items-center gap-1">
-                    <QualityBadges
-                      media={{
-                        width: file.width,
-                        height: file.height,
-                        video_codec: file.video_codec,
-                        hdr: file.hdr,
-                        audio_channels: channels,
-                      }}
-                    />
-                    <span dir="ltr" className="text-xs tabular-nums text-muted-foreground">
-                      {[
-                        file.width && file.height
-                          ? `${String(file.width)}×${String(file.height)}`
-                          : null,
-                        file.video_codec || null,
-                        file.container || null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-end tabular-nums">
-                  {file.duration_ms === null ? "" : format.duration(file.duration_ms / 1000)}
-                </TableCell>
-                <TableCell className="text-end tabular-nums">{format.bytes(file.size)}</TableCell>
-                <TableCell>
-                  <span className="flex flex-wrap items-center gap-1">
-                    <StatusBadge status={file.state} />
-                    {file.direct_play ? (
-                      <Badge tone="success">{t("titles.files.directPlay")}</Badge>
-                    ) : null}
-                  </span>
-                  {file.error ? (
-                    <span className="mt-1 block text-xs text-danger-text" dir="auto">
-                      {file.error}
-                    </span>
-                  ) : null}
-                </TableCell>
-              </TableRow>
+          {files.map((file) => (
+            <TableRow key={file.id}>
+              <FileCells file={file} />
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function SeasonTable({ season }: { season: Season }) {
+  const { t, i18n } = useTranslation();
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <FilesHeader withEpisode />
+        <TableBody>
+          {season.episodes.flatMap((episode) => {
+            const label = (
+              <TableCell className="max-w-56">
+                <span className="block font-mono text-xs text-muted-foreground">
+                  <bdi dir="ltr">{episodeCode(season.number, episode.number)}</bdi>
+                </span>
+                <span className="block truncate text-ui text-foreground">
+                  <bdi>{localTitle(episode, i18n.language) || t("titles.seasons.untitled")}</bdi>
+                </span>
+              </TableCell>
             );
+            if (episode.files.length === 0) {
+              return [
+                <TableRow key={episode.id}>
+                  {label}
+                  <TableCell colSpan={5}>
+                    <Badge>{t("titles.seasons.noFile")}</Badge>
+                  </TableCell>
+                </TableRow>,
+              ];
+            }
+            return episode.files.map((file, index) => (
+              <TableRow key={file.id}>
+                {index === 0 ? label : <TableCell />}
+                <FileCells file={file} />
+              </TableRow>
+            ));
           })}
         </TableBody>
       </Table>
@@ -153,19 +202,7 @@ function FilesTable({ files }: { files: readonly File[] }) {
 }
 
 function SeasonsCard({ series }: { series: SeriesDetail }) {
-  const { t, i18n } = useTranslation();
-  if (series.seasons.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("titles.seasons.title")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-ui text-muted-foreground">{t("titles.seasons.none")}</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const { t } = useTranslation();
   return (
     <Card>
       <CardHeader>
@@ -173,39 +210,41 @@ function SeasonsCard({ series }: { series: SeriesDetail }) {
         <CardDescription>{t("titles.seasons.description")}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        {series.seasons.map((season: Season, index) => (
-          <details
-            key={season.id}
-            open={index === 0}
-            className="group rounded-input border border-border"
-          >
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-ui font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <span>
-                {season.number === 0
-                  ? t("titles.seasons.specials")
-                  : t("titles.seasons.season", { number: season.number })}
-              </span>
-              <span className="text-xs font-normal text-muted-foreground">
-                {t("titles.seasons.episodes", { count: season.episodes.length })}
-              </span>
-            </summary>
-            <div className="grid gap-4 border-t border-border p-3">
-              {season.episodes.map((episode) => (
-                <div key={episode.id} className="grid gap-2">
-                  <div className="flex flex-wrap items-baseline gap-2 text-ui">
-                    <span className="font-mono text-xs text-muted-foreground" dir="ltr">
-                      {`S${String(season.number).padStart(2, "0")}E${String(episode.number).padStart(2, "0")}`}
-                    </span>
-                    <span className="font-medium text-foreground" dir="auto">
-                      {localTitle(episode, i18n.language) || t("titles.seasons.untitled")}
-                    </span>
-                  </div>
-                  <FilesTable files={episode.files} />
+        {series.seasons.length === 0 ? (
+          <p className="text-ui text-muted-foreground">{t("titles.seasons.none")}</p>
+        ) : (
+          series.seasons.map((season, index) => {
+            const onDisk = season.episodes.filter((episode) => episode.files.length > 0).length;
+            return (
+              <details
+                key={season.id}
+                open={index === 0 || onDisk > 0}
+                className="rounded-input border border-border"
+              >
+                <summary className="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-ui font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <span>
+                    {season.number === 0
+                      ? t("titles.seasons.specials")
+                      : t("titles.seasons.season", { number: season.number })}
+                  </span>
+                  <span className="text-xs font-normal tabular-nums text-muted-foreground">
+                    {t("titles.seasons.onDisk", {
+                      have: onDisk,
+                      total: Math.max(season.episode_count, season.episodes.length),
+                    })}
+                  </span>
+                </summary>
+                <div className="border-t border-border">
+                  {season.episodes.length === 0 ? (
+                    <p className="p-3 text-ui text-muted-foreground">{t("titles.seasons.none")}</p>
+                  ) : (
+                    <SeasonTable season={season} />
+                  )}
                 </div>
-              ))}
-            </div>
-          </details>
-        ))}
+              </details>
+            );
+          })
+        )}
       </CardContent>
     </Card>
   );
@@ -357,8 +396,8 @@ function Hero({ title }: { title: TitleDetail }) {
           className="w-32 shrink-0 rounded-card shadow-elevation ring-1 ring-border sm:w-40"
         />
         <div className="grid min-w-0 gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground" dir="auto">
-            {name}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            <bdi>{name}</bdi>
             {title.year ? (
               <span className="ms-2 font-normal tabular-nums text-muted-foreground">
                 {title.year}
@@ -366,8 +405,8 @@ function Hero({ title }: { title: TitleDetail }) {
             ) : null}
           </h1>
           {other ? (
-            <p className="text-base text-muted-foreground" dir="auto">
-              {other}
+            <p className="text-base text-muted-foreground">
+              <bdi>{other}</bdi>
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-1.5">
@@ -394,7 +433,12 @@ function Hero({ title }: { title: TitleDetail }) {
             </p>
           ) : null}
           {title.categories.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap items-center gap-1">
+              <FolderTree
+                role="img"
+                aria-label={t("titles.detail.categories")}
+                className="size-3.5 text-muted-foreground"
+              />
               {title.categories.map((category) => (
                 <Badge key={category.id} tone="primary">
                   {localName(category, i18n.language)}

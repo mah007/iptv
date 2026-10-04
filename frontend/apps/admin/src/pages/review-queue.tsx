@@ -74,7 +74,7 @@ function ScoreRow({ label, value }: { label: string; value: number | null | unde
       {value === null || value === undefined ? (
         <span className="text-muted-foreground">{t("review.notMeasured")}</span>
       ) : (
-        <ProgressBar variant="inline" value={value * 100} label={label} />
+        <ProgressBar variant="inline" value={value * 100} aria-label={label} />
       )}
     </div>
   );
@@ -413,8 +413,8 @@ function ReviewDetail({
           <Badge tone="warning">{reasonLabel(t, review.reason)}</Badge>
           <RelativeTime value={review.created_at} className="text-xs text-muted-foreground" />
         </div>
-        <h2 className="break-all font-mono text-base font-medium text-foreground" dir="ltr">
-          {review.media_file.relative_path}
+        <h2 className="break-all font-mono text-base font-medium text-foreground">
+          <bdi dir="ltr">{review.media_file.relative_path}</bdi>
         </h2>
         <p className="text-ui text-muted-foreground">
           {t("review.inLibrary", { name: review.media_file.library.name })}
@@ -574,8 +574,8 @@ function ReviewQueue() {
                       item.id === selected.id && "border-primary bg-primary/5",
                     )}
                   >
-                    <span className="truncate font-mono text-xs text-foreground" dir="ltr">
-                      {item.media_file.relative_path}
+                    <span className="truncate font-mono text-xs text-foreground">
+                      <bdi dir="ltr">{item.media_file.relative_path}</bdi>
                     </span>
                     <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       <span>{item.media_file.library.name}</span>

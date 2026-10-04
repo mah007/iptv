@@ -334,16 +334,16 @@ function CategoryRows({
                 <TableCell className="text-end tabular-nums text-muted-foreground">
                   {index + 1}
                 </TableCell>
-                <TableCell className="font-medium" lang="en" dir="ltr">
+                <TableCell className="font-medium">
                   <span className="inline-flex items-center gap-1.5">
-                    {category.name_en}
+                    <bdi lang="en">{category.name_en}</bdi>
                     {category.is_adult ? (
                       <Badge tone="danger">{t("categories.adult")}</Badge>
                     ) : null}
                   </span>
                 </TableCell>
-                <TableCell lang="ar" dir="rtl">
-                  {category.name_ar}
+                <TableCell>
+                  <bdi lang="ar">{category.name_ar}</bdi>
                 </TableCell>
                 <TableCell>
                   <span className="font-mono text-xs text-muted-foreground" dir="ltr">
@@ -428,13 +428,18 @@ function Categories() {
   const kind = search.kind ?? "vod";
   const query = useCategoriesList({ kind, page_size: PAGE_SIZE });
   const remove = useCategoriesDelete();
-  const [editing, setEditing] = useState<Category | "new" | null>(null);
+  // The dialog keeps its category while it animates closed.
+  const [editing, setEditing] = useState<{ open: boolean; category: Category | null }>({
+    open: false,
+    category: null,
+  });
   const [deleting, setDeleting] = useState<Category | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const newButton = manage ? (
     <Button
       onClick={() => {
-        setEditing("new");
+        setEditing({ open: true, category: null });
       }}
     >
       <Plus aria-hidden="true" />
@@ -492,42 +497,45 @@ function Categories() {
             kind={kind}
             categories={query.data.results}
             manage={manage}
-            onEdit={setEditing}
-            onDelete={setDeleting}
+            onEdit={(category) => {
+              setEditing({ open: true, category });
+            }}
+            onDelete={(category) => {
+              setDeleting(category);
+              setDeleteOpen(true);
+            }}
           />
         )}
       </Card>
       <Dialog
-        open={editing !== null}
+        open={editing.open}
         onOpenChange={(open) => {
-          if (!open) setEditing(null);
+          setEditing((previous) => ({ ...previous, open }));
         }}
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editing === "new"
-                ? t("categories.form.newTitle", { kind: t(`categories.kinds.${kind}`) })
-                : t("categories.form.editTitle")}
+              {editing.category
+                ? t("categories.form.editTitle")
+                : t("categories.form.newTitle", { kind: t(`categories.kinds.${kind}`) })}
             </DialogTitle>
             <DialogDescription>{t("categories.form.description")}</DialogDescription>
           </DialogHeader>
-          {editing !== null ? (
+          {editing.open ? (
             <CategoryForm
-              kind={editing === "new" ? kind : editing.kind}
-              category={editing === "new" ? null : editing}
+              kind={editing.category?.kind ?? kind}
+              category={editing.category}
               onDone={() => {
-                setEditing(null);
+                setEditing((previous) => ({ ...previous, open: false }));
               }}
             />
           ) : null}
         </DialogContent>
       </Dialog>
       <ConfirmDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null);
-        }}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
         tone="danger"
         title={t("categories.delete.title", {
           name: deleting ? localName(deleting, i18n.language) : "",

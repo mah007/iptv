@@ -207,6 +207,24 @@ def _drop_stale(file: MediaFile) -> None:
         stale.delete()
 
 
+def _relink_moved_source(file: MediaFile) -> None:
+    """A moved file keeps its hash and renditions; point its `source` link at the new path."""
+    source = Rendition.objects.filter(media_file=file, kind=RenditionKind.SOURCE).first()
+    if source is None:
+        return
+    link = asset_dir(source.storage_key) / f"source.{source.container}"
+    target = source_path(file)
+    try:
+        current = os.readlink(link)
+    except OSError:
+        current = None
+    if current != str(target):
+        temporary = link.parent / f".source-{uuid4().hex}"
+        link.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink(target, temporary)
+        os.replace(temporary, link)
+
+
 def prepare_file(  # noqa: PLR0911 (one return per outcome)
     file_id: UUID | str,
     *,
@@ -221,6 +239,7 @@ def prepare_file(  # noqa: PLR0911 (one return per outcome)
     if file is None or file.removed_at is not None or file.state != FileState.MATCHED:
         return Prepared.SKIPPED
     _drop_stale(file)
+    _relink_moved_source(file)
     if _playable(file):
         return Prepared.EXISTING
     active = TranscodeJob.objects.filter(media_file=file, status__in=ACTIVE_JOB_STATUSES).first()
