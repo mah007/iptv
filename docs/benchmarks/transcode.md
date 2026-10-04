@@ -1,4 +1,4 @@
-# Compat MP4 transcode benchmark
+# Transcode benchmarks: compat MP4, HLS ladder and UHD
 
 - **Measured:** 2026-10-04
 - **What:** the production compat MP4 job (SPEC §7.3: H.264 High ≤ L4.1, ≤ 1080p, capped quality, AAC stereo plus the 5.1 track, `+faststart`), exactly as the transcoder runs it: the P3 planner, the `streaming/ffmpeg/profiles.yaml` presets, jellyfin-ffmpeg 8.1.3, and output verification.
@@ -40,6 +40,34 @@ The sample files are 30 s synthetic clips (`testsrc2`), which are easy to encode
 - **Ingest time:** titles are `ready` once their compat MP4 exists. Direct-play sources (faststart H.264/AAC MP4) are ready immediately, with no job.
 - **To measure there** (after deploying): `docker compose ... exec transcoder python manage.py bench_transcode <file under /media>`. Then add the table here.
 
+## M8: the HLS ladder and UHD, on CPU (2026-10-04)
+
+- **What:** `bench_transcode --profile hls` runs the whole SDR ladder exactly as the `hls` job does: one decode `split` into the 1080p, 720p, 540p and 360p rungs (libx264 `-preset slow`, average bitrate, 2 s GOP), the AAC audio renditions (plus E-AC-3 copied), fMP4 packaging and verification of every playlist. `--profile uhd` runs the HEVC Main10 UHD encode (libx265 `-preset slow`, 16.8 Mbit/s).
+- **Conditions:** the dev transcoder is now capped at **6 CPUs and 3 GB** (compose), so these numbers are not comparable with the 16-thread M8-lite tables above. The compat MP4 is re-measured under the same cap for the ratio.
+- **CPU only:** GPU ladder numbers (NVENC, QSV, VA-API) are **pending**. They are to be measured when the desktop is idle: `make up GPU=nvidia,intel`, then `bench_transcode … --profile hls --backends nvenc,qsv,vaapi`, then plain `make up` again. The production server has no GPU in any case.
+
+| File | Source | Output | Wall | Speed (media s / s) |
+| --- | --- | --- | ---: | ---: |
+| noisy.1080p.hevc.mkv (60 s, the hard clip above) | HEVC 1080p, ~50 Mb/s noise | compat MP4 | 222.6 s | 0.27× |
+| noisy.1080p.hevc.mkv | HEVC 1080p | **HLS ladder, 4 rungs** | 330.2 s | 0.18× |
+| The.Matrix.1999.1080p.BluRay.x265.mkv (30 s) | HEVC 1080p SDR | compat MP4 | 7.4 s | 4.03× |
+| The.Matrix… | HEVC 1080p SDR | **HLS ladder, 4 rungs** | 24.4 s | 1.23× |
+| Blade.Runner.2049…2160p…HDR.mkv (30 s) | HEVC 2160p 10-bit HDR10, tone-mapped | compat MP4 | 31.3 s | 0.96× |
+| Blade.Runner.2049… | HEVC 2160p HDR10, tone-mapped | **HLS ladder, 4 rungs** | 58.4 s | 0.51× |
+| Inception.2010…DTS.x264.mkv (30 s) | H.264 1080p | **HLS ladder, 4 rungs** | 22.4 s | 1.34× |
+| uhd.2160p.h264.mkv (10 s noisy 4K) | H.264 2160p | **UHD HEVC Main10** | killed | ffmpeg OOM-killed at the 3 GB cap |
+
+**What it means:**
+- **The ladder costs about 1.5× a compat MP4 encode** on real-looking content (the hard clip). On easy synthetic clips the ratio looks larger, because the compat encode there is nearly free. The rungs share one decode and one filter pass, and the 720p, 540p and 360p rungs together cost less than the 1080p one.
+- **HDR sources** are bound by software tone mapping on every output (compat and ladder alike), as before.
+- **A UHD source that is already HEVC/AV1 at 25 Mbit/s or less (the sample Blade Runner) costs nothing:** the UHD job links the source and copies its video into the UHD rung in under a second.
+- **A UHD HEVC encode on CPU** is both slow (x265 `slow` at 2160p) and memory-hungry. Under the dev cap of 3 GB, ffmpeg was killed by the kernel before the first progress report. This is why `library.uhd_cpu_encode` is off by default: on a CPU-only host such a source keeps its compat MP4 and ladder, and the UHD version is marked `no_hevc_encoder` (ADR-0014). Run it only on a GPU host (`hevc_nvenc`, `hevc_qsv`, `hevc_vaapi`) or give the transcoder well over 3 GB.
+
+### On the CPU-only server
+- **Per film:** with the ladder on, the CPU work per film is about 2.5× the compat MP4 alone. At the hard clip's rate that is roughly 0.1× real time for both outputs, on six cores.
+- **Readiness:** titles are still `ready` as soon as their compat MP4 exists. The ladder (priority 3) and UHD (priority 2) queue behind every pending compat MP4, so a new library becomes playable in IPTV apps first and adaptive in the portal later.
+- **Opting out:** if the backlog matters more than adaptive streaming, turn `library.hls_enabled` off in the admin settings. The portal then plays the compat MP4.
+
 ## Reproduce
 ```sh
 make up GPU=nvidia,intel            # or no GPU= for CPU only
@@ -54,4 +82,7 @@ docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev
 docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml \
   -f docker/compose.gpu-nvidia.yml -f docker/compose.gpu-intel.yml exec -T transcoder \
   python manage.py bench_transcode bench/noisy.1080p.hevc.mkv --backends cpu,nvenc,qsv,vaapi
+# The ladder or the UHD encode instead of the compat MP4:
+#   ... bench_transcode <file> --backends cpu --profile hls
+#   ... bench_transcode <a 2160p H.264 file> --backends cpu --profile uhd
 ```

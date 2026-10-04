@@ -41,13 +41,30 @@ It listens on 8080 (plain HTTP; TLS ends at Traefik or the CDN in front). It run
 | `EDGE_ORIGIN_URL` | required in `s3` | `http(s)://host[:port][/prefix]`, no credentials; objects at `<prefix>/<title>/…` |
 | `EDGE_MEDIA_CACHE_SIZE` | `10g` | s3 mode: slice cache size on local disk |
 | `EDGE_REAL_IP_FROM` | none | proxies (CIDRs, comma or space separated) whose `X-Forwarded-For` is trusted, e.g. Traefik's network |
-| `EDGE_CORS_ORIGINS` | none | portal origins allowed to fetch HLS, e.g. `https://app.example.com` |
+| `EDGE_CORS_ORIGINS` | none | portal and admin origins allowed to fetch HLS, subtitles and thumbnails, e.g. `https://app.example.com https://admin.example.com` (compose sets both) |
 | `EDGE_ID` | container hostname | edge name in the access log and in `X-Edge-Id` |
 | `EDGE_RESOLVER` | IPv4 nameservers in `/etc/resolv.conf` | DNS for upstream names (Docker: `127.0.0.11`) |
 | `EDGE_RESOLVER_VALID` | `10s` | DNS cache time |
 | `EDGE_REQUEST_ERROR_LOG_LEVEL` | `emerg` | request-scoped error log; lower levels log raw request lines, which hold tokens |
 
 The entrypoint stops the container with a message naming the variable (and never a key) when a value or the key file is invalid. `GET /healthz` answers 200 while the loaded key file is usable.
+
+## What an asset holds
+
+Each media file's renditions live in one folder under `EDGE_MEDIA_ROOT`, named by its asset key (the token's `title`). The full layout is in ADR-0014 and `backend/apps/media/layout.py`:
+
+| Path | Token rendition | What |
+| --- | --- | --- |
+| `compat.mp4` | `compat` | progressive H.264/AAC MP4 (sidecar subtitles as mov_text) |
+| `source.<ext>` | `source` | link to a direct-play library file |
+| `uhd.<ext>` | `uhd` | the UHD version (HEVC Main10, or a link to a suitable source) |
+| `hls/master.m3u8`, `hls/v*/`, `hls/a*/` | `hls` | the SDR ladder: fMP4 rungs and audio renditions |
+| `hls480/`, `hls720/` | `hls480`, `hls720` | the ladder capped at a plan's quality: links to the rungs that fit, so the token cannot reach a taller one |
+| `hls2160/`, `hls2160/uhd/` | `hls2160` | the ladder plus the UHD rung |
+| `subs/<key>.vtt`, `.srt`, `.m3u8` | (through `<scope>/subs`) | UTF-8 subtitles and their one-segment playlists |
+| `thumbs/thumbs.vtt`, `sprite_*.jpg` | (through `<scope>/thumbs`) | scrubbing previews |
+
+Every presentation and progressive scope holds `subs -> ../subs` and `thumbs -> ../thumbs`, so a playback URL's token also reaches `<scope>/subs/…` and `<scope>/thumbs/…`. Links are relative and stay inside the asset; nginx follows them (`disable_symlinks off`, its default). Playlists get `max-age=60`, everything else that succeeds is cached as immutable.
 
 ## Keys
 

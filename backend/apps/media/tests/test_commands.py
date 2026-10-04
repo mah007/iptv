@@ -1,4 +1,5 @@
-"""The media management commands: run_transcoder, bench_transcode and media_ready."""
+"""The media management commands: run_transcoder, bench_transcode, media_ready and
+plan_media."""
 
 import io
 import shutil
@@ -75,3 +76,28 @@ def test_media_ready_adds_the_sample_libraries_and_waits(
     out = io.StringIO()
     call_command("media_ready", stdout=out)
     assert "A ready movie and a ready series exist." in out.getvalue()
+
+
+def test_plan_media_queues_every_matched_file(
+    make_library: Callable[..., Library], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from apps.catalog.models import FileState, MediaFile  # noqa: PLC0415
+    from apps.media import tasks  # noqa: PLC0415
+
+    library = make_library()
+    planned: list[str] = []
+    monkeypatch.setattr(tasks.prepare_media_file, "delay", planned.append)
+    matched = [
+        MediaFile.objects.create(library=library, storage_key=f"{n}.mkv", state=FileState.MATCHED)
+        for n in range(3)
+    ]
+    MediaFile.objects.create(library=library, storage_key="new.mkv")  # not matched yet
+    planned.clear()  # the matched saves queued their own plans
+
+    out = io.StringIO()
+    call_command("plan_media", stdout=out)
+    assert planned == [str(f.pk) for f in matched]
+    assert "Queued planning of 3 files." in out.getvalue()
+    planned.clear()
+    call_command("plan_media", "--limit", "1", stdout=out)
+    assert planned == [str(matched[0].pk)]
