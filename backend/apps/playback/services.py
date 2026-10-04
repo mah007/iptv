@@ -92,13 +92,19 @@ class PlayableRendition:
     `storage_key` is the asset's directory key under the media root (the token's
     `title` field, `[A-Za-z0-9_-]{1,64}`, e.g. the media file's UUID), never a path:
     the edge serves `<root>/<storage_key>/<kind>.<container>` or, for HLS,
-    `<root>/<storage_key>/hls/...`.
+    `<root>/<storage_key>/<name>/...`.
+
+    `name` is the token's rendition when it differs from the kind: an HLS presentation
+    other than the full ladder (`hls720` capped at 720p, `hls2160` with the UHD rung;
+    ADR-0014), so a token for a capped presentation cannot reach a taller rung.
+    `height` is the presentation's ceiling.
     """
 
     storage_key: str
     kind: RenditionKind
     height: int
     container: str = "mp4"
+    name: str = ""
 
     def __post_init__(self) -> None:
         if not tokens.TITLE.fullmatch(self.storage_key):
@@ -107,17 +113,25 @@ class PlayableRendition:
         if not tokens.EXTENSION.fullmatch(self.container):
             msg = "container must be a file extension such as mp4"
             raise ValueError(msg)
+        if self.name and not tokens.RENDITION.fullmatch(self.name):
+            msg = "name must be a token rendition ([A-Za-z0-9_-]{1,32})"
+            raise ValueError(msg)
 
     @property
     def delivery(self) -> Delivery:
         return Delivery.SEGMENTED if self.kind is RenditionKind.HLS else Delivery.PROGRESSIVE
 
     @property
+    def token_rendition(self) -> str:
+        """The token's `rendition` field: the file stem or folder the token reaches."""
+        return self.name or self.kind.value
+
+    @property
     def entry(self) -> str:
         """The file the playback URL names, relative to the asset."""
         if self.kind is RenditionKind.HLS:
-            return "hls/master.m3u8"
-        return f"{self.kind.value}.{self.container}"
+            return f"{self.token_rendition}/master.m3u8"
+        return f"{self.token_rendition}.{self.container}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -456,7 +470,7 @@ def _open_session(start: _Start) -> PlaybackGrant:
             keyset,
             session=key,
             title=start.rendition.storage_key,
-            rendition=start.rendition.kind.value,
+            rendition=start.rendition.token_rendition,
             exp=exp,
             net=_token_net(start.client_ip),
         )

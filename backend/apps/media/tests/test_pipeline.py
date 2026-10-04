@@ -1,5 +1,8 @@
 """The media pipeline (ADR-0010): planning matched files, compat MP4 jobs on real ffmpeg,
-retries, cancels, the admin's job actions, the on-demand fallback and reconciliation."""
+retries, cancels, the admin's job actions, the on-demand fallback and reconciliation.
+
+The HLS ladder and UHD outputs are switched off here (their settings) so each test sees
+the compat MP4 alone; `test_outputs.py` covers them."""
 
 import json
 import os
@@ -18,10 +21,10 @@ from apps.audit.models import AuditLog
 from apps.catalog.models import Episode, FileState, MediaFile, Movie, Season, Series, TitleStatus
 from apps.catalog.playable import playable_title
 from apps.core.errors import ProblemError
-from apps.core.services import reset_settings_cache
+from apps.core.services import reset_settings_cache, set_setting
 from apps.core.stores import state_redis
 from apps.library.models import Library, ProcessingPolicy
-from apps.media import receivers, services, tasks, worker
+from apps.media import ffmpeg, receivers, services, tasks, worker
 from apps.media.ffmpeg import FfmpegError
 from apps.media.models import (
     PRIORITY_URGENT,
@@ -30,6 +33,7 @@ from apps.media.models import (
     RenditionKind,
     RenditionStatus,
     TranscodeJob,
+    TranscodeProfile,
 )
 from apps.media.progress import ProgressUpdate
 from apps.media.services import Prepared
@@ -53,6 +57,12 @@ def _isolated_settings_cache() -> Iterator[None]:
     reset_settings_cache()
     yield
     reset_settings_cache()
+
+
+@pytest.fixture(autouse=True)
+def _compat_only(_isolated_settings_cache: None) -> None:
+    set_setting("library.hls_enabled", value=False, actor=None)
+    set_setting("library.uhd_enabled", value=False, actor=None)
 
 
 @pytest.fixture(autouse=True)
@@ -147,12 +157,12 @@ def test_a_direct_play_source_is_served_as_is(library: Library, sent: Sent) -> N
     link = asset(file) / "source.mp4"
     assert link.is_symlink()
     assert os.readlink(link) == str(Path(library.path) / "Clip.mp4")
-    rendition = Rendition.objects.get(media_file=file)
-    assert rendition.kind == RenditionKind.SOURCE
+    rendition = Rendition.objects.get(media_file=file, kind=RenditionKind.SOURCE)
     assert rendition.status == RenditionStatus.READY
     assert (rendition.height, rendition.codec, rendition.container) == (240, "h264", "mp4")
     assert rendition.storage_key == file.pk.hex
-    assert not TranscodeJob.objects.exists()
+    # No compat MP4: only the thumbnails, which read the source.
+    assert list(TranscodeJob.objects.values_list("profile", flat=True)) == ["thumbnails"]
     assert sent == []
     movie = Movie.objects.get(files=file)
     assert movie.status == TitleStatus.READY
@@ -183,7 +193,8 @@ def test_passthrough_serves_any_source(library: Library, sent: Sent) -> None:
 
     assert services.prepare_file(file.pk) is Prepared.SOURCE
     assert (asset(file) / "source.mkv").is_symlink()
-    assert Rendition.objects.get(media_file=file).container == "mkv"
+    assert Rendition.objects.get(media_file=file, kind=RenditionKind.SOURCE).container == "mkv"
+    assert not TranscodeJob.objects.filter(profile=TranscodeProfile.COMPAT_MP4).exists()
 
 
 def test_unplannable_or_unmatched_files(library: Library, sent: Sent) -> None:
@@ -267,7 +278,8 @@ def test_a_changed_source_drops_its_old_renditions(library: Library, sent: Sent)
     file.save()
 
     assert services.prepare_file(file.pk) is Prepared.SOURCE
-    assert Rendition.objects.get(media_file=file).source_hash == "ffffffffffffffff"
+    source = Rendition.objects.get(media_file=file, kind=RenditionKind.SOURCE)
+    assert source.source_hash == "ffffffffffffffff"
 
 
 # --- Running jobs -----------------------------------------------------------------------
@@ -276,7 +288,9 @@ def test_a_changed_source_drops_its_old_renditions(library: Library, sent: Sent)
 def queued_job(library: Library, name: str = "Encode.mkv") -> TranscodeJob:
     file = matched_movie(library, hevc_mkv, name)
     services.prepare_file(file.pk)
-    return TranscodeJob.objects.select_related("rendition").get(media_file=file)
+    return TranscodeJob.objects.select_related("rendition").get(
+        media_file=file, profile=TranscodeProfile.COMPAT_MP4
+    )
 
 
 def test_a_job_encodes_verifies_and_publishes_the_compat_mp4(
@@ -308,12 +322,15 @@ def test_a_job_encodes_verifies_and_publishes_the_compat_mp4(
     statuses = []
     for _ in range(50):  # the first read is the subscribe confirmation (None)
         message = feed.get_message(ignore_subscribe_messages=True, timeout=0.05)
-        if message is not None:
+        if message is not None and json.loads(message["data"])["id"] == str(job.pk):
             statuses.append(json.loads(message["data"])["status"])
     feed.close()
     assert statuses[0] == "running"
     assert statuses[-1] == "done"
     assert not state_redis().exists(services.LEASE_KEY.format(job=job.pk))
+    # Now that it plays, the thumbnails follow (they read the compat MP4).
+    follow = TranscodeJob.objects.get(media_file=job.media_file, profile="thumbnails")
+    assert follow.status == JobStatus.QUEUED
 
 
 def test_stale_and_duplicate_messages_are_dropped(
@@ -340,7 +357,7 @@ def test_failures_retry_on_cpu_with_backoff_then_fail(
     def broken(*_args: Any, **_kwargs: Any) -> None:
         raise FfmpegError(1, ["Error while opening encoder", "Conversion failed!"])
 
-    monkeypatch.setattr(services, "run", broken)
+    monkeypatch.setattr(ffmpeg, "run", broken)
 
     assert services.run_job(job.pk, job.dispatches) is JobStatus.QUEUED
     job.refresh_from_db()
@@ -362,7 +379,7 @@ def test_verification_and_source_problems_fail_the_attempt(
 ) -> None:
     settings.TRANSCODE_MAX_ATTEMPTS = 1
     job = queued_job(library)
-    monkeypatch.setattr(services, "run", lambda *_a, **_k: None)  # writes nothing
+    monkeypatch.setattr(ffmpeg, "run", lambda *_a, **_k: None)  # writes nothing
     assert services.run_job(job.pk, job.dispatches) is JobStatus.FAILED
     job.refresh_from_db()
     assert job.error == "verify:missing_output"
@@ -413,7 +430,7 @@ def test_a_cancelled_run_stays_cancelled(
     def cancelled(*_args: Any, **_kwargs: Any) -> None:
         raise FfmpegCancelled("cancelled")
 
-    monkeypatch.setattr(services, "run", cancelled)
+    monkeypatch.setattr(ffmpeg, "run", cancelled)
     assert services.run_job(job.pk, job.dispatches) is JobStatus.CANCELLED
     assert Rendition.objects.get(jobs=job).status == RenditionStatus.FAILED
 
@@ -471,7 +488,12 @@ def test_cancelling_a_running_job_flags_its_transcoder(
 def test_retry_refuses_a_second_active_job(library: Library, sent: Sent, now_commit: None) -> None:
     job = queued_job(library)
     services.cancel_job(job, actor=None, ip=None)
-    services.prepare_file(job.media_file_id)  # a new job for the same file
+    # A cancelled (failed) output is not queued again by planning...
+    services.prepare_file(job.media_file_id)
+    assert TranscodeJob.objects.filter(profile="compat_mp4", status="queued").count() == 0
+    # ...only on request (the admin's Reprocess): a new job for the same file.
+    file = MediaFile.objects.get(pk=job.media_file_id)
+    assert services.ensure_output(file, TranscodeProfile.COMPAT_MP4, force=True) is not None
     with pytest.raises(ProblemError) as conflict:
         services.retry_job(job, actor=None, ip=None)
     assert conflict.value.status_code == 409

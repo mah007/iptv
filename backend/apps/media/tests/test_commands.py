@@ -47,6 +47,21 @@ def test_bench_transcode_prints_a_table(media_root: Path) -> None:
         call_command("bench_transcode", "../etc/passwd", stdout=out)
 
 
+def test_bench_transcode_times_the_ladder(media_root: Path) -> None:
+    hevc_mkv(media_root / "movies" / "Ladder.mkv")
+    out = io.StringIO()
+    call_command(
+        "bench_transcode", "movies/Ladder.mkv", "--backends", "cpu", "--profile", "hls", stdout=out
+    )
+    rows = out.getvalue().splitlines()
+    assert "| 1 rungs (240p) | ok |" in rows[2]
+    with pytest.raises(CommandError, match="not a UHD source"):
+        call_command(
+            "bench_transcode", "movies/Ladder.mkv", "--backends", "cpu", "--profile", "uhd",
+            stdout=out,
+        )  # fmt: skip
+
+
 def test_media_ready_adds_the_sample_libraries_and_waits(
     media_root: Path, monkeypatch: pytest.MonkeyPatch, make_library: Callable[..., Library]
 ) -> None:

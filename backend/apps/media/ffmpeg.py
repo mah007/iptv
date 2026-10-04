@@ -14,7 +14,6 @@ segments and BANDWIDTH/AVERAGE-BANDWIDTH measured from the segments ffmpeg produ
 
 from __future__ import annotations
 
-import math
 import os
 import subprocess
 import threading
@@ -26,6 +25,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import IO, Final
 
+from apps.media.hls import audio_codec_string, playlist_bitrates, video_codec_string
 from apps.media.planner import (
     AudioPlan,
     CompatMp4Plan,
@@ -49,7 +49,7 @@ from apps.media.profiles import (
     render_args,
 )
 from apps.media.progress import ProgressParser, ProgressUpdate
-from apps.media.verify import ceil_target_duration, read_media_playlist
+from apps.media.verify import ceil_target_duration
 
 GLOBAL_ARGS: Final = (
     "-hide_banner",
@@ -74,10 +74,6 @@ HLS_SEGMENT_PATTERN: Final = "seg_%05d.m4s"
 HLS_SUBTITLE_FILE: Final = "subtitles.vtt"
 SPRITE_PATTERN: Final = "sprite_%03d.jpg"
 SUBTITLE_MUXERS: Final = {"vtt": ("webvtt", "webvtt"), "srt": ("srt", "srt")}  # codec, muxer
-# HLS CODECS values for the audio we package (AAC is always AAC-LC from ffmpeg's encoder).
-AUDIO_CODEC_STRINGS: Final = {"aac": "mp4a.40.2", "ac3": "ac-3", "eac3": "ec-3"}
-# Fallback video CODECS value: H.264 High (0x64), no constraint flags, level 4.1 (0x29).
-H264_HIGH_41_CODEC: Final = "avc1.640029"
 
 
 class FfmpegError(RuntimeError):
@@ -122,6 +118,17 @@ class Encoding:
 
     def preset(self, codec: VideoCodec) -> EncoderPreset:
         return self.profiles.encoder(self.backend, codec)
+
+
+@dataclass(frozen=True, slots=True)
+class ExtraSubtitle:
+    """A converted sidecar subtitle (UTF-8 SRT or WebVTT) muxed into the compat MP4."""
+
+    path: Path
+    language: str
+    title: str | None
+    default: bool = False
+    forced: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,24 +264,29 @@ def subtitle_args(plans: Sequence[SubtitlePlan], codec: str) -> list[str]:
 # --- progressive MP4 (compat, remux, UHD) ---------------------------------------------------
 
 
-def compat_mp4_command(
+def compat_mp4_command(  # noqa: PLR0913
     probe: ProbeResult,
     plan: CompatMp4Plan,
     *,
     source: Path,
     output: Path,
     encoding: Encoding,
+    extra_subtitles: Sequence[ExtraSubtitle] = (),
 ) -> Command:
     """The compat MP4 (SPEC §7.3): H.264 High <= L4.1 capped CRF, AAC stereo + surround,
-    mov_text subtitles, +faststart. With a copied video stream this is the fast remux
-    job of the on-demand fallback (`-c:v copy`, audio fixed)."""
+    mov_text subtitles (embedded text tracks, then `extra_subtitles`: converted
+    sidecars), +faststart. With a copied video stream this is the fast remux job of the
+    on-demand fallback (`-c:v copy`, audio fixed)."""
     profiles = encoding.profiles
     compat = profiles.compat_mp4
     video = plan.video
     argv = [encoding.ffmpeg, *GLOBAL_ARGS]
     if video.action is StreamAction.ENCODE:
         argv += input_args(encoding)
-    argv += ["-i", input_url(source), "-map", f"0:{video.source_index}"]
+    argv += ["-i", input_url(source)]
+    for extra in extra_subtitles:
+        argv += ["-i", input_url(extra.path)]
+    argv += ["-map", f"0:{video.source_index}"]
     if video.action is StreamAction.COPY:
         argv += ["-c:v", "copy"]
     else:
@@ -297,15 +309,31 @@ def compat_mp4_command(
             argv += SDR_COLOR_ARGS
     argv += audio_args(plan.audio)
     argv += subtitle_args(plan.subtitles, compat.subtitle_codec)
+    argv += _extra_subtitle_args(extra_subtitles, len(plan.subtitles), compat.subtitle_codec)
     argv += ["-map_metadata", "-1", "-movflags", compat.movflags, *MUXING_QUEUE_ARGS]
     argv += ["-f", "mp4", input_url(output)]
+    redactions = list(_redactions(source, output.parent))
+    redactions += [(str(extra.path.parent.absolute()), "<subtitles>") for extra in extra_subtitles]
     return Command(
         argv=tuple(argv),
         outputs=(output,),
         directories=(output.parent,),
         duration_ms=probe.duration_ms,
-        redactions=_redactions(source, output.parent),
+        redactions=tuple(sorted(set(redactions), key=lambda pair: len(pair[0]), reverse=True)),
     )
+
+
+def _extra_subtitle_args(extras: Sequence[ExtraSubtitle], offset: int, codec: str) -> list[str]:
+    """Sidecar inputs 1..n as subtitle outputs `offset`.. (after the embedded ones)."""
+    args: list[str] = []
+    for n, extra in enumerate(extras, start=1):
+        i = offset + n - 1
+        args += ["-map", f"{n}:0", f"-c:s:{i}", codec]
+        args += [f"-metadata:s:s:{i}", f"language={extra.language}"]
+        args += [f"-metadata:s:s:{i}", f"title={extra.title or ''}"]
+        flags = [name for name, on in (("default", extra.default), ("forced", extra.forced)) if on]
+        args += [f"-disposition:s:{i}", "+".join(flags) or "0"]
+    return args
 
 
 def uhd_command(  # noqa: PLR0913
@@ -439,6 +467,35 @@ def hls_command(
     )
 
 
+def rung_segment_command(  # noqa: PLR0913
+    source: Path,
+    *,
+    video_index: int,
+    codec: str,
+    output_dir: Path,
+    segment_s: int,
+    duration_ms: int | None,
+    ffmpeg: str = "ffmpeg",
+) -> Command:
+    """Package an already encoded video stream as one HLS rung (fMP4, copied): the UHD
+    rung, from the UHD version or a kept UHD source. HEVC is tagged `hvc1` (what Apple
+    players require); audio comes from the ladder's audio renditions."""
+    playlist = output_dir / HLS_PLAYLIST_NAME
+    argv = [ffmpeg, *GLOBAL_ARGS, "-i", input_url(source), "-map", f"0:{video_index}"]
+    argv += ["-c:v", "copy"]
+    if codec == "hevc":
+        argv += ["-tag:v", "hvc1"]
+    argv += ["-an", "-sn", "-dn", "-map_metadata", "-1"]
+    argv += _hls_muxer_args(segment_s, playlist)
+    return Command(
+        argv=tuple(argv),
+        outputs=(output_dir,),
+        directories=(output_dir,),
+        duration_ms=duration_ms,
+        redactions=_redactions(source, output_dir),
+    )
+
+
 def write_hls_master(plan: HlsPlan, output_dir: Path, *, duration_ms: int | None) -> str:
     """Write `master.m3u8` (and one playlist per WebVTT subtitle) for a finished
     `hls_command()` run; returns the master playlist text.
@@ -447,11 +504,11 @@ def write_hls_master(plan: HlsPlan, output_dir: Path, *, duration_ms: int | None
     plus the largest of its audio group, AVERAGE-BANDWIDTH the same with averages.
     """
     video_rates = [
-        _playlist_bitrates(output_dir / hls_rung_dir(i) / HLS_PLAYLIST_NAME)
+        playlist_bitrates(output_dir / hls_rung_dir(i) / HLS_PLAYLIST_NAME)
         for i in range(len(plan.rungs))
     ]
     video_codecs = [
-        _video_codec_string(output_dir / hls_rung_dir(i) / HLS_INIT_NAME)
+        video_codec_string(output_dir / hls_rung_dir(i) / HLS_INIT_NAME)
         for i in range(len(plan.rungs))
     ]
     groups: dict[str, list[tuple[int, HlsAudioPlan]]] = {}
@@ -459,8 +516,7 @@ def write_hls_master(plan: HlsPlan, output_dir: Path, *, duration_ms: int | None
         groups.setdefault(audio.group, []).append((position, audio))
     group_rates = {
         group: [
-            _playlist_bitrates(output_dir / hls_audio_dir(i) / HLS_PLAYLIST_NAME)
-            for i, _ in members
+            playlist_bitrates(output_dir / hls_audio_dir(i) / HLS_PLAYLIST_NAME) for i, _ in members
         ]
         for group, members in groups.items()
     }
@@ -504,7 +560,7 @@ def write_hls_master(plan: HlsPlan, output_dir: Path, *, duration_ms: int | None
         rates = group_rates.get(audio_group, []) if audio_group else []
         audio_peak = max((peak for peak, _ in rates), default=0)
         audio_avg = max((avg for _, avg in rates), default=0)
-        audio_codec = _audio_codec_string(groups[audio_group][0][1].codec) if audio_group else None
+        audio_codec = audio_codec_string(groups[audio_group][0][1].codec) if audio_group else None
         for i in order:
             rung = plan.rungs[i]
             peak, average = video_rates[i]
@@ -561,38 +617,6 @@ def _hls_muxer_args(segment_s: int, playlist: Path) -> list[str]:
     ]
 
 
-def _playlist_bitrates(playlist_path: Path) -> tuple[int, int]:
-    """(peak, average) segment bitrate in bit/s of one media playlist."""
-    playlist = read_media_playlist(playlist_path)
-    total_bits = 0
-    total_s = 0.0
-    peak = 0
-    for segment in playlist.segments:
-        bits = (playlist_path.parent / segment.uri).stat().st_size * 8
-        total_bits += bits
-        total_s += segment.duration_s
-        if segment.duration_s > 0:
-            peak = max(peak, math.ceil(bits / segment.duration_s))
-    average = math.ceil(total_bits / total_s) if total_s > 0 else 0
-    return peak, average
-
-
-def _video_codec_string(init_segment: Path) -> str:
-    """`avc1.PPCCLL` from the avcC box of the init segment (profile, constraints, level)."""
-    try:
-        data = init_segment.read_bytes()
-    except OSError:
-        data = b""
-    position = data.find(b"avcC")
-    if position >= 0 and len(data) >= position + 8:
-        return "avc1." + data[position + 5 : position + 8].hex()
-    return H264_HIGH_41_CODEC
-
-
-def _audio_codec_string(codec: str) -> str:
-    return AUDIO_CODEC_STRINGS.get(codec, codec)
-
-
 def _write_subtitle_playlist(directory: Path, duration_ms: int | None) -> str:
     """A one-segment VOD playlist for `subtitles.vtt`; returns its file name."""
     duration_s = (duration_ms or 0) / 1000
@@ -645,13 +669,18 @@ def sprite_command(  # noqa: PLR0913
     profiles: Profiles,
     duration_ms: int | None,
     ffmpeg: str = "ffmpeg",
+    keyframes_only: bool = False,
 ) -> Command:
     """Scrubbing sprites: one tile every `interval_s`, letterboxed to the tile size,
-    `columns x rows` tiles per JPEG sheet (`sprite_001.jpg`, ...)."""
+    `columns x rows` tiles per JPEG sheet (`sprite_001.jpg`, ...).
+
+    `keyframes_only` decodes key frames alone (`-skip_frame nokey`): many times faster,
+    and exact enough when the input has short GOPs (the compat MP4's are 2 s)."""
     tile_w, tile_h = plan.tile_width, plan.tile_height
     filters = _thumbnail_filters(plan, profiles)
     filters += [
-        f"fps=1/{plan.interval_s}",
+        # One tile per started interval, so a clip shorter than half an interval gets one.
+        f"fps=1/{plan.interval_s}:eof_action=pass",
         f"scale={tile_w}:{tile_h}:force_original_aspect_ratio=decrease",
     ]
     if plan.tonemap:
@@ -662,7 +691,10 @@ def sprite_command(  # noqa: PLR0913
         "setsar=1",
         f"tile={plan.columns}x{plan.rows}",
     ]
-    argv = [ffmpeg, *GLOBAL_ARGS, "-i", input_url(source), "-map", f"0:{plan.source_index}"]
+    argv = [ffmpeg, *GLOBAL_ARGS]
+    if keyframes_only:
+        argv += ["-skip_frame", "nokey"]
+    argv += ["-i", input_url(source), "-map", f"0:{plan.source_index}"]
     argv += ["-vf", ",".join(filters), "-fps_mode", "passthrough", "-c:v", "mjpeg", "-q:v", "4"]
     argv += ["-f", "image2", "-start_number", "1", input_url(output_dir / SPRITE_PATTERN)]
     return Command(
@@ -736,6 +768,21 @@ def subtitles_command(
         outputs=tuple(outputs),
         directories=(output_dir,),
         redactions=_redactions(source, output_dir),
+    )
+
+
+def subtitle_convert_command(
+    source: Path, *, vtt: Path, srt: Path, ffmpeg: str = "ffmpeg"
+) -> Command:
+    """Convert one UTF-8 text subtitle file (SRT, ASS/SSA, WebVTT) to WebVTT and SRT."""
+    argv = [ffmpeg, *GLOBAL_ARGS, "-i", input_url(source)]
+    argv += ["-map", "0:s:0", "-c:s", "webvtt", "-f", "webvtt", input_url(vtt)]
+    argv += ["-map", "0:s:0", "-c:s", "srt", "-f", "srt", input_url(srt)]
+    return Command(
+        argv=tuple(argv),
+        outputs=(vtt, srt),
+        directories=(vtt.parent, srt.parent),
+        redactions=_redactions(source, vtt.parent),
     )
 
 

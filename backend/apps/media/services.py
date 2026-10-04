@@ -1,21 +1,25 @@
-"""The media pipeline's services (SPEC §7.3, ADR-0010): plan a matched file's outputs,
-run its compat MP4 job, and the admin's job actions.
+"""The media pipeline's services (SPEC §7.3; ADR-0010, ADR-0014): plan a matched file's
+outputs, run its transcode jobs, and the admin's job actions.
 
 Flow for one matched file (`prepare_file`, on the worker):
 
-1. probe the source and plan it with P3's planner;
+1. probe the source, plan it with P3's planner and sync its audio and subtitle tracks
+   (embedded streams and sidecar files);
 2. a source that plays everywhere (or any source in a `passthrough` library) gets a
    `source` rendition at once: a symlink `renditions/<key>/source.<ext>` to the library
    file, which the edge serves read-only. No job;
 3. otherwise, in an `ingest` library, a compat MP4 `TranscodeJob` is queued on the
    best live backend's queue (`transcode.<backend>`; remuxes always go to CPU).
-   `on_demand` libraries wait for the first play (`request_on_demand`).
+   `on_demand` libraries wait for the first play (`request_on_demand`);
+4. the other outputs are queued beside it, each its own job with its own priority:
+   subtitles (whenever a text subtitle waits for conversion), thumbnails (once a
+   playable rendition exists), and in `ingest` libraries the HLS ladder and the UHD
+   version (each behind its `library.*` setting).
 
-`run_job` (on a transcoder) runs ffmpeg with progress (database every 5 s, the admin
-feed every 1 s), verifies the output, moves it into `renditions/<key>/compat.mp4`
-atomically and makes the title ready. Failures are retried with backoff (hardware
-backends fall back to CPU) up to `conf.max_attempts()`, keeping ffmpeg's last 50
-stderr lines in `error_tail`.
+`run_job` (on a transcoder) takes a lease, hands the job to its runner in
+`apps.media.outputs` (ffmpeg with progress, verification, an atomic move into place),
+then finishes it. Failures are retried with backoff (hardware backends fall back to
+CPU) up to `conf.max_attempts()`, keeping ffmpeg's last 50 stderr lines in `error_tail`.
 """
 
 import contextlib
@@ -24,13 +28,13 @@ import os
 import shutil
 import socket
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Final, cast
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from django.db import IntegrityError, transaction
@@ -44,9 +48,9 @@ from apps.catalog.services import refresh_status_of_files
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
-from apps.library import storage
-from apps.media import conf, hwdetect
-from apps.media.ffmpeg import Encoding, FfmpegCancelled, FfmpegError, compat_mp4_command, run
+from apps.media import conf, hwdetect, layout, outputs, subtitles
+from apps.media.ffmpeg import FfmpegCancelled, FfmpegError
+from apps.media.layout import asset_dir, asset_key, source_path
 from apps.media.models import (
     ACTIVE_JOB_STATUSES,
     PLAYABLE_KINDS,
@@ -54,20 +58,25 @@ from apps.media.models import (
     PRIORITY_MAX,
     PRIORITY_MIN,
     PRIORITY_URGENT,
+    PROFILE_PRIORITY,
+    AudioTrack,
     JobStatus,
     Rendition,
     RenditionKind,
     RenditionStatus,
+    SubtitleStatus,
+    SubtitleTrack,
     TranscodeBackend,
     TranscodeJob,
     TranscodeProfile,
 )
 from apps.media.planner import (
-    CompatMp4Plan,
     OnDemandAction,
     PlanError,
     ProcessingPlan,
     ProcessingPolicy,
+    UhdMode,
+    UhdPlan,
     decide_on_demand,
     plan_processing,
 )
@@ -79,9 +88,11 @@ from apps.media.progress import (
     ProgressUpdate,
     Throttle,
 )
-from apps.media.verify import VerificationError, expected_compat, verify_file
+from apps.media.verify import VerificationError
 from apps.playback import tokens
 from apps.playback.models import TitleKind
+
+__all__ = ["asset_dir", "asset_key", "source_path"]
 
 logger = structlog.get_logger(__name__)
 
@@ -91,15 +102,24 @@ LEASE_KEY: Final = "transcode:lease:{job}"
 CANCEL_KEY: Final = "transcode:cancel:{job}"
 CANCEL_TTL_S: Final = 3600
 #: The compat MP4 never exceeds 1080p (profiles.yaml's box), whatever the plan allows.
-COMPAT_MAX_QUALITY: Final = 1080
+COMPAT_MAX_QUALITY: Final = outputs.SDR_MAX_QUALITY
 COMPAT_NAME: Final = "compat.mp4"
 ERROR_MAX: Final = 500
 #: Rough speeds for ETAs before a job reports its own (media seconds per second).
 ESTIMATED_SPEED: Final = {True: 30.0, False: 1.0}  # remux, encode
+#: The rendition row each profile produces: (kind, name).
+PROFILE_RENDITION: Final[dict[str, tuple[RenditionKind, str]]] = {
+    TranscodeProfile.COMPAT_MP4: (RenditionKind.COMPAT_MP4, layout.COMPAT),
+    TranscodeProfile.HLS: (RenditionKind.HLS_MASTER, layout.HLS),
+    TranscodeProfile.UHD: (RenditionKind.UHD, layout.UHD),
+    TranscodeProfile.THUMBNAILS: (RenditionKind.THUMBNAILS, layout.THUMBS),
+}
+#: Error of a UHD version that needs an HEVC encode no allowed transcoder can do.
+NO_HEVC_ENCODER: Final = "no_hevc_encoder"
 
 
 class Prepared(StrEnum):
-    """What `prepare_file` did."""
+    """What `prepare_file` did about the file's playable rendition."""
 
     SKIPPED = "skipped"  # unknown, removed or unmatched file
     EXISTING = "existing"  # already playable, or a job is already queued
@@ -107,25 +127,6 @@ class Prepared(StrEnum):
     QUEUED = "queued"  # a compat MP4 job was queued
     ON_DEMAND = "on_demand"  # waits for the first play
     ERROR = "error"  # unreadable or unplannable source (logged on the file)
-
-
-# --- Paths ----------------------------------------------------------------------------
-
-
-def asset_key(file: MediaFile) -> str:
-    """The file's asset directory key under the renditions root (the token's `title`)."""
-    return file.pk.hex
-
-
-def asset_dir(key: str) -> Path:
-    if not tokens.TITLE.fullmatch(key):
-        msg = "asset keys are [A-Za-z0-9_-]{1,64}"
-        raise ValueError(msg)
-    return conf.renditions_root() / key
-
-
-def source_path(file: MediaFile) -> Path:
-    return storage.library_file(file.library.path, file.storage_key)
 
 
 # --- Routing --------------------------------------------------------------------------
@@ -146,14 +147,30 @@ def live_capabilities() -> list[dict[str, Any]]:
     return documents
 
 
-def route(remux: bool, profiles: Profiles | None = None) -> str:
-    """The backend a job runs on: CPU for remuxes, else the best live H.264 encoder."""
-    if remux:
-        return TranscodeBackend.CPU
+def _best(codec: VideoCodec, profiles: Profiles | None = None) -> str:
     profiles = profiles or default_profiles()
     live = hwdetect.live_backends(live_capabilities())
-    backend = hwdetect.best_backend(live, {VideoCodec.H264}, profiles.backend_preference)
-    return backend.value
+    return hwdetect.best_backend(live, {codec}, profiles.backend_preference).value
+
+
+def route(remux: bool, profiles: Profiles | None = None) -> str:
+    """The backend a compat job runs on: CPU for remuxes, else the best live H.264 encoder."""
+    if remux:
+        return TranscodeBackend.CPU
+    return _best(VideoCodec.H264, profiles)
+
+
+def route_profile(profile: str, *, remux: bool = False) -> str:
+    """The backend a job of `profile` runs on. Encodes go to the best live backend for
+    their codec (H.264 for compat and the ladder, HEVC for UHD); copies, thumbnails and
+    subtitles always to CPU."""
+    if profile == TranscodeProfile.COMPAT_MP4:
+        return route(remux)
+    if profile == TranscodeProfile.HLS:
+        return _best(VideoCodec.H264)
+    if profile == TranscodeProfile.UHD and not remux:
+        return _best(VideoCodec.HEVC)
+    return TranscodeBackend.CPU
 
 
 def queue_for(backend: str, profiles: Profiles | None = None) -> str:
@@ -198,34 +215,36 @@ def _playable(file: MediaFile) -> bool:
 
 
 def _drop_stale(file: MediaFile) -> None:
-    """Renditions made from an earlier version of the file are useless now."""
+    """Renditions and probed tracks of an earlier version of the file are useless now
+    (sidecar and uploaded subtitles do not depend on the video, so they stay). The
+    files on disk go with the next cleanup (`apps.media.cleanup`)."""
     stale = Rendition.objects.filter(media_file=file).exclude(source_hash=file.xxhash64)
     if stale.exists():
         TranscodeJob.objects.filter(media_file=file, status=JobStatus.QUEUED).update(
             status=JobStatus.CANCELLED, error="source_changed", finished_at=timezone.now()
         )
         stale.delete()
+        AudioTrack.objects.filter(media_file=file).delete()
+        SubtitleTrack.objects.filter(media_file=file, stream_index__isnull=False).delete()
+        refresh_status_of_files([file.pk])
 
 
 def _relink_moved_source(file: MediaFile) -> None:
-    """A moved file keeps its hash and renditions; point its `source` link at the new path."""
-    source = Rendition.objects.filter(media_file=file, kind=RenditionKind.SOURCE).first()
-    if source is None:
-        return
-    link = asset_dir(source.storage_key) / f"source.{source.container}"
-    target = source_path(file)
-    try:
-        current = os.readlink(link)
-    except OSError:
-        current = None
-    if current != str(target):
-        temporary = link.parent / f".source-{uuid4().hex}"
-        link.parent.mkdir(parents=True, exist_ok=True)
-        os.symlink(target, temporary)
-        os.replace(temporary, link)
+    """A moved file keeps its hash and renditions; point its links (`source.<ext>`, a
+    kept UHD source's `uhd.<ext>`) at the new path."""
+    target = str(source_path(file))
+    rows = Rendition.objects.filter(media_file=file, kind__in=(RenditionKind.SOURCE,
+                                                               RenditionKind.UHD))  # fmt: skip
+    for row in rows:
+        stem = layout.SOURCE if row.kind == RenditionKind.SOURCE else layout.UHD
+        link = asset_dir(row.storage_key) / f"{stem}.{row.container}"
+        if not link.is_symlink():
+            continue
+        if os.readlink(link) != target:
+            layout.link(target, link)
 
 
-def prepare_file(  # noqa: PLR0911 (one return per outcome)
+def prepare_file(
     file_id: UUID | str,
     *,
     urgent: bool = False,
@@ -240,16 +259,20 @@ def prepare_file(  # noqa: PLR0911 (one return per outcome)
         return Prepared.SKIPPED
     _drop_stale(file)
     _relink_moved_source(file)
-    if _playable(file):
-        return Prepared.EXISTING
-    active = TranscodeJob.objects.filter(media_file=file, status__in=ACTIVE_JOB_STATUSES).first()
-    if active is not None:
-        if urgent and active.priority < PRIORITY_URGENT:
-            _reprioritize(active, PRIORITY_URGENT)
-        return Prepared.EXISTING
+    playable = _playable(file)
+    active = (
+        None
+        if playable
+        else TranscodeJob.objects.filter(
+            media_file=file, profile=TranscodeProfile.COMPAT_MP4, status__in=ACTIVE_JOB_STATUSES
+        ).first()
+    )
+    if active is not None and urgent and active.priority < PRIORITY_URGENT:
+        _reprioritize(active, PRIORITY_URGENT)
     try:
         profiles = default_profiles()
-        result = probe_fn(source_path(file))
+        source = source_path(file)
+        result = probe_fn(source)
         policy = ProcessingPolicy(file.library.processing_policy)
         plan = plan_processing(
             result, policy=policy, max_quality=COMPAT_MAX_QUALITY, profiles=profiles
@@ -257,10 +280,25 @@ def prepare_file(  # noqa: PLR0911 (one return per outcome)
     except (ProbeError, PlanError, ProfileError, ValueError, OSError) as exc:
         logger.warning("media.prepare_failed", file=str(file.pk), error=str(exc)[:200])
         return Prepared.ERROR
+    sidecars = subtitles.find_sidecars(source, Path(file.library.path))
+    subtitles.sync_tracks(file, result, sidecars)
+    outcome = Prepared.EXISTING
+    if not playable and active is None:
+        outcome = _prepare_playable(file, result, plan, policy, urgent=urgent)
+    queue_outputs(file, result, plan, profiles=profiles)
+    return outcome
+
+
+def _prepare_playable(
+    file: MediaFile,
+    result: ProbeResult,
+    plan: ProcessingPlan,
+    policy: ProcessingPolicy,
+    *,
+    urgent: bool,
+) -> Prepared:
     if plan.direct_playable or policy is ProcessingPolicy.PASSTHROUGH:
-        if publish_source(file, result):
-            return Prepared.SOURCE
-        return Prepared.ERROR
+        return Prepared.SOURCE if publish_source(file, result) else Prepared.ERROR
     if policy is ProcessingPolicy.ON_DEMAND and not urgent:
         return Prepared.ON_DEMAND
     priority = PRIORITY_DEFAULT
@@ -272,11 +310,83 @@ def prepare_file(  # noqa: PLR0911 (one return per outcome)
             realtime_active=0,
             realtime_max=int(cast(int, get_setting("playback.realtime_transcode_max"))),
         )
-        # Real-time HLS is not built yet: every waiting viewer gets an urgent compat job.
+        # Real-time HLS is not built: every waiting viewer gets an urgent compat job.
         if decision.urgent or decision.action is OnDemandAction.REALTIME:
             priority = PRIORITY_URGENT
     job = ensure_job(file, plan, priority=priority)
     return Prepared.QUEUED if job is not None else Prepared.EXISTING
+
+
+def queue_outputs(
+    file: MediaFile,
+    result: ProbeResult,
+    plan: ProcessingPlan,
+    *,
+    profiles: Profiles | None = None,
+) -> list[TranscodeJob]:
+    """Queue the outputs beside the playable one that are missing (see the module
+    docstring). Failed outputs of the current source are not queued again: an admin
+    reprocesses them."""
+    queued = []
+    pending = SubtitleTrack.objects.filter(media_file=file, status=SubtitleStatus.PENDING)
+    if pending.exists():
+        queued.append(ensure_output(file, TranscodeProfile.SUBTITLES))
+    if _playable(file):
+        queued.append(ensure_output(file, TranscodeProfile.THUMBNAILS))
+    if plan.policy is ProcessingPolicy.INGEST:
+        if plan.hls is not None and get_setting("library.hls_enabled") is True:
+            queued.append(ensure_output(file, TranscodeProfile.HLS))
+        if get_setting("library.uhd_enabled") is True:
+            uhd = _uhd_plan(result, plan.policy, profiles or default_profiles())
+            if uhd is not None:
+                queued.append(_ensure_uhd(file, uhd))
+    return [job for job in queued if job is not None]
+
+
+def queue_followups(file: MediaFile) -> list[TranscodeJob]:
+    """Outputs that wait for a playable rendition (thumbnails read the compat MP4)."""
+    if not _playable(file):
+        return []
+    job = ensure_output(file, TranscodeProfile.THUMBNAILS)
+    return [job] if job is not None else []
+
+
+def _uhd_plan(result: ProbeResult, policy: ProcessingPolicy, profiles: Profiles) -> UhdPlan | None:
+    try:
+        return plan_processing(
+            result, policy=policy, max_quality=outputs.UHD_MAX_QUALITY, profiles=profiles
+        ).uhd
+    except PlanError:
+        return None
+
+
+def _ensure_uhd(file: MediaFile, uhd: UhdPlan, *, force: bool = False) -> TranscodeJob | None:
+    keep = uhd.mode is UhdMode.KEEP_SOURCE
+    backend = route_profile(TranscodeProfile.UHD, remux=keep)
+    if (
+        not keep
+        and backend == TranscodeBackend.CPU
+        and get_setting("library.uhd_cpu_encode") is not True
+    ):
+        _unavailable(file, TranscodeProfile.UHD, NO_HEVC_ENCODER)
+        return None
+    return ensure_output(file, TranscodeProfile.UHD, remux=keep, backend=backend, force=force)
+
+
+def _unavailable(file: MediaFile, profile: str, error: str) -> None:
+    """Record why an output is not made (shown by the admin) without queueing a job."""
+    kind, name = PROFILE_RENDITION[profile]
+    Rendition.objects.update_or_create(
+        media_file=file,
+        kind=kind,
+        defaults={
+            "name": name,
+            "storage_key": asset_key(file),
+            "status": RenditionStatus.FAILED,
+            "error": error,
+            "source_hash": file.xxhash64,
+        },
+    )
 
 
 def _source_extension(file: MediaFile) -> str | None:
@@ -292,16 +402,13 @@ def publish_source(file: MediaFile, result: ProbeResult) -> bool:
         return False
     key = asset_key(file)
     directory = asset_dir(key)
-    directory.mkdir(parents=True, exist_ok=True)
-    link = directory / f"source.{ext}"
-    temporary = directory / f".source-{uuid4().hex}"
-    os.symlink(source_path(file), temporary)
-    os.replace(temporary, link)
+    layout.link(str(source_path(file)), directory / f"{layout.SOURCE}.{ext}")
     video = result.video
     Rendition.objects.update_or_create(
         media_file=file,
         kind=RenditionKind.SOURCE,
         defaults={
+            "name": layout.SOURCE,
             "storage_key": key,
             "container": ext,
             "width": video.width if video else None,
@@ -315,6 +422,7 @@ def publish_source(file: MediaFile, result: ProbeResult) -> bool:
             "error": "",
             "ready_at": timezone.now(),
             "source_hash": file.xxhash64,
+            "details": {"linked": True},
         },
     )
     refresh_status_of_files([file.pk])
@@ -328,35 +436,76 @@ def ensure_job(
     compat = plan.compat_mp4
     if compat is None:
         return None
+    return ensure_output(
+        file, TranscodeProfile.COMPAT_MP4, priority=priority, remux=compat.is_remux
+    )
+
+
+def ensure_output(  # noqa: PLR0913
+    file: MediaFile,
+    profile: str,
+    *,
+    priority: int | None = None,
+    remux: bool = False,
+    backend: str | None = None,
+    force: bool = False,
+) -> TranscodeJob | None:
+    """Queue a job for one output unless it is ready (or failed for this source, unless
+    `force`) or already queued or running; returns the new job."""
     try:
         with transaction.atomic():
-            rendition, _created = Rendition.objects.get_or_create(
-                media_file=file,
-                kind=RenditionKind.COMPAT_MP4,
-                defaults={
-                    "storage_key": asset_key(file),
-                    "container": "mp4",
-                    "source_hash": file.xxhash64,
-                },
-            )
-            if rendition.status == RenditionStatus.READY:
-                return None
-            rendition.status = RenditionStatus.PENDING
-            rendition.error = ""
-            rendition.save(update_fields=["status", "error", "updated_at"])
+            rendition = None
+            if profile in PROFILE_RENDITION:
+                kind, name = PROFILE_RENDITION[profile]
+                lookup: dict[str, Any] = {"media_file": file, "kind": kind}
+                if kind in (RenditionKind.HLS_MASTER, RenditionKind.HLS_VARIANT):
+                    lookup["name"] = name
+                rendition, created = Rendition.objects.select_for_update().get_or_create(
+                    **lookup,
+                    defaults={
+                        "name": name,
+                        "storage_key": asset_key(file),
+                        "container": "mp4",
+                        "source_hash": file.xxhash64,
+                    },
+                )
+                if rendition.status == RenditionStatus.READY and not force:
+                    return None
+                failed_now = (
+                    rendition.status == RenditionStatus.FAILED
+                    and rendition.source_hash == file.xxhash64
+                )
+                if failed_now and not created and not force:
+                    return None
+                if TranscodeJob.objects.filter(
+                    media_file=file, profile=profile, status__in=ACTIVE_JOB_STATUSES
+                ).exists():
+                    return None
+                if rendition.status != RenditionStatus.READY:
+                    rendition.status = RenditionStatus.PENDING
+                rendition.error = ""
+                rendition.source_hash = file.xxhash64
+                rendition.save(update_fields=["status", "error", "source_hash", "updated_at"])
             job = TranscodeJob.objects.create(
                 media_file=file,
                 rendition=rendition,
-                profile=TranscodeProfile.COMPAT_MP4,
-                remux=compat.is_remux,
-                backend=route(compat.is_remux),
-                priority=priority,
+                profile=profile,
+                remux=remux,
+                backend=backend or route_profile(profile, remux=remux),
+                priority=PROFILE_PRIORITY.get(profile, PRIORITY_DEFAULT)
+                if priority is None
+                else priority,
             )
             dispatch(job)
     except IntegrityError:
         return None  # another worker queued it first
     logger.info(
-        "media.job_queued", job=str(job.pk), backend=job.backend, remux=job.remux, priority=priority
+        "media.job_queued",
+        job=str(job.pk),
+        profile=profile,
+        backend=job.backend,
+        remux=job.remux,
+        priority=job.priority,
     )
     publish(job)
     return job
@@ -432,7 +581,7 @@ def run_job(
     """
     host = host or host_name()
     job = (
-        TranscodeJob.objects.select_related("media_file__library", "rendition")
+        TranscodeJob.objects.select_related("media_file__library", "media_file__movie", "rendition")
         .filter(pk=job_id)
         .first()
     )
@@ -468,7 +617,10 @@ def _start(job: TranscodeJob, host: str) -> None:
     job.error = ""
     job.error_tail = ""
     job.save()
-    _job_rendition(job).update(status=RenditionStatus.RUNNING, error="", updated_at=timezone.now())
+    # A ready output being made again keeps serving until the new one replaces it.
+    _job_rendition(job).exclude(status=RenditionStatus.READY).update(
+        status=RenditionStatus.RUNNING, error="", updated_at=timezone.now()
+    )
     publish(job)
 
 
@@ -479,34 +631,25 @@ def _execute(
     temporary: Path,
     probe_fn: Callable[[Path], ProbeResult],
 ) -> JobStatus:
-    profiles = default_profiles()
     reporter = _Reporter(job)
     try:
         source = source_path(file)
         result = probe_fn(source)
-        plan = plan_processing(
-            result,
-            policy=ProcessingPolicy.INGEST,
-            max_quality=COMPAT_MAX_QUALITY,
-            profiles=profiles,
-        )
-        compat = cast(CompatMp4Plan, plan.compat_mp4)
-        encoding = Encoding(profiles, Backend(job.backend), device=device_for(job.backend))
-        output = temporary / COMPAT_NAME
-        command = compat_mp4_command(
-            result, compat, source=source, output=output, encoding=encoding
-        )
-        job.remux = compat.is_remux
-        job.encoder = "copy" if compat.is_remux else encoding.preset(VideoCodec.H264).encoder
-        job.save(update_fields=["remux", "encoder", "updated_at"])
-        run(
-            command,
+        temporary.mkdir(parents=True, exist_ok=True)
+        context = outputs.JobContext(
+            job=job,
+            file=file,
+            source=source,
+            probe=result,
+            profiles=default_profiles(),
+            workdir=workdir,
+            temporary=temporary,
+            device=device_for(job.backend),
             on_progress=reporter,
-            timeout_s=conf.job_timeout_s(),
             cancel=reporter.cancel,
+            timeout_s=conf.job_timeout_s(),
         )
-        made = verify_file(output, expected_compat(compat, result.duration_ms))
-        os.replace(output, workdir / COMPAT_NAME)
+        outputs.RUNNERS[job.profile](context)
     except FfmpegCancelled:
         _finish(job, JobStatus.CANCELLED, error="cancelled")
         return JobStatus.CANCELLED
@@ -517,34 +660,31 @@ def _execute(
         return _failed(job, "verify:" + ",".join(exc.problems), "")
     except (ProbeError, PlanError, ProfileError, ValueError, OSError) as exc:
         code = "source_missing" if isinstance(exc, FileNotFoundError) else "prepare"
-        return _failed(job, code, str(exc)[:ERROR_MAX])
-    _ready(job, made)
+        return _failed(job, code, _redact(str(exc), file)[:ERROR_MAX])
+    job.progress = 100.0
+    job.eta_s = 0
+    _finish(job, JobStatus.DONE)
+    logger.info(
+        "media.job_done",
+        job=str(job.pk),
+        profile=job.profile,
+        encoder=job.encoder,
+        attempts=job.attempts,
+    )
+    if job.profile == TranscodeProfile.COMPAT_MP4:
+        queue_followups(file)
     return JobStatus.DONE
 
 
-def _ready(job: TranscodeJob, made: ProbeResult) -> None:
-    video = made.video
-    now = timezone.now()
-    with transaction.atomic():
-        _job_rendition(job).update(
-            status=RenditionStatus.READY,
-            width=video.width if video else None,
-            height=video.height if video else None,
-            codec=video.codec if video else "",
-            bitrate=made.bitrate,
-            size=made.size or 0,
-            duration_s=made.duration_ms / 1000 if made.duration_ms else None,
-            encoder_used=job.encoder,
-            error="",
-            ready_at=now,
-            source_hash=job.media_file.xxhash64,
-            updated_at=now,
-        )
-        job.progress = 100.0
-        job.eta_s = 0
-        _finish(job, JobStatus.DONE)
-        refresh_status_of_files([job.media_file_id])
-    logger.info("media.job_done", job=str(job.pk), encoder=job.encoder, attempts=job.attempts)
+def _redact(text: str, file: MediaFile) -> str:
+    """Error text without storage paths (OSError messages name the file)."""
+    for path, placeholder in (
+        (str(source_path(file)), "<source>"),
+        (str(conf.renditions_root()), "<renditions>"),
+        (str(file.library.path), "<library>"),
+    ):
+        text = text.replace(path, placeholder)
+    return text
 
 
 def _failed(job: TranscodeJob, code: str, tail: str) -> JobStatus:
@@ -578,6 +718,10 @@ def _finish(job: TranscodeJob, status: JobStatus, *, error: str | None = None) -
         _job_rendition(job).exclude(status=RenditionStatus.READY).update(
             status=RenditionStatus.FAILED, error=job.error, updated_at=timezone.now()
         )
+        if job.profile == TranscodeProfile.SUBTITLES:
+            SubtitleTrack.objects.filter(
+                media_file_id=job.media_file_id, status=SubtitleStatus.PENDING
+            ).update(status=SubtitleStatus.FAILED, error=job.error[:200], updated_at=timezone.now())
     publish(job)
 
 
@@ -589,6 +733,7 @@ def event(job: TranscodeJob) -> dict[str, Any]:
     return {
         "id": str(job.pk),
         "status": job.status,
+        "profile": job.profile,
         "progress": job.progress,
         "fps": job.fps,
         "speed": job.speed,
@@ -655,11 +800,15 @@ def retry_job(job: TranscodeJob, *, actor: User | None, ip: str | None) -> Trans
             job.error = ""
             job.error_tail = ""
             job.finished_at = None
-            job.backend = route(job.remux)
+            job.backend = route_profile(job.profile, remux=job.remux)
             job.save()
             _job_rendition(job).exclude(status=RenditionStatus.READY).update(
                 status=RenditionStatus.PENDING, error="", updated_at=timezone.now()
             )
+            if job.profile == TranscodeProfile.SUBTITLES:
+                SubtitleTrack.objects.filter(
+                    media_file_id=job.media_file_id, status=SubtitleStatus.FAILED
+                ).update(status=SubtitleStatus.PENDING, error="", updated_at=timezone.now())
             dispatch(job)
             audit.record(
                 "transcode_job.retry",
@@ -707,6 +856,63 @@ def set_priority(
     return job
 
 
+def reprocess(
+    file: MediaFile,
+    profiles: Iterable[str],
+    *,
+    probe_fn: Callable[[Path], ProbeResult] = probe,
+) -> dict[str, str]:
+    """Make outputs again (the admin's Reprocess). Ready outputs are replaced when the
+    new one is ready; a running job for an output is left alone. Returns, per profile,
+    `queued`, `active` (a job already runs) or why it was not queued."""
+    result_by_profile: dict[str, str] = {}
+    wanted = list(dict.fromkeys(profiles))
+    try:
+        result = probe_fn(source_path(file))
+        policy = ProcessingPolicy(file.library.processing_policy)
+        plan = plan_processing(
+            result, policy=policy, max_quality=COMPAT_MAX_QUALITY, profiles=default_profiles()
+        )
+    except (ProbeError, PlanError, ProfileError, ValueError, OSError):
+        return dict.fromkeys(wanted, "unreadable_source")
+    for profile in wanted:
+        if TranscodeJob.objects.filter(
+            media_file=file, profile=profile, status__in=ACTIVE_JOB_STATUSES
+        ).exists():
+            result_by_profile[profile] = "active"
+            continue
+        job: TranscodeJob | None
+        if profile == TranscodeProfile.SUBTITLES:
+            sidecars = subtitles.find_sidecars(source_path(file), Path(file.library.path))
+            subtitles.sync_tracks(file, result, sidecars)
+            SubtitleTrack.objects.filter(media_file=file).exclude(
+                status=SubtitleStatus.UNSUPPORTED
+            ).update(status=SubtitleStatus.PENDING, error="", updated_at=timezone.now())
+            job = ensure_output(file, profile, force=True)
+        elif profile == TranscodeProfile.UHD:
+            uhd = _uhd_plan(result, ProcessingPolicy.INGEST, default_profiles())
+            if uhd is None:
+                result_by_profile[profile] = "not_uhd"
+                continue
+            job = _ensure_uhd(file, uhd, force=True)
+            if job is None:
+                result_by_profile[profile] = NO_HEVC_ENCODER
+                continue
+        elif profile == TranscodeProfile.COMPAT_MP4:
+            compat = plan.compat_mp4
+            if compat is None:
+                result_by_profile[profile] = "passthrough"
+                continue
+            job = ensure_output(file, profile, remux=compat.is_remux, force=True)
+        elif profile == TranscodeProfile.HLS and plan.hls is None:
+            result_by_profile[profile] = "passthrough"
+            continue
+        else:
+            job = ensure_output(file, profile, force=True)
+        result_by_profile[profile] = "queued" if job is not None else "active"
+    return result_by_profile
+
+
 # --- On-demand fallback and reconciliation --------------------------------------------
 
 
@@ -747,7 +953,9 @@ def request_on_demand(kind: TitleKind, title_id: UUID) -> OnDemand:
         return OnDemand(preparing=False, eta_s=None)
     file = files[0]
     job = (
-        TranscodeJob.objects.filter(media_file=file, status__in=ACTIVE_JOB_STATUSES)
+        TranscodeJob.objects.filter(
+            media_file=file, profile=TranscodeProfile.COMPAT_MP4, status__in=ACTIVE_JOB_STATUSES
+        )
         .order_by("-created_at")
         .first()
     )

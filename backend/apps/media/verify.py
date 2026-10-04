@@ -312,6 +312,22 @@ def verify_hls(
     return master
 
 
+def verify_media_playlist(
+    directory: str | Path,
+    *,
+    expected_duration_ms: int | None,
+    playlist_name: str = "index.m3u8",
+    tolerance_ms: int = DURATION_TOLERANCE_MS,
+) -> MediaPlaylist:
+    """Check one packaged rendition (a lone rung without a master); raises
+    `VerificationError` listing every problem."""
+    root = Path(directory).resolve()
+    problems = _check_media_playlist(root, playlist_name, expected_duration_ms, tolerance_ms)
+    if problems:
+        raise VerificationError(sorted(set(problems)))
+    return read_media_playlist(root / playlist_name)
+
+
 def _check_media_playlist(
     root: Path, uri: str, expected_duration_ms: int | None, tolerance_ms: int
 ) -> list[str]:

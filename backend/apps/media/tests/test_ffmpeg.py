@@ -490,7 +490,7 @@ def test_thumbnail_commands(profiles: Profiles) -> None:
     )
     argv = list(sprites.argv)
     assert argv[argv.index("-vf") + 1] == (
-        "fps=1/10,scale=160:90:force_original_aspect_ratio=decrease,format=yuvj420p,"
+        "fps=1/10:eof_action=pass,scale=160:90:force_original_aspect_ratio=decrease,format=yuvj420p,"
         "pad=160:90:(ow-iw)/2:(oh-ih)/2,setsar=1,tile=10x10"
     )
     assert argv[-5:] == ["-f", "image2", "-start_number", "1", "file:/out/sprites/sprite_%03d.jpg"]
