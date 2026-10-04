@@ -1,3 +1,95 @@
 @import "tailwindcss";
 @import "@smart-iptv/ui/styles.css";
 @source "../../../packages/ui/src";
+
+/* A faint wash of the brand accent behind the sign-in and error screens. */
+.auth-backdrop {
+  background-image:
+    radial-gradient(
+      60% 45% at 50% 0%,
+      color-mix(in oklab, var(--primary) 9%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      circle at 1px 1px,
+      color-mix(in oklab, var(--foreground) 7%, transparent) 1px,
+      transparent 0
+    );
+  background-size:
+    100% 100%,
+    22px 22px;
+}
+
+/*
+ * Pages without a hero start below the fixed top bar; after the renew banner
+ * (which already clears the bar) they need only the usual gap.
+ */
+@utility page-top {
+  padding-top: 5.5rem;
+  [data-banner] & {
+    padding-top: 1.5rem;
+  }
+}
+
+/*
+ * Horizontal rows: no scrollbar, momentum scrolling, snap to cards. Positioned,
+ * so absolutely placed descendants (screen-reader text) scroll and clip with it
+ * instead of widening the page.
+ */
+@utility rail {
+  position: relative;
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  & > * {
+    scroll-snap-align: start;
+  }
+}
+
+/*
+ * Subtitles, drawn by Shaka's text displayer inside the player (so they show in
+ * full screen and above the letterbox), or natively for some MP4s. Size and
+ * background are the viewer's choices; they rise above the controls when shown.
+ */
+.player-shell .shaka-text-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #fff;
+  font-size: calc(var(--subtitle-scale, 1) * clamp(1rem, 4.4vmin, 2.75rem));
+  line-height: 1.4;
+  padding-block-end: 4vmin;
+  transition: bottom 150ms ease-out;
+}
+
+/* Each line takes its direction from its own text: Arabic right to left, even with Latin words. */
+.player-shell .shaka-text-container div,
+.player-shell .shaka-text-container span {
+  unicode-bidi: plaintext;
+}
+
+.player-shell[data-controls] .shaka-text-container {
+  bottom: 7rem;
+}
+
+.player-shell .shaka-text-container span.shaka-text-wrapper {
+  display: inline;
+  background: none;
+}
+
+.player-shell .shaka-text-container span:not(.shaka-text-wrapper) {
+  background-color: var(--subtitle-background, rgb(0 0 0 / 0.65)) !important;
+  padding-inline: 0.25em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.player-shell video::cue {
+  font-size: calc(var(--subtitle-scale, 1) * 100%);
+  background-color: var(--subtitle-background, rgb(0 0 0 / 0.65));
+}

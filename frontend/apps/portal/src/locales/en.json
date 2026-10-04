@@ -1,8 +1,660 @@
 {
-  "title": "Smart IPTV",
+  "brand": "Smart IPTV",
+  "listSeparator": ", ",
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "states": {
+    "loading": "Loading…",
+    "loadMore": "Show more",
+    "loadingMore": "Loading more…"
+  },
+  "nav": {
+    "label": "Main",
+    "skip": "Skip to content",
+    "home": "Home",
+    "movies": "Movies",
+    "series": "Series",
+    "myList": "My List",
+    "search": "Search",
+    "account": "Account",
+    "profile": "Profile",
+    "devices": "Devices & TV apps",
+    "subscription": "Subscription & invoices",
+    "history": "Watch history",
+    "signOut": "Sign out"
+  },
+  "errors": {
+    "signOutFailed": "Couldn't reach the server to sign out. You were signed out on this device."
+  },
+  "renew": {
+    "expired": "Your subscription has ended. Renew to keep watching.",
+    "grace": "Your subscription has ended. You can keep watching until {{date}}, then renew to continue.",
+    "graceNoDate": "Your subscription has ended. Renew soon to keep watching.",
+    "suspended": "Your account is suspended. Contact support to restore it.",
+    "cta": "Renew"
+  },
+  "routeError": {
+    "title": "This page couldn't load",
+    "description": "Check your connection and try again. If it keeps happening, contact support.",
+    "home": "Go home"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The link may be old, or the page has moved.",
+    "home": "Back to home"
+  },
+  "auth": {
+    "footer": "Watch on the web, or in any IPTV app with your TV login.",
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Use your username, email or phone number.",
+      "loginLabel": "Username, email or phone",
+      "passwordLabel": "Password",
+      "forgot": "Forgot password?",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "help": "No account yet? Ask your provider for an invitation.",
+      "expired": "Your session ended. Sign in again to continue.",
+      "passwordSet": "Your password is set. Sign in with it."
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "subtitle": "We'll email a link to set a new password to the address on your account.",
+      "submit": "Send the link",
+      "sentTitle": "Check your email",
+      "sent": "If an account matches, a link to reset the password is on its way. It works for an hour.",
+      "back": "Back to sign in"
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "subtitle": "Use at least {{min}} characters. Other devices will be signed out.",
+      "welcomeTitle": "Welcome! Set your password",
+      "welcomeSubtitle": "Choose a password to finish setting up your account.",
+      "password": "New password",
+      "confirm": "Repeat the password",
+      "submit": "Save password",
+      "welcomeSubmit": "Set password and continue",
+      "badLinkTitle": "This link doesn't work",
+      "badLink": "It may have expired or been used already. Ask for a new one.",
+      "newLink": "Send a new link"
+    },
+    "validation": {
+      "loginRequired": "Enter your username, email or phone number.",
+      "passwordRequired": "Enter your password.",
+      "passwordShort": "Use at least 12 characters.",
+      "passwordMismatch": "The passwords don't match.",
+      "tooLong": "This is too long."
+    },
+    "errors": {
+      "INVALID_CREDENTIALS": "That login and password don't match. Check them and try again.",
+      "ACCOUNT_LOCKED": "Too many attempts. Wait a few minutes before trying again.",
+      "ACCOUNT_SUSPENDED": "This account is suspended. Contact support.",
+      "RATE_LIMITED": "Too many requests from this network. Wait a few minutes and try again.",
+      "NETWORK_ERROR": "Can't reach the service. Check your connection.",
+      "UNEXPECTED": "Something went wrong. Try again in a moment."
+    },
+    "passwordErrors": {
+      "password_too_short": "Use at least 12 characters.",
+      "password_too_similar": "Too similar to your name, username or email.",
+      "password_too_common": "This password is too common. Choose another.",
+      "password_entirely_numeric": "Use letters too, not only numbers.",
+      "invalid": "This password can't be used. Choose another."
+    }
+  },
   "home": {
-    "title": "Your streaming home",
-    "subtitle": "Movies, series and live TV will appear here soon.",
-    "status": "Service online"
+    "title": "Home",
+    "continueWatching": "Continue watching",
+    "seeAll": "See all",
+    "error": "Couldn't load your home page",
+    "emptyTitle": "Nothing to watch yet",
+    "emptyDescription": "New movies and series will appear here as soon as they're added."
+  },
+  "hero": {
+    "label": "Featured",
+    "carousel": "carousel",
+    "slide": "slide",
+    "position": "{{index}} of {{count}}",
+    "moreInfo": "More info",
+    "previous": "Previous title",
+    "next": "Next title",
+    "pause": "Pause the carousel",
+    "play": "Play the carousel",
+    "goTo": "Show {{title}}"
+  },
+  "rail": {
+    "previous": "Scroll back",
+    "next": "Scroll forward"
+  },
+  "continue": {
+    "left": "{{time}} left",
+    "upNext": "Up next",
+    "resumeTitle": "Resume {{title}}"
+  },
+  "browse": {
+    "movies": "Movies",
+    "series": "Series",
+    "filters": "Filters",
+    "genre": "Genre",
+    "category": "Category",
+    "year": "Year",
+    "sort": "Sort by",
+    "any": "Any",
+    "clear": "Clear filters",
+    "sorts": {
+      "added": "Recently added",
+      "popular": "Popular",
+      "rating": "Top rated",
+      "year": "Newest",
+      "title": "A–Z"
+    },
+    "error": "Couldn't load these titles",
+    "emptyTitle": "Nothing here yet",
+    "empty": "Titles will appear here as soon as they're added.",
+    "noMatchTitle": "No matches",
+    "noMatch": "Nothing matches these filters. Try fewer."
+  },
+  "title": {
+    "play": "Play",
+    "resume": "Resume",
+    "startOver": "Start over",
+    "trailer": "Trailer",
+    "trailerOf": "Trailer: {{title}}",
+    "trailerHint": "The trailer plays from YouTube.",
+    "myList": "My List",
+    "favoriteAdded": "Added to My List",
+    "favoriteRemoved": "Removed from My List",
+    "favoriteFailed": "Couldn't update My List. Try again.",
+    "rateLabel": "Rate this title",
+    "thumbUp": "I like this",
+    "thumbDown": "Not for me",
+    "ratingFailed": "Couldn't save your rating. Try again.",
+    "rating": "Rating",
+    "details": "Details",
+    "genres": "Genres",
+    "directors": "Directed by",
+    "creators": "Created by",
+    "writers": "Written by",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "countries": "Country",
+    "released": "Released",
+    "cast": "Cast",
+    "similar": "More like this",
+    "episodes": "Episodes",
+    "season": "Season",
+    "seasonNumber": "Season {{number}}",
+    "episodeCode": "S{{season}} · E{{episode}}",
+    "seasonError": "Couldn't load this season",
+    "noEpisodes": "No episodes to watch in this season yet.",
+    "watched": "Watched",
+    "notFoundTitle": "Title not found",
+    "notFound": "It may have been removed, or it isn't part of your plan."
+  },
+  "collection": {
+    "title": "Collection",
+    "emptyTitle": "This collection is empty",
+    "empty": "Titles will appear here when they're added.",
+    "notFoundTitle": "Collection not found",
+    "notFound": "It may have been removed."
+  },
+  "person": {
+    "title": "Person",
+    "knownFor": "Watch them in",
+    "none": "Nothing to watch with them yet.",
+    "notFoundTitle": "Person not found",
+    "notFound": "They may not appear in any title you can watch.",
+    "roles": {
+      "cast": "Cast",
+      "director": "Director",
+      "writer": "Writer",
+      "producer": "Producer"
+    }
+  },
+  "search": {
+    "title": "Search",
+    "label": "Search movies, series and people",
+    "placeholder": "Search in Arabic or English",
+    "clear": "Clear the search",
+    "filterLabel": "Show",
+    "filters": {
+      "all": "All",
+      "movie": "Movies",
+      "series": "Series",
+      "episode": "Episodes"
+    },
+    "movies": "Movies",
+    "series": "Series",
+    "episodes": "Episodes",
+    "people": "People",
+    "count_one": "{{count}} result",
+    "count_other": "{{count}} results",
+    "startTitle": "Find something to watch",
+    "start": "Type a title, an actor or a director. Typos are fine.",
+    "noResultsTitle": "No results for “{{query}}”",
+    "noResults": "Check the spelling, or try another title or name.",
+    "error": "Search isn't available right now"
+  },
+  "myList": {
+    "title": "My List",
+    "emptyTitle": "Your list is empty",
+    "empty": "Add movies and series to your list to find them here.",
+    "browse": "Browse movies"
+  },
+  "history": {
+    "title": "Watch history",
+    "subtitle": "Everything you started. Removing a title also removes it from Continue watching.",
+    "emptyTitle": "No history yet",
+    "empty": "What you watch will appear here.",
+    "remove": "Remove {{title}} from history",
+    "removed": "Removed from your history",
+    "removeFailed": "Couldn't remove it. Try again.",
+    "watchedOn": "Last watched {{date}}"
+  },
+  "player": {
+    "title": "Player",
+    "starting": "Starting playback…",
+    "loading": "Loading the video…",
+    "back": "Back",
+    "play": "Play",
+    "pause": "Pause",
+    "back10": "Back 10 seconds",
+    "forward10": "Forward 10 seconds",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "volume": "Volume",
+    "seek": "Seek",
+    "positionOf": "{{position}} of {{duration}}",
+    "captions": "Subtitles",
+    "settings": "Settings",
+    "pip": "Picture in picture",
+    "pipExit": "Leave picture in picture",
+    "fullscreen": "Full screen",
+    "exitFullscreen": "Exit full screen",
+    "quality": "Quality",
+    "auto": "Auto",
+    "autoWith": "Auto ({{quality}})",
+    "qualityFixed": "Quality: {{quality}}",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "off": "Off",
+    "forced": "forced",
+    "trackNumber": "Track {{number}}",
+    "subtitleSize": "Subtitle size",
+    "sizes": {
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large"
+    },
+    "subtitleBackground": "Subtitle background",
+    "backgroundOn": "Shaded",
+    "backgroundOff": "None",
+    "speed": "Speed",
+    "normalSpeed": "Normal",
+    "resumeTitle": "Continue where you stopped?",
+    "resumeFrom": "Resume from {{time}}",
+    "startOver": "Start from the beginning",
+    "nextUp": "Next episode",
+    "nextIn_one": "Next episode in {{count}} second",
+    "nextIn_other": "Next episode in {{count}} seconds",
+    "playNext": "Play now",
+    "cancel": "Cancel",
+    "nextEpisode": "Next episode: {{title}}",
+    "actions": {
+      "renew": "Renew subscription",
+      "plans": "See plans",
+      "devices": "Manage devices",
+      "account": "Account",
+      "retry": "Try again",
+      "back": "Go back"
+    },
+    "errors": {
+      "SUBSCRIPTION_EXPIRED": {
+        "title": "Your subscription has ended",
+        "description": "Renew it to keep watching. Your list and history are kept."
+      },
+      "ACCOUNT_SUSPENDED": {
+        "title": "Your account is suspended",
+        "description": "Playback is paused on this account. Contact support to restore it."
+      },
+      "CONCURRENCY_LIMIT": {
+        "title": "Too many screens at once",
+        "description": "Your plan's streams are all in use. Stop watching on another device, or sign out a device you no longer use, then try again."
+      },
+      "DEVICE_BLOCKED": {
+        "title": "This device is blocked",
+        "description": "Playback isn't allowed here. Contact support if you think this is a mistake."
+      },
+      "DEVICE_NOT_APPROVED": {
+        "title": "This device is waiting for approval",
+        "description": "New devices on your account must be approved first. Try again once it's approved."
+      },
+      "DEVICE_LIMIT": {
+        "title": "Too many devices",
+        "description": "Remove a device you no longer use, then try again."
+      },
+      "IP_BLOCKED": {
+        "title": "Not available on this network",
+        "description": "Playback isn't allowed from this network. Try another connection."
+      },
+      "GEO_BLOCKED": {
+        "title": "Not available in your country",
+        "description": "This service can't be watched from where you are right now."
+      },
+      "CONTENT_TYPE_NOT_ALLOWED": {
+        "title": "Not included in your plan",
+        "description": "Your plan doesn't include this kind of title. See the plans that do."
+      },
+      "CATEGORY_NOT_ALLOWED": {
+        "title": "Not included in your plan",
+        "description": "This title is in a category your plan doesn't include."
+      },
+      "QUALITY_NOT_ALLOWED": {
+        "title": "Needs a higher plan",
+        "description": "This title is only available in a quality above your plan's."
+      },
+      "LICENSE_EXPIRED": {
+        "title": "No longer available",
+        "description": "This title has left the service."
+      },
+      "TITLE_PREPARING": {
+        "title": "Getting it ready",
+        "description": "This title is still being prepared for streaming. It's usually ready within a few minutes: try again shortly."
+      },
+      "NOT_FOUND": {
+        "title": "Title not found",
+        "description": "It may have been removed, or it isn't part of your plan."
+      },
+      "RATE_LIMITED": {
+        "title": "Too many attempts",
+        "description": "Wait a moment, then try again."
+      },
+      "NETWORK_ERROR": {
+        "title": "Can't reach the service",
+        "description": "Check your connection, then try again."
+      },
+      "STREAM_DENIED": {
+        "title": "Playback stopped",
+        "description": "The stream was stopped, perhaps because your account started playing on another device. You can continue here from where you were."
+      },
+      "STREAM_FAILED": {
+        "title": "The video couldn't play",
+        "description": "The stream was interrupted. Try again; if it keeps failing, try another browser."
+      },
+      "STREAM_UNSUPPORTED": {
+        "title": "This browser can't play the video",
+        "description": "Try a current version of Chrome, Edge, Firefox or Safari, or use an IPTV app."
+      },
+      "UNEXPECTED": {
+        "title": "Something went wrong",
+        "description": "Playback couldn't start. Try again in a moment."
+      }
+    }
+  },
+  "account": {
+    "title": "Account",
+    "signedInAs": "Signed in as {{name}}",
+    "profile": "Profile",
+    "profileHint": "Your name, the language of emails and the time zone of dates.",
+    "name": "Name",
+    "language": "Language",
+    "languageHint": "For emails and this site.",
+    "languages": {
+      "ar": "العربية",
+      "en": "English"
+    },
+    "timezone": "Time zone",
+    "marketing": "News and offers by email",
+    "marketingHint": "Occasional emails about new titles and offers. Account emails are always sent.",
+    "save": "Save changes",
+    "saved": "Profile saved",
+    "saveFailed": "Couldn't save your profile. Try again.",
+    "password": "Password",
+    "passwordHint": "We'll email you a link to choose a new password.",
+    "passwordNoEmail": "Your account has no email address. Ask support to change your password.",
+    "passwordSend": "Email me a link",
+    "passwordSent": "A link is on its way to {{email}}. It works for an hour.",
+    "passwordFailed": "Couldn't send the link. Try again later.",
+    "sections": "Account sections",
+    "links": {
+      "subscription": "Your plan, renewal and invoices",
+      "devices": "Browsers, apps and IPTV logins",
+      "history": "Everything you started watching"
+    },
+    "validation": {
+      "nameRequired": "Enter your name."
+    }
+  },
+  "credential": {
+    "server": "Server URL",
+    "username": "Username",
+    "password": "Password",
+    "onceWarning": "This password is shown only now. Enter it in the app or copy it somewhere safe before closing.",
+    "qrLabel": "QR code with the server, username and password",
+    "qrHint": "Scan to copy the login",
+    "qrGone": "Hidden with the password",
+    "copyAll": "Copy all three"
+  },
+  "devices": {
+    "title": "Devices & TV apps",
+    "subtitle": "Where you watch: this browser, other browsers and apps, and IPTV app logins.",
+    "addTvApp": "Add TV app",
+    "tvApps": "TV apps (IPTV logins)",
+    "browsers": "Browsers and apps",
+    "noTvAppsTitle": "No TV apps yet",
+    "noTvApps": "Add a TV app to get a login for IPTV Smarters, TiviMate and similar apps.",
+    "noBrowsersTitle": "No other devices",
+    "noBrowsers": "Browsers and apps appear here once they play something.",
+    "thisDevice": "This device",
+    "lastSeen": "Last used",
+    "neverUsed": "Not used yet",
+    "actions": "Actions for {{name}}",
+    "rename": "Rename",
+    "renameHint": "A name that helps you recognise it, like “Living room TV”.",
+    "renamed": "Renamed",
+    "newCredentials": "New login",
+    "remove": "Remove",
+    "signOutHere": "Sign out here",
+    "removeTitle": "Remove {{name}}?",
+    "removeXtream": "Its login stops working at once, in every app that uses it.",
+    "removeBrowser": "That browser or app is signed out and stops playing.",
+    "removeCurrent": "This is the browser you're using: you'll be signed out here.",
+    "removed": "Device removed",
+    "showGuide": "How to set it up",
+    "hideGuide": "Hide the setup guide",
+    "guideTitle": "Set up {{app}}",
+    "macWarning": "This app is activated by MAC address: its maker keeps your login on their servers. Use a separate TV app login for it, and remove it here if you stop using the app.",
+    "kinds": {
+      "xtream": "IPTV app",
+      "web": "Web browser",
+      "app": "Mobile app"
+    },
+    "apps": {
+      "smarters": "IPTV Smarters",
+      "tivimate": "TiviMate",
+      "ibo": "IBO Player",
+      "xciptv": "XCIPTV",
+      "ott_navigator": "OTT Navigator",
+      "smartone": "SmartOne",
+      "iptvnator": "IPTVnator",
+      "uhf": "UHF (Apple TV)",
+      "other": "Another app"
+    },
+    "add": {
+      "title": "Add a TV app",
+      "description": "Get a login for an IPTV app. You'll see the password once.",
+      "app": "App",
+      "name": "Device name",
+      "namePlaceholder": "Living room TV",
+      "credentials": "Login",
+      "generate": "Create one for me",
+      "generateHint": "A username and a strong password, easy to type with a remote.",
+      "choose": "Choose my own",
+      "chooseHint": "Pick the username and password yourself.",
+      "usernameHint": "3 to 32 letters, digits, dots, dashes or underscores.",
+      "passwordHint": "At least {{min}} letters, digits or . _ - ~ @ ! *",
+      "suggest": "Suggest one",
+      "submit": "Create login",
+      "doneTitle": "Your TV app login",
+      "doneDescription": "Enter these in the app now: the password won't be shown again.",
+      "finish": "Done"
+    },
+    "reset": {
+      "title": "New login for {{name}}",
+      "description": "The current password stops working at once. Apps using it must sign in again.",
+      "submit": "Create new login",
+      "doneTitle": "New login created"
+    },
+    "validation": {
+      "username": "Use 3 to 32 letters, digits, dots, dashes or underscores.",
+      "passwordLength": "Use 8 to 64 characters.",
+      "passwordCharacters": "Use only letters, digits and . _ - ~ @ ! *"
+    },
+    "fieldErrors": {
+      "username_taken": "This username is taken. Choose another.",
+      "username_rule": "Use 3 to 32 letters, digits, dots, dashes or underscores.",
+      "password_length": "This password's length isn't allowed. Use a longer one.",
+      "password_characters": "Use only letters, digits and . _ - ~ @ ! *",
+      "password_equals_username": "The password can't be the username."
+    },
+    "errors": {
+      "DEVICE_LIMIT": "Your plan's device limit is reached. Remove a TV app you no longer use first.",
+      "RATE_LIMITED": "Too many attempts. Wait a few minutes.",
+      "UNEXPECTED": "Something went wrong. Try again."
+    },
+    "guides": {
+      "smarters": [
+        "Open IPTV Smarters and choose “Add user”, then “Login with Xtream Codes API”.",
+        "Type any name, then the username and password above.",
+        "Enter the server URL exactly as shown, then “Add user”."
+      ],
+      "tivimate": [
+        "In TiviMate, choose “Add playlist”, then “Xtream Codes”.",
+        "Enter the server URL, then the username and password.",
+        "Choose “Next” and wait for the catalogue to load."
+      ],
+      "ibo": [
+        "Open IBO Player and note the MAC address and device key it shows.",
+        "On the IBO Player website, sign in with them and add an Xtream playlist.",
+        "Enter the server URL, username and password there, then restart the app."
+      ],
+      "xciptv": [
+        "Open XCIPTV: it asks for the login at the start.",
+        "Enter the username and password, then the server URL.",
+        "Choose “Sign in”."
+      ],
+      "ott_navigator": [
+        "In OTT Navigator, open Settings, then “Provider”, then “Add provider”.",
+        "Choose “Xtream Codes login” and enter the server URL.",
+        "Enter the username and password, then save."
+      ],
+      "smartone": [
+        "Open SmartOne and note the MAC address it shows.",
+        "On the SmartOne website, add a playlist for that MAC address with type Xtream.",
+        "Enter the server URL, username and password there, then reload the app."
+      ],
+      "iptvnator": [
+        "In IPTVnator, choose “Add playlist”, then “Xtream Code”.",
+        "Enter the server URL, username and password.",
+        "Choose “Add” and open the playlist."
+      ],
+      "uhf": [
+        "On Apple TV, open UHF and add a new source.",
+        "Choose Xtream Codes and enter the server URL.",
+        "Enter the username and password, then save."
+      ],
+      "other": [
+        "In the app, look for “Xtream Codes” or “Login with Xtream”.",
+        "Enter the server URL, the username and the password above.",
+        "Save, and wait for the movies and series to load."
+      ]
+    }
+  },
+  "subscription": {
+    "title": "Subscription & invoices",
+    "current": "Your plan",
+    "currentHint": "What your account includes and until when.",
+    "renew": "Renew or change plan",
+    "choose": "Choose a plan",
+    "plan": "Plan",
+    "status": "Status",
+    "started": "Started",
+    "ends": "Ends",
+    "ended": "Ended",
+    "graceUntil": "Grace period until",
+    "noEnd": "No end date",
+    "streams": "Screens at once",
+    "devices": "TV apps",
+    "quality": "Best quality",
+    "none": "You don't have a plan yet.",
+    "pending": "{{plan}} starts on {{date}}.",
+    "checkoutDone": "Thanks! Your payment is being confirmed: your plan updates as soon as it is.",
+    "checkoutCancelled": "The payment was cancelled. Nothing was charged."
+  },
+  "invoices": {
+    "title": "Invoices",
+    "number": "Number",
+    "date": "Date",
+    "plan": "Plan",
+    "total": "Total",
+    "status": "Status",
+    "actions": "Actions",
+    "view": "View",
+    "print": "Print invoice {{number}}",
+    "unnumbered": "Awaiting payment",
+    "emptyTitle": "No invoices yet",
+    "empty": "Invoices for your payments appear here.",
+    "previous": "Newer",
+    "next": "Older",
+    "viewLabel": "View invoice {{number}}"
+  },
+  "plans": {
+    "title": "Plans",
+    "subtitle": "Choose how you want to watch. You can renew or change plan at any time; the time left carries over.",
+    "trial": "Trial",
+    "free": "Free",
+    "per": "for {{period}}",
+    "months_one": "{{count}} month",
+    "months_other": "{{count}} months",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "and": " and ",
+    "streams_one": "{{count}} screen at once",
+    "streams_other": "{{count}} screens at once",
+    "devices_one": "{{count}} TV app",
+    "devices_other": "{{count}} TV apps",
+    "quality": "Up to {{quality}}",
+    "movies": "Movies",
+    "series": "Series",
+    "live": "Live TV",
+    "choose": "Choose",
+    "startTrial": "Start free trial",
+    "vatNote": "Prices include VAT where it applies.",
+    "emptyTitle": "No plans available",
+    "empty": "Contact support to subscribe.",
+    "checkoutTitle": "Pay for {{plan}}",
+    "checkoutDescription": "Choose how to pay.",
+    "payManual": "Bank transfer or cash",
+    "payWith": "Pay with {{provider}}",
+    "noProviders": "Online payment isn't available right now. Contact support to subscribe.",
+    "manualTitle": "Pay by bank transfer or cash",
+    "manualDescription": "Your plan starts as soon as the payment is recorded.",
+    "amountDue": "Amount due: {{amount}}",
+    "reference": "Payment reference (quote it with your payment)",
+    "toSubscription": "View subscription",
+    "done": "Done",
+    "trialTitle": "Your trial",
+    "trialStarted": "Your trial has started. Enjoy!",
+    "trialPending": "Your trial request was sent. It starts as soon as it's approved.",
+    "startWatching": "Start watching",
+    "errors": {
+      "TRIAL_NOT_ELIGIBLE": "You've already used your free trial.",
+      "PAYMENT_PROVIDER_UNAVAILABLE": "This payment method isn't available right now. Choose another.",
+      "PAYMENT_PROVIDER_ERROR": "The payment provider didn't respond. Try again in a moment.",
+      "RATE_LIMITED": "Too many attempts. Wait a few minutes.",
+      "NETWORK_ERROR": "Can't reach the service. Check your connection.",
+      "UNEXPECTED": "Something went wrong. Try again."
+    }
   }
 }

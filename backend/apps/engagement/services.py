@@ -31,8 +31,11 @@ from apps.playback.models import PlaybackSession, TitleKind
 logger = structlog.get_logger(__name__)
 
 type TitleType = Literal["movie", "series"]
-#: Below this position nothing is resumed or shown in continue-watching.
+#: Below this position nothing is resumed or shown in continue-watching...
 RESUME_MIN_MS: Final = 30_000
+#: ...nor below this share of a title shorter than five minutes (a 30-second clip resumes
+#: from 3 s), whose 30 s would otherwise sit past the watched ratio.
+RESUME_MIN_RATIO: Final = 0.1
 CONTINUE_LIMIT: Final = 20
 FAVORITES_LIMIT: Final = 500
 
@@ -51,6 +54,14 @@ def resolve_title(scope: CustomerScope, title_type: str, title_id: UUID) -> Titl
 
 
 # --- Progress ---------------------------------------------------------------------------------
+
+
+def started(position_ms: int, duration_ms: int | None) -> bool:
+    """Past the opening: 30 s in, or a tenth of the way through a short title."""
+    threshold = RESUME_MIN_MS
+    if duration_ms is not None and duration_ms > 0:
+        threshold = min(threshold, int(duration_ms * RESUME_MIN_RATIO))
+    return position_ms >= threshold
 
 
 def progress_body(row: WatchProgress | None) -> dict[str, Any] | None:
@@ -153,7 +164,7 @@ def resume_position(user: User, kind: TitleKind, title_id: UUID) -> int:
     """Where playback should resume: the saved position, unless watched or barely started."""
     field = "movie_id" if kind == TitleKind.MOVIE else "episode_id"
     row = WatchProgress.objects.filter(user=user, **{field: title_id}).first()
-    if row is None or row.completed or row.position_ms < RESUME_MIN_MS:
+    if row is None or row.completed or not started(row.position_ms, row.duration_ms):
         return 0
     return row.position_ms
 
@@ -241,7 +252,7 @@ def continue_watching(
     for row in rows:
         if row.movie_id is not None:
             movie = movies.get(row.movie_id)
-            if movie is None or row.completed or row.position_ms < RESUME_MIN_MS:
+            if movie is None or row.completed or not started(row.position_ms, row.duration_ms):
                 continue
             items.append(
                 WatchItem(row, movie, None, row.position_ms, row.duration_ms, False, row.updated_at)
@@ -251,7 +262,11 @@ def continue_watching(
             series = series_map.get(row.series_id)
             if series is None:
                 continue
-            if not row.completed and row.position_ms >= RESUME_MIN_MS and row.episode is not None:
+            if (
+                not row.completed
+                and started(row.position_ms, row.duration_ms)
+                and row.episode is not None
+            ):
                 episode = _with_still(row.episode)
                 items.append(
                     WatchItem(

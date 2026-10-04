@@ -275,6 +275,12 @@ importers:
 
   apps/portal:
     dependencies:
+      '@hookform/resolvers':
+        specifier: ^5.9.1
+        version: 5.9.1(@standard-schema/spec@1.1.0)(ajv@8.20.0)(react-hook-form@7.89.0(@types/react@19.3.0)(react@19.3.0))(zod@4.6.5)
+      '@smart-iptv/api-portal':
+        specifier: workspace:*
+        version: link:../../packages/api-portal
       '@smart-iptv/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -296,16 +302,34 @@ importers:
       react-dom:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
+      react-hook-form:
+        specifier: ^7.89.0
+        version: 7.89.0(@types/react@19.3.0)(react@19.3.0)
       react-i18next:
         specifier: ^17.0.15
         version: 17.0.15(i18next@26.4.2(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
+      shaka-player:
+        specifier: 5.2.12
+        version: 5.2.12
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
+      '@axe-core/playwright':
+        specifier: 4.13.0
+        version: 4.13.0(playwright-core@1.63.0)
+      '@playwright/test':
+        specifier: 1.63.0
+        version: 1.63.0
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@testing-library/user-event':
+        specifier: ^14.6.7
+        version: 14.6.7(@testing-library/dom@10.4.2)
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.1
@@ -3187,6 +3211,10 @@ packages:
   seroval@1.6.8:
     resolution: {integrity: sha512-HlSgSAkTk4EqHcje1ptJjfZi1YDv5KbhVJ/d3P7T/nAXua2VmDu+AKDX5VTdFfZf48nDkWB2TKYt0DrCSa+3wg==}
     engines: {node: '>=10'}
+
+  shaka-player@5.2.12:
+    resolution: {integrity: sha512-vEsuVDI3+oLh+yqpjXexQZlg2XMUBI0VrqatDuKWacPaxAud6Uph5uCowUPLhUgNG5XKWCpoM4l1r8qYzWH+zg==}
+    engines: {node: '>=18'}
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
@@ -6084,6 +6112,8 @@ snapshots:
       seroval: 1.6.8
 
   seroval@1.6.8: {}
+
+  shaka-player@5.2.12: {}
 
   shebang-command@2.0.0:
     dependencies:
