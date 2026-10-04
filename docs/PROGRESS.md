@@ -7,10 +7,26 @@
 | M3 Accounts (POC scope "M3-lite": access profiles instead of plans and subscriptions) | Done for the POC; plans, subscriptions and billing move to the final commercial slice | — |
 | POC slice 2: M4 library, M5 metadata, M6-lite catalog | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)) | — |
 | POC slice 3: M7 direct play, M8-lite transcoding | Done on the dev stack ([ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)) | — |
-| POC slice 4: M9 Xtream API and the IPTV-app demo | Done on the dev stack ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)); deployment to tv.mah007.net next | — |
+| POC slice 4: M9 Xtream API and the IPTV-app demo | Done and deployed to the owner's server ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)) | — |
 | M10–M15, then the commercial slice | Planned | — |
 
 **Owner decision (2026-10-03): proof of concept first.** An admin creates a customer with device credentials, media is scanned, matched and transcoded, and an IPTV app logs in and plays. Everything commercial (plans, subscriptions, billing, payments, invoices, trials, notifications) is the last slice.
+
+## POC deployed (2026-10-04)
+
+The proof of concept runs on the owner's single-host server (runbook: [docs/runbooks/deploy.md](runbooks/deploy.md)). An admin signs in with MFA and creates a customer with an IPTV login; media is scanned, matched and transcoded; and an IPTV app logs in and plays.
+
+### Evidence (production server, from outside)
+- Every host answers over Let's Encrypt TLS with HSTS: `tv.` (Xtream), `admin.`, `media.`.
+- The edge refuses an unsigned `/v/` request with 403. `/internal/*` answers 404 from outside. A wrong Xtream login gets `{"user_info":{"auth":0}}`.
+- The live Xtream contract suite, run against the public URL: **195 passed, 0 failed, 3 skipped**. That includes movie and episode play redirects to the media edge.
+- The sample libraries were scanned and transcoded on the server's CPU, and a movie and a series were ready in 21 s.
+
+### Fixed during the deploy
+On a deploy that adds tables, the watcher started before `migrate` and crash-looped. Migrations now run as a one-shot `migrate` service that every app service waits for.
+
+### Operator notes
+The owner admin is created with `manage.py create_owner` (no demo data). The initial admin and demo IPTV passwords are in a root-only file on the server, never in the repository or logs.
 
 ## POC slices 3 and 4: transcoding, edge playback, Xtream on the real catalog (2026-10-04)
 
