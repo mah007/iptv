@@ -297,6 +297,26 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 6 * 3600.0,
         "options": {"expires": 3600},
     },
+    # --- Live TV and the guide (M12, ADR-0017) ---
+    # Imports the guide sources whose cron schedule is due.
+    "live-refresh-epg": {
+        "task": "apps.live.tasks.refresh_due_epg_sources",
+        "schedule": 300.0,
+        "options": {"expires": 280},
+    },
+    # Creates the guide's coming monthly partitions and drops the expired ones.
+    "live-epg-partitions": {
+        "task": "apps.live.tasks.maintain_epg_partitions",
+        "schedule": crontab(hour=2, minute=40),
+        "options": {"expires": 3600},
+    },
+    # Channels whose licence ran out leave Xtream, and their sessions stop.
+    "live-enforce-licences": {
+        "task": "apps.live.tasks.enforce_licences",
+        "schedule": 300.0,
+        "options": {"expires": 280},
+    },
+    # --- end M12 ---
     # Closes playback sessions whose heartbeat stopped and records them (SPEC §7.4).
     "playback-sweep-sessions": {
         "task": "apps.playback.tasks.sweep_sessions",
@@ -337,6 +357,14 @@ CELERY_BEAT_SCHEDULE = {
         "options": {"expires": 3 * 3600},
     },
     # --- end C1 ---
+    # --- Monitoring (O1, ADR-0018) ---
+    # State and business gauges for Prometheus (customers, MRR, jobs, review queue, ...).
+    "dashboard-publish-metrics": {
+        "task": "apps.dashboard.tasks.publish_metrics",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
+    # --- end O1 ---
 }
 
 # --- I18n -----------------------------------------------------------------------

@@ -62,6 +62,7 @@ from apps.catalog.services import (
 )
 from apps.catalog.signals import notify_catalog_changed
 from apps.core.errors import ErrorCode, ProblemError
+from apps.core.metrics import MATCH_CONFIDENCE
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
 from apps.library.parsing import ParseResult
@@ -213,15 +214,17 @@ def _decide(
     candidate_kind: CandidateKind = "movie" if kind == "movie" else "tv"
     candidates = [Candidate.from_tmdb(item, candidate_kind) for item in results]
     decision = decide(query, candidates, threshold=threshold, margin=margin)
-    if not decision.needs_review or not decision.candidates:
-        return decision
-    # The shortlist (top five) again, from details: runtimes, alternative and translated
-    # titles. A runtime counts only when every candidate has one; otherwise the ones
-    # with details would be judged on a signal the others are spared.
-    refined = [_details_candidate(scored, client) for scored in decision.candidates]
-    if any(candidate.runtime_min is None for candidate in refined):
-        refined = [replace(candidate, runtime_min=None) for candidate in refined]
-    return decide(query, refined, threshold=threshold, margin=margin)
+    if decision.needs_review and decision.candidates:
+        # The shortlist (top five) again, from details: runtimes, alternative and
+        # translated titles. A runtime counts only when every candidate has one;
+        # otherwise the ones with details would be judged on a signal the others are spared.
+        refined = [_details_candidate(scored, client) for scored in decision.candidates]
+        if any(candidate.runtime_min is None for candidate in refined):
+            refined = [replace(candidate, runtime_min=None) for candidate in refined]
+        decision = decide(query, refined, threshold=threshold, margin=margin)
+    if decision.candidates:
+        MATCH_CONFIDENCE.observe(decision.confidence)
+    return decision
 
 
 def _details_candidate(scored: ScoredCandidate, client: TMDBClient) -> Candidate:

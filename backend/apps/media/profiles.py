@@ -201,6 +201,35 @@ class FilterProfile:
 
 
 @dataclass(frozen=True, slots=True)
+class LiveTranscode:
+    """The capped real-time fallback for live sources that cannot be copied (ADR-0017)."""
+
+    max_height: int = 720
+    video_k: int = 2500
+    #: libx264 arguments; placeholders {bitrate} {maxrate} {bufsize} {gop}.
+    video_args: tuple[str, ...] = (
+        "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "high", "-pix_fmt", "yuv420p",
+        "-b:v", "{bitrate}", "-maxrate", "{maxrate}", "-bufsize", "{bufsize}",
+        "-g", "{gop}", "-keyint_min", "{gop}", "-sc_threshold", "0",
+    )  # fmt: skip
+    audio_k: int = 128
+    audio_channels: int = 2
+
+
+@dataclass(frozen=True, slots=True)
+class LiveProfile:
+    """HLS packaging of live channels (ADR-0017): MPEG-TS segments in a rolling window."""
+
+    segment_s: int = 4
+    first_segment_s: int = 1
+    list_size: int = 6
+    transcode: LiveTranscode = LiveTranscode()
+
+
+LIVE_TRANSCODE_PLACEHOLDERS = frozenset({"bitrate", "maxrate", "bufsize", "gop"})
+
+
+@dataclass(frozen=True, slots=True)
 class Profiles:
     version: int
     keyframe_interval_s: int
@@ -211,6 +240,7 @@ class Profiles:
     filters: FilterProfile
     backend_preference: tuple[Backend, ...]
     backends: Mapping[Backend, BackendProfile]
+    live: LiveProfile = LiveProfile()
 
     def backend(self, backend: Backend) -> BackendProfile:
         try:
@@ -275,6 +305,7 @@ def parse_profiles(data: object, *, source: str = "profiles.yaml") -> Profiles:
         filters=_filters(root.section("filters")),
         backend_preference=_preference(root),
         backends=_backends(root.section("backends")),
+        live=_live(root.section("live")) if "live" in root.names() else LiveProfile(),
     )
     root.finish()
     for backend in profiles.backend_preference:
@@ -413,6 +444,25 @@ def _thumbnails(node: _Node) -> ThumbnailProfile:
         ),
     )
     sprite.finish()
+    node.finish()
+    return profile
+
+
+def _live(node: _Node) -> LiveProfile:
+    transcode = node.section("transcode")
+    profile = LiveProfile(
+        segment_s=node.integer("segment_s", minimum=1, maximum=12),
+        first_segment_s=node.integer("first_segment_s", minimum=1, maximum=12),
+        list_size=node.integer("list_size", minimum=3, maximum=30),
+        transcode=LiveTranscode(
+            max_height=transcode.integer("max_height", minimum=144, maximum=2160),
+            video_k=transcode.integer("video_k", minimum=100),
+            video_args=transcode.args("video_args", LIVE_TRANSCODE_PLACEHOLDERS),
+            audio_k=transcode.integer("audio_k", minimum=8),
+            audio_channels=transcode.integer("audio_channels", minimum=1, maximum=8),
+        ),
+    )
+    transcode.finish()
     node.finish()
     return profile
 

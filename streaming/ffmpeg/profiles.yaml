@@ -117,6 +117,24 @@ thumbnails:
     columns: 10
     rows: 10
 
+# Live channels (ADR-0017). Each channel is copied (remuxed) into HLS with MPEG-TS
+# segments in a rolling window; the live relay also joins those segments into the
+# continuous .ts stream IPTV apps ask for. The first segment is short so a cold
+# channel starts quickly. Sources that cannot be copied may be re-encoded in real
+# time (a per-channel choice, capped by live.realtime_transcode_max) on the CPU.
+live:
+  segment_s: 4
+  first_segment_s: 1
+  list_size: 6
+  transcode:
+    max_height: 720
+    video_k: 2500
+    video_args: [-c:v, libx264, -preset, veryfast, -profile:v, high, -pix_fmt, yuv420p,
+                 -b:v, "{bitrate}", -maxrate, "{maxrate}", -bufsize, "{bufsize}",
+                 -g, "{gop}", -keyint_min, "{gop}", -sc_threshold, "0"]
+    audio_k: 128
+    audio_channels: 2
+
 filters:
   # HDR (PQ/HLG) to SDR BT.709 for the H.264 outputs; needs zscale (libzimg).
   tonemap: "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv"

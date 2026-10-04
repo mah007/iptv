@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from prometheus_client import REGISTRY
 
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
@@ -117,7 +118,10 @@ def test_matching_again_reuses_the_movie(movies: Library, offline_tmdb: TMDBClie
 
 def test_a_name_shared_with_sequels_goes_to_review(movies: Library) -> None:
     file = make_file(movies, "The Matrix.mp4")
+    observed = REGISTRY.get_sample_value("iptv_match_confidence_count") or 0.0
     services.match_file(file)
+    # The decision's confidence feeds iptv_match_confidence (SPEC §14).
+    assert REGISTRY.get_sample_value("iptv_match_confidence_count") == observed + 1
     file.refresh_from_db()
     review = MatchReview.objects.get(media_file=file)
     assert (file.state, review.status, review.reason, review.kind) == (

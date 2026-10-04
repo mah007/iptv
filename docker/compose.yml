@@ -106,6 +106,10 @@ services:
       dockerfile: docker/app.Dockerfile
       target: media
     command: ["celery", "-A", "config", "worker", "--queues", "default,scan,metadata,images,notify", "--concurrency", "2", "--loglevel", "INFO"]
+    # The worker's metrics (its pool processes' counters), served on this port inside
+    # the backend network (apps.core.worker_metrics, ADR-0018).
+    environment: &worker-metrics
+      CELERY_METRICS_PORT: "9100"
     volumes:
       # Artwork (images/) and, from slice 3, renditions; the overlays add /media.
       - media-data:/data
@@ -163,6 +167,7 @@ services:
       dockerfile: docker/app.Dockerfile
       target: media
     command: ["python", "manage.py", "run_transcoder"]
+    environment: *worker-metrics
     volumes:
       # Writes renditions/; the overlays add /media (read-only).
       - media-data:/data

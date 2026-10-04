@@ -353,6 +353,8 @@ def delete_category(category: Category, *, actor: User | None, ip: str | None) -
         raise ProblemError(
             ErrorCode.CONFLICT, "Move or delete this category's subcategories first."
         )
+    if category.kind == CategoryKind.LIVE and category.live_channels.exists():
+        raise ProblemError(ErrorCode.CONFLICT, "Move or delete this group's channels first.")
     with transaction.atomic():
         audit.record(
             "category.delete", actor=actor, target=category, before=_category_state(category), ip=ip

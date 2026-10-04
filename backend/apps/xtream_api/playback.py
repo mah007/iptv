@@ -16,7 +16,7 @@ from typing import Protocol
 
 from apps.accounts.models import Device, User
 from apps.core.errors import ErrorCode
-from apps.xtream_api.dto import TitleRef
+from apps.xtream_api.dto import TimeshiftWindow, TitleRef
 
 PLAYBACK_UNAVAILABLE = "PLAYBACK_UNAVAILABLE"
 DEFAULT_RETRY_AFTER_S = 60
@@ -39,6 +39,7 @@ class PlayRequest:
     extension: str  # as requested, lower case; apps request container_extension (mp4)
     client_ip: str | None
     user_agent: str = ""
+    window: TimeshiftWindow | None = None  # catch-up (`/timeshift/...`) only
 
 
 @dataclass(frozen=True, slots=True)

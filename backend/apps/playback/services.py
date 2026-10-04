@@ -64,6 +64,8 @@ class RenditionKind(StrEnum):
     SOURCE = "source"  # a direct-play-compatible original
     UHD = "uhd"  # 4K progressive MP4
     HLS = "hls"  # segmented: hls/master.m3u8 and everything under hls/
+    LIVE = "live"  # a live channel: live.ts (relay) or live/index.m3u8 (ADR-0017)
+    ARCHIVE = "archive"  # a live channel's catch-up: archive/<start>-<seconds>.<ts|m3u8>
 
 
 class Delivery(StrEnum):
@@ -82,7 +84,16 @@ _KIND_RANK = {
     RenditionKind.SOURCE: 1,
     RenditionKind.UHD: 2,
     RenditionKind.HLS: 3,
+    RenditionKind.LIVE: 4,
+    RenditionKind.ARCHIVE: 5,
 }
+
+#: Kinds whose requests keep flowing (playlists, segments, or the live relay's own
+#: stream-auth calls every 30 s), so a session idles out after the heartbeat TTL.
+_SEGMENTED_KINDS = frozenset({RenditionKind.HLS, RenditionKind.LIVE, RenditionKind.ARCHIVE})
+#: Title kinds of live TV: `allow_live` gates them and their tokens live
+#: `playback.token_ttl_live_s` (SPEC §7.4: 6 h).
+LIVE_KINDS = frozenset({TitleKind.LIVE, TitleKind.CATCHUP})
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +109,10 @@ class PlayableRendition:
     other than the full ladder (`hls720` capped at 720p, `hls2160` with the UHD rung;
     ADR-0014), so a token for a capped presentation cannot reach a taller rung.
     `height` is the presentation's ceiling.
+
+    `path` names the entry file when it is not derived from the kind: a live channel's
+    `live.ts` or `live/index.m3u8`, or a catch-up window `archive/<start>-<s>.ts`
+    (ADR-0017). It must stay inside the token's scope.
     """
 
     storage_key: str
@@ -105,6 +120,7 @@ class PlayableRendition:
     height: int
     container: str = "mp4"
     name: str = ""
+    path: str = ""
 
     def __post_init__(self) -> None:
         if not tokens.TITLE.fullmatch(self.storage_key):
@@ -116,10 +132,15 @@ class PlayableRendition:
         if self.name and not tokens.RENDITION.fullmatch(self.name):
             msg = "name must be a token rendition ([A-Za-z0-9_-]{1,32})"
             raise ValueError(msg)
+        if self.path and not (
+            tokens.valid_tail(self.path) and tokens.in_scope(self.token_rendition, self.path)
+        ):
+            msg = "path must be a media path inside the token's scope"
+            raise ValueError(msg)
 
     @property
     def delivery(self) -> Delivery:
-        return Delivery.SEGMENTED if self.kind is RenditionKind.HLS else Delivery.PROGRESSIVE
+        return Delivery.SEGMENTED if self.kind in _SEGMENTED_KINDS else Delivery.PROGRESSIVE
 
     @property
     def token_rendition(self) -> str:
@@ -129,6 +150,8 @@ class PlayableRendition:
     @property
     def entry(self) -> str:
         """The file the playback URL names, relative to the asset."""
+        if self.path:
+            return self.path
         if self.kind is RenditionKind.HLS:
             return f"{self.token_rendition}/master.m3u8"
         return f"{self.token_rendition}.{self.container}"
@@ -286,11 +309,12 @@ def _check_rules(
 
 def _check_content(entitlement: Entitlement, title: PlayableTitle) -> None:
     """Checks 5 and 6."""
-    allowed = (
-        entitlement["allow_movies"]
-        if title.kind == TitleKind.MOVIE
-        else entitlement["allow_series"]
-    )
+    if title.kind in LIVE_KINDS:
+        allowed = entitlement["allow_live"]
+    elif title.kind == TitleKind.MOVIE:
+        allowed = entitlement["allow_movies"]
+    else:
+        allowed = entitlement["allow_series"]
     if not allowed:
         raise PlaybackDenied(Denial.CONTENT_TYPE_NOT_ALLOWED)
     categories = entitlement["categories"]
@@ -458,7 +482,10 @@ def _open_session(start: _Start) -> PlaybackGrant:
     )
     if slot.status is SlotStatus.REJECTED:
         raise PlaybackDenied(Denial.CONCURRENCY_LIMIT)
-    lifetime = max(0, start.title.runtime_s) + int(get_setting("playback.token_ttl_vod_s"))
+    if start.title.kind in LIVE_KINDS:
+        lifetime = int(get_setting("playback.token_ttl_live_s"))
+    else:
+        lifetime = max(0, start.title.runtime_s) + int(get_setting("playback.token_ttl_vod_s"))
     # Verifiers refuse an exp further than MAX_TTL_S ahead (ADR-0007 §2).
     exp = int(now_s) + min(lifetime, tokens.MAX_TTL_S - 3600)
     try:
@@ -597,6 +624,8 @@ _KICK_END = {
     KickReason.ACCESS_EXPIRED: EndReason.EXPIRED,
     KickReason.ACCESS_SUSPENDED: EndReason.KICKED,
     KickReason.DEVICE_DISABLED: EndReason.KICKED,
+    KickReason.LICENSE_EXPIRED: EndReason.KICKED,
+    KickReason.STOPPED: EndReason.STOPPED,
 }
 
 

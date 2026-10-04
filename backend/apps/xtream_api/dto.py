@@ -175,12 +175,70 @@ class EpisodeRef:
 class TitleKind(StrEnum):
     MOVIE = "movie"
     EPISODE = "episode"
+    LIVE = "live"
+    CATCHUP = "catchup"  # a live channel's archive (timeshift)
 
 
 @dataclass(frozen=True, slots=True)
 class TitleRef:
-    """The title behind a play URL: its kind, Xtream id and primary key."""
+    """The title behind a play URL: its kind, Xtream id and primary key.
+
+    `output` is a live channel's default extension (`ts` or `m3u8`) for the
+    extension-less URL `/{u}/{p}/{id}`; "" for movies and episodes.
+    """
 
     kind: TitleKind
     xc_id: int
     id: str
+    output: str = ""
+
+
+# --- Live TV (M12) ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ChannelItem:
+    """A live channel as get_live_streams lists it."""
+
+    xc_id: int
+    name: Text
+    added: datetime
+    category_ids: tuple[int, ...]
+    sort: int = 0
+    logo: str = ""
+    epg_channel_id: str = ""
+    catchup_days: int = 0  # 0: no catch-up
+    is_adult: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class Programme:
+    """One guide entry. `listing_id` is stable across imports; `epg_id` names the source."""
+
+    listing_id: int
+    epg_id: int
+    start: datetime
+    stop: datetime
+    title: Text
+    description: Text = Text()
+    lang: str = ""  # ISO 639 code of the English-side title, "" when unknown
+
+
+@dataclass(frozen=True, slots=True)
+class ChannelGuide:
+    """A visible channel and its programmes in a window, start order.
+
+    `archive_from`: the first instant the catch-up archive holds (None: nothing yet).
+    """
+
+    channel: ChannelItem
+    programmes: tuple[Programme, ...]
+    archive_from: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TimeshiftWindow:
+    """A catch-up request: `/timeshift/{u}/{p}/{minutes}/{start}/{id}.{ext}` (UTC)."""
+
+    start: datetime
+    minutes: int

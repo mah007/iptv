@@ -247,7 +247,7 @@ class PlaybackStopView(CatalogView):
             )
         if session.ended_at is None:
             # Ends as "stopped": the edge refuses the token's next request.
-            stop_sessions([session], KickReason.REPLACED)
+            stop_sessions([session], KickReason.STOPPED)
         return Response(status=204)
 
 

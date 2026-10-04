@@ -23,6 +23,8 @@ from apps.core.models import BaseModel
 class TitleKind(models.TextChoices):
     MOVIE = "movie", "Movie"
     EPISODE = "episode", "Episode"
+    LIVE = "live", "Live channel"  # title_id is a live.LiveChannel (M12)
+    CATCHUP = "catchup", "Catch-up"  # a live channel's archive (timeshift)
 
 
 class EndReason(models.TextChoices):
