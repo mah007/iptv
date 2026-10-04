@@ -35,6 +35,18 @@ def test_spec_queues_are_declared() -> None:
     assert settings.CELERY_TASK_DEFAULT_QUEUE == "default"
 
 
+def test_each_queue_has_its_own_routing_key() -> None:
+    """A message sent to one queue must reach only that queue (a shared routing key on a
+    direct exchange copies it to every queue bound with that key)."""
+    queues = app.amqp.queues
+    for queue in settings.CELERY_TASK_QUEUES:
+        declared = queues[queue.name]
+        assert (declared.exchange.name, declared.routing_key) == ("tasks", queue.name)
+    route = app.amqp.router.route({}, "apps.media.tasks.prepare_media_file")
+    assert route["queue"].name == "scan"
+    assert app.amqp.router.route({}, "apps.core.tasks.heartbeat")["queue"].name == "default"
+
+
 def test_beat_schedules_the_heartbeat() -> None:
     entry = settings.CELERY_BEAT_SCHEDULE["core-heartbeat"]
     assert entry["task"] == "apps.core.tasks.heartbeat"

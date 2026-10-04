@@ -1,0 +1,11 @@
+# Optional overlay: VA-API/QSV for the transcoder (Intel or AMD render nodes).
+#   make up GPU=intel         (or GPU=nvidia,intel; see the Makefile)
+# The container user needs the host's render (and video) group to open /dev/dri;
+# set RENDER_GID/VIDEO_GID when they differ (getent group render video).
+services:
+  transcoder:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${RENDER_GID:-992}"
+      - "${VIDEO_GID:-44}"

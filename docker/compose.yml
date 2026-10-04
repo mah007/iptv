@@ -66,7 +66,11 @@ services:
       traefik.http.routers.tv.rule: Host(`tv.${DOMAIN:-localhost}`) && !PathPrefix(`/internal`) && !PathPrefix(`/metrics`)
       traefik.http.routers.tv.entrypoints: web
       traefik.http.routers.tv.service: web
-      traefik.http.routers.tv.middlewares: secure-headers@file
+      traefik.http.routers.tv.middlewares: secure-headers@file,xtream-ratelimit@docker
+      # Per client IP: IPTV apps fire bursts of catalogue calls, brute force fires more.
+      traefik.http.middlewares.xtream-ratelimit.ratelimit.average: "10"
+      traefik.http.middlewares.xtream-ratelimit.ratelimit.period: "1s"
+      traefik.http.middlewares.xtream-ratelimit.ratelimit.burst: "50"
       # Same-origin APIs (ADR-0004): /api on the admin and portal hosts goes to Django,
       # the rest of those hosts to the SPAs. The explicit priority beats the SPA
       # routers, whose default priority is their rule length.
@@ -135,6 +139,33 @@ services:
       start_period: 30s
       retries: 3
 
+  # Compat MP4 jobs (SPEC §7.3, ADR-0010): detects its encoders at start and consumes
+  # only the matching transcode.<backend> queues. CPU only unless a GPU overlay adds
+  # devices (docker/compose.gpu-nvidia.yml, docker/compose.gpu-intel.yml).
+  transcoder:
+    <<: *app
+    image: smart-iptv/media:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      target: media
+    command: ["python", "manage.py", "run_transcoder"]
+    volumes:
+      # Writes renditions/; the overlays add /media (read-only).
+      - media-data:/data
+    stop_grace_period: 30s
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis-state: { condition: service_healthy }
+      media-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping --destination transcoder@$$HOSTNAME --timeout 5 > /dev/null"]
+      interval: 30s
+      timeout: 15s
+      # Hardware detection test-encodes every candidate encoder first.
+      start_period: 120s
+      retries: 3
+
   # Gives the media volume's folders to the user the app runs as, once per start.
   media-init:
     image: smart-iptv/app:${APP_VERSION:-dev}
@@ -153,8 +184,10 @@ services:
     restart: "no"
     logging: *logging
 
-  # The media edge (streaming/, ADR-0007): public artwork at media.<DOMAIN>/images/ now,
-  # signed /v/<token>/ media from slice 3. Plain HTTP behind Traefik.
+  # The media edge (streaming/, ADR-0007): public artwork at media.<DOMAIN>/images/ and
+  # signed /v/<token>/ media from /data/renditions (ADR-0010). Direct-play sources are
+  # symlinks into /media, which the overlays mount read-only at the same path.
+  # Plain HTTP behind Traefik.
   nginx-stream:
     image: nginx:1.30.5-alpine
     restart: unless-stopped

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from kombu import Queue
+from kombu import Exchange, Queue
 
 from apps.core.logs import configure_structlog, logging_config, parse_log_format
 from config.env import env, env_bool, env_int, env_list
@@ -204,9 +204,15 @@ TMDB_CACHE_TTL_S = env_int("TMDB_CACHE_TTL_S", default=24 * 60 * 60)
 # --- Celery -------------------------------------------------------------------
 # Queues from SPEC §13. `worker` consumes the general queues; transcoders
 # subscribe only to the transcode.* queue matching their hardware (M8).
+# Every queue is bound under its own name on one direct exchange. (Queues declared
+# without a routing key all got the key "default", so each message reached every bound
+# queue. The exchange has a new name so the brokers' old bindings no longer apply.)
 CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_DEFAULT_EXCHANGE = "tasks"
+CELERY_TASK_DEFAULT_ROUTING_KEY = "default"
+_TASK_EXCHANGE = Exchange("tasks", type="direct")
 CELERY_TASK_QUEUES = tuple(
-    Queue(name)
+    Queue(name, _TASK_EXCHANGE, routing_key=name)
     for name in (
         "default",
         "scan",
@@ -223,6 +229,10 @@ CELERY_TASK_QUEUES = tuple(
 # `metadata`, artwork on `images`; all on the `worker` service.
 CELERY_TASK_ROUTES = {
     "apps.library.tasks.*": {"queue": "scan"},
+    # Media (ADR-0010): planning probes the source, so it runs with the scans; jobs are
+    # sent to their backend's transcode.* queue explicitly (CPU if anyone forgets).
+    "apps.media.tasks.prepare_media_file": {"queue": "scan"},
+    "apps.media.tasks.run_transcode_job": {"queue": "transcode.cpu"},
     "apps.metadata.tasks.fetch_*": {"queue": "images"},
     "apps.metadata.tasks.*": {"queue": "metadata"},
 }
@@ -249,6 +259,12 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.library.tasks.reconcile_libraries",
         "schedule": 60.0,
         "options": {"expires": 55},
+    },
+    # Plans matched files that were missed and requeues jobs of dead transcoders (M8).
+    "media-reconcile": {
+        "task": "apps.media.tasks.reconcile_media",
+        "schedule": 300.0,
+        "options": {"expires": 280},
     },
     # Closes playback sessions whose heartbeat stopped and records them (SPEC §7.4).
     "playback-sweep-sessions": {

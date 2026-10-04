@@ -1,0 +1,10 @@
+# Optional overlay: NVENC for the transcoder (NVIDIA GPU, nvidia-container-toolkit).
+#   make up GPU=nvidia        (or GPU=nvidia,intel; see the Makefile)
+# hwdetect test-encodes h264_nvenc at start and subscribes to transcode.nvenc.
+services:
+  transcoder:
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      # `video` mounts libnvidia-encode; `utility` gives nvidia-smi to hwdetect.
+      NVIDIA_DRIVER_CAPABILITIES: compute,video,utility

@@ -14,7 +14,12 @@ export HOST_GID := $(shell id -g)
 APP_VERSION ?= $(or $(shell sed -n 's/^APP_VERSION=//p' .env 2>/dev/null),dev)
 export APP_VERSION
 
-COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml
+# Optional transcoder GPU overlays (ADR-0010): GPU=nvidia, GPU=intel or GPU=nvidia,intel,
+# on the command line or in .env. Without them the transcoder encodes on the CPU.
+GPU ?= $(shell sed -n 's/^GPU=//p' .env 2>/dev/null)
+comma := ,
+GPU_FILES := $(foreach g,$(subst $(comma), ,$(GPU)),-f docker/compose.gpu-$(g).yml)
+COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml $(GPU_FILES)
 # Every backend container bind-mounts ./media (the libraries, git-ignored). Create it as
 # the host user, or Docker would create it owned by root.
 $(shell mkdir -p media)
@@ -29,10 +34,11 @@ BUILD_FLAGS ?= --pull
 
 .PHONY: help secrets up down ps logs migrate seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
-	api-client api-client-check build smoke-images scan licenses ci ci-steps
+	api-client api-client-check build smoke-images scan licenses ci ci-steps \
+	media-ready compat compat-live e2e-iptvnator
 
 help: ## List available commands
-	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .env:
 	@scripts/secrets.sh
@@ -69,6 +75,10 @@ seed: ## Load demo data (idempotent); prints a new admin's password once. args=-
 
 sample-media: ## Generate legal synthetic test media into ./media (FFmpeg; idempotent)
 	@scripts/sample_media.sh media
+
+media-ready: ## Sample media scanned and transcoded: wait for a ready movie and series (adds the sample libraries if missing)
+	@scripts/sample_media.sh media
+	$(COMPOSE) exec -T web python manage.py media_ready --timeout 600
 
 shell: ## Django shell in the web container
 	$(COMPOSE) exec web python manage.py shell
@@ -143,6 +153,41 @@ api-client-check: ## Fail if the schema or client in the tree differs from a fre
 	fi
 	@echo "API client is up to date."
 
+# --- Xtream contract (compat/, ADR-0008) ------------------------------------------------
+# The live checks sign in as the contract-check account: COMPAT_XC_USER/COMPAT_XC_PASS in
+# .env (make secrets adds them). The values are exported to the tools, never echoed.
+COMPAT_TOOL := uvx --python 3.13 --with 'jsonschema==4.26.0' python compat/validate.py
+XC_CREDENTIALS = export XC_USER="$$(sed -n 's/^COMPAT_XC_USER=//p' .env)" \
+	  XC_PASS="$$(sed -n 's/^COMPAT_XC_PASS=//p' .env)"; \
+	test -n "$$XC_USER" && test -n "$$XC_PASS" || \
+	  { echo "COMPAT_XC_USER and COMPAT_XC_PASS are missing from .env: run make secrets" >&2; exit 1; }
+TV_URL = http://tv.$$(sed -n 's/^DOMAIN=//p' .env)$$(port=$$(sed -n 's/^HTTP_PORT=//p' .env); \
+	[ "$$port" = "80" ] || echo ":$$port")
+IPTVNATOR_IMAGE := 4gray/iptvnator:0.24.0@sha256:c5c33df50735741ba169cae83bf04e2fe356d33cb2ed7612295add2ba0038674
+IPTVNATOR_NAME := smart-iptv-e2e-iptvnator
+
+compat: ## Xtream contract suite on the schemas and golden fixtures (no stack needed)
+	$(COMPAT_TOOL)
+
+compat-live: ## Contract suite against the running Xtream host, play URLs included (needs ready titles: make media-ready)
+	@$(XC_CREDENTIALS); \
+	$(COMPOSE) exec -T -e XC_USER -e XC_PASS web python manage.py xtream_contract_account; \
+	$(COMPAT_TOOL) --live "$(TV_URL)" --play
+
+e2e-iptvnator: ## IPTVnator (Docker, driven by Playwright) signs in, browses and plays from the Xtream host
+	@$(XC_CREDENTIALS); \
+	$(COMPOSE) exec -T -e XC_USER -e XC_PASS web python manage.py xtream_contract_account; \
+	docker rm -f $(IPTVNATOR_NAME) > /dev/null 2>&1 || true; \
+	trap 'docker rm -f $(IPTVNATOR_NAME) > /dev/null 2>&1 || true' EXIT; \
+	docker run --rm -d --name $(IPTVNATOR_NAME) -p 127.0.0.1:4333:80 \
+	  --add-host tv.localhost:host-gateway \
+	  -e CLIENT_URL=http://127.0.0.1:4333 -e IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1 \
+	  $(IPTVNATOR_IMAGE) > /dev/null; \
+	for i in $$(seq 60); do curl -fsS -o /dev/null http://127.0.0.1:4333/api/health && break; sleep 1; done; \
+	curl -fsS -o /dev/null http://127.0.0.1:4333/api/health || { echo "IPTVnator did not start" >&2; exit 1; }; \
+	uvx --python 3.13 --with playwright==1.63.0 python compat/iptvnator_e2e.py \
+	  --app http://127.0.0.1:4333 --server "$(TV_URL)" --artifacts dist/iptvnator-e2e
+
 build: ## Build the production images (app, media, frontend), pulling fresh base images
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target media -t smart-iptv/media:$(APP_VERSION) .
@@ -177,15 +222,19 @@ ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitt
 	@$(MAKE) ci-steps || { echo "make ci FAILED. Service status and recent logs:" >&2; \
 	  $(COMPOSE) ps >&2 || true; $(COMPOSE) logs --no-color --tail=60 >&2 || true; exit 1; }
 	@echo ""
-	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, types, API client, tests, images, Trivy, licences."
+	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Xtream contract, types, API client, tests, live Xtream checks, IPTVnator, images, Trivy, licences."
 
 ci-steps:
 	$(MAKE) up
 	$(MAKE) smoke
 	$(MAKE) lint
+	$(MAKE) compat
 	$(MAKE) typecheck
 	$(MAKE) api-client-check
 	$(MAKE) test
+	$(MAKE) media-ready
+	$(MAKE) compat-live
+	$(MAKE) e2e-iptvnator
 	$(MAKE) build
 	$(MAKE) smoke-images
 	$(MAKE) scan

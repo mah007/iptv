@@ -43,10 +43,18 @@ services:
     volumes:
       - ${MEDIA_ROOT:-/srv/media}:/media:ro
 
+  transcoder:
+    <<: *prod-app
+    volumes:
+      - ${MEDIA_ROOT:-/srv/media}:/media:ro
+
   beat:
     <<: *prod-app
 
   nginx-stream:
+    volumes:
+      # Direct-play renditions are symlinks to library files (ADR-0010).
+      - ${MEDIA_ROOT:-/srv/media}:/media:ro
     labels:
       traefik.http.routers.media.entrypoints: websecure
       traefik.http.routers.media.tls.certresolver: letsencrypt
