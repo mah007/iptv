@@ -14,7 +14,6 @@ from apps.accounts.models import CustomerAccess
 from apps.accounts.signals import access_expired
 from apps.audit.models import AuditLog
 from apps.conftest import CustomerFactory
-from apps.core import metrics
 from apps.core.stores import state_redis
 from apps.playback.entitlements import entitlement_key
 
@@ -82,28 +81,3 @@ def test_batches_cover_every_row(make_customer: CustomerFactory) -> None:
         make_customer(expires_at=past)
     assert services.process_expired_access(batch_size=2) == 5
     assert AuditLog.objects.filter(action="customer.access.expire").count() == 5
-
-
-def test_job_publishes_access_counts(
-    make_customer: CustomerFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    now = timezone.now()
-    make_customer(expires_at=now - timedelta(days=1))
-    make_customer(expires_at=now + timedelta(days=1))
-    suspended = make_customer()
-    services.suspend_customer(suspended, actor=None)
-    published: list[dict[tuple[str, ...], float]] = []
-    monkeypatch.setattr(metrics.SUBSCRIPTIONS, "publish", published.append)
-    services.process_expired_access(now=now)
-    assert published == [{("active",): 1, ("expired",): 1, ("suspended",): 1, ("disabled",): 0}]
-
-
-def test_metrics_failures_never_break_the_job(
-    make_customer: CustomerFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    def broken(_samples: object) -> None:
-        raise ConnectionError
-
-    monkeypatch.setattr(metrics.SUBSCRIPTIONS, "publish", broken)
-    make_customer(expires_at=timezone.now() - timedelta(days=1))
-    assert services.process_expired_access() == 1

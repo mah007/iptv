@@ -118,6 +118,17 @@ def entitlement(**changes: Any) -> Entitlement:
         ({}, {"blocked": True}, "Disabled"),
         ({}, {"approved": False}, "Disabled"),
         ({"ends_at": "2020-01-01T00:00:00+00:00"}, {}, "Expired"),  # cached past its end
+        # In grace: playback still allows it, so the app shows Active.
+        (
+            {"ends_at": "2020-01-01T00:00:00+00:00", "grace_until": "2999-01-01T00:00:00+00:00"},
+            {},
+            "Active",
+        ),
+        (
+            {"ends_at": "2020-01-01T00:00:00+00:00", "grace_until": "2020-01-04T00:00:00+00:00"},
+            {},
+            "Expired",
+        ),
     ],
 )
 def test_status(changes: dict[str, Any], device: dict[str, Any], expected: str) -> None:

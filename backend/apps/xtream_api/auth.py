@@ -125,11 +125,14 @@ def status_of(
         return "Disabled"
     match entitlement["status"]:
         case EntitlementStatus.ACTIVE:
-            ends_at = entitlement["ends_at"]
+            # Grace keeps playback on (apps.playback.services), so the app stays on too.
             moment = now or timezone.now()
-            if ends_at is not None and datetime.fromisoformat(ends_at) <= moment:
-                return "Expired"
-            return "Active"
+            ends_at, grace_until = entitlement["ends_at"], entitlement["grace_until"]
+            if ends_at is None or datetime.fromisoformat(ends_at) > moment:
+                return "Active"
+            if grace_until is not None and datetime.fromisoformat(grace_until) > moment:
+                return "Active"
+            return "Expired"
         case EntitlementStatus.EXPIRED:
             return "Expired"
         case _:

@@ -16,6 +16,7 @@ from functools import partial
 from typing import Any, cast
 from uuid import UUID
 
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -41,8 +42,7 @@ from apps.accounts.signals import access_expired, access_suspended, device_disab
 from apps.accounts.validators import normalize_country, normalize_ip, normalize_network
 from apps.audit import services as audit
 from apps.catalog.models import Category
-from apps.core.errors import ErrorCode, ProblemError
-from apps.core.metrics import SUBSCRIPTIONS
+from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
 from apps.playback import entitlements
@@ -168,10 +168,20 @@ def _customer_username(wanted: str) -> str:
     if not CUSTOMER_USERNAME_PATTERN.fullmatch(wanted):
         raise ProblemError(
             ErrorCode.VALIDATION_ERROR,
-            field_errors={"username": ["Use 3 to 150 letters, digits and . _ @ + -"]},
+            field_errors={
+                "username": [
+                    field_error(
+                        "Use 3 to 150 letters, digits and . _ @ + -",
+                        code="customer_username_rule",
+                    )
+                ]
+            },
         )
     if User.objects.filter(username__iexact=wanted).exists():
-        raise ProblemError(ErrorCode.VALIDATION_ERROR, field_errors={"username": [USERNAME_TAKEN]})
+        raise ProblemError(
+            ErrorCode.VALIDATION_ERROR,
+            field_errors={"username": [field_error(USERNAME_TAKEN, code="username_taken")]},
+        )
     return wanted
 
 
@@ -184,7 +194,10 @@ def _categories(category_ids: Sequence[UUID | str]) -> list[Category]:
             ErrorCode.VALIDATION_ERROR,
             "Unknown category.",
             field_errors={
-                "category_ids": [f"Unknown category {item}." for item in sorted(missing)]
+                "category_ids": [
+                    field_error(f"Unknown category {item}.", code="does_not_exist")
+                    for item in sorted(missing)
+                ]
             },
         )
     return found
@@ -230,7 +243,8 @@ def create_customer(
                 user.save()
         except IntegrityError:
             raise ProblemError(
-                ErrorCode.VALIDATION_ERROR, field_errors={"username": [USERNAME_TAKEN]}
+                ErrorCode.VALIDATION_ERROR,
+                field_errors={"username": [field_error(USERNAME_TAKEN, code="username_taken")]},
             ) from None
         profile_row = CustomerAccess(user=user)
         _apply(profile_row, access_values, ACCESS_FIELDS)
@@ -390,7 +404,7 @@ def _check_chosen_credentials(
     if username:
         problems = creds.username_problems(username)
         if not problems and _username_taken(username, exclude=current):
-            problems = [USERNAME_TAKEN]
+            problems = [field_error(USERNAME_TAKEN, code="username_taken")]
         if problems:
             errors[f"{prefix}username"] = problems
     if password:
@@ -413,7 +427,8 @@ def _save_chosen_username(credential: XtreamCredential, username: str, *, field:
             credential.save()
     except IntegrityError:
         raise ProblemError(
-            ErrorCode.VALIDATION_ERROR, field_errors={field: [USERNAME_TAKEN]}
+            ErrorCode.VALIDATION_ERROR,
+            field_errors={field: [field_error(USERNAME_TAKEN, code="username_taken")]},
         ) from None
 
 
@@ -428,11 +443,17 @@ def _issue_device(  # noqa: PLR0913 (all but the first three are keyword-only)
 ) -> IssuedCredential:
     """Caller holds the user's row lock (or created the user in this transaction) and has
     checked any chosen credentials with `_check_chosen_credentials`."""
-    active = Device.objects.filter(user=user, revoked_at__isnull=True).count()
-    if active >= access.max_devices:
+    # Only devices holding an Xtream credential count: browser and app sign-ins are
+    # covered by max_streams (ADR-0013).
+    active = Device.objects.filter(
+        user=user, revoked_at__isnull=True, kind=DeviceKind.XTREAM
+    ).count()
+    # The plan's limit when a subscription governs the customer, else the profile's.
+    limit = entitlements.device_limit(user.pk) or access.max_devices
+    if active >= limit:
         raise ProblemError(
             ErrorCode.DEVICE_LIMIT,
-            f"This customer already has {active} of {access.max_devices} allowed devices.",
+            f"This customer already has {active} of {limit} allowed devices.",
         )
     row = Device.objects.create(
         user=user,
@@ -471,7 +492,10 @@ def create_device_credential(  # noqa: PLR0913 (all but the first are keyword-on
     """Add an Xtream device within the profile's max_devices. The credential uses the
     admin's `username` and `password` when given, else generated ones."""
     if app_hint and app_hint not in AppHint.values:
-        raise ProblemError(ErrorCode.VALIDATION_ERROR, field_errors={"app_hint": ["Unknown app."]})
+        raise ProblemError(
+            ErrorCode.VALIDATION_ERROR,
+            field_errors={"app_hint": [field_error("Unknown app.", code="invalid_choice")]},
+        )
     _check_chosen_credentials(username, password)
     with transaction.atomic():
         user = User.objects.select_for_update().get(pk=user.pk)
@@ -547,7 +571,8 @@ def reset_credential(
                     credential.save(update_fields=fields)
             except IntegrityError:
                 raise ProblemError(
-                    ErrorCode.VALIDATION_ERROR, field_errors={"username": [USERNAME_TAKEN]}
+                    ErrorCode.VALIDATION_ERROR,
+                    field_errors={"username": [field_error(USERNAME_TAKEN, code="username_taken")]},
                 ) from None
         audit.record(
             "device.reset_credentials",
@@ -713,13 +738,21 @@ def normalize_rule_value(rule_type: str, value: str) -> str:
         normalizer = _RULE_NORMALIZERS[AccessRuleType(rule_type)]
     except ValueError:
         raise ProblemError(
-            ErrorCode.VALIDATION_ERROR, field_errors={"type": ["Unknown rule type."]}
+            ErrorCode.VALIDATION_ERROR,
+            field_errors={"type": [field_error("Unknown rule type.", code="invalid_choice")]},
         ) from None
     try:
         return normalizer(value)
     except ValidationError as exc:
         raise ProblemError(
-            ErrorCode.VALIDATION_ERROR, exc.messages[0], field_errors={"value": exc.messages}
+            ErrorCode.VALIDATION_ERROR,
+            exc.messages[0],
+            field_errors={
+                "value": [
+                    field_error(m, code=getattr(exc, "code", None) or "invalid")
+                    for m in exc.messages
+                ]
+            },
         ) from None
 
 
@@ -746,11 +779,17 @@ def create_access_rule(  # noqa: PLR0913 (keyword-only fields of one rule)
     """A rule for one customer, or for everyone when `user` is None."""
     if user is not None and user.is_staff:
         raise ProblemError(
-            ErrorCode.VALIDATION_ERROR, field_errors={"user": ["Rules apply to customers only."]}
+            ErrorCode.VALIDATION_ERROR,
+            field_errors={
+                "user": [field_error("Rules apply to customers only.", code="not_a_customer")]
+            },
         )
     if expires_at is not None and expires_at <= timezone.now():
         raise ProblemError(
-            ErrorCode.VALIDATION_ERROR, field_errors={"expires_at": ["Must be in the future."]}
+            ErrorCode.VALIDATION_ERROR,
+            field_errors={
+                "expires_at": [field_error("Must be in the future.", code="not_in_future")]
+            },
         )
     canonical = normalize_rule_value(rule_type, value)
     with transaction.atomic():
@@ -779,9 +818,19 @@ def delete_access_rule(rule: AccessRule, *, actor: User | None, ip: str | None =
 # --- The expiry job -------------------------------------------------------------------
 
 
+def _subscription_governs(user_id: UUID) -> bool:
+    """True when a subscription, not the access profile, decides the entitlement
+    (apps.playback.entitlements: any subscription that is not pending)."""
+    subscription = django_apps.get_model("billing", "Subscription")
+    return bool(subscription.objects.filter(user_id=user_id).exclude(status="pending").exists())
+
+
 def _expire_one(access: CustomerAccess) -> None:
     access.expiry_processed_for = access.expires_at
     access.save(update_fields=["expiry_processed_for", "updated_at"])
+    if _subscription_governs(access.user_id):
+        # The profile's end changes nothing for a subscriber: no refresh, no kick.
+        return
     audit.record(
         "customer.access.expire",
         actor=None,
@@ -819,7 +868,6 @@ def process_expired_access(
         total += len(batch)
         if len(batch) < batch_size:
             break
-    publish_access_metrics(now=moment)
     if total:
         logger.info("expired %d customer access periods", total)
     return total
@@ -839,17 +887,6 @@ def access_status_counts(*, now: datetime | None = None) -> dict[str, int]:
         disabled=Count("pk", filter=Q(status=UserStatus.DISABLED)),
     )
     return {status.value: int(counts[status.value]) for status in EntitlementStatus}
-
-
-def publish_access_metrics(*, now: datetime | None = None) -> None:
-    """`iptv_subscriptions{status}`: until subscriptions exist (commercial slice), it
-    counts customer access profiles by entitlement status (ADR-0006)."""
-    try:
-        SUBSCRIPTIONS.publish(
-            {(status,): count for status, count in access_status_counts(now=now).items()}
-        )
-    except Exception:  # metrics must never break the job
-        logger.exception("could not publish the access metrics")
 
 
 # --- Admin users and roles ---------------------------------------------------------------
@@ -875,7 +912,12 @@ def _roles(role_ids: Sequence[UUID | str]) -> list[Role]:
         raise ProblemError(
             ErrorCode.VALIDATION_ERROR,
             "Unknown role.",
-            field_errors={"role_ids": [f"Unknown role {item}." for item in sorted(missing)]},
+            field_errors={
+                "role_ids": [
+                    field_error(f"Unknown role {item}.", code="does_not_exist")
+                    for item in sorted(missing)
+                ]
+            },
         )
     return found
 
@@ -972,7 +1014,10 @@ def _permission_rows(codes: Iterable[str]) -> list[Permission]:
             ErrorCode.VALIDATION_ERROR,
             "Unknown permission.",
             field_errors={
-                "permissions": [f"Unknown permission {code}." for code in sorted(missing)]
+                "permissions": [
+                    field_error(f"Unknown permission {code}.", code="does_not_exist")
+                    for code in sorted(missing)
+                ]
             },
         )
     return rows
