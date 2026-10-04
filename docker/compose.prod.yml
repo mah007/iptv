@@ -32,6 +32,9 @@ services:
       traefik.http.routers.tv.rule: Host(`${TV_HOST:-tv.${DOMAIN:-localhost}}`) && !PathPrefix(`/internal`)
       traefik.http.routers.tv.entrypoints: websecure
       traefik.http.routers.tv.tls.certresolver: letsencrypt
+      # The admin SPA's same-origin API (admin.<DOMAIN>/api, ADR-0004).
+      traefik.http.routers.admin-api.entrypoints: websecure
+      traefik.http.routers.admin-api.tls.certresolver: letsencrypt
 
   worker:
     <<: *prod-app
