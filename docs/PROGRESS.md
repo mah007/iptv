@@ -6,11 +6,38 @@
 | M2 Backend foundation | Done | `m2-done` |
 | M3 Accounts (POC scope "M3-lite": access profiles instead of plans and subscriptions) | Done for the POC; plans, subscriptions and billing move to the final commercial slice | — |
 | POC slice 2: M4 library, M5 metadata, M6-lite catalog | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)) | — |
-| POC slice 3: M7 direct play, M8-lite transcoding | In progress: the playback core is done, transcoding and edge wiring are being built | — |
-| POC slice 4: M9 Xtream API and the IPTV-app demo | In progress: the Xtream core is done ([ADR-0008](adr/0008-xtream-api.md)), catalog and playback wiring are being built | — |
+| POC slice 3: M7 direct play, M8-lite transcoding | Done on the dev stack ([ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)) | — |
+| POC slice 4: M9 Xtream API and the IPTV-app demo | Done on the dev stack ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)); deployment to tv.mah007.net next | — |
 | M10–M15, then the commercial slice | Planned | — |
 
 **Owner decision (2026-10-03): proof of concept first.** An admin creates a customer with device credentials, media is scanned, matched and transcoded, and an IPTV app logs in and plays. Everything commercial (plans, subscriptions, billing, payments, invoices, trials, notifications) is the last slice.
+
+## POC slices 3 and 4: transcoding, edge playback, Xtream on the real catalog (2026-10-04)
+
+### Done
+- **Transcoding (M8-lite)** ([ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)):
+  - Rendition and TranscodeJob.
+  - Compatible sources direct-play through a read-only symlink; the rest get a compat MP4: a remux, or an encode on the transcoder service.
+  - The transcoder detects its hardware and consumes only the matching `transcode.*` queues.
+  - Jobs report progress over SSE, verify, move atomically, retry (GPU failures fall back to CPU), and can be cancelled or re-prioritised from the admin API.
+  - Benchmarks are in [docs/benchmarks/transcode.md](benchmarks/transcode.md).
+- **Edge playback:** nginx-stream serves `/v/<token>/` with njs token checks and the Redis-only stream-auth. Range requests get 206; tampered, out-of-scope and expired tokens get 403.
+- **Xtream on the real catalog** ([ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)):
+  - ready titles in visible categories;
+  - play URLs through `start_playback`;
+  - `active_cons`;
+  - failed sign-ins limited per IP and per username;
+  - a Traefik rate limit on the tv router.
+- **Fix:** Celery queues were all bound to the same routing key, so every message reached every queue. Each queue now binds under its own name.
+
+### Evidence (dev stack)
+- **Transcoding:** The Matrix (HEVC 1080p) → H.264 High/AAC faststart MP4. The H.264 MP4 plays as is. MKVs remuxed in under 1 s. A 2160p HDR source tone-mapped to 1080p. Every sample movie and series is ready.
+- **Edge:** a signed URL gives 200 and 206. Tampered and expired tokens get 403 with `X-Reason`.
+- **Stream limits:** `max_streams=1` refuses a second device with `CONCURRENCY_LIMIT`. Under `kick_oldest`, the first device is stopped within 28 s.
+- **Admin kill:** the stream stops within 54 s.
+- **Xtream contract:** `make compat` 161 passed; `make compat-live` 195 passed, 3 skipped (live/EPG checks wait for M12).
+- **IPTVnator:** `make e2e-iptvnator` 7/7. It signs in, browses, plays Wadjda at 1080p, and plays a series episode at 720p.
+- **Benchmark** (a hard 60 s 1080p HEVC clip): libx264 1.03×, NVENC 7.88×, QSV 4.12×, VAAPI 7.09× real time. The server is CPU-only.
 
 ## POC phase 1: ingest, playback and Xtream cores, admin pages (2026-10-04)
 

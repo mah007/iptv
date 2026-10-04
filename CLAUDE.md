@@ -55,7 +55,12 @@ Everything runs in containers through the Makefile (`make` lists targets). The s
 - Parallel backend test runs (several agents at once) must each pass a lane, `lane=1`, `2` or `3`: a lane has its own Postgres test database and Redis indexes. Two runs in the same lane drop and flush each other's data.
 - Single frontend test: `docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml run --rm frontend pnpm --filter @smart-iptv/admin exec vitest run src/app.test.tsx`
 - Host shortcuts (faster, outside containers): in `backend/` run `uv run ruff check .` and `uv run mypy .`; in `frontend/` run `pnpm lint`, `pnpm typecheck` and `pnpm test`.
-- Planned, not yet in the Makefile: `make api-client` (M2: regenerates the Orval client, which is never hand-edited, and `make ci` fails if it's stale), `make seed` (M3), `make sample-media` (M4), `make loadtest`, `make backup`, `make restore-test`, `make deploy`.
+- `make api-client` regenerates the OpenAPI schema and the Orval client in `frontend/packages/api` (never hand-edited); `make ci` fails if it's stale. Run it after any admin API change.
+- `make seed args=--reset-admin-password` loads demo data and prints a new admin password once. TOTP codes in dev come from the DEBUG-only `manage.py totp_code`.
+- `make sample-media` generates legal synthetic media into `./media`; `make media-ready` waits until a sample movie and series are scanned and transcoded.
+- Xtream contract: `make compat` (schemas and golden fixtures, no stack), `make compat-live` (the running tv host, play URLs included) and `make e2e-iptvnator` (IPTVnator in Docker, driven by Playwright with the host's Chrome). All three run in `make ci`.
+- Transcoding with a GPU in dev: `make up GPU=nvidia,intel` adds the opt-in overlays; the server is CPU-only.
+- Planned, not yet in the Makefile: `make loadtest`, `make backup`, `make restore-test`, `make deploy`.
 
 ## Gotchas learned building M1
 - Dev runs on `HTTP_PORT` from `.env`. It's 8080 on this machine, where Apache holds port 80, so URLs are `http://admin.localhost:8080`.
