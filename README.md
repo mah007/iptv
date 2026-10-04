@@ -2,7 +2,13 @@
 
 **A self-hosted OTT/VOD subscription platform with an Xtream Codes-compatible API.** It brings library management like Plex/Jellyfin together with an IPTV panel. IPTV Smarters, TiviMate, XCIPTV, OTT Navigator and similar apps work with it out of the box.
 
-> 🚧 **Status: Milestone 1 (foundation) is built.** The full stack boots with `make up`: Traefik, PostgreSQL, two Valkey instances, Meilisearch, Django web, Celery worker and beat, and the admin and portal shells in Arabic and English. Product features arrive milestone by milestone (see the [roadmap](#roadmap)); sections below are marked with the milestone that delivers them. Progress: [docs/PROGRESS.md](docs/PROGRESS.md). Decisions: [docs/adr/](docs/adr/).
+> 🚧 **Status: about two thirds built; the proof of concept runs in production.**
+> - **Working end to end:** an admin signs in with MFA and creates a customer, typing the IPTV username and password or generating them. Media is scanned, matched on TMDB (English and Arabic), transcoded and served by the signed-URL edge, and IPTV apps log in and play over the Xtream API. The contract suite and an automated IPTVnator journey prove it.
+> - **Also done:** billing (plans, subscriptions, invoices, payments, emails) and the customer REST API (sign-in, catalog, Arabic search, web playback, continue watching).
+> - **In progress:** the full HLS ladder, subtitles and thumbnails, and the rest of the admin UI.
+> - **Still to come:** the customer portal UI, live TV and EPG, monitoring, security hardening and scale-out.
+>
+> See the [roadmap](#roadmap), [docs/PROGRESS.md](docs/PROGRESS.md) and the decisions in [docs/adr/](docs/adr/).
 
 > ⚖️ **For content you own or are licensed to distribute.** Smart IPTV has no torrent, Usenet, indexer or scraper features, and never will. Media enters only through folders or storage buckets that you manage. Every title carries rights-holder and licence fields, and titles hide automatically when their licence expires.
 
@@ -177,8 +183,10 @@ make smoke     # check routing, isolation and readiness through Traefik
 |---|---|
 | http://admin.localhost | Admin SPA (Arabic/English, light/dark) |
 | http://app.localhost | Customer portal |
-| http://api.localhost/api/v1/health | REST API health; the API itself grows from M2 |
-| http://tv.localhost/health | Xtream host; `player_api.php` arrives in M9 |
+| http://api.localhost/api/v1/ | Customer REST API for apps (bearer tokens) |
+| http://tv.localhost/player_api.php | Xtream API for IPTV apps |
+| http://media.localhost/healthz | Media edge: artwork and signed playback URLs |
+| http://mail.localhost | Mailpit: emails the stack sends in development |
 | http://traefik.localhost | Traefik dashboard (development only) |
 
 On port 8080, add `:8080` to each URL. Modern browsers and curl resolve `*.localhost` to your machine, so no hosts-file edits are needed.
@@ -194,13 +202,24 @@ On port 8080, add `:8080` to each URL. Modern browsers and curl resolve `*.local
 | `make ci` | The full quality gate on the committed tree; run it before pushing (there's no hosted CI) |
 | `make down` | Stop the stack; data volumes are kept |
 
-Seeding demo data (`make seed`) arrives in M3, and generated sample media (`make sample-media`) in M4.
+Demo data and media:
+
+| Command | What it does |
+|---|---|
+| `make seed args=--reset-admin-password` | Roles, the owner admin `admin` (password printed once; MFA enrolment at first sign-in), demo customers, plans and subscriptions |
+| `make sample-media` | Legal synthetic sample files (FFmpeg test patterns named like real titles) in `./media` |
+| `make media-ready` | Adds the sample libraries if missing, then waits until a movie and a series are scanned, matched and transcoded |
+| `make compat` · `make compat-live` · `make e2e-iptvnator` | Xtream contract suite: offline, against the running stack, and an IPTVnator journey that signs in and plays |
 
 ## Connecting an IPTV app
 
-> Available from **M9**. Tested apps and step-by-step guides in Arabic and English arrive in **M10**.
+> Works today. The verified client matrix and illustrated guides in Arabic and English arrive in **M10**.
 
-1. In the admin, go to **Customers → Create customer**. Pick a plan, then generate a device credential. The password is shown **once**, with a QR code and a printable setup card.
+1. In the admin, go to **Customers → Create customer**. Set the access period (or a plan), then add the first device. **Type the username and password you want, or let them be generated.** The password is shown **once**, with a QR code.
+   - Usernames: 3–32 letters, digits, `.`, `_` or `-`.
+   - Passwords: at least 8 characters of letters, digits and `. _ - ~ @ ! *`.
+
+   These are the characters every IPTV app can put in a URL.
 2. In the app, choose **Xtream Codes API** login and enter:
    - **Server:** `https://tv.example.com`
    - **Username / Password:** from step 1
@@ -215,7 +234,7 @@ Supported apps include IPTV Smarters, TiviMate, XCIPTV, OTT Navigator, IBO Playe
 
 ## Deployment (production)
 
-> Not built yet: the production compose file and `make deploy` arrive with the production overlay in **M13–M15**. The steps below describe the target setup.
+> **The small tier works today.** One host runs everything behind Traefik with Let's Encrypt TLS and HSTS: `docker/compose.yml` plus `docker/compose.prod.yml`. Follow the runbook [docs/runbooks/deploy.md](docs/runbooks/deploy.md): `git pull`, `scripts/secrets.sh`, `up -d --build --wait`. Migrations run automatically before the app starts, and `manage.py create_owner` creates the first admin. Zero-downtime `make deploy`, monitoring, backups and the medium/large tiers below arrive in **M13–M15**.
 
 ### Tiers
 | Tier | Layout |
@@ -259,21 +278,21 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 
 | # | Milestone | Delivers | Status |
 |---|---|---|---|
-| M1 | Infrastructure & repo | Monorepo; `make up` boots the full stack; `make ci` quality gate green (lint, types, tests, build, Trivy, licence gate); versions pinned in ADR-0001 | ✅ Built |
-| M2 | Backend foundation | Redacted structured logs, problem+json errors, OpenAPI and the generated client, settings registry, feature flags, audit log, metrics | ⏭️ Next |
-| M3 | Accounts & subscriptions | Users, roles, devices, Xtream credentials (Argon2id), admin MFA, plans, subscription activation, expiry and grace jobs, entitlement cache | Planned |
-| M4 | Library scanner | Watcher, reconciliation scans, move detection, ffprobe, filename parsing, live scan progress, sample media | Planned |
-| M5 | Metadata | TMDB/TVDB clients, match scoring, review queue, English and Arabic enrichment, image pipeline | Planned |
-| M6 | Catalog & search | Catalog API, categories, collections, Meilisearch with Arabic normalisation, home rows | Planned |
-| M7 | Direct-play streaming | Nginx edge with signed tokens, playback API, concurrency limits, kick, session sweeper | Planned |
-| M8 | Transcoding | Rendition planner, GPU detection, compatible MP4, HLS ladder and UHD, thumbnails, subtitles, encoder benchmarks | Planned |
-| M9 | Xtream API | All VOD and series endpoints with exact types, per-plan cache, M3U, contract tests, IPTVnator E2E | Planned |
-| M10 | Client compatibility | Verified on Smarters, TiviMate, XCIPTV, OTT Navigator, UHF and a webOS/Tizen app; Arabic and English setup guides | Planned |
-| M11 | Admin UI | Every admin page, both themes, Arabic RTL and English, shortcuts, live views, accessibility checks | Planned |
-| M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, checkout (manual, Stripe, Moyasar) | Planned |
+| M1 | Infrastructure & repo | Monorepo; `make up` boots the full stack; `make ci` quality gate green (lint, types, tests, build, Trivy, licence gate); versions pinned in ADR-0001 | ✅ Done |
+| M2 | Backend foundation | Redacted structured logs, problem+json errors, OpenAPI and the generated client, settings registry, feature flags, audit log, metrics | ✅ Done |
+| M3 | Accounts & subscriptions | Users, roles, devices, Xtream credentials (Argon2id, admin-chosen or generated), admin MFA, plans, subscription activation, expiry and grace jobs, entitlement cache, invoices, payments, notifications | ✅ Done |
+| M4 | Library scanner | Watcher, reconciliation scans, move detection, ffprobe, filename parsing, live scan progress, sample media | ✅ Done |
+| M5 | Metadata | TMDB client, match scoring, review queue, English and Arabic enrichment, image pipeline (TheTVDB fallback still to come) | ✅ Mostly done |
+| M6 | Catalog & search | Catalog API, categories, collections, Meilisearch with Arabic normalisation, home rows | ✅ Done |
+| M7 | Direct-play streaming | Nginx edge with signed tokens, playback API, concurrency limits, kick, session sweeper | ✅ Done |
+| M8 | Transcoding | Rendition planner, GPU detection, compatible MP4 ✅; HLS ladder, UHD, thumbnails, subtitles | 🔨 In progress |
+| M9 | Xtream API | All VOD and series endpoints with exact types, per-plan cache, M3U, contract tests, IPTVnator E2E | ✅ Done |
+| M10 | Client compatibility | Verified on Smarters, TiviMate, XCIPTV, OTT Navigator, UHF and a webOS/Tizen app; Arabic and English setup guides | Needs real devices |
+| M11 | Admin UI | Every admin page, both themes, Arabic RTL and English, shortcuts, live views, accessibility checks | 🔨 In progress |
+| M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, checkout (manual, Stripe, Moyasar) | API ✅, UI next |
 | M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up | Planned |
 | M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | Planned |
-| M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | Planned |
+| M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | Partly (rate limits, lockouts) |
 | M15 | Scale & CDN | Standalone edges, S3 origin, Bunny CDN token auth, Postgres replica, load-test report at 1,000+ virtual users | Planned |
 | Later | Beyond v1 | Native TV apps, pluggable ML recommender | Ideas |
 
@@ -297,9 +316,18 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, client setup guides (ar/en
 
 - Work happens milestone by milestone: plan, record decisions as ADRs (`docs/adr/`), build in small verified steps, then stop at a checkpoint. Status lives in [docs/PROGRESS.md](docs/PROGRESS.md).
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/), for example `feat(playback): …` or `fix(xtream): …`.
-- There's no hosted CI ([ADR-0003](docs/adr/0003-no-hosted-ci.md)). `make ci` is the quality gate: stack and smoke test, lint (with a missing-migrations check), types, tests, production images (started and health-checked with `check --deploy`), a Trivy CVE and secret scan, and the licence gate. It checks the committed tree, so commit first (or pass `ALLOW_DIRTY=1`), and run it before pushing.
+- There's no hosted CI ([ADR-0003](docs/adr/0003-no-hosted-ci.md)). `make ci` is the quality gate. It runs:
+  - the stack and smoke test;
+  - lint (with a missing-migrations check) and types;
+  - the Xtream contract suite;
+  - tests;
+  - sample media scanned and transcoded, live Xtream contract checks, and the IPTVnator journey;
+  - production images, started and health-checked with `check --deploy`;
+  - a Trivy CVE and secret scan, and the licence gate.
+
+  It checks the committed tree, so commit first (or pass `ALLOW_DIRTY=1`), and run it before pushing.
 - The frontend lint blocks hard-coded user-facing text (use i18next) and physical left/right Tailwind classes (use logical ones so Arabic mirrors).
-- From M2, `make api-client` regenerates the typed frontend client after API changes, and `make ci` fails if it's out of date.
+- `make api-client` regenerates the typed frontend clients (`packages/api` for the admin, `packages/api-portal` for the portal) after API changes, and `make ci` fails if they're out of date.
 - [CLAUDE.md](CLAUDE.md) holds the architecture rules and conventions for AI-assisted development with Claude Code.
 
 ## Security
