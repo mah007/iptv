@@ -1,14 +1,21 @@
 import type { LinkProps } from "@tanstack/react-router";
 import {
+  Activity,
+  Clapperboard,
+  Cpu,
+  FolderTree,
+  HardDrive,
   LayoutDashboard,
+  ListChecks,
   ScrollText,
   Settings,
   ShieldCheck,
+  Tv,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
-import type { PermissionRequirement } from "../lib/auth";
+import { LIBRARY_VIEW, type PermissionRequirement } from "../lib/auth";
 
 export interface NavItem {
   /** Typed against the route tree, so only routes that exist can be listed. */
@@ -20,6 +27,8 @@ export interface NavItem {
   exact?: boolean;
   /** Shown only to admins holding this permission (any of several). */
   permission: PermissionRequirement;
+  /** A live count next to the label (SPEC §8.2: the review queue's open items). */
+  badge?: "openReviews";
 }
 
 export interface NavSection {
@@ -44,6 +53,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         exact: true,
         permission: "dashboard.view",
       },
+      { to: "/sessions", labelKey: "nav.sessions", icon: Activity, permission: "customers.view" },
     ],
   },
   {
@@ -51,6 +61,40 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     titleKey: "nav.sections.customers",
     items: [
       { to: "/customers", labelKey: "nav.customers", icon: Users, permission: "customers.view" },
+    ],
+  },
+  {
+    id: "content",
+    titleKey: "nav.sections.content",
+    items: [
+      { to: "/libraries", labelKey: "nav.libraries", icon: HardDrive, permission: LIBRARY_VIEW },
+      { to: "/movies", labelKey: "nav.movies", icon: Clapperboard, permission: LIBRARY_VIEW },
+      { to: "/series", labelKey: "nav.series", icon: Tv, permission: LIBRARY_VIEW },
+      {
+        to: "/review",
+        labelKey: "nav.review",
+        icon: ListChecks,
+        permission: LIBRARY_VIEW,
+        badge: "openReviews",
+      },
+      {
+        to: "/categories",
+        labelKey: "nav.categories",
+        icon: FolderTree,
+        permission: LIBRARY_VIEW,
+      },
+    ],
+  },
+  {
+    id: "processing",
+    titleKey: "nav.sections.processing",
+    items: [
+      {
+        to: "/transcode",
+        labelKey: "nav.transcode",
+        icon: Cpu,
+        permission: ["library.view", "library.manage"],
+      },
     ],
   },
   {
