@@ -116,3 +116,19 @@ def test_totp_code_prints_the_next_acceptable_code(
     totp.save()
     assert code() == mfa.code_at(secret, 1002)
     assert slept == [pytest.approx(25.0)]
+
+
+def test_create_owner_bootstraps_the_admin_without_demo_data() -> None:
+    out = StringIO()
+    call_command("create_owner", stdout=out)
+    owner = User.objects.get(username=seed_demo.ADMIN_USERNAME)
+    assert owner.is_staff
+    assert owner.roles.filter(name=OWNER_ROLE).exists()
+    assert "Password (shown once" in out.getvalue()
+    assert not User.objects.filter(is_staff=False).exists()
+    assert not Category.objects.exists()
+
+    again = StringIO()
+    call_command("create_owner", stdout=again)
+    assert "already exists" in again.getvalue()
+    assert "Password" not in again.getvalue()
