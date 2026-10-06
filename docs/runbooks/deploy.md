@@ -2,6 +2,32 @@
 
 The small tier from SPEC §13: one server runs the whole stack behind Traefik, which gets TLS certificates from Let's Encrypt. Examples use the base name `tv.example.com`; the real server's details are kept out of the repository.
 
+## The installer
+`scripts/install.sh` does everything below, interactively:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mah007/iptv/main/scripts/install.sh -o install.sh
+sudo bash install.sh                                  # new server: questions, checks, install
+sudo /opt/iptv/scripts/install.sh --update            # pull, add new .env keys, rebuild, migrate, check HTTPS
+sudo /opt/iptv/scripts/install.sh --reconfigure       # change domain, email, media folder, TMDB, SMTP
+bash install.sh --help                                # every option, unattended use (--yes)
+```
+- **Questions:** domain, owner admin (email, sign-in name, password or a generated one), media folder and sample titles, TMDB token, SMTP, ufw.
+- **Checks before it changes anything:** OS (Ubuntu 22.04/24.04, Debian 12/13), CPU, memory and disk, ports 80/443, internet access, DNS for every host, and no other installation's containers or volumes on the server.
+- **Then:**
+  1. Docker from Docker's repository, and the code in `/opt/iptv`;
+  2. `.env` from `scripts/secrets.sh` plus the answers (`DOMAIN`, `TV_HOST`, `ACME_EMAIL`, `MEDIA_ROOT`, `TMDB_READ_ACCESS_TOKEN`, `EMAIL_*`);
+  3. the stack and migrations;
+  4. `create_owner --username --email` (password from `OWNER_PASSWORD`, or generated);
+  5. `ensure_libraries` for `movies/` and `series/`, `search_reindex`, and an HTTPS check per host.
+- **Where things go:**
+  - the log: `/var/log/smart-iptv-install.log`, with no secrets;
+  - a generated admin password: shown once and kept in `/root/smart-iptv-admin.txt` (mode 600);
+  - the install directory: recorded in `/etc/smart-iptv/install.conf`.
+- **The public-IP check** (for DNS) asks api.ipify.org, falling back to ifconfig.co; skip it with `--skip-dns-check`.
+
+The sections below are the same steps by hand, for reference and troubleshooting.
+
 ## Prerequisites
 - **DNS:** an A record for the base name **and** a wildcard, both pointing at the server. For example `tv.example.com` and `*.tv.example.com` → the server's IP.
 - **Server:** Ubuntu 24.04 with ports 80 and 443 reachable from the internet (Let's Encrypt validates on port 80).
@@ -33,6 +59,7 @@ cd /opt/iptv
 scripts/secrets.sh                                   # .env with fresh secrets, generated on the server
 sed -i 's/^DOMAIN=.*/DOMAIN=tv.example.com/' .env
 grep -q '^TV_HOST=' .env || echo 'TV_HOST=tv.example.com' >> .env
+echo 'ACME_EMAIL=ops@example.com' >> .env                # Let's Encrypt contact (optional)
 docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
   up -d --build --wait --wait-timeout 900
 docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
@@ -40,7 +67,7 @@ docker compose --project-directory . -f docker/compose.yml -f docker/compose.pro
 # The owner admin (roles only, no demo data). The password is printed once:
 # keep it in a password manager. At first sign-in the admin enrols a TOTP app.
 docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
-  exec -T web python manage.py create_owner
+  exec -T web python manage.py create_owner --username admin --email ops@example.com
 ```
 Secrets are generated on the server and never leave it. Back up `/opt/iptv/.env` and `/opt/iptv/secrets/` securely: the database volumes only work with the passwords in `.env`, and `secrets/media_token_keys.json` signs every playback URL.
 

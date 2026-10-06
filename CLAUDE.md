@@ -61,6 +61,7 @@ Everything runs in containers through the Makefile (`make` lists targets). The s
 - Xtream contract: `make compat` (schemas and golden fixtures, no stack), `make compat-live` (the running tv host, play URLs included) and `make e2e-iptvnator` (IPTVnator in Docker, driven by Playwright with the host's Chrome). All three run in `make ci`.
 - Browser E2E: `make e2e-admin` and `make e2e-portal` (Playwright with the host's Chrome against the dev stack, axe included; they need `make media-ready`). Both run in `make ci`. Run admin Vitest in a fresh `compose run` container: inside the running frontend container it gets OOM-killed.
 - Transcoding with a GPU in dev: `make up GPU=nvidia,intel` adds the opt-in overlays; the server is CPU-only.
+- Servers: `scripts/install.sh` installs, updates (`--update`) or reconfigures (`--reconfigure`) a production host interactively (`--yes` unattended, `--dry-run` changes nothing). Test changes to it with `--dry-run` in an `ubuntu:24.04` container and ShellCheck (`docker run --rm -v "$PWD/scripts:/mnt:ro" koalaman/shellcheck:stable -x /mnt/install.sh`).
 - Planned, not yet in the Makefile: `make loadtest`, `make backup`, `make restore-test`, `make deploy`.
 
 ## Gotchas learned building M1

@@ -132,3 +132,58 @@ def test_create_owner_bootstraps_the_admin_without_demo_data() -> None:
     call_command("create_owner", stdout=again)
     assert "already exists" in again.getvalue()
     assert "Password" not in again.getvalue()
+
+
+def test_create_owner_takes_a_chosen_name_email_and_password(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OWNER_PASSWORD", "Correct-Horse-Battery-77")
+    out = StringIO()
+    call_command(
+        "create_owner", "--username", "boss", "--email", "Boss@Example.com", "--name", "Mona",
+        stdout=out,
+    )  # fmt: skip
+    owner = User.objects.get(username="boss")
+    assert (owner.email, owner.name, owner.is_staff) == ("boss@example.com", "Mona", True)
+    assert owner.roles.filter(name=OWNER_ROLE).exists()
+    assert owner.check_password("Correct-Horse-Battery-77")
+    assert "Correct-Horse-Battery-77" not in out.getvalue()
+    assert "the one given in OWNER_PASSWORD" in out.getvalue()
+    assert not User.objects.filter(username=seed_demo.ADMIN_USERNAME).exists()
+
+
+def test_create_owner_refuses_weak_passwords_bad_input_and_customers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OWNER_PASSWORD", "short")
+    with pytest.raises(CommandError, match="too weak"):
+        call_command("create_owner", stdout=StringIO())
+    assert not User.objects.filter(username=seed_demo.ADMIN_USERNAME).exists()
+    monkeypatch.delenv("OWNER_PASSWORD")
+    with pytest.raises(CommandError, match="not a valid address"):
+        call_command("create_owner", "--email", "not-an-email", stdout=StringIO())
+    with pytest.raises(CommandError, match="not a valid sign-in name"):
+        call_command("create_owner", "--username", "bad name!", stdout=StringIO())
+    customer, _ = services.create_customer(
+        {"name": "Sara", "email": "sara@example.com", "locale": "en"}, actor=None
+    )
+    with pytest.raises(CommandError, match="customer account"):
+        call_command("create_owner", "--username", customer.username, stdout=StringIO())
+    with pytest.raises(CommandError, match="already uses"):
+        call_command("create_owner", "--email", "sara@example.com", stdout=StringIO())
+
+
+def test_create_owner_resets_the_chosen_admins_password_and_mfa() -> None:
+    call_command("create_owner", "--username", "boss", stdout=StringIO())
+    owner = User.objects.get(username="boss")
+    owner.mfa_enabled = True
+    owner.save(update_fields=["mfa_enabled"])
+    out = StringIO()
+    call_command(
+        "create_owner", "--username", "boss", "--reset-admin-password", "--reset-admin-mfa",
+        stdout=out,
+    )  # fmt: skip
+    owner.refresh_from_db()
+    assert owner.check_password(password_in(out.getvalue()))
+    assert not owner.mfa_enabled
+    assert AuditLog.objects.filter(action="admin.mfa_reset").exists()

@@ -13,9 +13,14 @@ x-prod-app: &prod-app
 
 services:
   traefik:
+    # Adds ACME_EMAIL (the Let's Encrypt contact, optional) to the static config.
+    entrypoint: ["/bin/sh", "/etc/traefik/entrypoint.sh"]
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:-}
     ports:
       - "443:443"
     volumes:
+      - ./docker/traefik/prod/entrypoint.sh:/etc/traefik/entrypoint.sh:ro
       - ./docker/traefik/prod/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./docker/traefik/prod/dynamic:/etc/traefik/dynamic:ro
       - traefik-acme:/letsencrypt

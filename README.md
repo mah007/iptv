@@ -14,6 +14,7 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-06:** one-command server installer, `scripts/install.sh`: it asks for the domain, admin email, sign-in and password, media folder, TMDB and SMTP, checks the server and DNS, installs Docker, and starts everything with HTTPS. `--update` and `--reconfigure` maintain it. See [Install on a server](#install-on-a-server).
 - **2026-10-04:** milestones M3, M4, M6, M7 and M9 tagged as accepted after a clean no-cache quality gate; movie playback also checked with FFmpeg through the signed edge.
 - **2026-10-04:** live TV and EPG (M12) and monitoring (M13) started.
 - **2026-10-04:** the admin panel is complete (M11): billing pages, collections, storage and title media panels, with 88 browser tests in both languages and themes. Deployed.
@@ -251,25 +252,56 @@ Supported apps include IPTV Smarters, TiviMate, XCIPTV, OTT Navigator, IBO Playe
 
 ## Deployment (production)
 
-> **The small tier works today.** One host runs everything behind Traefik with Let's Encrypt TLS and HSTS: `docker/compose.yml` plus `docker/compose.prod.yml`. Follow the runbook [docs/runbooks/deploy.md](docs/runbooks/deploy.md): `git pull`, `scripts/secrets.sh`, `up -d --build --wait`. Migrations run automatically before the app starts, and `manage.py create_owner` creates the first admin. Zero-downtime `make deploy`, monitoring, backups and the medium/large tiers below arrive in **M13–M15**.
+> **The small tier works today, with a one-command installer.** One host runs everything behind Traefik with Let's Encrypt TLS and HSTS. The live server at tv.mah007.net runs exactly this. Monitoring is being built (M13); backups, zero-downtime deploys and the medium/large tiers come in M14–M15.
+
+### Install on a server
+**You need:**
+- **A server:** Ubuntu 22.04/24.04 or Debian 12/13 on x86_64; 4+ CPU cores, 8 GB RAM and 60 GB free disk recommended (2 cores, 4 GB and 25 GB at least), plus space for your media.
+- **A domain** with two DNS A records pointing at the server: the domain itself and its wildcard, e.g. `tv.example.com` and `*.tv.example.com`.
+- **Open ports:** 80 and 443 reachable from the internet (Let's Encrypt validates on port 80).
+
+**Run, as root:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/mah007/iptv/main/scripts/install.sh -o install.sh
+sudo bash install.sh
+```
+
+**It asks**, with sensible defaults (press Enter to accept):
+- the domain;
+- the owner admin's email (also the Let's Encrypt contact), sign-in name and password (or generates a strong one);
+- the media folder (`/srv/media`), and whether to add legal synthetic sample titles to try it out;
+- optionally a TMDB token for posters and Arabic/English metadata, SMTP settings for emails, and whether to enable the ufw firewall.
+
+**It checks** the OS, CPU, memory, disk, ports 80/443, internet access and the DNS records, and refuses to install over an existing installation.
+
+**Then it:**
+1. installs Docker from Docker's repository if needed and downloads the code to `/opt/iptv`;
+2. writes `.env` with secrets generated on the server (mode 600; never shown or logged);
+3. builds and starts the stack (10–20 minutes the first time);
+4. creates the owner admin and the Movies and Series libraries;
+5. checks HTTPS on every host and prints the URLs.
+
+| Task | Command |
+|---|---|
+| Update to the latest code, keeping every setting | `sudo /opt/iptv/scripts/install.sh --update` |
+| Change the domain, email, media folder, TMDB or SMTP settings | `sudo /opt/iptv/scripts/install.sh --reconfigure` |
+| Unattended install (secrets in environment variables, never options) | `sudo ADMIN_PASSWORD=... TMDB_TOKEN=... bash install.sh --yes --domain tv.example.com --email ops@example.com` |
+| See what it would do, changing nothing | `bash install.sh --dry-run` |
+| Every option | `bash install.sh --help` |
+
+The admin enrols an authenticator app (TOTP) at first sign-in. A generated password is shown once and saved to `/root/smart-iptv-admin.txt` (root only): move it to a password manager. Back up `/opt/iptv/.env` and `/opt/iptv/secrets/`, because the databases and playback URLs depend on them. The manual steps the installer runs are in [docs/runbooks/deploy.md](docs/runbooks/deploy.md).
 
 ### Tiers
-| Tier | Layout |
-|---|---|
-| **Small** | One host runs everything. Traefik routes `media.` to the built-in Nginx edge. |
-| **Medium / Large** | Standalone edge servers (own TLS, or behind a CDN with token auth), an S3-compatible origin (SeaweedFS, Cloudflare R2, Backblaze B2) with sliced range caching, and a PostgreSQL replica. |
+| Tier | Layout | Status |
+|---|---|---|
+| **Small** | One host runs everything. Traefik routes `media.` to the built-in Nginx edge. | ✅ Works; installed by `scripts/install.sh` |
+| **Medium / Large** | Standalone edge servers (own TLS, or behind a CDN with token auth), an S3-compatible origin (SeaweedFS, Cloudflare R2, Backblaze B2) with sliced range caching, and a PostgreSQL replica. | 🔜 M15 |
 
-### Steps
-1. **DNS.** Point `app.`, `api.`, `tv.`, `admin.`, `media.` and `grafana.` at the server.
-2. **Server.** Install Docker. For NVIDIA transcoding, also install the NVIDIA Container Toolkit; Intel needs `/dev/dri` available.
-3. **Secrets.** Use Docker secrets or a SOPS-encrypted `.env.prod`. Only `.env.example` is ever committed.
-4. **TLS.** Traefik obtains Let's Encrypt certificates (TLS or DNS challenge). HSTS is on, and every redirect stays https→https.
-5. **Deploy.** `make deploy` builds and pushes images, pulls them on the server, runs migrations as a one-off job, and then rolls two health-gated `web` replicas for zero downtime.
-6. **Monitoring.** Enable `compose.monitoring.yml`. Grafana sits behind admin auth, and alerts go to email and Telegram.
-7. **Backups.**
-   - Nightly `pg_dump` plus WAL archiving, encrypted to object storage.
-   - Media is backed up with restic. Renditions are excluded because they can be regenerated.
-   - `make restore-test` proves a restore works and should run weekly.
+### Beyond the installer
+- 🔨 **Monitoring (M13):** a `compose.monitoring.yml` overlay with Grafana behind the admin sign-in, and alerts to email and Telegram.
+- 🔜 **Backups (M14):** nightly `pg_dump` plus WAL archiving, encrypted to object storage; media with restic (renditions are excluded because they can be regenerated); `make restore-test` weekly.
+- 🔜 **Zero-downtime deploys (M15):** `make deploy` with prebuilt images and two health-gated `web` replicas. Today an update restarts the app for a few seconds.
+- **GPU transcoding:** a server with an NVIDIA or Intel GPU can add `docker/compose.gpu-nvidia.yml` or `docker/compose.gpu-intel.yml` (the NVIDIA Container Toolkit, or `/dev/dri`, must be available).
 
 ### CDN
 - Bunny CDN pull zones with token authentication are supported and documented in a runbook.
