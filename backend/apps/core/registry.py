@@ -142,6 +142,7 @@ GROUPS: tuple[str, ...] = (
     "trials",
     "security",
     "features",
+    "live",
 )
 
 _K = SettingKind
@@ -313,6 +314,11 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "Password-reset emails one customer can receive per hour.", "security",
                min_value=1, max_value=20),
     # --- end C1 ---
+    # --- Monitoring sign-in (O1, ADR-0018) ---
+    SettingDef("security.monitoring_session_hours", _K.INT, 8,
+               "A monitoring sign-in (Grafana, Prometheus, Alertmanager) lasts this many hours.",
+               "security", min_value=1, max_value=24),
+    # --- end O1 ---
     # Feature flags
     SettingDef("features.subtitle_download", _K.BOOL, False,
                "Download subtitles from external providers.", "features"),
@@ -322,6 +328,30 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "Include movies and series in the M3U playlist.", "features"),
     SettingDef("features.approve_new_devices", _K.BOOL, False,
                "New devices need approval before they can play.", "features"),
+    # --- Live TV and EPG (M12, ADR-0017) ---
+    SettingDef("live.idle_stop_s", _K.INT, 150,
+               "Seconds a channel keeps packaging after its last viewer (on-demand channels).",
+               "live", min_value=60, max_value=3600),
+    SettingDef("live.max_running_channels", _K.INT, 20,
+               "Most channels packaged at once; more viewers of other channels wait.", "live",
+               min_value=1, max_value=500),
+    SettingDef("live.realtime_transcode_max", _K.INT, 1,
+               "Most channels re-encoded in real time at once (the capped fallback).", "live",
+               min_value=0, max_value=16),
+    SettingDef("live.catchup_max_days", _K.INT, 7,
+               "Longest catch-up window a channel may keep, in days.", "live",
+               min_value=1, max_value=30),
+    SettingDef("live.timeshift_max_minutes", _K.INT, 480,
+               "Longest catch-up window one request may play, in minutes.", "live",
+               min_value=10, max_value=1440),
+    SettingDef("live.epg_past_days", _K.INT, 7,
+               "Days of past programmes the guide keeps.", "live", min_value=1, max_value=30),
+    SettingDef("live.epg_future_days", _K.INT, 14,
+               "Days of future programmes an import keeps.", "live", min_value=1, max_value=60),
+    SettingDef("live.epg_max_document_mb", _K.INT, 200,
+               "Largest XMLTV document an import reads, in megabytes (uncompressed).", "live",
+               min_value=1, max_value=2000),
+    # --- end M12 ---
 )  # fmt: skip
 
 

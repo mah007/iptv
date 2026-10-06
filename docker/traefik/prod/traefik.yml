@@ -13,6 +13,8 @@ entryPoints:
           permanent: true
   websecure:
     address: ":443"
+  metrics:
+    address: ":8082"
 
 certificatesResolvers:
   letsencrypt:
@@ -34,6 +36,39 @@ ping: {}
 
 log:
   level: INFO
+  format: json
 
-# Access logging stays off: Xtream URLs carry credentials in the path, and the
-# redacting log pipeline arrives in M2/M13.
+# Prometheus metrics on an entry point of their own, reachable only on the Docker
+# networks (no port is published for it); the monitoring overlay scrapes it (ADR-0018).
+metrics:
+  prometheus:
+    entryPoint: metrics
+    addEntryPointsLabels: true
+    addRoutersLabels: true
+    addServicesLabels: true
+    buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0]
+
+# Access log (M13, ADR-0018), one JSON line per request for the log pipeline (Alloy ->
+# Loki). Xtream paths and query strings carry credentials and media paths carry
+# tokens, so the request path (and the request line, which repeats it) is never
+# written: Django and the media edge log it redacted, under the same request id.
+# Headers are dropped except the request id and the user agent. Keep this block
+# identical in docker/traefik/traefik.yml and docker/traefik/prod/traefik.yml
+# (monitoring/tests/test_log_pipeline.py checks both).
+accessLog:
+  format: json
+  fields:
+    defaultMode: keep
+    names:
+      RequestPath: drop
+      RequestLine: drop
+      ClientUsername: drop
+      StartLocal: drop
+    headers:
+      defaultMode: drop
+      names:
+        X-Request-Id: keep
+        User-Agent: keep
+    queryParameters:
+      defaultMode: drop
+# end accessLog

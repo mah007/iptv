@@ -100,7 +100,7 @@ const FIELD_PATHS = {
   is_adult: "is_adult",
 } as const;
 
-function CategoryForm({
+export function CategoryForm({
   kind,
   category,
   onDone,
@@ -237,7 +237,7 @@ function CategoryForm({
   );
 }
 
-function CategoryRows({
+export function CategoryRows({
   kind,
   categories,
   manage,

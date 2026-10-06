@@ -35,10 +35,10 @@ import sys
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, NoReturn, TextIO
-from urllib.parse import parse_qs, quote, quote_plus, unquote, urlencode, urlsplit
+from urllib.parse import parse_qs, quote, quote_plus, unquote, urlencode, urljoin, urlsplit
 
 ROOT = Path(__file__).resolve().parent
 SCHEMA_DIR = ROOT / "schemas"
@@ -1662,6 +1662,8 @@ class LiveRun:
         self.suite, self.reporter, self.client = suite, reporter, client
         self.username, self.password = credentials
         self.play = play
+        #: Media reads (the edge, the live relay): a cold channel can take seconds.
+        self.media_timeout = 25.0
         self.catalog = Catalog()
         self.server_origin = ""
 
@@ -1797,6 +1799,7 @@ class LiveRun:
         self._guide()
         if self.play:
             self._play(vod)
+            self._play_live(live)
         self._auth_failures()
 
     def _login_details(self, login: Any) -> None:
@@ -2015,6 +2018,156 @@ class LiveRun:
                         )
                     )
             self.check(label, problems, f"to {_origin(location)}" if location else "")
+
+    # --- Live TV (M12): play URLs, and the media they lead to --------------------------------
+
+    def _redirect(self, label: str, path: str) -> str | None:
+        """GET a play path; check the 302 and return its Location (None when it failed)."""
+        try:
+            response = self.client.request("GET", path)
+        except LiveError as exc:
+            self.reporter.fail(label, [Problem("HTTP", "http:connection", str(exc))])
+            return None
+        location = response.headers.get("location", "")
+        problems = []
+        if response.status != 302:
+            reason = response.headers.get("x-reason", "")
+            problems.append(
+                Problem("HTTP", "play:status", f"status {response.status} {reason}, expected 302")
+            )
+        elif not re.fullmatch(r"https?://\S+", location):
+            problems.append(Problem("HTTP", "play:location", "Location must be an absolute URL"))
+        else:
+            if self.client.scheme == "https" and not location.startswith("https://"):
+                problems.append(Problem("HTTP", "play:location", "https must redirect to https"))
+            if self.username in location or self.password in location:
+                problems.append(
+                    Problem("HTTP", "play:location", "the edge URL must not carry the credentials")
+                )
+        self.check(label, problems, f"to {_origin(location)}" if location else "")
+        return location if not problems else None
+
+    def _media(self, url: str, *, max_bytes: int) -> tuple[int, str, bytes]:
+        """GET a media URL (the edge), reading at most `max_bytes` of the body."""
+        parts = urlsplit(url)
+        host = parts.hostname or ""
+        loopback = host == "localhost" or host.endswith(".localhost")
+        port = parts.port or (443 if parts.scheme == "https" else 80)
+        connection: http.client.HTTPConnection
+        if parts.scheme == "https":
+            connection = _HTTPSConnection(
+                host, port, timeout=self.media_timeout,
+                connect_host="127.0.0.1" if loopback else host,
+                context=ssl.create_default_context(),
+            )  # fmt: skip
+        else:
+            connection = _HTTPConnection(
+                host, port, timeout=self.media_timeout,
+                connect_host="127.0.0.1" if loopback else host,
+            )  # fmt: skip
+        target = parts.path + (f"?{parts.query}" if parts.query else "")
+        try:
+            connection.request("GET", target, headers={"User-Agent": USER_AGENT})
+            raw = connection.getresponse()
+            body = b""
+            while len(body) < max_bytes:
+                chunk = raw.read(min(65536, max_bytes - len(body)))
+                if not chunk:
+                    break
+                body += chunk
+            return raw.status, raw.getheader("Content-Type", "") or "", body
+        except (OSError, http.client.HTTPException) as exc:
+            raise LiveError(f"GET <edge>: {type(exc).__name__}") from exc
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _ts_problems(body: bytes, where: str) -> list[Problem]:
+        packets = min(len(body) // 188, 200)
+        if packets == 0:
+            return [Problem(where, "media:ts", f"{len(body)} bytes: not one MPEG-TS packet")]
+        if any(body[index * 188] != 0x47 for index in range(packets)):
+            return [Problem(where, "media:ts", "MPEG-TS sync bytes (0x47) every 188 bytes")]
+        return []
+
+    def _fetch_ts(self, label: str, url: str) -> None:
+        try:
+            status, content_type, body = self._media(url, max_bytes=188 * 2000)
+        except LiveError as exc:
+            self.reporter.fail(label, [Problem("HTTP", "http:connection", str(exc))])
+            return
+        problems = [] if status == 200 else [Problem("HTTP", "media:status", f"status {status}")]
+        problems += self._ts_problems(body, "body")
+        self.check(label, problems, f"{len(body)} bytes, {content_type}")
+
+    def _fetch_hls(self, label: str, url: str) -> None:
+        try:
+            status, _type, body = self._media(url, max_bytes=256 * 1024)
+        except LiveError as exc:
+            self.reporter.fail(label, [Problem("HTTP", "http:connection", str(exc))])
+            return
+        problems = [] if status == 200 else [Problem("HTTP", "media:status", f"status {status}")]
+        text = body.decode("utf-8", "replace")
+        segments = [line for line in text.splitlines() if line and not line.startswith("#")]
+        if not text.startswith("#EXTM3U") or not segments:
+            problems.append(Problem("playlist", "media:hls", "an HLS media playlist with segments"))
+        if problems:
+            self.check(label, problems)
+            return
+        segment_url = urljoin(url, segments[-1])
+        try:
+            status, _type, segment = self._media(segment_url, max_bytes=188 * 2000)
+        except LiveError as exc:
+            self.reporter.fail(label, [Problem("HTTP", "http:connection", str(exc))])
+            return
+        if status != 200:
+            problems.append(Problem("segment", "media:status", f"status {status}"))
+        problems += self._ts_problems(segment, "segment")
+        self.check(label, problems, f"{len(segments)} segments, last {len(segment)} bytes read")
+
+    def _play_live(self, live: list[Any] | None) -> None:
+        """The first live channel by .m3u8, .ts and the short URL, through to the media,
+        then its catch-up when it has some (this holds a stream slot until it expires)."""
+        if not live:
+            self.reporter.skip("live play URLs", "the account has no live channels")
+            return
+        channel = live[0]
+        stream_id = channel["stream_id"]
+        user, password = quote(self.username, safe=""), quote(self.password, safe="")
+        location = self._redirect(
+            f"GET /live/<user>/<pass>/{stream_id}.m3u8 redirects to the edge",
+            f"/live/{user}/{password}/{stream_id}.m3u8",
+        )
+        if location:
+            self._fetch_hls("live HLS: the playlist and a segment play", location)
+        location = self._redirect(
+            f"GET /live/<user>/<pass>/{stream_id}.ts redirects to the edge",
+            f"/live/{user}/{password}/{stream_id}.ts",
+        )
+        if location:
+            self._fetch_ts("live .ts: a continuous MPEG-TS stream", location)
+        location = self._redirect(
+            f"GET /<user>/<pass>/{stream_id} (the short live URL) redirects to the edge",
+            f"/{user}/{password}/{stream_id}",
+        )
+        if location:
+            tail = urlsplit(location).path.rsplit("/", 2)
+            self.check(
+                "the short live URL plays the channel's default format",
+                []
+                if location.endswith(("/live.ts", "/live/index.m3u8"))
+                else [Problem("Location", "play:location", f"unexpected entry {tail[-1]!r}")],
+            )
+        if channel.get("tv_archive") != 1:
+            self.reporter.skip("timeshift", "the first live channel has no catch-up")
+            return
+        start = (datetime.now(UTC) - timedelta(minutes=3)).strftime("%Y-%m-%d:%H-%M")
+        location = self._redirect(
+            f"GET /timeshift/<user>/<pass>/2/<now-3min>/{stream_id}.ts redirects to the edge",
+            f"/timeshift/{user}/{password}/2/{start}/{stream_id}.ts",
+        )
+        if location:
+            self._fetch_ts("timeshift .ts: the archived window plays", location)
 
     def _auth_failures(self) -> None:
         wrong = "compat-" + secrets.token_urlsafe(12)

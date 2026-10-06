@@ -3,6 +3,7 @@
 import io
 import json
 import logging
+import logging.config
 from collections.abc import Iterator
 from typing import Any
 from unittest import mock
@@ -131,6 +132,24 @@ def test_django_loggers_lose_their_unredacted_default_handlers() -> None:
     assert "handlers" not in config["loggers"]["django"]
     assert logging.getLogger("django").handlers == []
     assert logging.getLogger("django.server").handlers == []
+
+
+def test_uvicorn_access_logging_stays_off() -> None:
+    """Uvicorn logs access when "uvicorn.access" has handlers, its parents' included.
+
+    Uvicorn's own logging config gives the "uvicorn" logger an unredacted handler; the
+    access logger must not reach it, or raw Xtream paths would be printed.
+    """
+    access = settings.LOGGING["loggers"]["uvicorn.access"]
+    assert (access["handlers"], access["propagate"]) == ([], False)
+    logging.config.dictConfig(settings.LOGGING)  # what Django does at start-up
+    parent = logging.getLogger("uvicorn")
+    handler = logging.StreamHandler(io.StringIO())
+    parent.addHandler(handler)
+    try:
+        assert logging.getLogger("uvicorn.access").hasHandlers() is False
+    finally:
+        parent.removeHandler(handler)
 
 
 def test_production_renders_json_and_development_renders_console() -> None:

@@ -1,0 +1,34 @@
+# Recording rules shared by the alerts and the dashboards (ADR-0018).
+# iptv:edge_capacity_bits is rendered at start from EDGE_CAPACITY_MBPS (entrypoint.sh).
+groups:
+  - name: iptv-recording
+    rules:
+      # Bits per second each media edge sends, from cAdvisor's network counters of the
+      # nginx-stream container: real time, unlike access-log bytes, which only land
+      # when a (possibly film-long) request ends.
+      - record: edge:egress_bits:rate5m
+        expr: |
+          sum by (edge) (
+            label_replace(
+              rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service="nginx-stream"}[5m]),
+              "edge", "$1", "name", "(.+)"
+            )
+          ) * 8
+
+      # Edge requests by status class, from the edge's access log (Alloy).
+      - record: edge:requests:rate5m
+        expr: sum by (edge) (rate(iptv_edge_requests_total[5m]))
+      - record: edge:requests_5xx:ratio5m
+        expr: |
+          sum by (edge) (rate(iptv_edge_requests_total{status_class="5xx"}[5m]))
+            / sum by (edge) (rate(iptv_edge_requests_total[5m]))
+
+      # Filesystem use per mount on the host (node-exporter reads the host's root).
+      - record: node:filesystem_used:ratio
+        expr: |
+          1 - node_filesystem_avail_bytes{fstype!~"tmpfs|ramfs|overlay|squashfs|nsfs|fuse.lxcfs|autofs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|ramfs|overlay|squashfs|nsfs|fuse.lxcfs|autofs"}
+
+      # Xtream latency percentiles by action (the 150 ms catalogue target, SPEC §15).
+      - record: xtream:latency_seconds:p95_5m
+        expr: histogram_quantile(0.95, sum by (le, action) (rate(iptv_xtream_latency_seconds_bucket[5m])))

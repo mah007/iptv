@@ -230,6 +230,11 @@ def _queues() -> list[QueueDepth]:
     ]
 
 
+def queue_depths() -> list[QueueDepth]:
+    """Messages waiting per Celery queue (None when the broker is unreachable)."""
+    return _queues()
+
+
 def _redis(name: str, client_of: Callable[[], redis.Redis], *, must_not_evict: bool) -> RedisHealth:
     try:
         client = client_of()

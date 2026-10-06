@@ -1,0 +1,437 @@
+# promtool unit tests for every alert (make monitoring-test): each fires on the
+# condition it describes and stays quiet just below it.
+rule_files:
+  - ../rules/recording.yml
+  - ../rules/alerts.yml
+
+evaluation_interval: 30s
+
+tests:
+  # --- Edge ---------------------------------------------------------------------------
+  - name: edge egress over 80% of capacity for 10 minutes
+    interval: 30s
+    input_series:
+      # 3.75e9 bytes per 30 s = 1 Gbit/s on a 1 Gbit/s edge; the second edge sends 0.5.
+      - series: 'container_network_transmit_bytes_total{container_label_com_docker_compose_service="nginx-stream",name="edge-a",interface="eth0"}'
+        values: '0+3750000000x60'
+      - series: 'container_network_transmit_bytes_total{container_label_com_docker_compose_service="nginx-stream",name="edge-b",interface="eth0"}'
+        values: '0+1875000000x60'
+      - series: 'iptv:edge_capacity_bits'
+        values: '1000000000x60'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: EdgeEgressHigh
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: EdgeEgressHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, edge: edge-a}
+            exp_annotations:
+              summary: "Edge edge-a is sending 1Gbit/s, over 80% of its capacity"
+              description: "Media egress has stayed above 80% of EDGE_CAPACITY_MBPS for 10 minutes. New streams may start to buffer."
+              runbook: "docs/runbooks/alerts.md#edgeegresshigh"
+
+  - name: media 5xx over 1 percent
+    interval: 30s
+    input_series:
+      - series: 'iptv_edge_requests_total{edge="e1",status_class="2xx",cache_status="NONE"}'
+        values: '0+300x30'
+      - series: 'iptv_edge_requests_total{edge="e1",status_class="5xx",cache_status="NONE"}'
+        values: '0+6x30'
+      # A quiet edge with one error is not an outage.
+      - series: 'iptv_edge_requests_total{edge="e2",status_class="5xx",cache_status="NONE"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: EdgeMedia5xxHigh
+        exp_alerts:
+          - exp_labels: {severity: critical, edge: e1}
+            exp_annotations:
+              summary: "Edge e1 answers 1.961% of media requests with 5xx"
+              description: "More than 1% of media requests failed with a server error for 5 minutes (stream-auth or storage unavailable)."
+              runbook: "docs/runbooks/alerts.md#edgemedia5xxhigh"
+
+  - name: media 5xx under 1 percent
+    interval: 30s
+    input_series:
+      - series: 'iptv_edge_requests_total{edge="e1",status_class="2xx",cache_status="NONE"}'
+        values: '0+300x30'
+      - series: 'iptv_edge_requests_total{edge="e1",status_class="5xx",cache_status="NONE"}'
+        values: '0+2x30'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: EdgeMedia5xxHigh
+        exp_alerts: []
+
+  - name: probes
+    interval: 30s
+    input_series:
+      - series: 'probe_success{job="probe-internal",instance="http://nginx-stream:8080/healthz",probe="edge"}'
+        values: '0x10'
+      - series: 'probe_success{job="probe-internal",instance="http://meilisearch:7700/health",probe="meilisearch"}'
+        values: '0x10'
+      - series: 'probe_success{job="probe-internal",instance="http://web:8000/internal/health/ready",probe="web-ready"}'
+        values: '1 1 0 0 0 0 0 0 0 0 0'
+      - series: 'probe_success{job="probe-public",instance="https://tv.example.com/health",probe="public"}'
+        values: '0x15'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: MediaEdgeDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: probe-internal, instance: "http://nginx-stream:8080/healthz", probe: edge}
+            exp_annotations:
+              summary: "The media edge health check fails"
+              description: "nginx-stream's /healthz has failed for 2 minutes: playback and artwork are unavailable."
+              runbook: "docs/runbooks/alerts.md#mediaedgedown"
+      - eval_time: 3m
+        alertname: MeilisearchUnhealthy
+        exp_alerts:
+          - exp_labels: {severity: warning, job: probe-internal, instance: "http://meilisearch:7700/health", probe: meilisearch}
+            exp_annotations:
+              summary: "Meilisearch is unhealthy"
+              description: "Search has fallen back to PostgreSQL full-text search, which is slower and forgives fewer typos."
+              runbook: "docs/runbooks/alerts.md#meilisearchunhealthy"
+      - eval_time: 2m
+        alertname: WebNotReady
+        exp_alerts: []
+      - eval_time: 3m30s
+        alertname: WebNotReady
+        exp_alerts:
+          - exp_labels: {severity: critical, job: probe-internal, instance: "http://web:8000/internal/health/ready", probe: web-ready}
+            exp_annotations:
+              summary: "Django's readiness check fails"
+              description: "web answers /internal/health/ready with an error: a store it needs (Postgres, a Valkey, Meilisearch) is down, or web itself is."
+              runbook: "docs/runbooks/alerts.md#webnotready"
+      - eval_time: 4m
+        alertname: PublicEndpointDown
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: PublicEndpointDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: probe-public, instance: "https://tv.example.com/health", probe: public}
+            exp_annotations:
+              summary: "https://tv.example.com/health fails from the outside"
+              description: "The HTTPS probe through Traefik has failed for 5 minutes (TLS, routing or the service behind it)."
+              runbook: "docs/runbooks/alerts.md#publicendpointdown"
+
+  # --- State stores ---------------------------------------------------------------------
+  - name: redis-state evictions fire at once; redis-cache evictions are normal
+    interval: 30s
+    input_series:
+      - series: 'redis_evicted_keys_total{job="redis",instance="redis-state"}'
+        values: '0 0 0 3 3 3'
+      - series: 'redis_evicted_keys_total{job="redis",instance="redis-cache"}'
+        values: '0 100 200 300 400 500'
+      - series: 'redis_up{job="redis",instance="redis-cache"}'
+        values: '1 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 1m30s
+        alertname: RedisStateEvictions
+        exp_alerts:
+          - exp_labels: {severity: critical, job: redis, instance: redis-state}
+            exp_annotations:
+              summary: "redis-state evicted 3 keys"
+              description: "redis-state must never evict: sessions, stream slots, kicks, entitlements or queued tasks were lost."
+              runbook: "docs/runbooks/alerts.md#redisstateevictions"
+      - eval_time: 2m
+        alertname: RedisDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: redis, instance: redis-cache}
+            exp_annotations:
+              summary: "redis-cache is not answering"
+              description: "The exporter cannot reach redis-cache."
+              runbook: "docs/runbooks/alerts.md#redisdown"
+
+  - name: postgres down and replication lag
+    interval: 30s
+    input_series:
+      - series: 'pg_up{job="postgres",instance="postgres"}'
+        values: '1 0 0 0 0'
+      - series: 'pg_replication_lag_seconds{job="postgres",instance="postgres"}'
+        values: '0x20'
+      - series: 'pg_replication_lag_seconds{job="postgres",instance="replica"}'
+        values: '45x20'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: PostgresDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: postgres, instance: postgres}
+            exp_annotations:
+              summary: "PostgreSQL is not answering"
+              description: "The exporter cannot connect to PostgreSQL."
+              runbook: "docs/runbooks/alerts.md#postgresdown"
+      - eval_time: 6m
+        alertname: PostgresReplicationLag
+        exp_alerts:
+          - exp_labels: {severity: critical, instance: replica}
+            exp_annotations:
+              summary: "A PostgreSQL replica is 45s behind"
+              description: "Replication lag has been over 30 s for 5 minutes. A primary reports 0, so this only fires once a replica exists (M15)."
+              runbook: "docs/runbooks/alerts.md#postgresreplicationlag"
+
+  # --- Workers --------------------------------------------------------------------------
+  - name: celery workers, beat and watcher
+    interval: 30s
+    input_series:
+      - series: 'up{job="celery",instance="worker:9100",service="worker"}'
+        values: '1 0 0 0 0 0 0 0 0 0'
+      - series: 'up{job="celery",instance="transcoder:9100",service="transcoder"}'
+        values: '1x10'
+      - series: 'iptv_heartbeat_age_seconds{job="web",service="beat"}'
+        values: '30 60 120 200 230 260 290 320 350 380 410'
+      # Never beat: the exporter reports +Inf; any large age behaves the same.
+      - series: 'iptv_heartbeat_age_seconds{job="web",service="watcher"}'
+        values: '100000x40'
+      - series: 'iptv_celery_queue_length{job="web",queue="scan"}'
+        values: '600x40'
+      - series: 'iptv_celery_queue_length{job="web",queue="transcode.cpu"}'
+        values: '900x40'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: CeleryWorkerDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: celery, instance: "worker:9100", service: worker}
+            exp_annotations:
+              summary: "The Celery worker is down"
+              description: "Its metrics endpoint has not answered for 2 minutes: scans, metadata, notifications or transcodes are not being processed."
+              runbook: "docs/runbooks/alerts.md#celeryworkerdown"
+      - eval_time: 3m
+        alertname: CeleryBeatStalled
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: CeleryBeatStalled
+        exp_alerts:
+          - exp_labels: {severity: critical, job: web, service: beat}
+            exp_annotations:
+              summary: "No beat heartbeat for 5m 50s"
+              description: "beat schedules a heartbeat every 30 s and a worker runs it. Scheduled jobs (session sweeper, expiry, renewals) have stopped."
+              runbook: "docs/runbooks/alerts.md#celerybeatstalled"
+      - eval_time: 6m
+        alertname: WatcherStalled
+        exp_alerts:
+          - exp_labels: {severity: warning, job: web, service: watcher}
+            exp_annotations:
+              summary: "The library watcher has not beaten for 1d 3h 46m 40s"
+              description: "New files are found only by the scheduled reconciliation scan until it recovers."
+              runbook: "docs/runbooks/alerts.md#watcherstalled"
+      - eval_time: 16m
+        alertname: CeleryQueueBacklog
+        exp_alerts:
+          - exp_labels: {severity: warning, queue: scan}
+            exp_annotations:
+              summary: "600 messages wait in the scan queue"
+              description: "The queue has held over 500 messages for 15 minutes; its worker is stuck or too slow."
+              runbook: "docs/runbooks/alerts.md#celeryqueuebacklog"
+
+  # --- Media and library ------------------------------------------------------------------
+  - name: transcode jobs older than two hours and a long review queue
+    interval: 1m
+    input_series:
+      - series: 'iptv_transcode_oldest_job_age_seconds{job="web",status="queued"}'
+        values: '7000+60x40'
+      - series: 'iptv_transcode_oldest_job_age_seconds{job="web",status="running"}'
+        values: '600x40'
+      - series: 'iptv_review_queue_open{job="web"}'
+        values: '49 51x40'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: TranscodeJobTooOld
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: TranscodeJobTooOld
+        exp_alerts:
+          - exp_labels: {severity: warning, status: queued}
+            exp_annotations:
+              summary: "The oldest queued transcode job is 2h 6m 40s old"
+              description: "A transcode job has waited or run for over 2 hours. Its title stays unavailable until it finishes."
+              runbook: "docs/runbooks/alerts.md#transcodejobtooold"
+      - eval_time: 20m
+        alertname: ReviewQueueLarge
+        exp_alerts: []
+      - eval_time: 32m
+        alertname: ReviewQueueLarge
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "51 metadata matches wait for review"
+              description: "Files in review stay out of the catalogue until an admin resolves them."
+              runbook: "docs/runbooks/alerts.md#reviewqueuelarge"
+
+  # --- Billing --------------------------------------------------------------------------
+  - name: payment webhooks
+    interval: 1m
+    input_series:
+      - series: 'iptv_payment_webhooks_failing{job="web",provider="stripe"}'
+        values: '0 0 1 1 1'
+      - series: 'iptv_payment_webhooks_total{job="web",provider="moyasar",result="failed"}'
+        values: '0 0 1 1 1'
+      - series: 'iptv_payment_webhooks_total{job="web",provider="stripe",result="invalid"}'
+        values: '0 2 4 6 8 10'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: PaymentWebhookFailures
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: PaymentWebhookFailures
+        exp_alerts:
+          - exp_labels: {severity: critical, provider: stripe}
+            exp_annotations:
+              summary: "stripe webhooks are failing"
+              description: "A paid event could not be applied: a customer may have paid without their subscription being extended."
+              runbook: "docs/runbooks/alerts.md#paymentwebhookfailures"
+          - exp_labels: {severity: critical, provider: moyasar}
+            exp_annotations:
+              summary: "moyasar webhooks are failing"
+              description: "A paid event could not be applied: a customer may have paid without their subscription being extended."
+              runbook: "docs/runbooks/alerts.md#paymentwebhookfailures"
+      - eval_time: 5m
+        alertname: PaymentWebhookRejected
+        exp_alerts:
+          - exp_labels: {severity: warning, provider: stripe}
+            exp_annotations:
+              summary: "10 stripe webhooks were refused in 30 minutes"
+              description: "Signatures or tokens did not verify: the webhook secret may be wrong, or someone is probing the endpoint."
+              runbook: "docs/runbooks/alerts.md#paymentwebhookrejected"
+
+  # --- Platform -------------------------------------------------------------------------
+  - name: certificates
+    interval: 1m
+    input_series:
+      # Seconds since the epoch at which each certificate expires (time() is 0 at start):
+      # 10 days away, then 30 days away.
+      - series: 'probe_ssl_earliest_cert_expiry{job="probe-public",instance="https://admin.example.com/",probe="public"}'
+        values: '864000x80'
+      - series: 'probe_ssl_earliest_cert_expiry{job="probe-public",instance="https://tv.example.com/health",probe="public"}'
+        values: '2592000x80'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: CertificateExpiringSoon
+        exp_alerts:
+          - exp_labels: {severity: warning, job: probe-public, instance: "https://admin.example.com/", probe: public}
+            exp_annotations:
+              summary: "The certificate of https://admin.example.com/ expires in 9d 22h 50m 0s"
+              description: "Let's Encrypt renews 30 days ahead; under 14 days means renewal is failing."
+              runbook: "docs/runbooks/alerts.md#certificateexpiringsoon"
+
+  - name: disk and memory
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{job="node",mountpoint="/",fstype="ext4",device="/dev/sda1"}'
+        values: '10x20'
+      - series: 'node_filesystem_size_bytes{job="node",mountpoint="/",fstype="ext4",device="/dev/sda1"}'
+        values: '100x20'
+      - series: 'node_filesystem_avail_bytes{job="node",mountpoint="/srv/media",fstype="xfs",device="/dev/sdb1"}'
+        values: '3x20'
+      - series: 'node_filesystem_size_bytes{job="node",mountpoint="/srv/media",fstype="xfs",device="/dev/sdb1"}'
+        values: '100x20'
+      # tmpfs never counts.
+      - series: 'node_filesystem_avail_bytes{job="node",mountpoint="/run",fstype="tmpfs",device="tmpfs"}'
+        values: '0x20'
+      - series: 'node_filesystem_size_bytes{job="node",mountpoint="/run",fstype="tmpfs",device="tmpfs"}'
+        values: '100x20'
+      - series: 'node_memory_MemAvailable_bytes{job="node"}'
+        values: '5x20'
+      - series: 'node_memory_MemTotal_bytes{job="node"}'
+        values: '100x20'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: DiskSpaceLow
+        exp_alerts:
+          - exp_labels: {severity: warning, job: node, mountpoint: /, fstype: ext4, device: /dev/sda1}
+            exp_annotations:
+              summary: "/ is 90% full"
+              description: "Over 85% used. Renditions, logs, metrics and the databases all need room to grow."
+              runbook: "docs/runbooks/alerts.md#diskspacelow"
+          - exp_labels: {severity: warning, job: node, mountpoint: /srv/media, fstype: xfs, device: /dev/sdb1}
+            exp_annotations:
+              summary: "/srv/media is 97% full"
+              description: "Over 85% used. Renditions, logs, metrics and the databases all need room to grow."
+              runbook: "docs/runbooks/alerts.md#diskspacelow"
+      - eval_time: 6m
+        alertname: DiskSpaceCritical
+        exp_alerts:
+          - exp_labels: {severity: critical, job: node, mountpoint: /srv/media, fstype: xfs, device: /dev/sdb1}
+            exp_annotations:
+              summary: "/srv/media is 97% full"
+              description: "Over 95% used: writes (PostgreSQL, redis-state's AOF, transcodes) are about to fail."
+              runbook: "docs/runbooks/alerts.md#diskspacecritical"
+      - eval_time: 11m
+        alertname: HostMemoryLow
+        exp_alerts:
+          - exp_labels: {severity: warning, job: node}
+            exp_annotations:
+              summary: "Only 5% of the host's memory is available"
+              description: "The kernel will start killing processes soon (transcoder, web, the stores)."
+              runbook: "docs/runbooks/alerts.md#hostmemorylow"
+
+  - name: containers, targets and delivery
+    interval: 1m
+    input_series:
+      - series: 'container_oom_events_total{job="cadvisor",name="smart-iptv-transcoder-1",container_label_com_docker_compose_project="smart-iptv",container_label_com_docker_compose_service="transcoder"}'
+        values: '0 0 1 1'
+      - series: 'container_oom_events_total{job="cadvisor",name="other-app",container_label_com_docker_compose_project="other",container_label_com_docker_compose_service="db"}'
+        values: '0 0 1 1'
+      - series: 'up{job="postgres",instance="postgres-exporter:9187"}'
+        values: '0x15'
+      - series: 'up{job="celery",instance="worker:9100",service="worker"}'
+        values: '0x15'
+      - series: 'alertmanager_notifications_failed_total{job="alertmanager",integration="telegram"}'
+        values: '0 0 1 1'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ContainerOOMKilled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: cadvisor
+              name: smart-iptv-transcoder-1
+              container_label_com_docker_compose_project: smart-iptv
+              container_label_com_docker_compose_service: transcoder
+            exp_annotations:
+              summary: "transcoder ran out of memory"
+              description: "The kernel killed a process in this container for exceeding its memory limit."
+              runbook: "docs/runbooks/alerts.md#containeroomkilled"
+      # The celery job has its own, faster alert (CeleryWorkerDown).
+      - eval_time: 11m
+        alertname: MonitoringTargetDown
+        exp_alerts:
+          - exp_labels: {severity: warning, job: postgres, instance: "postgres-exporter:9187"}
+            exp_annotations:
+              summary: "Prometheus cannot scrape postgres (postgres-exporter:9187)"
+              description: "Its metrics, and the alerts built on them, are blind until it is back."
+              runbook: "docs/runbooks/alerts.md#monitoringtargetdown"
+      - eval_time: 3m
+        alertname: AlertDeliveryFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: alertmanager, integration: telegram}
+            exp_annotations:
+              summary: "Alertmanager failed to deliver through telegram"
+              description: "Alerts may not be reaching email or Telegram. The other channel still gets this one."
+              runbook: "docs/runbooks/alerts.md#alertdeliveryfailing"
+
+  # --- Meta -----------------------------------------------------------------------------
+  - name: watchdog always fires; the fire drill fires while the gauge is up
+    interval: 30s
+    input_series:
+      - series: 'iptv_fire_drill{job="web"}'
+        values: '_ _ 1 1 1 _ _'
+    alert_rule_test:
+      - eval_time: 0m
+        alertname: Watchdog
+        exp_alerts:
+          - exp_labels: {severity: none}
+            exp_annotations:
+              summary: "The alerting pipeline is alive"
+              description: "Always firing by design. Without ALERT_WATCHDOG_URL it goes nowhere."
+              runbook: "docs/runbooks/alerts.md#watchdog"
+      - eval_time: 30s
+        alertname: FireDrill
+        exp_alerts: []
+      - eval_time: 1m30s
+        alertname: FireDrill
+        exp_alerts:
+          - exp_labels: {severity: critical, drill: "true"}
+            exp_annotations:
+              summary: "Fire drill: this is a test of the alerting path"
+              description: "Started with manage.py fire_drill. No action is needed beyond confirming that email and Telegram both received it."
+              runbook: "docs/runbooks/alerts.md#firedrill"

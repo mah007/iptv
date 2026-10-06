@@ -155,7 +155,8 @@ docker run -d --name "$AUTH" --network "$NET" --network-alias auth --network-ali
     "$STUB_IMAGE" python -u /stub/auth_stub.py --port 8000 --media /media >/dev/null
 run_edge "$EDGE" 18080 \
     -e EDGE_ID=edge-test-local -e EDGE_AUTH_CACHE_TTL="${AUTH_TTL}s" \
-    -v "$WORK/media:/srv/media:ro"
+    -e EDGE_LIVE_ROOT=/srv/live -e EDGE_LIVE_RELAY=auth:8000 \
+    -v "$WORK/media:/srv/media:ro" -v "$WORK/live:/srv/live:ro"
 run_edge "$EDGE_S3" 18082 \
     -e EDGE_ID=edge-test-s3 -e EDGE_MODE=s3 -e EDGE_ORIGIN_URL=http://origin:8000/origin
 wait_ready "$AUTH" "$CONTROL_URL/__control/health"
@@ -164,6 +165,8 @@ wait_ready "$EDGE_S3" "$EDGE_S3_URL/healthz"
 
 step "local disk mode" python3 "$HERE/edge_test.py" local \
     --edge "$EDGE_URL" --control "$CONTROL_URL" --work "$WORK" --auth-ttl "$AUTH_TTL"
+step "live TV and catch-up" python3 "$HERE/edge_test.py" live \
+    --edge "$EDGE_URL" --control "$CONTROL_URL" --work "$WORK"
 step "S3 origin mode" python3 "$HERE/edge_test.py" s3 \
     --edge "$EDGE_S3_URL" --control "$CONTROL_URL" --work "$WORK" --container "$EDGE_S3"
 docker stop -t 1 "$AUTH" >/dev/null

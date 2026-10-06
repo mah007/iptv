@@ -1,0 +1,431 @@
+# Monitoring overlay (SPEC §13, §14; ADR-0018): metrics, logs, dashboards and alerts.
+# Opt-in. Use it on top of the base and one of its own environment overlays:
+#   dev:  make up MONITORING=1   (adds docker/compose.monitoring.dev.yml)
+#   prod: ... -f docker/compose.yml -f docker/compose.prod.yml \
+#             -f docker/compose.monitoring.yml -f docker/compose.monitoring.prod.yml
+# Runbooks: docs/runbooks/deploy.md (enabling it), docs/runbooks/alerts.md (each alert).
+#
+# Grafana, Loki and Prometheus run as separate, unmodified containers (Grafana and Loki
+# are AGPL-3.0; nothing of theirs is imported). Images are pinned by tag and digest.
+#
+# Networks: nothing here publishes a port or joins `edge`. The exporters and Prometheus
+# scrape over the internal `backend` and `monitoring` networks; Traefik reaches the three
+# UIs (Grafana, /prometheus, /alertmanager on grafana.<DOMAIN>) only over
+# `monitoring-ingress`, at a fixed address that Grafana's auth proxy trusts, and every
+# request to them passes the admin check (docker/traefik/dynamic/monitoring.yml).
+#
+# Secrets live in .env and reach the containers as Docker secrets (files under
+# /run/secrets, never container environment): `scripts/secrets.sh` appends the new keys
+# to .env and copies these values into secrets/monitoring/ (run it after editing them).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-hardened: &hardened
+  restart: unless-stopped
+  logging: *logging
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  prometheus:
+    <<: *hardened
+    image: prom/prometheus:v3.13.4@sha256:87861b8cf91579109319ebc300f3f1060e6da9c05d6ae8ad15a20c879e84e32e
+    entrypoint: ["/bin/sh", "/etc/prometheus/entrypoint.sh"]
+    environment:
+      EDGE_CAPACITY_MBPS: ${EDGE_CAPACITY_MBPS:-1000}
+      PUBLIC_PROBE_URLS: ${PUBLIC_PROBE_URLS:-}
+      MONITORING_PUBLIC_URL: ${MONITORING_PUBLIC_URL:-https://grafana.${DOMAIN:-localhost}}
+      PROMETHEUS_RETENTION_TIME: ${PROMETHEUS_RETENTION_TIME:-30d}
+      PROMETHEUS_RETENTION_SIZE: ${PROMETHEUS_RETENTION_SIZE:-10GB}
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    tmpfs: ["/run/prometheus:mode=1777"]
+    mem_limit: ${PROMETHEUS_MEM_LIMIT:-1536m}
+    cpus: 2
+    networks: [monitoring, backend, monitoring-ingress]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/prometheus/-/ready"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: smart-iptv-monitoring-ingress
+      traefik.http.routers.prometheus.rule: Host(`grafana.${DOMAIN:-localhost}`) && PathPrefix(`/prometheus`)
+      traefik.http.routers.prometheus.entrypoints: web
+      traefik.http.routers.prometheus.service: prometheus
+      traefik.http.routers.prometheus.middlewares: monitoring@file
+      traefik.http.services.prometheus.loadbalancer.server.port: "9090"
+
+  alertmanager:
+    <<: *hardened
+    image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+    entrypoint: ["/bin/sh", "/etc/alertmanager/entrypoint.sh"]
+    environment:
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      # Django's SMTP settings (SPEC §7.7): the same server sends alerts.
+      ALERT_SMTP_SMARTHOST: ${EMAIL_HOST:-}:${EMAIL_PORT:-587}
+      ALERT_SMTP_FROM: ${DEFAULT_FROM_EMAIL:-Smart IPTV <no-reply@${DOMAIN:-localhost}>}
+      ALERT_SMTP_USERNAME: ${EMAIL_HOST_USER:-}
+      ALERT_SMTP_REQUIRE_TLS: ${EMAIL_USE_TLS:-true}
+      MONITORING_PUBLIC_URL: ${MONITORING_PUBLIC_URL:-https://grafana.${DOMAIN:-localhost}}
+    secrets: [alert_smtp_password, alert_telegram_bot_token, alert_telegram_chat_id, alert_watchdog_url]
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager:ro
+      - alertmanager-data:/alertmanager
+    tmpfs: ["/run/alertmanager:mode=1777"]
+    mem_limit: ${ALERTMANAGER_MEM_LIMIT:-128m}
+    # egress: SMTP and api.telegram.org.
+    networks: [monitoring, monitoring-ingress, egress]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9093/alertmanager/-/ready"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: smart-iptv-monitoring-ingress
+      traefik.http.routers.alertmanager.rule: Host(`grafana.${DOMAIN:-localhost}`) && PathPrefix(`/alertmanager`)
+      traefik.http.routers.alertmanager.entrypoints: web
+      traefik.http.routers.alertmanager.service: alertmanager
+      traefik.http.routers.alertmanager.middlewares: monitoring@file
+      traefik.http.services.alertmanager.loadbalancer.server.port: "9093"
+
+  grafana:
+    <<: *hardened
+    image: grafana/grafana:13.2.3@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572
+    environment:
+      GF_SERVER_ROOT_URL: ${MONITORING_PUBLIC_URL:-https://grafana.${DOMAIN:-localhost}}/
+      GF_SERVER_ENFORCE_DOMAIN: "false"
+      # No default credentials: the built-in admin's password is a generated secret,
+      # and nobody signs in with it (the login form and basic auth are off).
+      GF_SECURITY_ADMIN_USER: grafana-admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_SECURITY_COOKIE_SECURE: ${GRAFANA_COOKIE_SECURE:-true}
+      GF_SECURITY_COOKIE_SAMESITE: lax
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SECURITY_CONTENT_SECURITY_POLICY: "true"
+      # Admins arrive signed in by the admin (ADR-0018): Traefik's forward-auth sets
+      # these headers, and Grafana accepts them from Traefik's address only.
+      GF_AUTH_PROXY_ENABLED: "true"
+      GF_AUTH_PROXY_HEADER_NAME: X-WEBAUTH-USER
+      GF_AUTH_PROXY_HEADER_PROPERTY: username
+      GF_AUTH_PROXY_HEADERS: "Name:X-WEBAUTH-NAME Role:X-WEBAUTH-ROLE"
+      GF_AUTH_PROXY_AUTO_SIGN_UP: "true"
+      GF_AUTH_PROXY_ENABLE_LOGIN_TOKEN: "false"
+      GF_AUTH_PROXY_SYNC_TTL: "1"
+      GF_AUTH_PROXY_WHITELIST: ${MONITORING_INGRESS_TRAEFIK_IP:-172.31.254.2}
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_SIGNOUT_REDIRECT_URL: ${MONITORING_PUBLIC_URL:-https://grafana.${DOMAIN:-localhost}}/_sso/logout
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Viewer
+      # No outbound calls: no plugin installs, update checks, news or usage reports.
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_LOG_MODE: console
+      GF_LOG_CONSOLE_FORMAT: json
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/streaming-ops.json
+    secrets: [grafana_admin_password]
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    tmpfs: ["/tmp:mode=1777"]
+    mem_limit: ${GRAFANA_MEM_LIMIT:-512m}
+    networks: [monitoring, monitoring-ingress]
+    depends_on:
+      prometheus: { condition: service_healthy }
+      loki: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: smart-iptv-monitoring-ingress
+      traefik.http.routers.grafana.rule: Host(`grafana.${DOMAIN:-localhost}`)
+      traefik.http.routers.grafana.entrypoints: web
+      traefik.http.routers.grafana.service: grafana
+      traefik.http.routers.grafana.middlewares: monitoring@file
+      traefik.http.services.grafana.loadbalancer.server.port: "3000"
+
+  # Logs: 30 days, redacted by Alloy before they arrive (monitoring/loki/config.yml).
+  # The image has no shell or HTTP client for a healthcheck; Prometheus watches it.
+  loki:
+    <<: *hardened
+    image: grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193
+    command: ["-config.file=/etc/loki/config.yml", "-config.expand-env=true"]
+    environment:
+      LOKI_RETENTION_PERIOD: ${LOKI_RETENTION_PERIOD:-720h}
+      LOKI_WAL_DISK_FULL_THRESHOLD: ${LOKI_WAL_DISK_FULL_THRESHOLD:-0.90}
+    volumes:
+      - ./monitoring/loki/config.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    tmpfs: ["/tmp:mode=1777"]
+    mem_limit: ${LOKI_MEM_LIMIT:-1g}
+    cpus: 2
+    networks: [monitoring]
+
+  # Container logs -> redaction -> Loki, and the edge's iptv_edge_* metrics
+  # (monitoring/alloy). It reads the Docker API through a read-only socket mount, which
+  # can still inspect every container (environment included): it stays on the internal
+  # monitoring network with no route in, and its UI is never exposed (ADR-0018).
+  alloy:
+    <<: *hardened
+    image: grafana/alloy:v1.20.1@sha256:2aa2099af76c0098d4af7a4d6e48f86cb66dc1a000222ad927a1c67c6542d13f
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      # Not the image's /var/lib/alloy, which belongs to its alloy user: Alloy runs as
+      # root without capabilities here (the Docker socket is root's) and keeps its read
+      # positions on a volume of its own.
+      - --storage.path=/alloy-data
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --disable-reporting
+    environment:
+      ALLOY_COMPOSE_PROJECT: smart-iptv
+      LOKI_PUSH_URL: http://loki:3100/loki/api/v1/push
+    volumes:
+      - ./monitoring/alloy:/etc/alloy:ro
+      - alloy-data:/alloy-data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    tmpfs: ["/tmp:mode=1777"]
+    mem_limit: ${ALLOY_MEM_LIMIT:-512m}
+    networks: [monitoring]
+    depends_on:
+      loki: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/12345 && printf 'GET /-/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q ' 200 ' <&3"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+
+  # The host: CPU, memory, load and filesystems (read through /host). Network collectors
+  # are off: in a container they would see the container's own interfaces.
+  node-exporter:
+    <<: *hardened
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    command:
+      - --path.rootfs=/host
+      - --no-collector.netdev
+      - --no-collector.netstat
+      - --no-collector.sockstat
+      - --no-collector.arp
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|run|sys|var/lib/docker/.+|var/lib/containerd/.+)($|/)
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    mem_limit: 64m
+    networks: [monitoring]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9100/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Per-container CPU, memory, network and OOM kills. Reads the Docker socket and the
+  # host's cgroups read-only, like Alloy (ADR-0018 security notes).
+  cadvisor:
+    <<: *hardened
+    image: ghcr.io/google/cadvisor:v0.60.6@sha256:b8e7d1093144fd088f425ff003d75a4aa405de075db78dae3bc563730b1bd07a
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=15s
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
+      - --enable_metrics=cpu,memory,network,oom_event
+    cap_add: [SYSLOG]
+    devices: ["/dev/kmsg:/dev/kmsg"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    tmpfs: ["/tmp:mode=1777"]
+    mem_limit: ${CADVISOR_MEM_LIMIT:-384m}
+    cpus: 0.5
+    networks: [monitoring]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # Creates (or updates) the read-only `iptv_monitor` PostgreSQL role (pg_monitor) that
+  # postgres-exporter signs in as, once per start.
+  postgres-monitor-init:
+    image: postgres:18.6-alpine
+    restart: "no"
+    logging: *logging
+    entrypoint: ["sh", "/monitor-role.sh"]
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER}
+      PGDATABASE: ${POSTGRES_DB}
+    secrets: [postgres_password, postgres_monitor_password]
+    volumes:
+      - ./monitoring/postgres/monitor-role.sh:/monitor-role.sh:ro
+    networks: [backend]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  postgres-exporter:
+    <<: *hardened
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
+    environment:
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB}?sslmode=disable
+      DATA_SOURCE_USER: iptv_monitor
+      DATA_SOURCE_PASS_FILE: /run/secrets/postgres_monitor_password
+    secrets: [postgres_monitor_password]
+    mem_limit: 64m
+    networks: [monitoring, backend]
+    depends_on:
+      postgres-monitor-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Both Valkeys (Prometheus passes ?target=); the password map is built in /tmp from
+  # the secrets at start.
+  redis-exporter:
+    <<: *hardened
+    image: oliver006/redis_exporter:v1.93.0-alpine@sha256:93831cd4d5d67687de67c9d5221b14312fea580af8d157583ed9d4459bf2dd70
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        umask 077 &&
+        printf '{"redis://redis-state:6379":"%s","redis://redis-cache:6379":"%s"}'
+        "$$(cat /run/secrets/redis_state_password)" "$$(cat /run/secrets/redis_cache_password)"
+        > /tmp/redis-passwords.json &&
+        exec /redis_exporter --redis.addr= --redis.password-file=/tmp/redis-passwords.json
+        --redact-config-metrics=true
+    secrets: [redis_state_password, redis_cache_password]
+    tmpfs: ["/tmp:mode=1777"]
+    mem_limit: 64m
+    networks: [monitoring, backend]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9121/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # The edge's connection counters (stub_status on :8081, streaming/nginx/status.conf).
+  # The image has no shell for a healthcheck; Prometheus watches it.
+  nginx-exporter:
+    <<: *hardened
+    image: nginx/nginx-prometheus-exporter:1.5.3@sha256:85666e7fde7e253f1c6d978f9a961245df4c9cdb7677e1866d9bb28e8f9ee41d
+    command: ["--nginx.scrape-uri=http://nginx-stream:8081/stub_status", "--web.listen-address=:9113"]
+    mem_limit: 32m
+    networks: [monitoring, backend]
+
+  # HTTP probes: internal health endpoints, and in production the public hosts over
+  # HTTPS (availability and certificate expiry).
+  blackbox:
+    <<: *hardened
+    image: prom/blackbox-exporter:v0.28.0@sha256:e753ff9f3fc458d02cca5eddab5a77e1c175eee484a8925ac7d524f04366c2fc
+    command: ["--config.file=/etc/blackbox/blackbox.yml"]
+    volumes:
+      - ./monitoring/blackbox:/etc/blackbox:ro
+    mem_limit: 48m
+    networks: [monitoring, backend]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9115/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # NVIDIA GPUs, only with GPU=nvidia (the Makefile adds --profile gpu-nvidia).
+  gpu-exporter:
+    <<: *hardened
+    profiles: [gpu-nvidia]
+    image: utkuozdemir/nvidia_gpu_exporter:1.15.1@sha256:7aee2d42836ad29d4adb2722b7cfdc806ec9cc8d45fd0b8971ebbad2d9f3d087
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_DRIVER_CAPABILITIES: utility
+    mem_limit: 64m
+    networks: [monitoring]
+
+  # --- Additions to the base services --------------------------------------------------
+  traefik:
+    networks:
+      monitoring: {}
+      monitoring-ingress:
+        ipv4_address: ${MONITORING_INGRESS_TRAEFIK_IP:-172.31.254.2}
+
+  web:
+    labels:
+      # The monitoring sign-in's ticket exchange and sign-out on grafana.<DOMAIN>
+      # (config/urls_monitoring.py); everything else on that host needs the check.
+      traefik.http.routers.grafana-sso.rule: Host(`grafana.${DOMAIN:-localhost}`) && PathPrefix(`/_sso/`)
+      traefik.http.routers.grafana-sso.priority: "3000"
+      traefik.http.routers.grafana-sso.entrypoints: web
+      traefik.http.routers.grafana-sso.service: web
+      traefik.http.routers.grafana-sso.middlewares: secure-headers@file
+
+networks:
+  # Prometheus, the exporters, Loki, Alloy and the UIs. No internet, no route in.
+  monitoring:
+    name: smart-iptv-monitoring
+    internal: true
+  # Traefik and the three UIs only. Traefik has a fixed address (Grafana trusts it for
+  # the sign-in headers) below the range Docker hands out to the others.
+  monitoring-ingress:
+    name: smart-iptv-monitoring-ingress
+    internal: true
+    ipam:
+      config:
+        - subnet: ${MONITORING_INGRESS_SUBNET:-172.31.254.0/28}
+          ip_range: ${MONITORING_INGRESS_RANGE:-172.31.254.8/29}
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  grafana-data:
+  loki-data:
+  alloy-data:
+
+secrets:
+  # Copied from .env into secrets/monitoring/ by scripts/secrets.sh (make secrets, and
+  # `make up MONITORING=1`), so they follow .env. Optional channels with an empty value
+  # get an empty file and stay off.
+  grafana_admin_password:
+    file: ./secrets/monitoring/grafana_admin_password
+  postgres_password:
+    file: ./secrets/monitoring/postgres_password
+  postgres_monitor_password:
+    file: ./secrets/monitoring/postgres_monitor_password
+  redis_state_password:
+    file: ./secrets/monitoring/redis_state_password
+  redis_cache_password:
+    file: ./secrets/monitoring/redis_cache_password
+  alert_smtp_password:
+    file: ./secrets/monitoring/alert_smtp_password
+  alert_telegram_bot_token:
+    file: ./secrets/monitoring/alert_telegram_bot_token
+  alert_telegram_chat_id:
+    file: ./secrets/monitoring/alert_telegram_chat_id
+  alert_watchdog_url:
+    file: ./secrets/monitoring/alert_watchdog_url

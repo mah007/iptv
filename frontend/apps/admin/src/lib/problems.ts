@@ -81,6 +81,14 @@ export const FIELD_CODE_PARAMS: Readonly<Record<string, readonly string[]>> = {
   not_in_future: [],
   role_name_rule: [],
   role_name_taken: [],
+  // Live TV (M12, ADR-0017).
+  invalid_source_url: [],
+  unsafe_destination: [],
+  invalid_epg_channel_id: [],
+  rights_required: [],
+  invalid_cron: [],
+  invalid_url: [],
+  credentials_in_url: [],
 };
 
 /** The numbers in a message, in order ("Use 10 to 64 characters." → [10, 64]). */

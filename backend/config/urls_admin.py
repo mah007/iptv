@@ -23,6 +23,8 @@ admin_api = [
     # Billing and notifications (B1, ADR-0012).
     path("", include("apps.billing.urls_admin")),
     path("", include("apps.notifications.urls_admin")),
+    # Live TV and the guide (M12, ADR-0017).
+    path("", include("apps.live.urls_admin")),
 ]
 
 urlpatterns = [

@@ -9,7 +9,8 @@
 # added keys are printed, never values.
 #
 # For the dev .env it also creates secrets/media_token_keys.json (media token keys,
-# ADR-0007) when that file is missing.
+# ADR-0007) when that file is missing, and refreshes the monitoring overlay's Docker
+# secrets in secrets/monitoring/ from .env (ADR-0018).
 #
 # Placeholders:
 #   __GENERATE__         64 hex characters (safe inside URLs and shell quoting)
@@ -80,6 +81,40 @@ media_keys() {
   echo "Created $keys (media token keys)."
 }
 
+# Docker secrets of the monitoring overlay (docker/compose.monitoring.yml, ADR-0018),
+# copied from .env on every run so they follow it: one file per secret under
+# secrets/monitoring/ (the folder is 700; the files are readable by the containers'
+# own users, like the media token keys). An empty value gives an empty file, which
+# turns that alert channel off. Values are never printed.
+MONITORING_SECRETS=(
+  grafana_admin_password:GRAFANA_ADMIN_PASSWORD
+  postgres_password:POSTGRES_PASSWORD
+  postgres_monitor_password:POSTGRES_MONITOR_PASSWORD
+  redis_state_password:REDIS_STATE_PASSWORD
+  redis_cache_password:REDIS_CACHE_PASSWORD
+  alert_smtp_password:EMAIL_HOST_PASSWORD
+  alert_telegram_bot_token:ALERT_TELEGRAM_BOT_TOKEN
+  alert_telegram_chat_id:ALERT_TELEGRAM_CHAT_ID
+  alert_watchdog_url:ALERT_WATCHDOG_URL
+)
+
+monitoring_secrets() {
+  [[ "$out" == ".env" && -s "$out" ]] || return 0
+  local dir=secrets/monitoring entry name key value
+  mkdir -p "$dir"
+  chmod 700 secrets "$dir"
+  for entry in "${MONITORING_SECRETS[@]}"; do
+    name=${entry%%:*}
+    key=${entry#*:}
+    value=$(sed -n "s/^${key}=//p" "$out" | tail -n 1)
+    # Surrounding quotes, as some editors add them, are not part of the value.
+    value=${value#\"}; value=${value%\"}; value=${value#\'}; value=${value%\'}
+    printf '%s' "$value" > "$dir/$name.tmp"
+    chmod 644 "$dir/$name.tmp"
+    mv "$dir/$name.tmp" "$dir/$name"
+  done
+}
+
 umask 077
 media_keys
 
@@ -92,6 +127,7 @@ if [[ -f "$out" && -s "$out" ]]; then
   done < .env.example | generate > "$additions"
   if [[ ! -s "$additions" ]]; then
     echo "$out already has every key in .env.example; leaving it untouched."
+    monitoring_secrets
     exit 0
   fi
   pick_port "$additions"
@@ -100,6 +136,7 @@ if [[ -f "$out" && -s "$out" ]]; then
   [[ -z "$(tail -c 1 "$out")" ]] || printf '\n' >> "$out"
   cat "$additions" >> "$out"
   echo "Added to $out: $(cut -d= -f1 "$additions" | paste -sd ' ' -)"
+  monitoring_secrets
   exit 0
 fi
 
@@ -111,3 +148,4 @@ compat_account "$tmp"
 mv "$tmp" "$out"
 trap - EXIT
 echo "Created $out with generated secrets (mode 600). Keep it out of git."
+monitoring_secrets

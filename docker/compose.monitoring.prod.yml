@@ -1,0 +1,43 @@
+# Monitoring overlay, production settings (ADR-0018), after docker/compose.prod.yml and
+# docker/compose.monitoring.yml (docs/runbooks/deploy.md, "Monitoring"). HTTPS on
+# grafana.<DOMAIN> with Let's Encrypt, the public hosts probed from outside-in, and
+# 30 days of metrics and logs.
+
+services:
+  prometheus:
+    environment:
+      MONITORING_PUBLIC_URL: https://grafana.${DOMAIN}
+      # What clients reach, checked over HTTPS (PublicEndpointDown, CertificateExpiringSoon).
+      PUBLIC_PROBE_URLS: >-
+        ${PUBLIC_PROBE_URLS:-https://${TV_HOST:-tv.${DOMAIN}}/health
+        https://api.${DOMAIN}/api/v1/health
+        https://admin.${DOMAIN}/
+        https://app.${DOMAIN}/
+        https://media.${DOMAIN}/healthz}
+    labels:
+      traefik.http.routers.prometheus.entrypoints: websecure
+      traefik.http.routers.prometheus.tls.certresolver: letsencrypt
+
+  alertmanager:
+    environment:
+      MONITORING_PUBLIC_URL: https://grafana.${DOMAIN}
+    labels:
+      traefik.http.routers.alertmanager.entrypoints: websecure
+      traefik.http.routers.alertmanager.tls.certresolver: letsencrypt
+
+  grafana:
+    environment:
+      GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}/
+      GF_AUTH_SIGNOUT_REDIRECT_URL: https://grafana.${DOMAIN}/_sso/logout
+    labels:
+      traefik.http.routers.grafana.entrypoints: websecure
+      traefik.http.routers.grafana.tls.certresolver: letsencrypt
+
+  # The public probes leave through the host's own address (hairpin).
+  blackbox:
+    networks: [monitoring, backend, egress]
+
+  web:
+    labels:
+      traefik.http.routers.grafana-sso.entrypoints: websecure
+      traefik.http.routers.grafana-sso.tls.certresolver: letsencrypt

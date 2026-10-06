@@ -40,14 +40,14 @@ CASES: tuple[Case, ...] = (
         "web",
         r'{"event": "request", "path": "/series/<<se_user>>/<<se_pass>>/55.mkv", '
         r'"other": "/timeshift/<<ts_user>>/<<ts_pass>>/120/2026-10-03:12-00/7.ts", "case": "c02"}',
-        expect=('/series/***/***/55.mkv', '/timeshift/***/***/120/2026-10-03:12-00/7.ts'),
+        expect=("/series/***/***/55.mkv", "/timeshift/***/***/120/2026-10-03:12-00/7.ts"),
     ),
     Case(
         "c03",
         "web",
         r'{"event": "request", "path": "/<<sl_user>>/<<sl_pass>>/12345", "status": 404, '
         r'"live": "/live/<<lv_user>>/<<lv_pass>>/77.m3u8", "case": "c03"}',
-        expect=('"path": "/***/***/12345"', '/live/***/***/77.m3u8'),
+        expect=('"path": "/***/***/12345"', "/live/***/***/77.m3u8"),
     ),
     Case(
         "c04",
@@ -68,7 +68,7 @@ CASES: tuple[Case, ...] = (
         "web",
         r'{"event": "bad payload", "body": "{\"username\": \"admin\", \"password\": \"<<body_pw>>\"}", '
         r'"case": "c06"}',
-        expect=(r'\"password\": \"***\"', r'\"username\": \"admin\"'),
+        expect=(r"\"password\": \"***\"", r"\"username\": \"admin\""),
     ),
     Case(
         "c07",
@@ -167,38 +167,45 @@ CASES: tuple[Case, ...] = (
         r'&next=1","case":"c19"}',
         expect=(r"\/series\/***\/***\/3.mp4", r"password=***&next=1"),
     ),
-    # --- Nginx edge access log (SPEC §12 fields). Feeds the iptv_edge_* metrics too.
+    # --- Nginx edge access log (streaming/nginx/nginx.conf, log_format edge_json). The
+    # edge already replaces the token with a session prefix; a token-shaped path here
+    # simulates a regression, which Alloy must still catch. Feeds iptv_edge_* too.
     Case(
         "c20",
         "nginx-stream",
-        r'{"edge_id":"edge-test","status":200,"bytes_sent":1048576,"request_time":0.120,'
-        r'"upstream_cache_status":"HIT","upstream_header_time":"-","request_id":"[[rid_edge]]",'
-        r'"uri":"/v/<<edge_token_2>>/seg-1.m4s","case":"c20"}',
-        expect=('"uri":"/v/***/seg-1.m4s"', '"bytes_sent":1048576'),
+        r'{"time":"2026-10-03T12:00:00+00:00","edge":"edge-test","request_id":"[[rid_edge]]",'
+        r'"remote_addr":"203.0.113.9","method":"GET","path":"/v/<<edge_token_2>>/hls/seg-1.m4s",'
+        r'"status":200,"bytes_sent":1048576,"request_time":0.120,"range":"","session":"0192f0e2",'
+        r'"kid":"k1","title":"42","rendition":"hls","verdict":"ok","reason":"","auth_status":"204",'
+        r'"auth_cache":"HIT","upstream_cache_status":"HIT","user_agent":"ExoPlayer","case":"c20"}',
+        expect=('"path":"/v/***/hls/seg-1.m4s"', '"bytes_sent":1048576'),
     ),
     Case(
         "c21",
         "nginx-stream",
-        r'{"edge_id":"edge-test","status":206,"bytes_sent":4194304,"request_time":0.850,'
-        r'"upstream_cache_status":"MISS","upstream_header_time":"0.045","uri":"/v/<<edge_token_3>>/1001.mp4",'
-        r'"case":"c21"}',
-        expect=('"uri":"/v/***/1001.mp4"',),
+        r'{"time":"2026-10-03T12:00:01+00:00","edge":"edge-test","request_id":"r21","method":"GET",'
+        r'"path":"/v/<<edge_token_3>>/compat.mp4","status":206,"bytes_sent":4194304,'
+        r'"request_time":0.850,"range":"bytes=0-","verdict":"ok","reason":"","auth_status":"204",'
+        r'"auth_cache":"MISS","upstream_cache_status":"MISS","case":"c21"}',
+        expect=('"path":"/v/***/compat.mp4"',),
     ),
     Case(
         "c22",
         "nginx-stream",
-        r'{"edge_id":"edge-test","status":502,"bytes_sent":157,"request_time":5.001,'
-        r'"upstream_cache_status":"MISS","upstream_header_time":"5.000","uri":"/v/<<edge_token_4>>/1001.mp4",'
-        r'"case":"c22"}',
-        expect=('"status":502',),
+        r'{"time":"2026-10-03T12:00:02+00:00","edge":"edge-test","request_id":"r22","method":"GET",'
+        r'"path":"/v/<<edge_token_4>>/compat.mp4","status":503,"bytes_sent":157,'
+        r'"request_time":5.001,"verdict":"ok","reason":"unavailable","auth_status":"502",'
+        r'"auth_cache":"-","upstream_cache_status":"MISS","case":"c22"}',
+        expect=('"status":503', '"reason":"unavailable"'),
     ),
     Case(
         "c23",
         "nginx-stream",
-        r'{"edge_id":"edge-test","status":403,"bytes_sent":0,"request_time":0.001,'
-        r'"upstream_cache_status":"-","upstream_header_time":"-","uri":"/v/<<edge_token_5>>/1001.mp4",'
-        r'"case":"c23"}',
-        expect=('"status":403',),
+        r'{"time":"2026-10-03T12:00:03+00:00","edge":"edge-test","request_id":"r23","method":"GET",'
+        r'"path":"/v/<<edge_token_5>>/hls/index.m3u8","status":403,"bytes_sent":0,'
+        r'"request_time":0.001,"verdict":"expired","reason":"expired","auth_status":"",'
+        r'"auth_cache":"","upstream_cache_status":"","case":"c23"}',
+        expect=('"status":403', '"reason":"expired"'),
     ),
     # --- Third-party logfmt and plain-text lines.
     Case(
@@ -252,5 +259,65 @@ CASES: tuple[Case, ...] = (
         r'{"event": "token refresh", "refresh_token": "<<refresh_tok>>", "token_type": "<<tok_type>>", '
         r'"url": "https://api.localhost/api/v1/auth/refresh?access_token=<<acc_tok>>", "case": "c31"}',
         expect=('"refresh_token": "***"', "access_token=***"),
+    ),
+    # --- M13 additions: the live Traefik format, monitoring sign-in, Grafana, Celery.
+    Case(
+        "c32",
+        "traefik",
+        r'{"ClientHost":"203.0.113.7","DownstreamStatus":302,"RequestHost":"grafana.localhost",'
+        r'"RequestMethod":"GET","RouterName":"grafana-sso@docker","entryPointName":"web",'
+        r'"request_X-Request-Id":"[[rid_traefik_req]]","request_User-Agent":"Mozilla/5.0",'
+        r'"request_Cookie":"__Host-iptv_monitor=<<mon_cookie>>","level":"info","msg":"","case":"c32"}',
+        expect=('"request_Cookie":"***"', '"RouterName":"grafana-sso@docker"'),
+    ),
+    Case(
+        "c33",
+        "web",
+        r'{"event": "request", "method": "GET", "host": "grafana.localhost", '
+        r'"path": "/_sso/callback?ticket=<<sso_ticket>>&next=%2Fd%2Fiptv-edges", "status": 302, '
+        r'"route": "monitoring-sso-callback", "request_id": "[[rid_sso]]", "case": "c33"}',
+        expect=('"route": "monitoring-sso-callback"', '"request_id": "[[rid_sso]]"'),
+    ),
+    Case(
+        "c34",
+        "grafana",
+        r"logger=context userId=3 orgId=1 uname=owner t=2026-10-03T12:00:00Z level=info "
+        r'msg="Request Completed" method=GET path=/api/search status=200 '
+        r"remote_addr=172.31.254.2 referer= handler=/api/search case=c34 "
+        r'header="X-Grafana-Device-Id" token=<<grafana_token>>',
+        expect=("token=***", "uname=owner"),
+    ),
+    Case(
+        "c35",
+        "worker",
+        r'{"event": "Task apps.notifications.tasks.deliver[9f0c] raised: SMTPAuthenticationError '
+        r'smtp://mailer:<<smtp_pw>>@smtp.example.com:587", "level": "error", "case": "c35"}',
+        expect=("smtp://***:***@smtp.example.com:587",),
+    ),
+    Case(
+        "c36",
+        "alertmanager",
+        r'time=2026-10-03T12:00:00Z level=ERROR source=dispatch.go msg="Notify for alerts failed" '
+        r'err="ops/webhook[0]: notify retry canceled: Post \"<redacted>\": token=<<am_token>>" '
+        r"case=c36",
+        expect=("token=***",),
+    ),
+    Case(
+        "c37",
+        "worker",
+        r'{"event": "channel probe failed", "channel": "news-1", '
+        r'"source_url": "http://<<src_user>>:<<src_pw>>@origin.example.com/live/1.ts", '
+        r'"case": "c37"}',
+        expect=('"source_url": "***"', '"channel": "news-1"'),
+    ),
+    # Development's console format (structlog key=value, coloured): request_id still
+    # becomes metadata, and the path is redacted.
+    Case(
+        "c38",
+        "web",
+        "\x1b[2m2026-10-06T10:10:31Z\x1b[0m [\x1b[32minfo\x1b[0m] request "
+        "\x1b[36mpath\x1b[0m=\x1b[35m/movie/<<con_user>>/<<con_pass>>/1.mp4\x1b[0m "
+        "\x1b[36mrequest_id\x1b[0m=\x1b[35m[[rid_console]]\x1b[0m case=c38",
+        expect=("/movie/***/***/1.mp4",),
     ),
 )

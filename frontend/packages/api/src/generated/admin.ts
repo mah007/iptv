@@ -32,12 +32,14 @@ import type {
   AdminsListParams,
   AuditListParams,
   BillingKpis,
+  BulkEnableRequest,
   Candidate,
   CategoriesListParams,
   Category,
   CategoryReorderRequest,
   CategoryWriteRequest,
   ChangePlanRequest,
+  ChannelReorderRequest,
   CleanupReport,
   CleanupRequestRequest,
   Collection,
@@ -54,6 +56,9 @@ import type {
   Device,
   DeviceBlockRequest,
   DeviceCreateRequest,
+  EpgChannel,
+  EpgSource,
+  EpgSourceWriteRequest,
   ExtendRequest,
   Health,
   ImageAddRequest,
@@ -65,8 +70,19 @@ import type {
   LibrariesListParams,
   Library,
   LibraryWriteRequest,
+  LiveChannel,
+  LiveChannelWriteRequest,
+  LiveChannelsListParams,
+  LiveChannelsProgrammesParams,
+  LiveEpgChannelsParams,
+  LiveEpgSourcesListParams,
+  LiveIntegration,
+  LiveIntegrationWriteRequest,
+  LiveIntegrationsListParams,
+  LiveOverview,
   LoginRequest,
   LoginResponse,
+  LogoRequest,
   ManualPaymentRequest,
   Me,
   MediaQueued,
@@ -74,6 +90,8 @@ import type {
   MetadataSearchParams,
   MfaVerifyRequest,
   Migrated,
+  MonitoringTicketLink,
+  MonitoringTicketRequest,
   MovieDetail,
   MoviesListParams,
   NotificationsListParams,
@@ -89,6 +107,7 @@ import type {
   PaginatedDeviceList,
   PaginatedInvoiceList,
   PaginatedLibraryList,
+  PaginatedLiveChannelList,
   PaginatedMovieSummaryList,
   PaginatedOutboxList,
   PaginatedPaymentList,
@@ -105,7 +124,10 @@ import type {
   PatchedCategoryWriteRequest,
   PatchedCollectionWriteRequest,
   PatchedCustomerProfileRequest,
+  PatchedEpgSourceWriteRequest,
   PatchedLibraryWriteRequest,
+  PatchedLiveChannelWriteRequest,
+  PatchedLiveIntegrationWriteRequest,
   PatchedMovieUpdateRequest,
   PatchedPlanWriteRequest,
   PatchedRoleRequest,
@@ -122,6 +144,7 @@ import type {
   PreviewRequestRequest,
   PriorityRequest,
   Problem,
+  Programme,
   Queued,
   ReasonRequest,
   RefundRequest,
@@ -144,12 +167,16 @@ import type {
   SessionsListParams,
   SessionsStreamParams,
   SettingEntry,
+  SourceTestQueued,
+  SourceTestRequestRequest,
+  SourceTestResult,
   StorageUsage,
   Subscription,
   SubscriptionCreateRequest,
   SubscriptionsListParams,
   SubtitleUploadRequest,
   SuspendRequest,
+  SyncResult,
   Template,
   TemplateWriteRequest,
   Timeseries,
@@ -160,6 +187,7 @@ import type {
   TranscodeJobsListParams,
   TranscodeJobsStreamParams,
   TrialStartRequest,
+  Unmatched,
 } from "./admin.schemas";
 
 import { apiFetch } from "../fetcher";
@@ -5866,6 +5894,3051 @@ export const useLibrariesScan = <TError = ErrorType<Problem>, TContext = unknown
   return useMutation(getLibrariesScanMutationOptions(options), queryClient);
 };
 
+export const getLiveChannelsListUrl = (params?: LiveChannelsListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/live/channels?${stringifiedParams}`
+    : `/api/v1/admin/live/channels`;
+};
+
+/**
+ * @summary List live channels
+ */
+export const liveChannelsList = async (
+  params?: LiveChannelsListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedLiveChannelList> => {
+  return apiFetch<PaginatedLiveChannelList>(getLiveChannelsListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveChannelsListQueryKey = (params?: LiveChannelsListParams) => {
+  return [`/api/v1/admin/live/channels`, ...(params ? [params] : [])] as const;
+};
+
+export const getLiveChannelsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveChannelsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveChannelsListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveChannelsList>>> = ({ signal }) =>
+    liveChannelsList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof liveChannelsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LiveChannelsListQueryResult = NonNullable<Awaited<ReturnType<typeof liveChannelsList>>>;
+export type LiveChannelsListQueryError = ErrorType<Problem>;
+
+export function useLiveChannelsList<
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | LiveChannelsListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsList>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsList<
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveChannelsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsList>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsList<
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveChannelsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List live channels
+ */
+
+export function useLiveChannelsList<
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveChannelsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveChannelsListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveChannelsCreateUrl = () => {
+  return `/api/v1/admin/live/channels`;
+};
+
+/**
+ * @summary Create a live channel
+ */
+export const liveChannelsCreate = async (
+  liveChannelWriteRequest: LiveChannelWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveChannel> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<LiveChannel>(getLiveChannelsCreateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(liveChannelWriteRequest),
+  });
+};
+
+export const getLiveChannelsCreateMutationKey = () => ["liveChannelsCreate"] as const;
+
+export const getLiveChannelsCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveChannelsCreate>>,
+    TError,
+    LiveChannelsCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveChannelsCreate>>,
+  TError,
+  LiveChannelsCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveChannelsCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveChannelsCreate>>,
+    LiveChannelsCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return liveChannelsCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveChannelsCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsCreate>>
+>;
+export type LiveChannelsCreateMutationBody = LiveChannelWriteRequest;
+export type LiveChannelsCreateMutationError = ErrorType<Problem>;
+export type LiveChannelsCreateMutationVariables = { data: LiveChannelWriteRequest };
+
+/**
+ * @summary Create a live channel
+ */
+export const useLiveChannelsCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveChannelsCreate>>,
+      TError,
+      LiveChannelsCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveChannelsCreate>>,
+  TError,
+  LiveChannelsCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveChannelsCreateMutationOptions(options), queryClient);
+};
+
+export const getLiveChannelsRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/live/channels/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One live channel
+ */
+export const liveChannelsRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveChannel> => {
+  return apiFetch<LiveChannel>(getLiveChannelsRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveChannelsRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/live/channels/${id}`] as const;
+};
+
+export const getLiveChannelsRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveChannelsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveChannelsRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveChannelsRetrieve>>> = ({ signal }) =>
+    liveChannelsRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof liveChannelsRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type LiveChannelsRetrieveQueryResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsRetrieve>>
+>;
+export type LiveChannelsRetrieveQueryError = ErrorType<Problem>;
+
+export function useLiveChannelsRetrieve<
+  TData = Awaited<ReturnType<typeof liveChannelsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsRetrieve>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsRetrieve<
+  TData = Awaited<ReturnType<typeof liveChannelsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsRetrieve>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsRetrieve<
+  TData = Awaited<ReturnType<typeof liveChannelsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One live channel
+ */
+
+export function useLiveChannelsRetrieve<
+  TData = Awaited<ReturnType<typeof liveChannelsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveChannelsRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveChannelsUpdateUrl = (id: string) => {
+  return `/api/v1/admin/live/channels/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Change a live channel (the source URL only when given)
+ */
+export const liveChannelsUpdate = async (
+  id: string,
+  patchedLiveChannelWriteRequest?: PatchedLiveChannelWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveChannel> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<LiveChannel>(getLiveChannelsUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedLiveChannelWriteRequest),
+  });
+};
+
+export const getLiveChannelsUpdateMutationKey = () => ["liveChannelsUpdate"] as const;
+
+export const getLiveChannelsUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveChannelsUpdate>>,
+    TError,
+    LiveChannelsUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveChannelsUpdate>>,
+  TError,
+  LiveChannelsUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveChannelsUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveChannelsUpdate>>,
+    LiveChannelsUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return liveChannelsUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveChannelsUpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsUpdate>>
+>;
+export type LiveChannelsUpdateMutationBody = PatchedLiveChannelWriteRequest | undefined;
+export type LiveChannelsUpdateMutationError = ErrorType<Problem>;
+export type LiveChannelsUpdateMutationVariables = {
+  id: string;
+  data?: PatchedLiveChannelWriteRequest;
+};
+
+/**
+ * @summary Change a live channel (the source URL only when given)
+ */
+export const useLiveChannelsUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveChannelsUpdate>>,
+      TError,
+      LiveChannelsUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveChannelsUpdate>>,
+  TError,
+  LiveChannelsUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveChannelsUpdateMutationOptions(options), queryClient);
+};
+
+export const getLiveChannelsDeleteUrl = (id: string) => {
+  return `/api/v1/admin/live/channels/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Delete a live channel (its sessions stop)
+ */
+export const liveChannelsDelete = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getLiveChannelsDeleteUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getLiveChannelsDeleteMutationKey = () => ["liveChannelsDelete"] as const;
+
+export const getLiveChannelsDeleteMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveChannelsDelete>>,
+    TError,
+    LiveChannelsDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveChannelsDelete>>,
+  TError,
+  LiveChannelsDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveChannelsDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveChannelsDelete>>,
+    LiveChannelsDeleteMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return liveChannelsDelete(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveChannelsDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsDelete>>
+>;
+
+export type LiveChannelsDeleteMutationError = ErrorType<Problem>;
+export type LiveChannelsDeleteMutationVariables = { id: string };
+
+/**
+ * @summary Delete a live channel (its sessions stop)
+ */
+export const useLiveChannelsDelete = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveChannelsDelete>>,
+      TError,
+      LiveChannelsDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveChannelsDelete>>,
+  TError,
+  LiveChannelsDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveChannelsDeleteMutationOptions(options), queryClient);
+};
+
+export const getLiveChannelsLogoUrl = (id: string) => {
+  return `/api/v1/admin/live/channels/${encodeURIComponent(String(id))}/logo`;
+};
+
+/**
+ * @summary Upload a logo, or give an http(s) URL to fetch it from (stored on the worker)
+ */
+export const liveChannelsLogo = async (
+  id: string,
+  logoRequest?: LogoRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  const formData = new FormData();
+  if (logoRequest?.file !== undefined) {
+    formData.append(`file`, logoRequest.file);
+  }
+  if (logoRequest?.url !== undefined) {
+    formData.append(`url`, logoRequest.url);
+  }
+
+  return apiFetch<void>(getLiveChannelsLogoUrl(id), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getLiveChannelsLogoMutationKey = () => ["liveChannelsLogo"] as const;
+
+export const getLiveChannelsLogoMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveChannelsLogo>>,
+    TError,
+    LiveChannelsLogoMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveChannelsLogo>>,
+  TError,
+  LiveChannelsLogoMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveChannelsLogoMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveChannelsLogo>>,
+    LiveChannelsLogoMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return liveChannelsLogo(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveChannelsLogoMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsLogo>>
+>;
+export type LiveChannelsLogoMutationBody = LogoRequest | undefined;
+export type LiveChannelsLogoMutationError = ErrorType<Problem>;
+export type LiveChannelsLogoMutationVariables = { id: string; data?: LogoRequest };
+
+/**
+ * @summary Upload a logo, or give an http(s) URL to fetch it from (stored on the worker)
+ */
+export const useLiveChannelsLogo = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveChannelsLogo>>,
+      TError,
+      LiveChannelsLogoMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveChannelsLogo>>,
+  TError,
+  LiveChannelsLogoMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveChannelsLogoMutationOptions(options), queryClient);
+};
+
+export const getLiveChannelsProgrammesUrl = (id: string, params?: LiveChannelsProgrammesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/live/channels/${encodeURIComponent(String(id))}/programmes?${stringifiedParams}`
+    : `/api/v1/admin/live/channels/${encodeURIComponent(String(id))}/programmes`;
+};
+
+/**
+ * @summary A channel's programmes between two instants (default: today, a day ahead)
+ */
+export const liveChannelsProgrammes = async (
+  id: string,
+  params?: LiveChannelsProgrammesParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Programme[]> => {
+  return apiFetch<Programme[]>(getLiveChannelsProgrammesUrl(id, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveChannelsProgrammesQueryKey = (
+  id: string,
+  params?: LiveChannelsProgrammesParams,
+) => {
+  return [`/api/v1/admin/live/channels/${id}/programmes`, ...(params ? [params] : [])] as const;
+};
+
+export const getLiveChannelsProgrammesQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveChannelsProgrammes>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: LiveChannelsProgrammesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsProgrammes>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveChannelsProgrammesQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveChannelsProgrammes>>> = ({ signal }) =>
+    liveChannelsProgrammes(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof liveChannelsProgrammes>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type LiveChannelsProgrammesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsProgrammes>>
+>;
+export type LiveChannelsProgrammesQueryError = ErrorType<Problem>;
+
+export function useLiveChannelsProgrammes<
+  TData = Awaited<ReturnType<typeof liveChannelsProgrammes>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params: undefined | LiveChannelsProgrammesParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsProgrammes>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsProgrammes>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsProgrammes>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsProgrammes<
+  TData = Awaited<ReturnType<typeof liveChannelsProgrammes>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: LiveChannelsProgrammesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsProgrammes>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsProgrammes>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsProgrammes>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsProgrammes<
+  TData = Awaited<ReturnType<typeof liveChannelsProgrammes>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: LiveChannelsProgrammesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsProgrammes>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary A channel's programmes between two instants (default: today, a day ahead)
+ */
+
+export function useLiveChannelsProgrammes<
+  TData = Awaited<ReturnType<typeof liveChannelsProgrammes>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: LiveChannelsProgrammesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveChannelsProgrammes>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveChannelsProgrammesQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveChannelsTestUrl = (id: string) => {
+  return `/api/v1/admin/live/channels/${encodeURIComponent(String(id))}/test`;
+};
+
+/**
+ * @summary Test a channel's source (ffprobe on the worker); poll the result
+ */
+export const liveChannelsTest = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<SourceTestQueued> => {
+  return apiFetch<SourceTestQueued>(getLiveChannelsTestUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLiveChannelsTestMutationKey = () => ["liveChannelsTest"] as const;
+
+export const getLiveChannelsTestMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveChannelsTest>>,
+    TError,
+    LiveChannelsTestMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveChannelsTest>>,
+  TError,
+  LiveChannelsTestMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveChannelsTestMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveChannelsTest>>,
+    LiveChannelsTestMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return liveChannelsTest(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveChannelsTestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsTest>>
+>;
+
+export type LiveChannelsTestMutationError = ErrorType<Problem>;
+export type LiveChannelsTestMutationVariables = { id: string };
+
+/**
+ * @summary Test a channel's source (ffprobe on the worker); poll the result
+ */
+export const useLiveChannelsTest = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveChannelsTest>>,
+      TError,
+      LiveChannelsTestMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveChannelsTest>>,
+  TError,
+  LiveChannelsTestMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveChannelsTestMutationOptions(options), queryClient);
+};
+
+export const getLiveChannelsBulkEnableUrl = () => {
+  return `/api/v1/admin/live/channels/bulk`;
+};
+
+/**
+ * @summary Enable or disable channels (enabling needs a rights holder)
+ */
+export const liveChannelsBulkEnable = async (
+  bulkEnableRequest: BulkEnableRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveChannel[]> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<LiveChannel[]>(getLiveChannelsBulkEnableUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(bulkEnableRequest),
+  });
+};
+
+export const getLiveChannelsBulkEnableMutationKey = () => ["liveChannelsBulkEnable"] as const;
+
+export const getLiveChannelsBulkEnableMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveChannelsBulkEnable>>,
+    TError,
+    LiveChannelsBulkEnableMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveChannelsBulkEnable>>,
+  TError,
+  LiveChannelsBulkEnableMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveChannelsBulkEnableMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveChannelsBulkEnable>>,
+    LiveChannelsBulkEnableMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return liveChannelsBulkEnable(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveChannelsBulkEnableMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsBulkEnable>>
+>;
+export type LiveChannelsBulkEnableMutationBody = BulkEnableRequest;
+export type LiveChannelsBulkEnableMutationError = ErrorType<Problem>;
+export type LiveChannelsBulkEnableMutationVariables = { data: BulkEnableRequest };
+
+/**
+ * @summary Enable or disable channels (enabling needs a rights holder)
+ */
+export const useLiveChannelsBulkEnable = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveChannelsBulkEnable>>,
+      TError,
+      LiveChannelsBulkEnableMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveChannelsBulkEnable>>,
+  TError,
+  LiveChannelsBulkEnableMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveChannelsBulkEnableMutationOptions(options), queryClient);
+};
+
+export const getLiveChannelsReorderUrl = () => {
+  return `/api/v1/admin/live/channels/reorder`;
+};
+
+/**
+ * @summary Order a group's channels
+ */
+export const liveChannelsReorder = async (
+  channelReorderRequest: ChannelReorderRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveChannel[]> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<LiveChannel[]>(getLiveChannelsReorderUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(channelReorderRequest),
+  });
+};
+
+export const getLiveChannelsReorderMutationKey = () => ["liveChannelsReorder"] as const;
+
+export const getLiveChannelsReorderMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveChannelsReorder>>,
+    TError,
+    LiveChannelsReorderMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveChannelsReorder>>,
+  TError,
+  LiveChannelsReorderMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveChannelsReorderMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveChannelsReorder>>,
+    LiveChannelsReorderMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return liveChannelsReorder(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveChannelsReorderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsReorder>>
+>;
+export type LiveChannelsReorderMutationBody = ChannelReorderRequest;
+export type LiveChannelsReorderMutationError = ErrorType<Problem>;
+export type LiveChannelsReorderMutationVariables = { data: ChannelReorderRequest };
+
+/**
+ * @summary Order a group's channels
+ */
+export const useLiveChannelsReorder = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveChannelsReorder>>,
+      TError,
+      LiveChannelsReorderMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveChannelsReorder>>,
+  TError,
+  LiveChannelsReorderMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveChannelsReorderMutationOptions(options), queryClient);
+};
+
+export const getLiveEpgChannelsUrl = (params?: LiveEpgChannelsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/live/epg/channels?${stringifiedParams}`
+    : `/api/v1/admin/live/epg/channels`;
+};
+
+/**
+ * @summary Search the guide's channels (for mapping a live channel)
+ */
+export const liveEpgChannels = async (
+  params?: LiveEpgChannelsParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<EpgChannel[]> => {
+  return apiFetch<EpgChannel[]>(getLiveEpgChannelsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveEpgChannelsQueryKey = (params?: LiveEpgChannelsParams) => {
+  return [`/api/v1/admin/live/epg/channels`, ...(params ? [params] : [])] as const;
+};
+
+export const getLiveEpgChannelsQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveEpgChannels>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveEpgChannelsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgChannels>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveEpgChannelsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveEpgChannels>>> = ({ signal }) =>
+    liveEpgChannels(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof liveEpgChannels>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LiveEpgChannelsQueryResult = NonNullable<Awaited<ReturnType<typeof liveEpgChannels>>>;
+export type LiveEpgChannelsQueryError = ErrorType<Problem>;
+
+export function useLiveEpgChannels<
+  TData = Awaited<ReturnType<typeof liveEpgChannels>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | LiveEpgChannelsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgChannels>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveEpgChannels>>,
+          TError,
+          Awaited<ReturnType<typeof liveEpgChannels>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveEpgChannels<
+  TData = Awaited<ReturnType<typeof liveEpgChannels>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveEpgChannelsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgChannels>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveEpgChannels>>,
+          TError,
+          Awaited<ReturnType<typeof liveEpgChannels>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveEpgChannels<
+  TData = Awaited<ReturnType<typeof liveEpgChannels>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveEpgChannelsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgChannels>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Search the guide's channels (for mapping a live channel)
+ */
+
+export function useLiveEpgChannels<
+  TData = Awaited<ReturnType<typeof liveEpgChannels>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveEpgChannelsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgChannels>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveEpgChannelsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveEpgSourcesListUrl = (params?: LiveEpgSourcesListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/live/epg/sources?${stringifiedParams}`
+    : `/api/v1/admin/live/epg/sources`;
+};
+
+/**
+ * @summary List guide sources
+ */
+export const liveEpgSourcesList = async (
+  params?: LiveEpgSourcesListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<EpgSource[]> => {
+  return apiFetch<EpgSource[]>(getLiveEpgSourcesListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveEpgSourcesListQueryKey = (params?: LiveEpgSourcesListParams) => {
+  return [`/api/v1/admin/live/epg/sources`, ...(params ? [params] : [])] as const;
+};
+
+export const getLiveEpgSourcesListQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveEpgSourcesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveEpgSourcesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveEpgSourcesListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveEpgSourcesList>>> = ({ signal }) =>
+    liveEpgSourcesList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof liveEpgSourcesList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LiveEpgSourcesListQueryResult = NonNullable<
+  Awaited<ReturnType<typeof liveEpgSourcesList>>
+>;
+export type LiveEpgSourcesListQueryError = ErrorType<Problem>;
+
+export function useLiveEpgSourcesList<
+  TData = Awaited<ReturnType<typeof liveEpgSourcesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | LiveEpgSourcesListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveEpgSourcesList>>,
+          TError,
+          Awaited<ReturnType<typeof liveEpgSourcesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveEpgSourcesList<
+  TData = Awaited<ReturnType<typeof liveEpgSourcesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveEpgSourcesListParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesList>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveEpgSourcesList>>,
+          TError,
+          Awaited<ReturnType<typeof liveEpgSourcesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveEpgSourcesList<
+  TData = Awaited<ReturnType<typeof liveEpgSourcesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveEpgSourcesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List guide sources
+ */
+
+export function useLiveEpgSourcesList<
+  TData = Awaited<ReturnType<typeof liveEpgSourcesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveEpgSourcesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveEpgSourcesListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveEpgSourcesCreateUrl = () => {
+  return `/api/v1/admin/live/epg/sources`;
+};
+
+/**
+ * @summary Add a guide source: an XMLTV URL or an uploaded file (imported at once)
+ */
+export const liveEpgSourcesCreate = async (
+  epgSourceWriteRequest?: EpgSourceWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<EpgSource> => {
+  const formData = new FormData();
+  if (epgSourceWriteRequest?.name !== undefined) {
+    formData.append(`name`, epgSourceWriteRequest.name);
+  }
+  if (epgSourceWriteRequest?.url !== undefined) {
+    formData.append(`url`, epgSourceWriteRequest.url);
+  }
+  if (epgSourceWriteRequest?.file !== undefined) {
+    formData.append(`file`, epgSourceWriteRequest.file);
+  }
+  if (epgSourceWriteRequest?.refresh_cron !== undefined) {
+    formData.append(`refresh_cron`, epgSourceWriteRequest.refresh_cron);
+  }
+  if (epgSourceWriteRequest?.priority !== undefined) {
+    formData.append(`priority`, epgSourceWriteRequest.priority.toString());
+  }
+  if (epgSourceWriteRequest?.enabled !== undefined) {
+    formData.append(`enabled`, epgSourceWriteRequest.enabled.toString());
+  }
+
+  return apiFetch<EpgSource>(getLiveEpgSourcesCreateUrl(), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getLiveEpgSourcesCreateMutationKey = () => ["liveEpgSourcesCreate"] as const;
+
+export const getLiveEpgSourcesCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveEpgSourcesCreate>>,
+    TError,
+    LiveEpgSourcesCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveEpgSourcesCreate>>,
+  TError,
+  LiveEpgSourcesCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveEpgSourcesCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveEpgSourcesCreate>>,
+    LiveEpgSourcesCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return liveEpgSourcesCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveEpgSourcesCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveEpgSourcesCreate>>
+>;
+export type LiveEpgSourcesCreateMutationBody = EpgSourceWriteRequest | undefined;
+export type LiveEpgSourcesCreateMutationError = ErrorType<Problem>;
+export type LiveEpgSourcesCreateMutationVariables = { data?: EpgSourceWriteRequest };
+
+/**
+ * @summary Add a guide source: an XMLTV URL or an uploaded file (imported at once)
+ */
+export const useLiveEpgSourcesCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveEpgSourcesCreate>>,
+      TError,
+      LiveEpgSourcesCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveEpgSourcesCreate>>,
+  TError,
+  LiveEpgSourcesCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveEpgSourcesCreateMutationOptions(options), queryClient);
+};
+
+export const getLiveEpgSourcesRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/live/epg/sources/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One guide source
+ */
+export const liveEpgSourcesRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<EpgSource> => {
+  return apiFetch<EpgSource>(getLiveEpgSourcesRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveEpgSourcesRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/live/epg/sources/${id}`] as const;
+};
+
+export const getLiveEpgSourcesRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveEpgSourcesRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>> = ({ signal }) =>
+    liveEpgSourcesRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type LiveEpgSourcesRetrieveQueryResult = NonNullable<
+  Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>
+>;
+export type LiveEpgSourcesRetrieveQueryError = ErrorType<Problem>;
+
+export function useLiveEpgSourcesRetrieve<
+  TData = Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveEpgSourcesRetrieve<
+  TData = Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveEpgSourcesRetrieve<
+  TData = Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One guide source
+ */
+
+export function useLiveEpgSourcesRetrieve<
+  TData = Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveEpgSourcesRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveEpgSourcesRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveEpgSourcesUpdateUrl = (id: string) => {
+  return `/api/v1/admin/live/epg/sources/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Change a guide source (a new URL or file is imported at once)
+ */
+export const liveEpgSourcesUpdate = async (
+  id: string,
+  patchedEpgSourceWriteRequest?: PatchedEpgSourceWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<EpgSource> => {
+  const formData = new FormData();
+  if (patchedEpgSourceWriteRequest?.name !== undefined) {
+    formData.append(`name`, patchedEpgSourceWriteRequest.name);
+  }
+  if (patchedEpgSourceWriteRequest?.url !== undefined) {
+    formData.append(`url`, patchedEpgSourceWriteRequest.url);
+  }
+  if (patchedEpgSourceWriteRequest?.file !== undefined) {
+    formData.append(`file`, patchedEpgSourceWriteRequest.file);
+  }
+  if (patchedEpgSourceWriteRequest?.refresh_cron !== undefined) {
+    formData.append(`refresh_cron`, patchedEpgSourceWriteRequest.refresh_cron);
+  }
+  if (patchedEpgSourceWriteRequest?.priority !== undefined) {
+    formData.append(`priority`, patchedEpgSourceWriteRequest.priority.toString());
+  }
+  if (patchedEpgSourceWriteRequest?.enabled !== undefined) {
+    formData.append(`enabled`, patchedEpgSourceWriteRequest.enabled.toString());
+  }
+
+  return apiFetch<EpgSource>(getLiveEpgSourcesUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    body: formData,
+  });
+};
+
+export const getLiveEpgSourcesUpdateMutationKey = () => ["liveEpgSourcesUpdate"] as const;
+
+export const getLiveEpgSourcesUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveEpgSourcesUpdate>>,
+    TError,
+    LiveEpgSourcesUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveEpgSourcesUpdate>>,
+  TError,
+  LiveEpgSourcesUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveEpgSourcesUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveEpgSourcesUpdate>>,
+    LiveEpgSourcesUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return liveEpgSourcesUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveEpgSourcesUpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveEpgSourcesUpdate>>
+>;
+export type LiveEpgSourcesUpdateMutationBody = PatchedEpgSourceWriteRequest | undefined;
+export type LiveEpgSourcesUpdateMutationError = ErrorType<Problem>;
+export type LiveEpgSourcesUpdateMutationVariables = {
+  id: string;
+  data?: PatchedEpgSourceWriteRequest;
+};
+
+/**
+ * @summary Change a guide source (a new URL or file is imported at once)
+ */
+export const useLiveEpgSourcesUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveEpgSourcesUpdate>>,
+      TError,
+      LiveEpgSourcesUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveEpgSourcesUpdate>>,
+  TError,
+  LiveEpgSourcesUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveEpgSourcesUpdateMutationOptions(options), queryClient);
+};
+
+export const getLiveEpgSourcesDeleteUrl = (id: string) => {
+  return `/api/v1/admin/live/epg/sources/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Delete a guide source and its programmes
+ */
+export const liveEpgSourcesDelete = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getLiveEpgSourcesDeleteUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getLiveEpgSourcesDeleteMutationKey = () => ["liveEpgSourcesDelete"] as const;
+
+export const getLiveEpgSourcesDeleteMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveEpgSourcesDelete>>,
+    TError,
+    LiveEpgSourcesDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveEpgSourcesDelete>>,
+  TError,
+  LiveEpgSourcesDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveEpgSourcesDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveEpgSourcesDelete>>,
+    LiveEpgSourcesDeleteMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return liveEpgSourcesDelete(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveEpgSourcesDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveEpgSourcesDelete>>
+>;
+
+export type LiveEpgSourcesDeleteMutationError = ErrorType<Problem>;
+export type LiveEpgSourcesDeleteMutationVariables = { id: string };
+
+/**
+ * @summary Delete a guide source and its programmes
+ */
+export const useLiveEpgSourcesDelete = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveEpgSourcesDelete>>,
+      TError,
+      LiveEpgSourcesDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveEpgSourcesDelete>>,
+  TError,
+  LiveEpgSourcesDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveEpgSourcesDeleteMutationOptions(options), queryClient);
+};
+
+export const getLiveEpgSourcesRefreshUrl = (id: string) => {
+  return `/api/v1/admin/live/epg/sources/${encodeURIComponent(String(id))}/refresh`;
+};
+
+/**
+ * @summary Import a guide source now
+ */
+export const liveEpgSourcesRefresh = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getLiveEpgSourcesRefreshUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLiveEpgSourcesRefreshMutationKey = () => ["liveEpgSourcesRefresh"] as const;
+
+export const getLiveEpgSourcesRefreshMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveEpgSourcesRefresh>>,
+    TError,
+    LiveEpgSourcesRefreshMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveEpgSourcesRefresh>>,
+  TError,
+  LiveEpgSourcesRefreshMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveEpgSourcesRefreshMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveEpgSourcesRefresh>>,
+    LiveEpgSourcesRefreshMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return liveEpgSourcesRefresh(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveEpgSourcesRefreshMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveEpgSourcesRefresh>>
+>;
+
+export type LiveEpgSourcesRefreshMutationError = ErrorType<Problem>;
+export type LiveEpgSourcesRefreshMutationVariables = { id: string };
+
+/**
+ * @summary Import a guide source now
+ */
+export const useLiveEpgSourcesRefresh = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveEpgSourcesRefresh>>,
+      TError,
+      LiveEpgSourcesRefreshMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveEpgSourcesRefresh>>,
+  TError,
+  LiveEpgSourcesRefreshMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveEpgSourcesRefreshMutationOptions(options), queryClient);
+};
+
+export const getLiveEpgUnmatchedUrl = () => {
+  return `/api/v1/admin/live/epg/unmatched`;
+};
+
+/**
+ * @summary Channels without a guide, and guide channels no channel uses
+ */
+export const liveEpgUnmatched = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Unmatched> => {
+  return apiFetch<Unmatched>(getLiveEpgUnmatchedUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveEpgUnmatchedQueryKey = () => {
+  return [`/api/v1/admin/live/epg/unmatched`] as const;
+};
+
+export const getLiveEpgUnmatchedQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveEpgUnmatched>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgUnmatched>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveEpgUnmatchedQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveEpgUnmatched>>> = ({ signal }) =>
+    liveEpgUnmatched({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof liveEpgUnmatched>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LiveEpgUnmatchedQueryResult = NonNullable<Awaited<ReturnType<typeof liveEpgUnmatched>>>;
+export type LiveEpgUnmatchedQueryError = ErrorType<Problem>;
+
+export function useLiveEpgUnmatched<
+  TData = Awaited<ReturnType<typeof liveEpgUnmatched>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgUnmatched>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveEpgUnmatched>>,
+          TError,
+          Awaited<ReturnType<typeof liveEpgUnmatched>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveEpgUnmatched<
+  TData = Awaited<ReturnType<typeof liveEpgUnmatched>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgUnmatched>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveEpgUnmatched>>,
+          TError,
+          Awaited<ReturnType<typeof liveEpgUnmatched>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveEpgUnmatched<
+  TData = Awaited<ReturnType<typeof liveEpgUnmatched>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgUnmatched>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Channels without a guide, and guide channels no channel uses
+ */
+
+export function useLiveEpgUnmatched<
+  TData = Awaited<ReturnType<typeof liveEpgUnmatched>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveEpgUnmatched>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveEpgUnmatchedQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveIntegrationsListUrl = (params?: LiveIntegrationsListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/live/integrations?${stringifiedParams}`
+    : `/api/v1/admin/live/integrations`;
+};
+
+/**
+ * @summary List ErsatzTV and MediaMTX instances channels are synced from
+ */
+export const liveIntegrationsList = async (
+  params?: LiveIntegrationsListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveIntegration[]> => {
+  return apiFetch<LiveIntegration[]>(getLiveIntegrationsListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveIntegrationsListQueryKey = (params?: LiveIntegrationsListParams) => {
+  return [`/api/v1/admin/live/integrations`, ...(params ? [params] : [])] as const;
+};
+
+export const getLiveIntegrationsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveIntegrationsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveIntegrationsListParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsList>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveIntegrationsListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveIntegrationsList>>> = ({ signal }) =>
+    liveIntegrationsList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof liveIntegrationsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LiveIntegrationsListQueryResult = NonNullable<
+  Awaited<ReturnType<typeof liveIntegrationsList>>
+>;
+export type LiveIntegrationsListQueryError = ErrorType<Problem>;
+
+export function useLiveIntegrationsList<
+  TData = Awaited<ReturnType<typeof liveIntegrationsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | LiveIntegrationsListParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsList>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveIntegrationsList>>,
+          TError,
+          Awaited<ReturnType<typeof liveIntegrationsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveIntegrationsList<
+  TData = Awaited<ReturnType<typeof liveIntegrationsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveIntegrationsListParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsList>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveIntegrationsList>>,
+          TError,
+          Awaited<ReturnType<typeof liveIntegrationsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveIntegrationsList<
+  TData = Awaited<ReturnType<typeof liveIntegrationsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveIntegrationsListParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsList>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List ErsatzTV and MediaMTX instances channels are synced from
+ */
+
+export function useLiveIntegrationsList<
+  TData = Awaited<ReturnType<typeof liveIntegrationsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LiveIntegrationsListParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsList>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveIntegrationsListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveIntegrationsCreateUrl = () => {
+  return `/api/v1/admin/live/integrations`;
+};
+
+/**
+ * @summary Add an ErsatzTV or MediaMTX instance
+ */
+export const liveIntegrationsCreate = async (
+  liveIntegrationWriteRequest?: LiveIntegrationWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveIntegration> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<LiveIntegration>(getLiveIntegrationsCreateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(liveIntegrationWriteRequest),
+  });
+};
+
+export const getLiveIntegrationsCreateMutationKey = () => ["liveIntegrationsCreate"] as const;
+
+export const getLiveIntegrationsCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveIntegrationsCreate>>,
+    TError,
+    LiveIntegrationsCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveIntegrationsCreate>>,
+  TError,
+  LiveIntegrationsCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveIntegrationsCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveIntegrationsCreate>>,
+    LiveIntegrationsCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return liveIntegrationsCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveIntegrationsCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveIntegrationsCreate>>
+>;
+export type LiveIntegrationsCreateMutationBody = LiveIntegrationWriteRequest | undefined;
+export type LiveIntegrationsCreateMutationError = ErrorType<Problem>;
+export type LiveIntegrationsCreateMutationVariables = { data?: LiveIntegrationWriteRequest };
+
+/**
+ * @summary Add an ErsatzTV or MediaMTX instance
+ */
+export const useLiveIntegrationsCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveIntegrationsCreate>>,
+      TError,
+      LiveIntegrationsCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveIntegrationsCreate>>,
+  TError,
+  LiveIntegrationsCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveIntegrationsCreateMutationOptions(options), queryClient);
+};
+
+export const getLiveIntegrationsRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/live/integrations/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One integration
+ */
+export const liveIntegrationsRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveIntegration> => {
+  return apiFetch<LiveIntegration>(getLiveIntegrationsRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveIntegrationsRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/live/integrations/${id}`] as const;
+};
+
+export const getLiveIntegrationsRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveIntegrationsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveIntegrationsRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveIntegrationsRetrieve>>> = ({
+    signal,
+  }) => liveIntegrationsRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type LiveIntegrationsRetrieveQueryResult = NonNullable<
+  Awaited<ReturnType<typeof liveIntegrationsRetrieve>>
+>;
+export type LiveIntegrationsRetrieveQueryError = ErrorType<Problem>;
+
+export function useLiveIntegrationsRetrieve<
+  TData = Awaited<ReturnType<typeof liveIntegrationsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsRetrieve>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveIntegrationsRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof liveIntegrationsRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveIntegrationsRetrieve<
+  TData = Awaited<ReturnType<typeof liveIntegrationsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsRetrieve>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveIntegrationsRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof liveIntegrationsRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveIntegrationsRetrieve<
+  TData = Awaited<ReturnType<typeof liveIntegrationsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One integration
+ */
+
+export function useLiveIntegrationsRetrieve<
+  TData = Awaited<ReturnType<typeof liveIntegrationsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveIntegrationsRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveIntegrationsRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveIntegrationsUpdateUrl = (id: string) => {
+  return `/api/v1/admin/live/integrations/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Change an integration (secrets only when given)
+ */
+export const liveIntegrationsUpdate = async (
+  id: string,
+  patchedLiveIntegrationWriteRequest?: PatchedLiveIntegrationWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveIntegration> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<LiveIntegration>(getLiveIntegrationsUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedLiveIntegrationWriteRequest),
+  });
+};
+
+export const getLiveIntegrationsUpdateMutationKey = () => ["liveIntegrationsUpdate"] as const;
+
+export const getLiveIntegrationsUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveIntegrationsUpdate>>,
+    TError,
+    LiveIntegrationsUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveIntegrationsUpdate>>,
+  TError,
+  LiveIntegrationsUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveIntegrationsUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveIntegrationsUpdate>>,
+    LiveIntegrationsUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return liveIntegrationsUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveIntegrationsUpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveIntegrationsUpdate>>
+>;
+export type LiveIntegrationsUpdateMutationBody = PatchedLiveIntegrationWriteRequest | undefined;
+export type LiveIntegrationsUpdateMutationError = ErrorType<Problem>;
+export type LiveIntegrationsUpdateMutationVariables = {
+  id: string;
+  data?: PatchedLiveIntegrationWriteRequest;
+};
+
+/**
+ * @summary Change an integration (secrets only when given)
+ */
+export const useLiveIntegrationsUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveIntegrationsUpdate>>,
+      TError,
+      LiveIntegrationsUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveIntegrationsUpdate>>,
+  TError,
+  LiveIntegrationsUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveIntegrationsUpdateMutationOptions(options), queryClient);
+};
+
+export const getLiveIntegrationsDeleteUrl = (id: string) => {
+  return `/api/v1/admin/live/integrations/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Delete an integration (its channels stay, unlinked)
+ */
+export const liveIntegrationsDelete = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getLiveIntegrationsDeleteUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getLiveIntegrationsDeleteMutationKey = () => ["liveIntegrationsDelete"] as const;
+
+export const getLiveIntegrationsDeleteMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveIntegrationsDelete>>,
+    TError,
+    LiveIntegrationsDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveIntegrationsDelete>>,
+  TError,
+  LiveIntegrationsDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveIntegrationsDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveIntegrationsDelete>>,
+    LiveIntegrationsDeleteMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return liveIntegrationsDelete(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveIntegrationsDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveIntegrationsDelete>>
+>;
+
+export type LiveIntegrationsDeleteMutationError = ErrorType<Problem>;
+export type LiveIntegrationsDeleteMutationVariables = { id: string };
+
+/**
+ * @summary Delete an integration (its channels stay, unlinked)
+ */
+export const useLiveIntegrationsDelete = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveIntegrationsDelete>>,
+      TError,
+      LiveIntegrationsDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveIntegrationsDelete>>,
+  TError,
+  LiveIntegrationsDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveIntegrationsDeleteMutationOptions(options), queryClient);
+};
+
+export const getLiveIntegrationsSyncUrl = (id: string) => {
+  return `/api/v1/admin/live/integrations/${encodeURIComponent(String(id))}/sync`;
+};
+
+/**
+ * @summary Sync channels from the instance now (new ones arrive disabled)
+ */
+export const liveIntegrationsSync = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<SyncResult> => {
+  return apiFetch<SyncResult>(getLiveIntegrationsSyncUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLiveIntegrationsSyncMutationKey = () => ["liveIntegrationsSync"] as const;
+
+export const getLiveIntegrationsSyncMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveIntegrationsSync>>,
+    TError,
+    LiveIntegrationsSyncMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveIntegrationsSync>>,
+  TError,
+  LiveIntegrationsSyncMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveIntegrationsSyncMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveIntegrationsSync>>,
+    LiveIntegrationsSyncMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return liveIntegrationsSync(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveIntegrationsSyncMutationResult = NonNullable<
+  Awaited<ReturnType<typeof liveIntegrationsSync>>
+>;
+
+export type LiveIntegrationsSyncMutationError = ErrorType<Problem>;
+export type LiveIntegrationsSyncMutationVariables = { id: string };
+
+/**
+ * @summary Sync channels from the instance now (new ones arrive disabled)
+ */
+export const useLiveIntegrationsSync = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveIntegrationsSync>>,
+      TError,
+      LiveIntegrationsSyncMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveIntegrationsSync>>,
+  TError,
+  LiveIntegrationsSyncMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveIntegrationsSyncMutationOptions(options), queryClient);
+};
+
+export const getLiveOverviewUrl = () => {
+  return `/api/v1/admin/live/overview`;
+};
+
+/**
+ * @summary Live TV at a glance: packager, channels, viewers and the archive's disk use
+ */
+export const liveOverview = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveOverview> => {
+  return apiFetch<LiveOverview>(getLiveOverviewUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveOverviewQueryKey = () => {
+  return [`/api/v1/admin/live/overview`] as const;
+};
+
+export const getLiveOverviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveOverview>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveOverview>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveOverviewQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveOverview>>> = ({ signal }) =>
+    liveOverview({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof liveOverview>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LiveOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof liveOverview>>>;
+export type LiveOverviewQueryError = ErrorType<Problem>;
+
+export function useLiveOverview<
+  TData = Awaited<ReturnType<typeof liveOverview>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveOverview>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveOverview>>,
+          TError,
+          Awaited<ReturnType<typeof liveOverview>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveOverview<
+  TData = Awaited<ReturnType<typeof liveOverview>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveOverview>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveOverview>>,
+          TError,
+          Awaited<ReturnType<typeof liveOverview>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveOverview<
+  TData = Awaited<ReturnType<typeof liveOverview>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveOverview>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Live TV at a glance: packager, channels, viewers and the archive's disk use
+ */
+
+export function useLiveOverview<
+  TData = Awaited<ReturnType<typeof liveOverview>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveOverview>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveOverviewQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveSourceTestUrl = () => {
+  return `/api/v1/admin/live/source-tests`;
+};
+
+/**
+ * @summary Test a source URL before saving it; poll the result
+ */
+export const liveSourceTest = async (
+  sourceTestRequestRequest: SourceTestRequestRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<SourceTestQueued> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<SourceTestQueued>(getLiveSourceTestUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(sourceTestRequestRequest),
+  });
+};
+
+export const getLiveSourceTestMutationKey = () => ["liveSourceTest"] as const;
+
+export const getLiveSourceTestMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof liveSourceTest>>,
+    TError,
+    LiveSourceTestMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof liveSourceTest>>,
+  TError,
+  LiveSourceTestMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLiveSourceTestMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof liveSourceTest>>,
+    LiveSourceTestMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return liveSourceTest(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LiveSourceTestMutationResult = NonNullable<Awaited<ReturnType<typeof liveSourceTest>>>;
+export type LiveSourceTestMutationBody = SourceTestRequestRequest;
+export type LiveSourceTestMutationError = ErrorType<Problem>;
+export type LiveSourceTestMutationVariables = { data: SourceTestRequestRequest };
+
+/**
+ * @summary Test a source URL before saving it; poll the result
+ */
+export const useLiveSourceTest = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof liveSourceTest>>,
+      TError,
+      LiveSourceTestMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof liveSourceTest>>,
+  TError,
+  LiveSourceTestMutationVariables,
+  TContext
+> => {
+  return useMutation(getLiveSourceTestMutationOptions(options), queryClient);
+};
+
+export const getLiveSourceTestResultUrl = (requestId: string) => {
+  return `/api/v1/admin/live/source-tests/${encodeURIComponent(String(requestId))}`;
+};
+
+/**
+ * @summary The result of a source test (pending until the worker answers)
+ */
+export const liveSourceTestResult = async (
+  requestId: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<SourceTestResult> => {
+  return apiFetch<SourceTestResult>(getLiveSourceTestResultUrl(requestId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveSourceTestResultQueryKey = (requestId: string) => {
+  return [`/api/v1/admin/live/source-tests/${requestId}`] as const;
+};
+
+export const getLiveSourceTestResultQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveSourceTestResult>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveSourceTestResult>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveSourceTestResultQueryKey(requestId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveSourceTestResult>>> = ({ signal }) =>
+    liveSourceTestResult(requestId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: requestId !== null && requestId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof liveSourceTestResult>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type LiveSourceTestResultQueryResult = NonNullable<
+  Awaited<ReturnType<typeof liveSourceTestResult>>
+>;
+export type LiveSourceTestResultQueryError = ErrorType<Problem>;
+
+export function useLiveSourceTestResult<
+  TData = Awaited<ReturnType<typeof liveSourceTestResult>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveSourceTestResult>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveSourceTestResult>>,
+          TError,
+          Awaited<ReturnType<typeof liveSourceTestResult>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveSourceTestResult<
+  TData = Awaited<ReturnType<typeof liveSourceTestResult>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveSourceTestResult>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveSourceTestResult>>,
+          TError,
+          Awaited<ReturnType<typeof liveSourceTestResult>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveSourceTestResult<
+  TData = Awaited<ReturnType<typeof liveSourceTestResult>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveSourceTestResult>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The result of a source test (pending until the worker answers)
+ */
+
+export function useLiveSourceTestResult<
+  TData = Awaited<ReturnType<typeof liveSourceTestResult>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof liveSourceTestResult>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveSourceTestResultQueryOptions(requestId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 export const getMetadataSearchUrl = (params: MetadataSearchParams) => {
   const normalizedParams = new URLSearchParams();
 
@@ -5998,6 +9071,112 @@ export function useMetadataSearch<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export const getMonitoringTicketUrl = () => {
+  return `/api/v1/admin/monitoring/ticket`;
+};
+
+/**
+ * @summary A one-time link that signs this admin in to Grafana, Prometheus and Alertmanager
+ */
+export const monitoringTicket = async (
+  monitoringTicketRequest?: MonitoringTicketRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<MonitoringTicketLink> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<MonitoringTicketLink>(getMonitoringTicketUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(monitoringTicketRequest),
+  });
+};
+
+export const getMonitoringTicketMutationKey = () => ["monitoringTicket"] as const;
+
+export const getMonitoringTicketMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof monitoringTicket>>,
+    TError,
+    MonitoringTicketMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof monitoringTicket>>,
+  TError,
+  MonitoringTicketMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMonitoringTicketMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof monitoringTicket>>,
+    MonitoringTicketMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return monitoringTicket(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MonitoringTicketMutationResult = NonNullable<
+  Awaited<ReturnType<typeof monitoringTicket>>
+>;
+export type MonitoringTicketMutationBody = MonitoringTicketRequest | undefined;
+export type MonitoringTicketMutationError = ErrorType<Problem>;
+export type MonitoringTicketMutationVariables = { data?: MonitoringTicketRequest };
+
+/**
+ * @summary A one-time link that signs this admin in to Grafana, Prometheus and Alertmanager
+ */
+export const useMonitoringTicket = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof monitoringTicket>>,
+      TError,
+      MonitoringTicketMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof monitoringTicket>>,
+  TError,
+  MonitoringTicketMutationVariables,
+  TContext
+> => {
+  return useMutation(getMonitoringTicketMutationOptions(options), queryClient);
+};
 
 export const getMoviesListUrl = (params?: MoviesListParams) => {
   const normalizedParams = new URLSearchParams();

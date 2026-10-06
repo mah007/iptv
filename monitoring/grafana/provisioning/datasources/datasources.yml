@@ -1,0 +1,51 @@
+# Grafana datasources (ADR-0018), provisioned read-only. The UIDs are what the
+# dashboards in monitoring/grafana/dashboards reference.
+apiVersion: 1
+
+deleteDatasources:
+  - name: Prometheus
+  - name: Loki
+  - name: Alertmanager
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090/prometheus
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 30s
+      prometheusType: Prometheus
+      manageAlerts: false
+
+  # Logs, redacted by Alloy before they arrive. A request id in any line links to
+  # every line of that request (Traefik, Django and the media edge).
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - name: request_id
+          matcherType: label
+          matcherRegex: request_id
+          datasourceUid: loki
+          url: '{project="smart-iptv"} | request_id="${__value.raw}"'
+          urlDisplayLabel: All lines of this request
+
+  # Prometheus's alerts as Alertmanager groups them; silences are made here.
+  - name: Alertmanager
+    uid: alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093/alertmanager
+    editable: false
+    jsonData:
+      implementation: prometheus
+      handleGrafanaManagedAlerts: false

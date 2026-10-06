@@ -41,7 +41,9 @@
     "invoices": "Invoices",
     "notifications": "Notifications",
     "templates": "Templates",
-    "storage": "Storage"
+    "storage": "Storage",
+    "liveTv": "Live TV",
+    "epg": "EPG"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -817,6 +819,10 @@
       "trials": {
         "title": "Trials",
         "description": "Used once self-service trials arrive in a later release."
+      },
+      "live": {
+        "title": "Live TV",
+        "description": "Channel packaging, catch-up and the guide."
       }
     },
     "keys": {
@@ -1052,6 +1058,40 @@
         "approve_new_devices": {
           "label": "Approve new devices",
           "description": "New devices wait for an admin's approval before they can play."
+        }
+      },
+      "live": {
+        "idle_stop_s": {
+          "label": "Stop after the last viewer",
+          "description": "Seconds an on-demand channel keeps running after its last viewer leaves."
+        },
+        "max_running_channels": {
+          "label": "Channels running at once",
+          "description": "The most channels packaged at the same time."
+        },
+        "realtime_transcode_max": {
+          "label": "Re-encoded channels at once",
+          "description": "The most channels re-encoded in real time at the same time (the capped fallback)."
+        },
+        "catchup_max_days": {
+          "label": "Longest catch-up",
+          "description": "The most days of catch-up a channel may keep."
+        },
+        "timeshift_max_minutes": {
+          "label": "Longest catch-up request",
+          "description": "The most minutes one catch-up request may play."
+        },
+        "epg_past_days": {
+          "label": "Guide history",
+          "description": "Days of past programmes the guide keeps."
+        },
+        "epg_future_days": {
+          "label": "Guide ahead",
+          "description": "Days of future programmes an import keeps."
+        },
+        "epg_max_document_mb": {
+          "label": "Largest guide file",
+          "description": "The largest XMLTV document an import reads, in megabytes, uncompressed."
         }
       }
     }
@@ -1614,7 +1654,14 @@
     "not_a_customer": "Rules apply to customers only.",
     "not_in_future": "Pick a time in the future.",
     "role_name_rule": "Start with a letter; use lowercase letters, digits and underscores.",
-    "role_name_taken": "A role with this name already exists."
+    "role_name_taken": "A role with this name already exists.",
+    "invalid_source_url": "Enter an http(s), rtmp(s), rtsp(s) or srt URL.",
+    "unsafe_destination": "This address is never fetched from.",
+    "invalid_epg_channel_id": "No spaces or quotes.",
+    "rights_required": "Channels need a rights holder before they can be enabled.",
+    "invalid_cron": "Enter five cron fields.",
+    "invalid_url": "Enter a valid URL.",
+    "credentials_in_url": "Put credentials in their own fields, not in the URL."
   },
   "activity": {
     "label": "Activity",
@@ -2565,6 +2612,293 @@
         "superseded": "Superseded",
         "leftover": "Interrupted job"
       }
+    }
+  },
+  "liveTv": {
+    "title": "Live TV",
+    "description": "Channels you own or are licensed to redistribute, their groups, and where they come from.",
+    "tabs": {
+      "channels": "Channels",
+      "groups": "Groups",
+      "integrations": "Integrations"
+    },
+    "new": "New channel",
+    "states": {
+      "live": "Live",
+      "starting": "Starting",
+      "idle": "Idle (starts on demand)",
+      "failed": "Failed",
+      "disabled": "Disabled",
+      "unlicensed": "Licence expired"
+    },
+    "recording": "Recording",
+    "viewers_one": "{{count}} watching",
+    "viewers_other": "{{count}} watching",
+    "errors": {
+      "exit": "The source stopped",
+      "stalled": "The source stalled",
+      "no_output": "No picture from the source",
+      "ffmpeg_missing": "FFmpeg is missing",
+      "unsafe_destination": "The source address is refused"
+    },
+    "columns": {
+      "number": "ID",
+      "channel": "Channel",
+      "group": "Group",
+      "status": "Status",
+      "catchup": "Catch-up",
+      "rights": "Rights",
+      "enabled": "Enabled",
+      "actions": "Actions"
+    },
+    "catchupDays_one": "{{count}} day",
+    "catchupDays_other": "{{count}} days",
+    "noCatchup": "Off",
+    "licenseUntil": "Licensed until {{date}}",
+    "licenseExpired": "Licence expired",
+    "rightsMissing": "Rights holder missing",
+    "enableLabel": "Enable {{name}}",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "edit": "Edit {{name}}",
+    "delete": {
+      "label": "Delete {{name}}",
+      "title": "Delete {{name}}?",
+      "description": "Its viewers stop at once, and its catch-up archive is deleted.",
+      "confirm": "Delete",
+      "done": "{{name}} deleted"
+    },
+    "enabledToast": "{{name}} enabled",
+    "disabledToast": "{{name}} disabled; its viewers were stopped",
+    "filters": {
+      "group": "Group",
+      "allGroups": "All groups",
+      "search": "Search channels"
+    },
+    "orderHint": "Pick a group to change the order of its channels.",
+    "empty": {
+      "title": "No channels yet",
+      "description": "Add a channel you own or are licensed to redistribute, or sync them from your ErsatzTV or MediaMTX.",
+      "noGroups": "Create a group first (the Groups tab)."
+    },
+    "groups": {
+      "new": "New group",
+      "description": "Groups are the live categories IPTV apps show; plans give access by group.",
+      "empty": "No groups yet",
+      "emptyDescription": "Create a group to put channels in.",
+      "editTitle": "Edit group",
+      "newTitle": "New live group",
+      "formDescription": "Names in both languages. IPTV apps list groups in this order.",
+      "deleteTitle": "Delete {{name}}?",
+      "deleteDescription": "A group that still holds channels can't be deleted."
+    },
+    "integrations": {
+      "new": "Add instance",
+      "intro": "Sync channels from your own ErsatzTV or MediaMTX. New channels arrive disabled, for you to review.",
+      "empty": "No instances",
+      "emptyDescription": "Add your ErsatzTV or MediaMTX to sync its channels.",
+      "kinds": {
+        "ersatztv": "ErsatzTV",
+        "mediamtx": "MediaMTX"
+      },
+      "channels_one": "{{count}} channel",
+      "channels_other": "{{count}} channels",
+      "lastSync": "Synced",
+      "result": "{{created}} new, {{updated}} changed, {{missing}} gone",
+      "neverSynced": "Never synced",
+      "sync": "Sync now",
+      "syncQueued": "Sync started",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteTitle": "Remove {{name}}?",
+      "deleteDescription": "Its channels stay, unlinked from it.",
+      "saved": "{{name}} saved",
+      "kind": "Kind",
+      "kindHelp": {
+        "ersatztv": "Channels built from your ErsatzTV library, with its guide.",
+        "mediamtx": "Paths your own encoders and cameras publish to MediaMTX."
+      },
+      "name": "Name",
+      "baseUrl": "Address",
+      "streamBase": "Stream address",
+      "streamBaseHelp": "Where channels are read from, for example rtsp://mediamtx:8554.",
+      "username": "Reader user",
+      "password": "Password",
+      "accessToken": "Access token",
+      "secretHelp": "Only if the instance needs one. Leave it empty to keep the current one.",
+      "rightsHelp": "Copied to every channel synced from this instance.",
+      "create": "Add",
+      "editTitle": "Edit instance",
+      "newTitle": "Add an instance",
+      "description": "Only instances you run, with content you own or license."
+    },
+    "overview": {
+      "packager": "Packager",
+      "running_one": "Running {{count}} channel",
+      "running_other": "Running {{count}} channels",
+      "stopped": "Not running",
+      "channels": "Channels",
+      "enabled": "{{enabled}} of {{total}} enabled",
+      "viewers": "Watching now",
+      "archive": "Catch-up archive",
+      "archiveUse": "{{used}} of {{budget}}"
+    },
+    "form": {
+      "name": "Name",
+      "nameAr": "Arabic name",
+      "group": "Group",
+      "groupPlaceholder": "Pick a group",
+      "groupHelp": "Plans that include this group can watch the channel.",
+      "source": "Source URL",
+      "sourceHelp": "http(s), rtmp(s), rtsp(s) or srt. Stored encrypted and never shown again.",
+      "sourceKeep": "Stored encrypted. Type a new URL to replace it, or leave it empty to keep it.",
+      "output": "Default format",
+      "outputHelp": "What the short IPTV URL plays.",
+      "transcode": "Processing",
+      "transcodeHelp": "Copy keeps the source as it is. Re-encoding uses the CPU and is capped.",
+      "epgId": "Guide channel ID (XMLTV)",
+      "epgIdHelp": "The id in your XMLTV guide, for example studio.example.com.",
+      "catchup": "Catch-up (days)",
+      "catchupHelp": "0 turns catch-up off. A recording channel runs all the time.",
+      "catchupEstimate": "About {{size}} of disk. The archive's budget is {{budget}}.",
+      "catchupUnknown": "Test the source to estimate the disk. The archive's budget is {{budget}}.",
+      "always_on": "Always on",
+      "always_onHelp": "Keep packaging without viewers: instant start, but it uses the CPU and the source's bandwidth all the time.",
+      "enabled": "Enabled",
+      "enabledHelp": "Shown to IPTV apps and playable. Needs a rights holder.",
+      "rights": "Rights",
+      "rightsHelp": "Only content you own or are licensed to redistribute. An expired licence hides the channel.",
+      "rightsHolder": "Rights holder",
+      "licenseRef": "Licence reference",
+      "licenseExpires": "Licence expires",
+      "logo": "Logo",
+      "logoHelp": "PNG, JPEG or WebP, stored as WebP for IPTV apps.",
+      "create": "Create channel",
+      "saved": "{{name}} saved",
+      "created": "{{name}} created",
+      "editTitle": "Edit channel",
+      "newTitle": "New channel",
+      "description": "A channel you own or are licensed to redistribute."
+    },
+    "outputs": {
+      "ts": "MPEG-TS (.ts)",
+      "hls": "HLS (.m3u8)"
+    },
+    "transcodes": {
+      "copy": "Copy (no re-encoding)",
+      "h264": "Re-encode to H.264 (capped)"
+    },
+    "test": {
+      "run": "Test",
+      "failed": "The source did not answer",
+      "ok": "The source works",
+      "copyOk": "It can be copied as it is.",
+      "copyNo": "It needs re-encoding to play everywhere.",
+      "errors": {
+        "unreachable": "It could not be reached or read.",
+        "timeout": "It took too long to answer.",
+        "unsupported_scheme": "This server's FFmpeg can't read this protocol. Ingest it through MediaMTX.",
+        "unsafe_destination": "This address is never fetched from.",
+        "unreadable_source": "The stored URL can't be read.",
+        "ffprobe_missing": "FFprobe is missing on the worker.",
+        "no_video": "The source has no video.",
+        "unreadable": "The answer could not be read."
+      }
+    },
+    "validation": {
+      "nameRequired": "Enter a name.",
+      "groupRequired": "Pick a group.",
+      "epgId": "No spaces or quotes.",
+      "catchup": "From 0 to 30 days.",
+      "sourceRequired": "Enter the source URL.",
+      "urlRequired": "Enter the address.",
+      "rightsRequired": "Enter the rights holder."
+    }
+  },
+  "epg": {
+    "title": "EPG",
+    "description": "XMLTV guide sources, channels without a guide, and what plays when.",
+    "new": "Add source",
+    "kinds": {
+      "url": "URL",
+      "upload": "Uploaded file"
+    },
+    "sources": {
+      "title": "Sources",
+      "empty": "No guide sources",
+      "emptyDescription": "Add your XMLTV guide by URL or as a file.",
+      "columns": {
+        "name": "Name",
+        "from": "From",
+        "schedule": "Schedule",
+        "lastOk": "Last imported",
+        "guide": "Guide",
+        "actions": "Actions"
+      },
+      "disabled": "Disabled",
+      "never": "Never",
+      "counts": "{{channels}} channels, {{programmes}} programmes",
+      "refresh": "Import {{name}} now",
+      "refreshQueued": "Importing {{name}}",
+      "edit": "Edit {{name}}",
+      "delete": "Delete {{name}}",
+      "deleteTitle": "Delete {{name}}?",
+      "deleteDescription": "Its programmes leave the guide.",
+      "deleteConfirm": "Delete"
+    },
+    "form": {
+      "name": "Name",
+      "kind": "Source",
+      "url": "XMLTV URL",
+      "urlHelp": "http or https; gzip is fine. Stored encrypted.",
+      "urlKeep": "Stored encrypted. Type a new URL to replace it.",
+      "file": "XMLTV file",
+      "fileHelp": "An .xml or .xml.gz file, up to 50 MB.",
+      "cron": "Schedule (cron)",
+      "cronHelp": "Five fields in UTC, for example 0 */6 * * * for every 6 hours.",
+      "priority": "Priority",
+      "priorityHelp": "Lower wins when two sources describe the same channel.",
+      "enabled": "Enabled",
+      "enabledHelp": "Imported on its schedule.",
+      "create": "Add source",
+      "saved": "{{name}} saved; importing",
+      "editTitle": "Edit source",
+      "newTitle": "Add a guide source",
+      "description": "Your own XMLTV guide, or the one your licensor provides."
+    },
+    "unmatched": {
+      "title": "Channels without a guide",
+      "allMatched": "Every channel has guide data.",
+      "columns": {
+        "channel": "Channel",
+        "reason": "Why",
+        "suggestions": "Suggestions"
+      },
+      "reasons": {
+        "no_id": "No guide id",
+        "not_in_guide": "Not in any guide"
+      },
+      "noSuggestion": "No match found",
+      "use": "Use {{id}} for {{name}}",
+      "mapped": "{{name}} mapped; importing its guide",
+      "unused": "Guide channels no channel uses"
+    },
+    "preview": {
+      "title": "Programme preview",
+      "channel": "Channel",
+      "pick": "Pick a channel",
+      "previous": "Previous day",
+      "next": "Next day",
+      "today": "Today",
+      "noChannels": "No channel has a guide id yet.",
+      "empty": "No programmes on {{day}}.",
+      "onAir": "On air"
+    },
+    "validation": {
+      "nameRequired": "Enter a name.",
+      "cronRequired": "Enter a schedule.",
+      "urlOrFile": "Give a URL or choose a file.",
+      "priority": "From 0 to 10,000."
     }
   }
 }

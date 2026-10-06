@@ -11,19 +11,23 @@ Lists follow category order (`sort`, then id), then newest first. An item keeps
 only the categories visible to the user; one left with none is not listed.
 """
 
+import base64
 import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Literal, Protocol
 
 from apps.xtream_api.dto import (
     CategoryItem,
+    ChannelGuide,
+    ChannelItem,
     EpisodeItem,
     Locale,
     MediaInfo,
     MovieDetail,
     MovieSummary,
+    Programme,
     SeasonItem,
     SeriesDetail,
     SeriesSummary,
@@ -488,3 +492,128 @@ def _episode(episode: EpisodeItem, locale: Locale) -> Payload:
 def ids_of(categories: Sequence[Payload]) -> set[int]:
     """The category ids a categories payload lists."""
     return {int(str(category["category_id"])) for category in categories}
+
+
+# --- Live TV (M12) ------------------------------------------------------------------------------
+
+#: get_short_epg's default and largest `limit`.
+SHORT_EPG_LIMIT = 4
+MAX_EPG_LIMIT = 50
+_LANG = re.compile(r"[a-z]{2,3}")
+
+
+def live_streams(
+    channels: Iterable[ChannelItem],
+    categories: Iterable[CategoryItem],
+    locale: Locale,
+    category_id: int | None = None,
+) -> list[Payload]:
+    """get_live_streams: channels in category order, then their own order (`sort`)."""
+    position = {
+        category.xc_id: index for index, category in enumerate(ordered_categories(categories))
+    }
+    rows: dict[int, tuple[ChannelItem, list[int]]] = {}
+    for channel in channels:
+        ids = [cid for cid in dict.fromkeys(channel.category_ids) if cid in position]
+        if not ids or channel.xc_id in rows or (category_id is not None and category_id not in ids):
+            continue
+        rows[channel.xc_id] = (channel, ids)
+    ordered = sorted(
+        rows.values(), key=lambda row: (position[row[1][0]], row[0].sort, row[0].xc_id)
+    )
+    payload: list[Payload] = []
+    for number, (channel, ids) in enumerate(ordered, 1):
+        days = min(max(channel.catchup_days, 0), 365)
+        payload.append(
+            {
+                "num": number,
+                "name": name(channel.name, locale, str(channel.xc_id)),
+                "stream_type": "live",
+                "stream_id": channel.xc_id,
+                "stream_icon": image(channel.logo),
+                "epg_channel_id": epg_channel_id(channel.epg_channel_id),
+                "added": unix(channel.added),
+                "is_adult": "1" if channel.is_adult else "0",
+                "category_id": str(ids[0]),
+                "category_ids": ids,
+                "custom_sid": "",
+                "tv_archive": 1 if days > 0 else 0,
+                "direct_source": "",
+                "tv_archive_duration": days,
+            }
+        )
+    return payload
+
+
+def epg_channel_id(value: str) -> str:
+    """The XMLTV id as apps may see it (no whitespace or quotes), else ""."""
+    text = value.strip()
+    return text if 0 < len(text) <= 255 and not re.search(r'[\s"]', text) else ""
+
+
+def b64(text: str) -> str:
+    return base64.b64encode(text.encode()).decode("ascii")
+
+
+def _datetime(moment: datetime) -> str:
+    return moment.astimezone(UTC).strftime(_DATETIME_FORMAT)
+
+
+def _listing_text(programme: Programme, locale: Locale) -> tuple[str, str]:
+    """(title, lang): the title in the user's language when there is one."""
+    arabic, other = programme.title.only("ar"), programme.title.only("en")
+    if locale == "ar" and arabic:
+        return arabic, "ar"
+    if other:
+        lang = programme.lang if _LANG.fullmatch(programme.lang) else ""
+        return other, lang
+    return arabic, "ar"
+
+
+def _has_archive(guide: ChannelGuide, programme: Programme, now: datetime) -> bool:
+    """Catch-up replays finished programmes the archive fully holds (compat invariant:archive)."""
+    days = guide.channel.catchup_days
+    if days <= 0 or guide.archive_from is None or programme.stop > now:
+        return False
+    return programme.start >= max(guide.archive_from, now - timedelta(days=days))
+
+
+def epg_listings(
+    guide: ChannelGuide | None,
+    locale: Locale,
+    now: datetime,
+    *,
+    limit: int | None = None,
+) -> Payload:
+    """get_short_epg (`limit` set: from the programme on air) or get_simple_data_table."""
+    channel_id = epg_channel_id(guide.channel.epg_channel_id) if guide else ""
+    if guide is None or not channel_id:
+        return {"epg_listings": []}
+    programmes = sorted(
+        (item for item in guide.programmes if item.stop > item.start),
+        key=lambda item: (item.start, item.listing_id),
+    )
+    if limit is not None:
+        programmes = [item for item in programmes if item.stop > now][: max(1, limit)]
+    listings: list[Payload] = []
+    for item in programmes:
+        title, lang = _listing_text(item, locale)
+        if not title:
+            continue
+        listings.append(
+            {
+                "id": str(item.listing_id),
+                "epg_id": str(item.epg_id),
+                "title": b64(title),
+                "lang": lang,
+                "start": _datetime(item.start),
+                "end": _datetime(item.stop),
+                "description": b64(item.description.pick(locale)),
+                "channel_id": channel_id,
+                "start_timestamp": unix(item.start),
+                "stop_timestamp": unix(item.stop),
+                "now_playing": 1 if item.start <= now < item.stop else 0,
+                "has_archive": 1 if _has_archive(guide, item, now) else 0,
+            }
+        )
+    return {"epg_listings": listings}

@@ -64,6 +64,10 @@ services:
   beat:
     <<: *prod-app
 
+  # Live TV (ADR-0017): production settings for the packager; the relay needs none.
+  live:
+    <<: *prod-app
+
   migrate:
     <<: *prod-app
 

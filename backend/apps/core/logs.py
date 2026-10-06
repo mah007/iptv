@@ -94,7 +94,11 @@ def logging_config(*, level: str, log_format: LogFormat) -> dict[str, Any]:
         "loggers": {
             "django": {"level": level, "propagate": True},
             "django.server": {"level": level, "propagate": True},
-            # Off (--no-access-log), but if it is ever enabled its lines are redacted too.
-            "uvicorn.access": {"handlers": [], "level": level, "propagate": True},
+            # Uvicorn's access log prints raw paths (Xtream paths carry credentials), and
+            # RequestLogMiddleware logs every request redacted instead. Uvicorn logs access
+            # whenever this logger "has handlers", its parents' included: propagating
+            # would reach the "uvicorn" logger's unredacted handler and switch it back on
+            # despite --no-access-log (O1, 2026-10-06). So: no handlers, no propagation.
+            "uvicorn.access": {"handlers": [], "level": level, "propagate": False},
         },
     }

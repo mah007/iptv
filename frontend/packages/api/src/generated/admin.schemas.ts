@@ -419,6 +419,15 @@ export interface Breakdown {
   matched_title: string;
 }
 
+export interface BulkEnableRequest {
+  /**
+   * @minItems 1
+   * @maxItems 500
+   */
+  ids: string[];
+  enabled: boolean;
+}
+
 /**
  * * `movie` - Movie
  * * `tv` - Series
@@ -523,15 +532,104 @@ export interface ChangePlanRequest {
   plan_id: string;
 }
 
+export interface ChannelGroup {
+  readonly id: string;
+  readonly xc_id: number;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly sort: number;
+  readonly is_adult: boolean;
+  readonly visible_in_xtream: boolean;
+}
+
+/**
+ * * `manual` - Created by an admin
+ * * `ersatztv` - ErsatzTV
+ * * `mediamtx` - MediaMTX
+ */
+export type ChannelOrigin = (typeof ChannelOrigin)[keyof typeof ChannelOrigin];
+
+export const ChannelOrigin = {
+  manual: "manual",
+  ersatztv: "ersatztv",
+  mediamtx: "mediamtx",
+} as const;
+
+/**
+ * * `ts` - MPEG-TS
+ * * `hls` - HLS
+ */
+export type ChannelOutput = (typeof ChannelOutput)[keyof typeof ChannelOutput];
+
+export const ChannelOutput = {
+  ts: "ts",
+  hls: "hls",
+} as const;
+
+export interface ChannelReorderRequest {
+  group: string;
+  /** @maxItems 2000 */
+  ids: string[];
+}
+
+/**
+ * * `disabled` - disabled
+ * * `idle` - idle
+ * * `starting` - starting
+ * * `live` - live
+ * * `failed` - failed
+ * * `unlicensed` - unlicensed
+ */
+export type ChannelStatusStateEnum =
+  (typeof ChannelStatusStateEnum)[keyof typeof ChannelStatusStateEnum];
+
+export const ChannelStatusStateEnum = {
+  disabled: "disabled",
+  idle: "idle",
+  starting: "starting",
+  live: "live",
+  failed: "failed",
+  unlicensed: "unlicensed",
+} as const;
+
+/**
+ * What the packager reports (redis-state), plus the open sessions.
+ */
+export interface ChannelStatus {
+  state: ChannelStatusStateEnum;
+  /** @nullable */
+  since: string | null;
+  error: string;
+  detail: string;
+  bitrate_kbps: number;
+  viewers: number;
+  recording: boolean;
+  archive_bytes: number;
+  /** @nullable */
+  archive_from: string | null;
+}
+
+/**
+ * * `copy` - Copy (remux)
+ * * `h264` - Real-time H.264
+ */
+export type ChannelTranscode = (typeof ChannelTranscode)[keyof typeof ChannelTranscode];
+
+export const ChannelTranscode = {
+  copy: "copy",
+  h264: "h264",
+} as const;
+
 /**
  * * `orphaned` - orphaned
  * * `removed_file` - removed_file
  * * `superseded` - superseded
  * * `leftover` - leftover
  */
-export type ReasonEnum = (typeof ReasonEnum)[keyof typeof ReasonEnum];
+export type CleanupRemovalReasonEnum =
+  (typeof CleanupRemovalReasonEnum)[keyof typeof CleanupRemovalReasonEnum];
 
-export const ReasonEnum = {
+export const CleanupRemovalReasonEnum = {
   orphaned: "orphaned",
   removed_file: "removed_file",
   superseded: "superseded",
@@ -541,7 +639,7 @@ export const ReasonEnum = {
 export interface CleanupRemoval {
   /** `<asset key>/<entry>`, never a library path. */
   path: string;
-  reason: ReasonEnum;
+  reason: CleanupRemovalReasonEnum;
   bytes: number;
 }
 
@@ -946,6 +1044,84 @@ export interface DayPoint {
 export interface DeviceBlockRequest {
   /** @maxLength 200 */
   reason?: string;
+}
+
+export interface EpgChannel {
+  readonly id: string;
+  readonly source: string;
+  readonly source_name: string;
+  readonly xmltv_id: string;
+  readonly name: string;
+  readonly names: unknown;
+  readonly icon_url: string;
+}
+
+/**
+ * * `url` - URL
+ * * `upload` - Uploaded file
+ */
+export type EpgSourceKind = (typeof EpgSourceKind)[keyof typeof EpgSourceKind];
+
+export const EpgSourceKind = {
+  url: "url",
+  upload: "upload",
+} as const;
+
+export interface SourceInfo {
+  scheme: string;
+  host: string;
+  /** @nullable */
+  port: number | null;
+}
+
+export interface EpgSource {
+  readonly id: string;
+  readonly name: string;
+  readonly kind: EpgSourceKind;
+  readonly url: SourceInfo | null;
+  readonly upload_name: string;
+  readonly refresh_cron: string;
+  readonly priority: number;
+  readonly enabled: boolean;
+  readonly epg_id: number;
+  /** @nullable */
+  readonly integration: string | null;
+  /** @nullable */
+  readonly last_run_at: string | null;
+  /** @nullable */
+  readonly last_ok_at: string | null;
+  readonly last_error: string;
+  readonly stats: unknown;
+  readonly channel_count: number;
+  readonly created_at: string;
+}
+
+/**
+ * JSON or multipart: `url` for a feed, or `file` for an uploaded XMLTV.
+ */
+export interface EpgSourceWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  /**
+   * @minLength 1
+   * @maxLength 2048
+   */
+  url?: string;
+  file?: Blob | File;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  refresh_cron?: string;
+  /**
+   * @minimum 0
+   * @maximum 10000
+   */
+  priority?: number;
+  enabled?: boolean;
 }
 
 export interface LibraryBrief {
@@ -1491,6 +1667,165 @@ export interface LibraryWriteRequest {
   enabled?: boolean;
 }
 
+export type ProbeVideo = { [key: string]: unknown };
+
+export type ProbeAudio = { [key: string]: unknown };
+
+export interface Probe {
+  ok: boolean;
+  error?: string;
+  detail?: string;
+  video?: ProbeVideo;
+  audio?: ProbeAudio;
+  height?: number;
+  bitrate_kbps?: number;
+  copy_ok?: boolean;
+  at?: string;
+}
+
+export interface LiveChannel {
+  readonly id: string;
+  readonly xc_id: number;
+  readonly name: string;
+  readonly name_ar: string;
+  readonly group: ChannelGroup;
+  readonly sort: number;
+  readonly epg_channel_id: string;
+  /** @nullable */
+  readonly epg_source: string | null;
+  readonly logo_url: string;
+  readonly source_info: SourceInfo | null;
+  readonly output: ChannelOutput;
+  readonly transcode: ChannelTranscode;
+  readonly catchup_days: number;
+  readonly always_on: boolean;
+  readonly enabled: boolean;
+  readonly rights_holder: string;
+  readonly license_ref: string;
+  /** @nullable */
+  readonly license_expires_at: string | null;
+  readonly license_valid: boolean;
+  readonly origin: ChannelOrigin;
+  readonly origin_ref: string;
+  /** @nullable */
+  readonly integration: string | null;
+  readonly probe: Probe | null;
+  readonly status: ChannelStatus;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface LiveChannelWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  /** @maxLength 255 */
+  name_ar?: string;
+  group: string;
+  /**
+   * @minimum -2147483648
+   * @maximum 2147483647
+   */
+  sort?: number;
+  epg_channel_id?: string;
+  /** @nullable */
+  epg_source?: string | null;
+  /**
+   * @minLength 1
+   * @maxLength 2048
+   */
+  source_url?: string;
+  output?: ChannelOutput;
+  transcode?: ChannelTranscode;
+  /**
+   * @minimum 0
+   * @maximum 365
+   */
+  catchup_days?: number;
+  always_on?: boolean;
+  enabled?: boolean;
+  /** @maxLength 255 */
+  rights_holder?: string;
+  /** @maxLength 255 */
+  license_ref?: string;
+  /** @nullable */
+  license_expires_at?: string | null;
+}
+
+/**
+ * * `ersatztv` - ErsatzTV
+ * * `mediamtx` - MediaMTX
+ */
+export type LiveIntegrationKind = (typeof LiveIntegrationKind)[keyof typeof LiveIntegrationKind];
+
+export const LiveIntegrationKind = {
+  ersatztv: "ersatztv",
+  mediamtx: "mediamtx",
+} as const;
+
+export interface LiveIntegration {
+  readonly id: string;
+  readonly kind: LiveIntegrationKind;
+  readonly name: string;
+  readonly base_url: string;
+  readonly stream_base: SourceInfo | null;
+  /** @nullable */
+  readonly group: string | null;
+  readonly rights_holder: string;
+  readonly license_ref: string;
+  readonly has_credentials: boolean;
+  /** @nullable */
+  readonly last_sync_at: string | null;
+  readonly last_error: string;
+  readonly last_result: unknown;
+  readonly channel_count: number;
+  readonly created_at: string;
+}
+
+export interface LiveIntegrationWriteRequest {
+  kind?: LiveIntegrationKind;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  /**
+   * @minLength 1
+   * @maxLength 500
+   */
+  base_url?: string;
+  /** @maxLength 500 */
+  stream_base_url?: string;
+  /** @nullable */
+  group?: string | null;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  rights_holder?: string;
+  /** @maxLength 255 */
+  license_ref?: string;
+  /** @maxLength 200 */
+  username?: string;
+  /** @maxLength 500 */
+  password?: string;
+  /** @maxLength 2000 */
+  access_token?: string;
+}
+
+export interface LiveOverview {
+  packager_running: boolean;
+  running_channels: number;
+  channels: number;
+  enabled_channels: number;
+  catchup_channels: number;
+  archive_bytes: number;
+  archive_budget_bytes: number;
+  viewers: number;
+}
+
 export interface LoginRequest {
   /**
    * Username or email address.
@@ -1520,6 +1855,15 @@ export interface LoginResponse {
   status: LoginStatus;
   /** Only with mfa_setup_required: the content of the authenticator QR code. */
   otpauth_uri?: string;
+}
+
+export interface LogoRequest {
+  file?: Blob | File;
+  /**
+   * @minLength 1
+   * @maxLength 1024
+   */
+  url?: string;
 }
 
 /**
@@ -1592,9 +1936,10 @@ export interface MediaQueued {
   queued: boolean;
 }
 
-export type OriginEnum = (typeof OriginEnum)[keyof typeof OriginEnum];
+export type MediaSubtitleTrackOriginEnum =
+  (typeof MediaSubtitleTrackOriginEnum)[keyof typeof MediaSubtitleTrackOriginEnum];
 
-export const OriginEnum = {
+export const MediaSubtitleTrackOriginEnum = {
   embedded: "embedded",
   sidecar: "sidecar",
   upload: "upload",
@@ -1637,7 +1982,7 @@ export const SubtitleStatus = {
 export interface MediaSubtitleTrack {
   readonly id: string;
   /** embedded, sidecar or upload. */
-  readonly origin: OriginEnum;
+  readonly origin: MediaSubtitleTrackOriginEnum;
   /** @nullable */
   readonly stream_index: number | null;
   /** A sidecar's path inside its library. */
@@ -1682,6 +2027,19 @@ export interface MfaVerifyRequest {
 
 export interface Migrated {
   migrated: number;
+}
+
+export interface MonitoringTicketLink {
+  /** Open this URL within a minute; it signs the admin in to monitoring once. */
+  url: string;
+}
+
+export interface MonitoringTicketRequest {
+  /**
+   * Where to land on the monitoring host (a path, such as /d/iptv-edges).
+   * @maxLength 512
+   */
+  next?: string;
 }
 
 export interface MovieDetail {
@@ -1926,6 +2284,15 @@ export interface PaginatedLibraryList {
   /** @nullable */
   previous: string | null;
   results: Library[];
+}
+
+export interface PaginatedLiveChannelList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: LiveChannel[];
 }
 
 export interface PaginatedMovieSummaryList {
@@ -2203,12 +2570,16 @@ export interface SessionDevice {
 /**
  * * `movie` - Movie
  * * `episode` - Episode
+ * * `live` - Live channel
+ * * `catchup` - Catch-up
  */
 export type TitleKindEnum = (typeof TitleKindEnum)[keyof typeof TitleKindEnum];
 
 export const TitleKindEnum = {
   movie: "movie",
   episode: "episode",
+  live: "live",
+  catchup: "catchup",
 } as const;
 
 /**
@@ -2573,6 +2944,34 @@ export interface PatchedCustomerProfileRequest {
 }
 
 /**
+ * JSON or multipart: `url` for a feed, or `file` for an uploaded XMLTV.
+ */
+export interface PatchedEpgSourceWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  /**
+   * @minLength 1
+   * @maxLength 2048
+   */
+  url?: string;
+  file?: Blob | File;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  refresh_cron?: string;
+  /**
+   * @minimum 0
+   * @maximum 10000
+   */
+  priority?: number;
+  enabled?: boolean;
+}
+
+/**
  * Create or change a library. `path` is a folder under the media root, given as an
  * absolute container path (/media/movies) or relative to the root (movies).
  */
@@ -2596,6 +2995,76 @@ export interface PatchedLibraryWriteRequest {
    */
   scan_interval_min?: number;
   enabled?: boolean;
+}
+
+export interface PatchedLiveChannelWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  name?: string;
+  /** @maxLength 255 */
+  name_ar?: string;
+  group?: string;
+  /**
+   * @minimum -2147483648
+   * @maximum 2147483647
+   */
+  sort?: number;
+  epg_channel_id?: string;
+  /** @nullable */
+  epg_source?: string | null;
+  /**
+   * @minLength 1
+   * @maxLength 2048
+   */
+  source_url?: string;
+  output?: ChannelOutput;
+  transcode?: ChannelTranscode;
+  /**
+   * @minimum 0
+   * @maximum 365
+   */
+  catchup_days?: number;
+  always_on?: boolean;
+  enabled?: boolean;
+  /** @maxLength 255 */
+  rights_holder?: string;
+  /** @maxLength 255 */
+  license_ref?: string;
+  /** @nullable */
+  license_expires_at?: string | null;
+}
+
+export interface PatchedLiveIntegrationWriteRequest {
+  kind?: LiveIntegrationKind;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  /**
+   * @minLength 1
+   * @maxLength 500
+   */
+  base_url?: string;
+  /** @maxLength 500 */
+  stream_base_url?: string;
+  /** @nullable */
+  group?: string | null;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  rights_holder?: string;
+  /** @maxLength 255 */
+  license_ref?: string;
+  /** @maxLength 200 */
+  username?: string;
+  /** @maxLength 500 */
+  password?: string;
+  /** @maxLength 2000 */
+  access_token?: string;
 }
 
 /**
@@ -2756,7 +3225,7 @@ export interface PatchedRoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 22
+   * @maxItems 23
    * @items.minLength 1
    * @items.maxLength 64
    */
@@ -3047,6 +3516,18 @@ export interface PriorityRequest {
   priority: number;
 }
 
+export interface Programme {
+  readonly id: string;
+  readonly start: string;
+  readonly stop: string;
+  readonly title: string;
+  readonly title_ar: string;
+  readonly description: string;
+  readonly description_ar: string;
+  readonly category: string;
+  readonly lang: string;
+}
+
 export interface Queued {
   queued: boolean;
 }
@@ -3192,7 +3673,7 @@ export interface Role {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 22
+   * @maxItems 23
    * @items.maxLength 64
    */
   permissions?: string[];
@@ -3214,7 +3695,7 @@ export interface RoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 22
+   * @maxItems 23
    * @items.minLength 1
    * @items.maxLength 64
    */
@@ -3339,6 +3820,35 @@ export interface SettingEntry {
   readonly updated_by: string | null;
 }
 
+export interface SourceTestQueued {
+  request_id: string;
+}
+
+export interface SourceTestRequestRequest {
+  /**
+   * @minLength 1
+   * @maxLength 2048
+   */
+  url: string;
+}
+
+/**
+ * * `pending` - pending
+ * * `done` - done
+ */
+export type SourceTestResultStatusEnum =
+  (typeof SourceTestResultStatusEnum)[keyof typeof SourceTestResultStatusEnum];
+
+export const SourceTestResultStatusEnum = {
+  pending: "pending",
+  done: "done",
+} as const;
+
+export interface SourceTestResult {
+  status: SourceTestResultStatusEnum;
+  result: Probe | null;
+}
+
 export interface TitleUsage {
   kind: TitleType;
   id: string;
@@ -3422,6 +3932,10 @@ export interface SubtitleUploadRequest {
 export interface SuspendRequest {
   /** @maxLength 200 */
   reason?: string;
+}
+
+export interface SyncResult {
+  queued: boolean;
 }
 
 /**
@@ -3578,6 +4092,38 @@ export interface Track {
 export interface TrialStartRequest {
   user_id: string;
   plan_id: string;
+}
+
+/**
+ * * `no_id` - no_id
+ * * `not_in_guide` - not_in_guide
+ */
+export type UnmatchedChannelReasonEnum =
+  (typeof UnmatchedChannelReasonEnum)[keyof typeof UnmatchedChannelReasonEnum];
+
+export const UnmatchedChannelReasonEnum = {
+  no_id: "no_id",
+  not_in_guide: "not_in_guide",
+} as const;
+
+export interface UnmatchedChannel {
+  id: string;
+  name: string;
+  epg_channel_id: string;
+  reason: UnmatchedChannelReasonEnum;
+  suggestions: EpgChannel[];
+}
+
+export interface UnusedGuideChannel {
+  xmltv_id: string;
+  name: string;
+  source_id: string;
+  source_name: string;
+}
+
+export interface Unmatched {
+  channels: UnmatchedChannel[];
+  guide_channels: UnusedGuideChannel[];
 }
 
 /**
@@ -3974,6 +4520,72 @@ export type LibrariesListParams = {
    * Number of results to return per page.
    */
   page_size?: number;
+};
+
+export type LiveChannelsListParams = {
+  enabled?: boolean;
+  /**
+   * A live group (category) id.
+   */
+  group?: string;
+  /**
+   * Which field to use when ordering the results.
+   */
+  ordering?: string;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * Search the names and the XMLTV id.
+   */
+  q?: string;
+  /**
+   * A search term.
+   */
+  search?: string;
+};
+
+export type LiveChannelsProgrammesParams = {
+  /**
+   * ISO 8601 start (default now - 12 h).
+   */
+  from?: string;
+  /**
+   * ISO 8601 end (default from + 36 h).
+   */
+  to?: string;
+};
+
+export type LiveEpgChannelsParams = {
+  q?: string;
+  source?: string;
+};
+
+export type LiveEpgSourcesListParams = {
+  /**
+   * Which field to use when ordering the results.
+   */
+  ordering?: string;
+  /**
+   * A search term.
+   */
+  search?: string;
+};
+
+export type LiveIntegrationsListParams = {
+  /**
+   * Which field to use when ordering the results.
+   */
+  ordering?: string;
+  /**
+   * A search term.
+   */
+  search?: string;
 };
 
 export type MetadataSearchParams = {
@@ -4404,6 +5016,8 @@ export type SessionsListParams = {
   /**
    * * `movie` - Movie
    * * `episode` - Episode
+   * * `live` - Live channel
+   * * `catchup` - Catch-up
    */
   title_kind?: SessionsListTitleKind;
   /**
@@ -4442,7 +5056,9 @@ export type SessionsListTitleKind =
   (typeof SessionsListTitleKind)[keyof typeof SessionsListTitleKind];
 
 export const SessionsListTitleKind = {
+  catchup: "catchup",
   episode: "episode",
+  live: "live",
   movie: "movie",
 } as const;
 

@@ -2,11 +2,13 @@ import type { LinkProps } from "@tanstack/react-router";
 import {
   Activity,
   CalendarCheck,
+  CalendarClock,
   FileCode,
   FileText,
   Library,
   Mail,
   Package,
+  Radio,
   Receipt,
   Clapperboard,
   Cpu,
@@ -105,6 +107,8 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         icon: Library,
         permission: LIBRARY_VIEW,
       },
+      { to: "/live", labelKey: "nav.liveTv", icon: Radio, permission: LIBRARY_VIEW },
+      { to: "/epg", labelKey: "nav.epg", icon: CalendarClock, permission: LIBRARY_VIEW },
     ],
   },
   {

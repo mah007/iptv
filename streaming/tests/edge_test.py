@@ -6,6 +6,7 @@ Standard library only. Steps (run.sh calls them in this order):
     prepare WORK                      keys, media tree and fuzz vectors in WORK
     reference                         the Python reference against vectors.json
     local --edge URL --control URL --work WORK [--auth-ttl S]
+    live --edge URL --control URL --work WORK   live TV and catch-up (ADR-0017)
     s3 --edge URL --control URL --work WORK --container NAME
     failclosed --edge URL --work WORK (run with stream-auth stopped)
     logs --work WORK FILE...          the edge's captured output
@@ -75,6 +76,10 @@ LOG_KEYS = {
 }
 IMMUTABLE = "public, max-age=31536000, immutable"
 PLAYLIST = "max-age=60"
+# Live TV (ADR-0017): a channel key (the token's title) and its files on the live volume.
+CHANNEL = "0192f3a4-b5c6-7d8e-9f00-1122334455bb"
+LIVE_SEGMENT = "live/1759800000.ts"
+ARCHIVE_SEGMENT = "archive/20261004/12/1759579200000-4000.ts"
 
 
 # ---------------------------------------------------------------------------- output
@@ -237,6 +242,14 @@ def write_media(media: Path) -> None:
     (root / "hls" / "v720" / "seg_00001.m4s").write_bytes(rng.randbytes(300_000))
 
 
+def write_live(live: Path) -> None:
+    root = live / CHANNEL
+    rng = random.Random(11)
+    for relative in (LIVE_SEGMENT, ARCHIVE_SEGMENT, "live/index.m3u8"):
+        (root / relative).parent.mkdir(parents=True, exist_ok=True)
+        (root / relative).write_bytes(rng.randbytes(188 * 100))
+
+
 def random_address(rng: random.Random) -> str:
     kind = rng.randrange(8)
     if kind == 0:
@@ -360,6 +373,7 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     keys.write_text(st.keyset_json(keyset))
     keys.chmod(0o644)  # read by nginx's master in the container (the test keys are throwaway)
     write_media(work / "media")
+    write_live(work / "live")
     rng = random.Random(args.seed)
     fuzz_keys = st.KeySet(st.Key("k2", bytes(range(32))), st.Key("k1", bytes(range(1, 33))))
     data = fuzz(fuzz_keys, 1767225000, rng, args.count)
@@ -957,6 +971,112 @@ def run_s3(args: argparse.Namespace) -> int:
     return c.finish()
 
 
+# ------------------------------------------------------------------------------ live
+
+
+def relay_requests(control: str) -> list[dict[str, Any]]:
+    requests: list[dict[str, Any]] = control_json(control, "/__control/relay")["requests"]
+    return requests
+
+
+def run_live(args: argparse.Namespace) -> int:
+    c = Checks(f"live TV and catch-up ({args.edge})")
+    work = Work(args.work)
+    control_post(args.control, "/__control/reset")
+    files = args.work / "live" / CHANNEL
+    client = {"X-Forwarded-For": CLIENT_V4, "Cookie": COOKIE, "Authorization": AUTHORIZATION}
+
+    live = work.token(rendition="live", title=CHANNEL)
+    resp = request(args.edge, "GET", f"/v/{live}/{LIVE_SEGMENT}", client)
+    c.check("live segment: 200 from the live volume", resp.status == 200, resp.status)
+    c.check(
+        "live segment: the file's bytes",
+        sha(resp.body) == sha((files / LIVE_SEGMENT).read_bytes()),
+    )
+    c.check(
+        "live segment: Cache-Control public, max-age=120 (once)",
+        resp.all("Cache-Control") == ["public, max-age=120"],
+        resp.all("Cache-Control"),
+    )
+    c.check("live segment: video/mp2t", resp.get("Content-Type") == "video/mp2t")
+    common_media_headers(c, "live segment", resp)
+
+    for tail, caching in (("live.ts", "no-store"), ("live/index.m3u8", "no-cache")):
+        resp = request(args.edge, "GET", f"/v/{live}/{tail}", client)
+        c.check(f"{tail}: relayed, 200", resp.status == 200, resp.status)
+        c.check(
+            f"{tail}: the relay got the verified object",
+            resp.body == f"relay {CHANNEL}/{tail}".encode(),
+            resp.body[:80],
+        )
+        c.check(
+            f"{tail}: Cache-Control {caching} (once), the relay's own dropped",
+            resp.all("Cache-Control") == [caching],
+            resp.all("Cache-Control"),
+        )
+        c.check(f"{tail}: no Set-Cookie from the relay", resp.get("Set-Cookie") is None)
+    relayed = relay_requests(args.control)
+    c.check("the relay saw two requests", len(relayed) == 2, len(relayed))
+    if relayed:
+        headers = relayed[0]["headers"]
+        c.check("relay: X-Original-URI is the token URI", headers.get("x-original-uri", "").startswith(f"/v/{live}/"))
+        c.check("relay: X-Real-IP is the client", headers.get("x-real-ip") == CLIENT_V4, headers.get("x-real-ip"))
+        c.check(
+            "relay: no client cookie, authorization or forwarding header",
+            not {"cookie", "authorization", "x-forwarded-for"} & set(headers),
+            sorted(headers),
+        )
+
+    archive = work.token(rendition="archive", title=CHANNEL)
+    resp = request(args.edge, "GET", f"/v/{archive}/{ARCHIVE_SEGMENT}", client)
+    c.check("archive segment: 200", resp.status == 200, resp.status)
+    c.check(
+        "archive segment: Cache-Control public, max-age=86400",
+        resp.all("Cache-Control") == ["public, max-age=86400"],
+        resp.all("Cache-Control"),
+    )
+    for ext, caching in (("m3u8", "no-cache"), ("ts", "no-store")):
+        tail = f"archive/1759579200-120.{ext}"
+        resp = request(args.edge, "GET", f"/v/{archive}/{tail}", client)
+        c.check(f"{tail}: relayed", resp.body == f"relay {CHANNEL}/{tail}".encode(), resp.body[:80])
+        c.check(f"{tail}: Cache-Control {caching}", resp.all("Cache-Control") == [caching])
+
+    # Scope: each token reaches only its own root and rendition.
+    vod = work.token(rendition="compat")
+    check_denied(c, "VOD token for live.ts", request(args.edge, "GET", f"/v/{vod}/live.ts"), 403, "invalid")
+    vod_live = work.token(rendition="compat", title=CHANNEL)
+    check_denied(
+        c, "VOD rendition on a channel's segment",
+        request(args.edge, "GET", f"/v/{vod_live}/{LIVE_SEGMENT}"), 403, "invalid",
+    )  # fmt: skip
+    check_denied(
+        c, "live token for the archive",
+        request(args.edge, "GET", f"/v/{live}/{ARCHIVE_SEGMENT}"), 403, "invalid",
+    )  # fmt: skip
+    check_denied(
+        c, "live token for compat.mp4",
+        request(args.edge, "GET", f"/v/{live}/compat.mp4"), 403, "invalid",
+    )  # fmt: skip
+    live_vod = work.token(rendition="live", title=TITLE)
+    resp = request(args.edge, "GET", f"/v/{live_vod}/live/index.m3u8")
+    c.check(
+        "a live token on a VOD title asks the relay for that key only",
+        resp.status in (200, 404) and b"compat" not in resp.body,
+        resp.status,
+    )
+    resp = request(args.edge, "GET", f"/v/{live}/live/missing.ts")
+    c.check("a missing live segment: 404", resp.status == 404, resp.status)
+
+    # A kicked session loses the relay too (stream-auth runs before the proxy).
+    kicked = work.token(rendition="live", title=CHANNEL)
+    control_post(args.control, f"/__control/kick?session={session_of(kicked)}")
+    check_denied(
+        c, "kicked session: live.ts", request(args.edge, "GET", f"/v/{kicked}/live.ts", client),
+        403, "kicked",
+    )  # fmt: skip
+    return c.finish()
+
+
 # ---------------------------------------------------------------------- failclosed
 
 
@@ -1069,7 +1189,12 @@ def main(argv: list[str] | None = None) -> int:
     prepare.add_argument("--count", type=int, default=600, help="fuzz cases")
     prepare.add_argument("--seed", type=int, default=20261003)
     step("reference", cmd_reference)
-    for name, func in (("local", run_local), ("s3", run_s3), ("failclosed", run_failclosed)):
+    for name, func in (
+        ("local", run_local),
+        ("live", run_live),
+        ("s3", run_s3),
+        ("failclosed", run_failclosed),
+    ):
         sub = step(name, func)
         sub.add_argument("--edge", required=True)
         sub.add_argument("--control", default="")

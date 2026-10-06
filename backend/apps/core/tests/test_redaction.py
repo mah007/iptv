@@ -39,8 +39,26 @@ from apps.core.redaction import (
             "/timeshift/alice/p w#?/60/2026-10-03:12-00/7.ts",
             "/timeshift/***/***/60/2026-10-03:12-00/7.ts",
         ),
-        # Signed media URLs.
+        # Live TV (M12): every play URL shape, the short form included.
+        ("/live/alice/s3cr3t/7.m3u8", "/live/***/***/7.m3u8"),
+        ("/alice/s3cr3t/7", "/***/***/7"),
+        ("/alice/s3cr3t/7.ts", "/***/***/7.ts"),
+        ("/alice/s3cr3t/7.m3u8", "/***/***/7.m3u8"),
+        ("Not Found: /alice/s3cr3t/3001", "Not Found: /***/***/3001"),
+        ("http://tv.example.com:8080/alice/s3cr3t/3001", "http://tv.example.com:8080/***/***/3001"),
+        ('"GET /alice/s3cr3t/3001 HTTP/1.1"', '"GET /***/***/3001 HTTP/1.1"'),
+        (
+            "/timeshift/alice/s3cr3t/60/2026-10-03:12-00-30/7.ts",
+            "/timeshift/***/***/60/2026-10-03:12-00-30/7.ts",
+        ),
+        (
+            "/timeshift/alice/s3cr3t/90/2026-10-03:12-00/7.m3u8",
+            "/timeshift/***/***/90/2026-10-03:12-00/7.m3u8",
+        ),
+        # Signed media URLs, live and catch-up included.
         ("/v/eyJhbGciOi.abc-def/master.m3u8", "/v/***/master.m3u8"),
+        ("/v/k2.abc.def.live.1.sig/live.ts", "/v/***/live.ts"),
+        ("/v/k2.abc.def.archive.1.sig/archive/1791279220-60.ts", "/v/***/archive/1791279220-60.ts"),
         # Query-string and form parameters.
         (
             "/player_api.php?username=alice&password=s3cr3t",
@@ -105,6 +123,7 @@ def test_redact_text_leaves_harmless_text_alone(text: str) -> None:
         ("totp_secret", True),
         ("credentials", True),
         ("mfa_code", True),
+        ("source_url", True),
         ("username", False),
         ("key", False),
         ("value", False),

@@ -27,12 +27,15 @@ TV_HOST = env("TV_HOST", f"tv.{DOMAIN}")
 ADMIN_HOST = env("ADMIN_HOST", f"admin.{DOMAIN}")
 APP_HOST = env("APP_HOST", f"app.{DOMAIN}")
 INTERNAL_HOSTS = env_list("INTERNAL_HOSTS", ["web", "localhost", "127.0.0.1"])
-ALLOWED_HOSTS = [API_HOST, TV_HOST, ADMIN_HOST, APP_HOST, *INTERNAL_HOSTS]
+# The monitoring UIs (O1, ADR-0018): Django serves only the sign-in exchange there.
+GRAFANA_HOST = env("GRAFANA_HOST", f"grafana.{DOMAIN}")
+ALLOWED_HOSTS = [API_HOST, TV_HOST, ADMIN_HOST, APP_HOST, GRAFANA_HOST, *INTERNAL_HOSTS]
 HOST_URLCONFS = {
     API_HOST: "config.urls_api",
     TV_HOST: "config.urls_xtream",
     ADMIN_HOST: "config.urls_admin",
     APP_HOST: "config.urls_portal",
+    GRAFANA_HOST: "config.urls_monitoring",
 }
 ROOT_URLCONF = "config.urls_internal"
 # The media edge (nginx-stream) serves artwork, and from slice 3 media, on its own host.
@@ -297,6 +300,26 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 6 * 3600.0,
         "options": {"expires": 3600},
     },
+    # --- Live TV and the guide (M12, ADR-0017) ---
+    # Imports the guide sources whose cron schedule is due.
+    "live-refresh-epg": {
+        "task": "apps.live.tasks.refresh_due_epg_sources",
+        "schedule": 300.0,
+        "options": {"expires": 280},
+    },
+    # Creates the guide's coming monthly partitions and drops the expired ones.
+    "live-epg-partitions": {
+        "task": "apps.live.tasks.maintain_epg_partitions",
+        "schedule": crontab(hour=2, minute=40),
+        "options": {"expires": 3600},
+    },
+    # Channels whose licence ran out leave Xtream, and their sessions stop.
+    "live-enforce-licences": {
+        "task": "apps.live.tasks.enforce_licences",
+        "schedule": 300.0,
+        "options": {"expires": 280},
+    },
+    # --- end M12 ---
     # Closes playback sessions whose heartbeat stopped and records them (SPEC §7.4).
     "playback-sweep-sessions": {
         "task": "apps.playback.tasks.sweep_sessions",
@@ -337,6 +360,14 @@ CELERY_BEAT_SCHEDULE = {
         "options": {"expires": 3 * 3600},
     },
     # --- end C1 ---
+    # --- Monitoring (O1, ADR-0018) ---
+    # State and business gauges for Prometheus (customers, MRR, jobs, review queue, ...).
+    "dashboard-publish-metrics": {
+        "task": "apps.dashboard.tasks.publish_metrics",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
+    # --- end O1 ---
 }
 
 # --- I18n -----------------------------------------------------------------------
@@ -442,6 +473,12 @@ SPECTACULAR_SETTINGS = {
         "RenditionStatus": "apps.media.models.RenditionStatus",
         "SubtitleStatus": "apps.media.models.SubtitleStatus",
         "SubtitleFormat": "apps.media.models.SubtitleFormat",
+        # Live TV (M12, ADR-0017).
+        "LiveIntegrationKind": "apps.live.models.IntegrationKind",
+        "EpgSourceKind": "apps.live.models.EpgSourceKind",
+        "ChannelOutput": "apps.live.models.ChannelOutput",
+        "ChannelTranscode": "apps.live.models.ChannelTranscode",
+        "ChannelOrigin": "apps.live.models.ChannelOrigin",
     },
     "ENUM_ADD_EXPLICIT_BLANK_NULL_CHOICE": False,
     "POSTPROCESSING_HOOKS": [

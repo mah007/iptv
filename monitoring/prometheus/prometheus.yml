@@ -1,0 +1,151 @@
+# Prometheus for Smart IPTV (SPEC §14, ADR-0018). Started by entrypoint.sh, which first
+# renders the deployment-specific parts into /run/prometheus: the edge capacity rule
+# (EDGE_CAPACITY_MBPS) and the public HTTPS probe targets (PUBLIC_PROBE_URLS, prod).
+#
+# Scrapes run on the Docker networks only: web's /metrics is in the internal URLconf,
+# the workers serve theirs on :9100, and no exporter publishes a port.
+
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+  - /run/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - path_prefix: /alertmanager
+      static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: prometheus
+    metrics_path: /prometheus/metrics
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    metrics_path: /alertmanager/metrics
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
+
+  # Alloy's own metrics plus the iptv_edge_* metrics it derives from the edge's access log.
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  # Django: iptv_* event metrics (summed over Gunicorn workers), snapshot gauges,
+  # heartbeat ages and queue lengths, django-prometheus request metrics.
+  - job_name: web
+    static_configs:
+      - targets: ["web:8000"]
+        labels:
+          service: web
+
+  # Celery workers: their pool processes' iptv_* counters and task outcomes.
+  - job_name: celery
+    static_configs:
+      - targets: ["worker:9100"]
+        labels:
+          service: worker
+      - targets: ["transcoder:9100"]
+        labels:
+          service: transcoder
+
+  - job_name: traefik
+    static_configs:
+      - targets: ["traefik:8082"]
+
+  - job_name: nginx
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+        labels:
+          service: nginx-stream
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    metric_relabel_configs:
+      # Containers of other projects on the same host are not ours to watch.
+      - source_labels: [container_label_com_docker_compose_project]
+        regex: "|smart-iptv"
+        action: keep
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          instance: postgres
+
+  # Both Valkeys through one exporter (multi-target): instance is redis-state or redis-cache.
+  - job_name: redis
+    metrics_path: /scrape
+    static_configs:
+      - targets: ["redis://redis-state:6379", "redis://redis-cache:6379"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__address__]
+        regex: "redis://([^:]+):.*"
+        target_label: instance
+      - target_label: __address__
+        replacement: redis-exporter:9121
+
+  # Internal health endpoints, through the blackbox exporter.
+  - job_name: probe-internal
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["http://web:8000/internal/health/ready"]
+        labels:
+          probe: web-ready
+      - targets: ["http://meilisearch:7700/health"]
+        labels:
+          probe: meilisearch
+      - targets: ["http://nginx-stream:8080/healthz"]
+        labels:
+          probe: edge
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__address__]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # The public hosts over HTTPS, as clients see them: availability and certificate
+  # expiry. Targets come from PUBLIC_PROBE_URLS (production); none in dev.
+  - job_name: probe-public
+    metrics_path: /probe
+    params:
+      module: [https_2xx]
+    file_sd_configs:
+      - files: ["/run/prometheus/targets/public.json"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__address__]
+        target_label: instance
+      - target_label: probe
+        replacement: public
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # NVIDIA GPUs (only with the gpu-nvidia profile). A name that does not resolve gives
+  # no target at all, so a host without a GPU raises nothing.
+  - job_name: gpu
+    dns_sd_configs:
+      - names: ["gpu-exporter"]
+        type: A
+        port: 9835

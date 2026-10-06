@@ -106,6 +106,10 @@ services:
       dockerfile: docker/app.Dockerfile
       target: media
     command: ["celery", "-A", "config", "worker", "--queues", "default,scan,metadata,images,notify", "--concurrency", "2", "--loglevel", "INFO"]
+    # The worker's metrics (its pool processes' counters), served on this port inside
+    # the backend network (apps.core.worker_metrics, ADR-0018).
+    environment: &worker-metrics
+      CELERY_METRICS_PORT: "9100"
     volumes:
       # Artwork (images/) and, from slice 3, renditions; the overlays add /media.
       - media-data:/data
@@ -163,6 +167,7 @@ services:
       dockerfile: docker/app.Dockerfile
       target: media
     command: ["python", "manage.py", "run_transcoder"]
+    environment: *worker-metrics
     volumes:
       # Writes renditions/; the overlays add /media (read-only).
       - media-data:/data
@@ -199,11 +204,12 @@ services:
       target: runtime
     user: "0:0"
     entrypoint: ["sh", "-c"]
-    command: ["mkdir -p /data/images /data/renditions && chown \"$$DATA_OWNER\" /data /data/images /data/renditions"]
+    command: ["mkdir -p /data/images /data/renditions && chown \"$$DATA_OWNER\" /data /data/images /data/renditions /live"]
     environment:
       DATA_OWNER: "10001:10001"
     volumes:
       - media-data:/data
+      - live-data:/live
     network_mode: none
     restart: "no"
     logging: *logging
@@ -230,6 +236,9 @@ services:
       EDGE_REAL_IP_FROM: ${EDGE_REAL_IP_FROM:-172.16.0.0/12}
       # The portal's and the admin's players fetch HLS, subtitles and thumbnails (T1).
       EDGE_CORS_ORIGINS: ${EDGE_CORS_ORIGINS:-https://app.${DOMAIN:-localhost} https://admin.${DOMAIN:-localhost}}
+      # Live TV (ADR-0017): segments from the live volume, streams from the relay.
+      EDGE_LIVE_ROOT: /live
+      EDGE_LIVE_RELAY: live-relay:8090
     secrets: [media_token_keys]
     volumes:
       - ./streaming/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -238,10 +247,12 @@ services:
       - ./docker/nginx-stream/50-images.sh:/docker-entrypoint.d/50-images.sh:ro
       - ./docker/nginx-stream/images.conf:/etc/nginx/smart-iptv/images.conf:ro
       - media-data:/data:ro
+      - live-data:/live:ro
     networks: [edge, backend]
     depends_on:
       media-init: { condition: service_completed_successfully }
       web: { condition: service_healthy }
+      live-relay: { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz"]
       interval: 10s
@@ -254,6 +265,62 @@ services:
       traefik.http.routers.media.entrypoints: web
       traefik.http.routers.media.service: media
       traefik.http.services.media.loadbalancer.server.port: "8080"
+
+  # Live TV (ADR-0017): the packager runs one ffmpeg per watched (or recording)
+  # channel, copying its source into HLS on the live volume; it reads channels from
+  # Postgres and pulls sources from the internet or the LAN (egress).
+  live:
+    <<: *app
+    image: smart-iptv/media:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      target: media
+    command: ["python", "manage.py", "run_live"]
+    environment:
+      LIVE_ROOT: /live
+      # The catch-up archive's disk budget across channels (oldest hours go first).
+      LIVE_ARCHIVE_MAX_GB: ${LIVE_ARCHIVE_MAX_GB:-50}
+    volumes:
+      - live-data:/live
+    networks: [backend, egress]
+    stop_grace_period: 15s
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis-state: { condition: service_healthy }
+      media-init: { condition: service_completed_successfully }
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-m", "apps.core.healthcheck", "live"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  # The live relay (ADR-0017): what the edge cannot serve from a file (continuous
+  # .ts, the live playlist, catch-up windows). No secrets, no database: it reads the
+  # live volume and asks web's /internal/stream-auth while a stream lasts.
+  live-relay:
+    image: smart-iptv/app:${APP_VERSION:-dev}
+    command: ["uvicorn", "apps.live.relay:app", "--host", "0.0.0.0", "--port", "8090", "--no-access-log", "--timeout-graceful-shutdown", "5"]
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    environment:
+      LIVE_ROOT: /live
+      LIVE_RELAY_AUTH_URL: http://web:8000/internal/stream-auth
+      LIVE_RELAY_AUTH_HOST: web
+    volumes:
+      - live-data:/live:ro
+    networks: [backend]
+    depends_on:
+      media-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-m", "apps.core.healthcheck", "relay"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
   postgres:
     image: postgres:18.6-alpine
@@ -362,6 +429,8 @@ volumes:
   meili-data:
   # Artwork and renditions (ADR-0009). Written by the worker, served read-only by the edge.
   media-data:
+  # Live channels' rolling HLS and catch-up archive (ADR-0017). Written by the packager.
+  live-data:
 
 secrets:
   # Media token keys (ADR-0007), generated by `make secrets` (scripts/secrets.sh).

@@ -19,7 +19,13 @@ export APP_VERSION
 GPU ?= $(shell sed -n 's/^GPU=//p' .env 2>/dev/null)
 comma := ,
 GPU_FILES := $(foreach g,$(subst $(comma), ,$(GPU)),-f docker/compose.gpu-$(g).yml)
-COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml $(GPU_FILES)
+# Opt-in monitoring overlay (ADR-0018): MONITORING=1 on the command line or in .env adds
+# Prometheus, Grafana, Loki, Alloy, Alertmanager and the exporters (and the NVIDIA GPU
+# exporter with GPU=nvidia). Pass it to down/ps/logs too, so they see those services.
+MONITORING ?= $(shell sed -n 's/^MONITORING=//p' .env 2>/dev/null)
+MONITORING_ON := $(filter 1 true yes,$(MONITORING))
+MONITORING_FILES := $(if $(MONITORING_ON),-f docker/compose.monitoring.yml -f docker/compose.monitoring.dev.yml $(if $(findstring nvidia,$(GPU)),--profile gpu-nvidia))
+COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml $(GPU_FILES) $(MONITORING_FILES)
 # Every backend container bind-mounts ./media (the libraries, git-ignored). Create it as
 # the host user, or Docker would create it owned by root.
 $(shell mkdir -p media)
@@ -35,7 +41,8 @@ BUILD_FLAGS ?= --pull
 .PHONY: help secrets up down ps logs migrate seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
 	api-client api-client-check build smoke-images scan licenses ci ci-steps \
-	media-ready compat compat-live e2e-iptvnator e2e-admin e2e-portal
+	media-ready compat compat-live e2e-iptvnator e2e-admin e2e-portal \
+	monitoring-test monitoring-dashboards monitoring-smoke monitoring-firedrill
 
 help: ## List available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -50,13 +57,15 @@ secrets: ## Create .env with generated dev secrets, or append keys new in .env.e
 secrets/media_token_keys.json:
 	@scripts/secrets.sh
 
-up: .env secrets/media_token_keys.json ## Build and start the dev stack, wait for healthchecks, apply migrations
+up: .env secrets/media_token_keys.json ## Build and start the dev stack, wait for healthchecks, apply migrations (MONITORING=1 adds the monitoring overlay)
+	@# The overlay's secrets come from .env: append any key it is missing (never changes one).
+	$(if $(MONITORING_ON),@scripts/secrets.sh > /dev/null)
 	$(COMPOSE) up --build --detach --wait --wait-timeout 300
 	$(COMPOSE) exec -T web python manage.py migrate --noinput
 	@port=$$(grep -E '^HTTP_PORT=' .env | cut -d= -f2); domain=$$(grep -E '^DOMAIN=' .env | cut -d= -f2); \
 	  suffix=$$([ "$$port" = "80" ] || echo ":$$port"); \
 	  echo ""; echo "Smart IPTV is up:"; \
-	  for h in admin app api tv media traefik; do echo "  http://$$h.$$domain$$suffix"; done
+	  for h in admin app api tv media traefik $(if $(MONITORING_ON),grafana mail); do echo "  http://$$h.$$domain$$suffix"; done
 
 down: ## Stop the stack (data volumes are kept)
 	$(COMPOSE) down
@@ -79,6 +88,10 @@ sample-media: ## Generate legal synthetic test media into ./media (FFmpeg; idemp
 media-ready: ## Sample media scanned and transcoded: wait for a ready movie and series (adds the sample libraries if missing)
 	@scripts/sample_media.sh media
 	$(COMPOSE) exec -T web python manage.py media_ready --timeout 600
+
+live-ready: ## The live test channel and its guide (DEBUG): created, live and recording 3 min of catch-up (fast once it records)
+	@scripts/sample_media.sh media
+	$(COMPOSE) exec -T web python manage.py live_demo --wait 420
 
 shell: ## Django shell in the web container
 	$(COMPOSE) exec web python manage.py shell
@@ -228,6 +241,32 @@ e2e-portal: ## Portal journey (sign in, Arabic search, play, continue watching, 
 	export PORTAL_URL="$(PORTAL_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/portal-e2e"; \
 	cd frontend/apps/portal && node_modules/.bin/playwright test --config e2e/playwright.config.ts
 
+# --- Monitoring (docker/compose.monitoring*.yml, monitoring/, ADR-0018) -------------------
+# The tools run in the images the overlay pins; ruff matches the backend's version.
+MONITORING_RUFF := uvx ruff@$(shell sed -n '/^name = "ruff"$$/{n;s/^version = "\(.*\)"$$/\1/p}' backend/uv.lock)
+MAIL_URL = http://mail.$$(sed -n 's/^DOMAIN=//p' .env)$$(port=$$(sed -n 's/^HTTP_PORT=//p' .env); \
+	[ "$$port" = "80" ] || echo ":$$port")
+
+monitoring-test: ## Monitoring configs, alert rule tests, dashboard queries and the log redaction pipeline (Docker, no stack needed)
+	cd monitoring && $(MONITORING_RUFF) check . && $(MONITORING_RUFF) format --check .
+	python3 monitoring/tests/check_configs.py
+	python3 monitoring/tests/test_log_pipeline.py
+
+monitoring-dashboards: ## Regenerate the Grafana dashboards (monitoring/grafana/build_dashboards.py)
+	python3 monitoring/grafana/build_dashboards.py
+
+monitoring-smoke: ## With MONITORING=1 up: targets up, rules loaded, admin-only Grafana, a request id traced in Loki
+	@domain=$$(sed -n 's/^DOMAIN=//p' .env); port=$$(sed -n 's/^HTTP_PORT=//p' .env); \
+	python3 monitoring/tests/smoke.py --domain "$${domain:-localhost}" --port "$${port:-80}"
+
+monitoring-firedrill: ## With MONITORING=1 up: fire the FireDrill alert and wait for its email (and the resolved one) in Mailpit
+	@since=$$(date +%s); \
+	trap '$(COMPOSE) exec -T web python manage.py fire_drill --stop > /dev/null' EXIT; \
+	$(COMPOSE) exec -T web python manage.py fire_drill --minutes 10; \
+	python3 monitoring/tests/fire_drill.py --mailpit "$(MAIL_URL)" --since "$$since" --timeout 300; \
+	$(COMPOSE) exec -T web python manage.py fire_drill --stop; trap - EXIT; \
+	python3 monitoring/tests/fire_drill.py --mailpit "$(MAIL_URL)" --since "$$since" --resolved --timeout 420
+
 build: ## Build the production images (app, media, frontend), pulling fresh base images
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target media -t smart-iptv/media:$(APP_VERSION) .
@@ -262,17 +301,19 @@ ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitt
 	@$(MAKE) ci-steps || { echo "make ci FAILED. Service status and recent logs:" >&2; \
 	  $(COMPOSE) ps >&2 || true; $(COMPOSE) logs --no-color --tail=60 >&2 || true; exit 1; }
 	@echo ""
-	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Xtream contract, types, API client, tests, live Xtream checks, IPTVnator, admin and portal E2E with axe, images, Trivy, licences."
+	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Xtream contract, monitoring configs and log redaction, types, API client, tests, live Xtream checks, IPTVnator, admin and portal E2E with axe, images, Trivy, licences."
 
 ci-steps:
 	$(MAKE) up
 	$(MAKE) smoke
 	$(MAKE) lint
 	$(MAKE) compat
+	$(MAKE) monitoring-test
 	$(MAKE) typecheck
 	$(MAKE) api-client-check
 	$(MAKE) test
 	$(MAKE) media-ready
+	$(MAKE) live-ready
 	$(MAKE) compat-live
 	$(MAKE) e2e-iptvnator
 	$(MAKE) e2e-admin

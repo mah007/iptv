@@ -1,0 +1,58 @@
+# Monitoring overlay, development settings (ADR-0018): `make up MONITORING=1` adds it
+# after docker/compose.monitoring.yml. Plain HTTP on grafana.localhost:<HTTP_PORT>,
+# short retention, small memory limits (the dev box shares 15 GB with the desktop),
+# and alerts by email to Mailpit (http://mail.localhost:<HTTP_PORT>).
+
+services:
+  prometheus:
+    environment:
+      MONITORING_PUBLIC_URL: http://grafana.${DOMAIN:-localhost}:${HTTP_PORT:-80}
+      PROMETHEUS_RETENTION_TIME: 3d
+      PROMETHEUS_RETENTION_SIZE: 1GB
+    mem_limit: 512m
+    cpus: 1
+
+  alertmanager:
+    environment:
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-ops@localhost}
+      ALERT_SMTP_SMARTHOST: mailpit:1025
+      ALERT_SMTP_FROM: Smart IPTV alerts <alerts@localhost>
+      ALERT_SMTP_USERNAME: ""
+      ALERT_SMTP_REQUIRE_TLS: "false"
+      MONITORING_PUBLIC_URL: http://grafana.${DOMAIN:-localhost}:${HTTP_PORT:-80}
+    mem_limit: 64m
+    # Mailpit listens on the backend network.
+    networks: [monitoring, monitoring-ingress, egress, backend]
+
+  grafana:
+    environment:
+      GF_SERVER_ROOT_URL: http://grafana.${DOMAIN:-localhost}:${HTTP_PORT:-80}/
+      GF_SECURITY_COOKIE_SECURE: "false"
+      GF_AUTH_SIGNOUT_REDIRECT_URL: http://grafana.${DOMAIN:-localhost}:${HTTP_PORT:-80}/_sso/logout
+    mem_limit: 256m
+
+  loki:
+    environment:
+      LOKI_RETENTION_PERIOD: 72h
+      # Developer disks run fuller than servers should.
+      LOKI_WAL_DISK_FULL_THRESHOLD: "0.99"
+    mem_limit: 384m
+    cpus: 1
+
+  alloy:
+    mem_limit: 256m
+
+  node-exporter:
+    mem_limit: 48m
+
+  cadvisor:
+    mem_limit: 192m
+
+  postgres-exporter:
+    mem_limit: 48m
+
+  redis-exporter:
+    mem_limit: 32m
+
+  blackbox:
+    mem_limit: 32m

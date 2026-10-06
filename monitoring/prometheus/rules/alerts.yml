@@ -1,0 +1,292 @@
+# Smart IPTV alerts (SPEC §14, ADR-0018). Every alert goes to email and Telegram
+# (monitoring/alertmanager); docs/runbooks/alerts.md explains each one under a heading
+# named after it. Unit tests: monitoring/prometheus/tests/alerts.test.yml.
+#
+# Severity: critical = customers are (or are about to be) affected, act now;
+# warning = act today. The Watchdog alert has severity none and never notifies a person.
+
+groups:
+  # --- SPEC §14 alerts -----------------------------------------------------------------
+  - name: iptv-edge
+    rules:
+      - alert: EdgeEgressHigh
+        expr: edge:egress_bits:rate5m > 0.8 * scalar(iptv:edge_capacity_bits)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Edge {{ $labels.edge }} is sending {{ $value | humanize }}bit/s, over 80% of its capacity"
+          description: "Media egress has stayed above 80% of EDGE_CAPACITY_MBPS for 10 minutes. New streams may start to buffer."
+          runbook: docs/runbooks/alerts.md#edgeegresshigh
+
+      - alert: EdgeMedia5xxHigh
+        expr: edge:requests_5xx:ratio5m > 0.01 and edge:requests:rate5m > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Edge {{ $labels.edge }} answers {{ $value | humanizePercentage }} of media requests with 5xx"
+          description: "More than 1% of media requests failed with a server error for 5 minutes (stream-auth or storage unavailable)."
+          runbook: docs/runbooks/alerts.md#edgemedia5xxhigh
+
+      - alert: MediaEdgeDown
+        expr: probe_success{probe="edge"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The media edge health check fails"
+          description: "nginx-stream's /healthz has failed for 2 minutes: playback and artwork are unavailable."
+          runbook: docs/runbooks/alerts.md#mediaedgedown
+
+  - name: iptv-state
+    rules:
+      - alert: RedisStateEvictions
+        expr: increase(redis_evicted_keys_total{instance="redis-state"}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "redis-state evicted {{ $value | humanize }} keys"
+          description: "redis-state must never evict: sessions, stream slots, kicks, entitlements or queued tasks were lost."
+          runbook: docs/runbooks/alerts.md#redisstateevictions
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} is not answering"
+          description: "The exporter cannot reach {{ $labels.instance }}."
+          runbook: docs/runbooks/alerts.md#redisdown
+
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is not answering"
+          description: "The exporter cannot connect to PostgreSQL."
+          runbook: docs/runbooks/alerts.md#postgresdown
+
+      - alert: PostgresReplicationLag
+        expr: max by (instance) (pg_replication_lag_seconds) > 30
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "A PostgreSQL replica is {{ $value | humanizeDuration }} behind"
+          description: "Replication lag has been over 30 s for 5 minutes. A primary reports 0, so this only fires once a replica exists (M15)."
+          runbook: docs/runbooks/alerts.md#postgresreplicationlag
+
+      - alert: MeilisearchUnhealthy
+        expr: probe_success{probe="meilisearch"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Meilisearch is unhealthy"
+          description: "Search has fallen back to PostgreSQL full-text search, which is slower and forgives fewer typos."
+          runbook: docs/runbooks/alerts.md#meilisearchunhealthy
+
+  - name: iptv-workers
+    rules:
+      - alert: CeleryWorkerDown
+        expr: up{job="celery"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The Celery {{ $labels.service }} is down"
+          description: "Its metrics endpoint has not answered for 2 minutes: scans, metadata, notifications or transcodes are not being processed."
+          runbook: docs/runbooks/alerts.md#celeryworkerdown
+
+      - alert: CeleryBeatStalled
+        expr: iptv_heartbeat_age_seconds{service="beat"} > 180
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No beat heartbeat for {{ $value | humanizeDuration }}"
+          description: "beat schedules a heartbeat every 30 s and a worker runs it. Scheduled jobs (session sweeper, expiry, renewals) have stopped."
+          runbook: docs/runbooks/alerts.md#celerybeatstalled
+
+      - alert: WatcherStalled
+        expr: iptv_heartbeat_age_seconds{service="watcher"} > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The library watcher has not beaten for {{ $value | humanizeDuration }}"
+          description: "New files are found only by the scheduled reconciliation scan until it recovers."
+          runbook: docs/runbooks/alerts.md#watcherstalled
+
+      - alert: CeleryQueueBacklog
+        expr: max by (queue) (iptv_celery_queue_length{queue!~"transcode.*"}) > 500
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value | humanize }} messages wait in the {{ $labels.queue }} queue"
+          description: "The queue has held over 500 messages for 15 minutes; its worker is stuck or too slow."
+          runbook: docs/runbooks/alerts.md#celeryqueuebacklog
+
+  - name: iptv-media
+    rules:
+      - alert: TranscodeJobTooOld
+        expr: max by (status) (iptv_transcode_oldest_job_age_seconds) > 7200
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The oldest {{ $labels.status }} transcode job is {{ $value | humanizeDuration }} old"
+          description: "A transcode job has waited or run for over 2 hours. Its title stays unavailable until it finishes."
+          runbook: docs/runbooks/alerts.md#transcodejobtooold
+
+      - alert: ReviewQueueLarge
+        expr: max(iptv_review_queue_open) > 50
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value | humanize }} metadata matches wait for review"
+          description: "Files in review stay out of the catalogue until an admin resolves them."
+          runbook: docs/runbooks/alerts.md#reviewqueuelarge
+
+  - name: iptv-billing
+    rules:
+      - alert: PaymentWebhookFailures
+        expr: |
+          max by (provider) (iptv_payment_webhooks_failing) > 0
+            or sum by (provider) (increase(iptv_payment_webhooks_total{result="failed"}[15m])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.provider }} webhooks are failing"
+          description: "A paid event could not be applied: a customer may have paid without their subscription being extended."
+          runbook: docs/runbooks/alerts.md#paymentwebhookfailures
+
+      - alert: PaymentWebhookRejected
+        expr: sum by (provider) (increase(iptv_payment_webhooks_total{result="invalid"}[30m])) > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value | humanize }} {{ $labels.provider }} webhooks were refused in 30 minutes"
+          description: "Signatures or tokens did not verify: the webhook secret may be wrong, or someone is probing the endpoint."
+          runbook: docs/runbooks/alerts.md#paymentwebhookrejected
+
+  - name: iptv-platform
+    rules:
+      - alert: WebNotReady
+        expr: probe_success{probe="web-ready"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Django's readiness check fails"
+          description: "web answers /internal/health/ready with an error: a store it needs (Postgres, a Valkey, Meilisearch) is down, or web itself is."
+          runbook: docs/runbooks/alerts.md#webnotready
+
+      - alert: PublicEndpointDown
+        expr: probe_success{probe="public"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} fails from the outside"
+          description: "The HTTPS probe through Traefik has failed for 5 minutes (TLS, routing or the service behind it)."
+          runbook: docs/runbooks/alerts.md#publicendpointdown
+
+      - alert: CertificateExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry{probe="public"} - time() < 14 * 86400
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "The certificate of {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+          description: "Let's Encrypt renews 30 days ahead; under 14 days means renewal is failing."
+          runbook: docs/runbooks/alerts.md#certificateexpiringsoon
+
+      - alert: DiskSpaceLow
+        expr: node:filesystem_used:ratio > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.mountpoint }} is {{ $value | humanizePercentage }} full"
+          description: "Over 85% used. Renditions, logs, metrics and the databases all need room to grow."
+          runbook: docs/runbooks/alerts.md#diskspacelow
+
+      - alert: DiskSpaceCritical
+        expr: node:filesystem_used:ratio > 0.95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.mountpoint }} is {{ $value | humanizePercentage }} full"
+          description: "Over 95% used: writes (PostgreSQL, redis-state's AOF, transcodes) are about to fail."
+          runbook: docs/runbooks/alerts.md#diskspacecritical
+
+      - alert: HostMemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Only {{ $value | humanizePercentage }} of the host's memory is available"
+          description: "The kernel will start killing processes soon (transcoder, web, the stores)."
+          runbook: docs/runbooks/alerts.md#hostmemorylow
+
+      - alert: ContainerOOMKilled
+        expr: increase(container_oom_events_total{container_label_com_docker_compose_project="smart-iptv"}[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.container_label_com_docker_compose_service }} ran out of memory"
+          description: "The kernel killed a process in this container for exceeding its memory limit."
+          runbook: docs/runbooks/alerts.md#containeroomkilled
+
+      - alert: MonitoringTargetDown
+        expr: up{job!~"celery|gpu"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus cannot scrape {{ $labels.job }} ({{ $labels.instance }})"
+          description: "Its metrics, and the alerts built on them, are blind until it is back."
+          runbook: docs/runbooks/alerts.md#monitoringtargetdown
+
+      - alert: AlertDeliveryFailing
+        expr: increase(alertmanager_notifications_failed_total[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alertmanager failed to deliver through {{ $labels.integration }}"
+          description: "Alerts may not be reaching email or Telegram. The other channel still gets this one."
+          runbook: docs/runbooks/alerts.md#alertdeliveryfailing
+
+  # --- Meta ----------------------------------------------------------------------------
+  - name: iptv-meta
+    rules:
+      # Always firing, so the alerting path can be watched from outside (an optional
+      # dead man's switch, ALERT_WATCHDOG_URL). It never reaches email or Telegram.
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: "The alerting pipeline is alive"
+          description: "Always firing by design. Without ALERT_WATCHDOG_URL it goes nowhere."
+          runbook: docs/runbooks/alerts.md#watchdog
+
+      # `manage.py fire_drill` raises iptv_fire_drill to prove delivery (SPEC §17).
+      - alert: FireDrill
+        expr: max(iptv_fire_drill) > 0
+        labels:
+          severity: critical
+          drill: "true"
+        annotations:
+          summary: "Fire drill: this is a test of the alerting path"
+          description: "Started with manage.py fire_drill. No action is needed beyond confirming that email and Telegram both received it."
+          runbook: docs/runbooks/alerts.md#firedrill

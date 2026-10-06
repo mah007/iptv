@@ -1,0 +1,49 @@
+{{/*
+  Smart IPTV notification templates (ADR-0018): the email subject and text body, and
+  the Telegram message. The email's HTML body is Alertmanager's default.
+  Each alert shows its summary, description, labels that identify it, the runbook
+  section (docs/runbooks/alerts.md) and a link to the alert in Prometheus.
+*/}}
+
+{{ define "iptv.subject" -}}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}{{ with .CommonLabels.severity }} ({{ . }}){{ end }} - Smart IPTV
+{{- end }}
+
+{{ define "iptv.alert.labels" -}}
+{{ range .Labels.SortedPairs }}{{ if and (ne .Name "alertname") (ne .Name "severity") }}{{ .Name }}={{ .Value }} {{ end }}{{ end }}
+{{- end }}
+
+{{ define "iptv.text" -}}
+{{ if gt (len .Alerts.Firing) 0 }}FIRING ({{ len .Alerts.Firing }})
+{{ range .Alerts.Firing }}
+- {{ .Annotations.summary }}
+  {{ .Annotations.description }}
+  Labels: {{ template "iptv.alert.labels" . }}
+  Since: {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
+  Runbook: {{ .Annotations.runbook }}
+  Source: {{ .GeneratorURL }}
+{{ end }}{{ end }}
+{{- if gt (len .Alerts.Resolved) 0 }}
+RESOLVED ({{ len .Alerts.Resolved }})
+{{ range .Alerts.Resolved }}
+- {{ .Annotations.summary }}
+  Labels: {{ template "iptv.alert.labels" . }}
+  Resolved: {{ .EndsAt.Format "2006-01-02 15:04:05 MST" }}
+{{ end }}{{ end }}
+Silence or inspect: {{ .ExternalURL }}
+{{- end }}
+
+{{/* Telegram's HTML parse mode: every interpolated value is escaped. */}}
+{{ define "iptv.escape" -}}
+{{ . | reReplaceAll "&" "&amp;" | reReplaceAll "<" "&lt;" | reReplaceAll ">" "&gt;" }}
+{{- end }}
+
+{{ define "iptv.telegram" -}}
+<b>{{ template "iptv.escape" (.Status | toUpper) }}: {{ template "iptv.escape" .CommonLabels.alertname }}</b>{{ with .CommonLabels.severity }} ({{ template "iptv.escape" . }}){{ end }}
+{{ range .Alerts }}
+- {{ template "iptv.escape" .Annotations.summary }}
+{{- if eq .Status "firing" }}
+  <i>{{ template "iptv.escape" .Annotations.description }}</i>
+  Runbook: {{ template "iptv.escape" .Annotations.runbook }}{{ end }}
+{{ end }}
+{{- end }}

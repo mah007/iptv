@@ -41,7 +41,9 @@
     "invoices": "الفواتير",
     "notifications": "الإشعارات",
     "templates": "القوالب",
-    "storage": "التخزين"
+    "storage": "التخزين",
+    "liveTv": "البث المباشر",
+    "epg": "دليل البرامج"
   },
   "layout": {
     "skipToContent": "الانتقال إلى المحتوى",
@@ -861,6 +863,10 @@
       "trials": {
         "title": "التجارب المجانية",
         "description": "تُستخدم عند إضافة التجارب الذاتية في إصدار لاحق."
+      },
+      "live": {
+        "title": "البث المباشر",
+        "description": "تجهيز القنوات والمشاهدة اللاحقة والدليل."
       }
     },
     "keys": {
@@ -1096,6 +1102,40 @@
         "approve_new_devices": {
           "label": "اعتماد الأجهزة الجديدة",
           "description": "تنتظر الأجهزة الجديدة اعتماد المشرف قبل أن تعمل."
+        }
+      },
+      "live": {
+        "idle_stop_s": {
+          "label": "الإيقاف بعد آخر مشاهد",
+          "description": "عدد الثواني التي تبقى فيها القناة عند الطلب تعمل بعد مغادرة آخر مشاهد."
+        },
+        "max_running_channels": {
+          "label": "القنوات العاملة معًا",
+          "description": "أقصى عدد من القنوات تُجهَّز في الوقت نفسه."
+        },
+        "realtime_transcode_max": {
+          "label": "القنوات المعاد ترميزها معًا",
+          "description": "أقصى عدد من القنوات يُعاد ترميزها آنيًا في الوقت نفسه (البديل المحدود)."
+        },
+        "catchup_max_days": {
+          "label": "أطول مشاهدة لاحقة",
+          "description": "أقصى عدد أيام مشاهدة لاحقة تحتفظ بها القناة."
+        },
+        "timeshift_max_minutes": {
+          "label": "أطول طلب مشاهدة لاحقة",
+          "description": "أقصى عدد دقائق يشغّلها طلب مشاهدة لاحقة واحد."
+        },
+        "epg_past_days": {
+          "label": "تاريخ الدليل",
+          "description": "عدد أيام البرامج الماضية التي يحتفظ بها الدليل."
+        },
+        "epg_future_days": {
+          "label": "مدى الدليل القادم",
+          "description": "عدد أيام البرامج القادمة التي يحتفظ بها الاستيراد."
+        },
+        "epg_max_document_mb": {
+          "label": "أكبر ملف دليل",
+          "description": "أكبر مستند XMLTV يقرؤه الاستيراد، بالميغابايت دون ضغط."
         }
       }
     }
@@ -1698,7 +1738,14 @@
     "not_a_customer": "تنطبق القواعد على العملاء فقط.",
     "not_in_future": "اختر وقتًا في المستقبل.",
     "role_name_rule": "ابدأ بحرف، واستخدم الحروف اللاتينية الصغيرة والأرقام والشرطة السفلية.",
-    "role_name_taken": "يوجد دور بهذا الاسم بالفعل."
+    "role_name_taken": "يوجد دور بهذا الاسم بالفعل.",
+    "invalid_source_url": "أدخل رابط http(s) أو rtmp(s) أو rtsp(s) أو srt.",
+    "unsafe_destination": "هذا العنوان لا يُجلب منه أبدًا.",
+    "invalid_epg_channel_id": "دون مسافات أو علامات اقتباس.",
+    "rights_required": "تحتاج القنوات صاحب حقوق قبل تفعيلها.",
+    "invalid_cron": "أدخل خمسة حقول cron.",
+    "invalid_url": "أدخل رابطًا صحيحًا.",
+    "credentials_in_url": "ضع بيانات الدخول في حقولها، لا في الرابط."
   },
   "activity": {
     "label": "النشاط",
@@ -2753,6 +2800,309 @@
         "superseded": "مستبدل",
         "leftover": "مهمة متوقفة"
       }
+    }
+  },
+  "liveTv": {
+    "title": "البث المباشر",
+    "description": "القنوات التي تملكها أو المرخّص لك بإعادة بثها، ومجموعاتها، ومصادرها.",
+    "tabs": {
+      "channels": "القنوات",
+      "groups": "المجموعات",
+      "integrations": "التكاملات"
+    },
+    "new": "قناة جديدة",
+    "states": {
+      "live": "مباشر",
+      "starting": "يبدأ",
+      "idle": "متوقفة (تبدأ عند الطلب)",
+      "failed": "متعطلة",
+      "disabled": "معطلة",
+      "unlicensed": "انتهى الترخيص"
+    },
+    "recording": "تسجيل",
+    "viewers_zero": "لا أحد يشاهد",
+    "viewers_one": "مشاهد واحد",
+    "viewers_two": "مشاهدان",
+    "viewers_few": "{{count}} مشاهدين",
+    "viewers_many": "{{count}} مشاهدًا",
+    "viewers_other": "{{count}} مشاهد",
+    "errors": {
+      "exit": "توقف المصدر",
+      "stalled": "تجمّد المصدر",
+      "no_output": "لا صورة من المصدر",
+      "ffmpeg_missing": "‏FFmpeg غير موجود",
+      "unsafe_destination": "عنوان المصدر مرفوض"
+    },
+    "columns": {
+      "number": "المعرّف",
+      "channel": "القناة",
+      "group": "المجموعة",
+      "status": "الحالة",
+      "catchup": "المشاهدة اللاحقة",
+      "rights": "الحقوق",
+      "enabled": "مفعّلة",
+      "actions": "الإجراءات"
+    },
+    "catchupDays_zero": "لا أيام",
+    "catchupDays_one": "يوم واحد",
+    "catchupDays_two": "يومان",
+    "catchupDays_few": "{{count}} أيام",
+    "catchupDays_many": "{{count}} يومًا",
+    "catchupDays_other": "{{count}} يوم",
+    "noCatchup": "متوقفة",
+    "licenseUntil": "مرخّصة حتى {{date}}",
+    "licenseExpired": "انتهى الترخيص",
+    "rightsMissing": "صاحب الحقوق غير محدد",
+    "enableLabel": "تفعيل {{name}}",
+    "moveUp": "نقل {{name}} لأعلى",
+    "moveDown": "نقل {{name}} لأسفل",
+    "edit": "تعديل {{name}}",
+    "delete": {
+      "label": "حذف {{name}}",
+      "title": "حذف {{name}}؟",
+      "description": "يتوقف مشاهدوها فورًا، ويُحذف أرشيف المشاهدة اللاحقة.",
+      "confirm": "حذف",
+      "done": "حُذفت {{name}}"
+    },
+    "enabledToast": "فُعّلت {{name}}",
+    "disabledToast": "عُطّلت {{name}} وأُوقف مشاهدوها",
+    "filters": {
+      "group": "المجموعة",
+      "allGroups": "كل المجموعات",
+      "search": "ابحث في القنوات"
+    },
+    "orderHint": "اختر مجموعة لتغيير ترتيب قنواتها.",
+    "empty": {
+      "title": "لا قنوات بعد",
+      "description": "أضف قناة تملكها أو مرخّصًا لك بإعادة بثها، أو زامنها من ErsatzTV أو MediaMTX الخاص بك.",
+      "noGroups": "أنشئ مجموعة أولًا (تبويب المجموعات)."
+    },
+    "groups": {
+      "new": "مجموعة جديدة",
+      "description": "المجموعات هي فئات البث المباشر التي تعرضها تطبيقات IPTV، وتمنح الباقات الوصول حسب المجموعة.",
+      "empty": "لا مجموعات بعد",
+      "emptyDescription": "أنشئ مجموعة لتضع فيها القنوات.",
+      "editTitle": "تعديل المجموعة",
+      "newTitle": "مجموعة بث مباشر جديدة",
+      "formDescription": "الأسماء باللغتين. تعرض تطبيقات IPTV المجموعات بهذا الترتيب.",
+      "deleteTitle": "حذف {{name}}؟",
+      "deleteDescription": "لا يمكن حذف مجموعة ما زالت تضم قنوات."
+    },
+    "integrations": {
+      "new": "إضافة خادم",
+      "intro": "زامن القنوات من ErsatzTV أو MediaMTX الخاص بك. تصل القنوات الجديدة معطلة لتراجعها.",
+      "empty": "لا خوادم",
+      "emptyDescription": "أضف ErsatzTV أو MediaMTX الخاص بك لمزامنة قنواته.",
+      "kinds": {
+        "ersatztv": "ErsatzTV",
+        "mediamtx": "MediaMTX"
+      },
+      "channels_zero": "لا قنوات",
+      "channels_one": "قناة واحدة",
+      "channels_two": "قناتان",
+      "channels_few": "{{count}} قنوات",
+      "channels_many": "{{count}} قناة",
+      "channels_other": "{{count}} قناة",
+      "lastSync": "زومنت",
+      "result": "{{created}} جديدة، {{updated}} تغيّرت، {{missing}} اختفت",
+      "neverSynced": "لم تُزامن قط",
+      "sync": "زامن الآن",
+      "syncQueued": "بدأت المزامنة",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "deleteTitle": "إزالة {{name}}؟",
+      "deleteDescription": "تبقى قنواته، غير مرتبطة به.",
+      "saved": "حُفظ {{name}}",
+      "kind": "النوع",
+      "kindHelp": {
+        "ersatztv": "قنوات مبنية من مكتبتك في ErsatzTV، مع دليلها.",
+        "mediamtx": "مسارات تنشرها مُرمِّزاتك وكاميراتك إلى MediaMTX."
+      },
+      "name": "الاسم",
+      "baseUrl": "العنوان",
+      "streamBase": "عنوان البث",
+      "streamBaseHelp": "حيث تُقرأ القنوات، مثل rtsp://mediamtx:8554.",
+      "username": "مستخدم القراءة",
+      "password": "كلمة المرور",
+      "accessToken": "رمز الوصول",
+      "secretHelp": "فقط إن احتاجه الخادم. اتركه فارغًا للإبقاء على الحالي.",
+      "rightsHelp": "يُنسخ إلى كل قناة تُزامن من هذا الخادم.",
+      "create": "إضافة",
+      "editTitle": "تعديل الخادم",
+      "newTitle": "إضافة خادم",
+      "description": "خوادمك فقط، بمحتوى تملكه أو مرخّص لك به."
+    },
+    "overview": {
+      "packager": "مُجهِّز البث",
+      "running_zero": "لا قنوات تعمل",
+      "running_one": "قناة واحدة تعمل",
+      "running_two": "قناتان تعملان",
+      "running_few": "{{count}} قنوات تعمل",
+      "running_many": "{{count}} قناة تعمل",
+      "running_other": "{{count}} قناة تعمل",
+      "stopped": "لا يعمل",
+      "channels": "القنوات",
+      "enabled": "{{enabled}} من {{total}} مفعّلة",
+      "viewers": "يشاهدون الآن",
+      "archive": "أرشيف المشاهدة اللاحقة",
+      "archiveUse": "{{used}} من {{budget}}"
+    },
+    "form": {
+      "name": "الاسم",
+      "nameAr": "الاسم بالعربية",
+      "group": "المجموعة",
+      "groupPlaceholder": "اختر مجموعة",
+      "groupHelp": "تستطيع الباقات التي تشمل هذه المجموعة مشاهدة القناة.",
+      "source": "رابط المصدر",
+      "sourceHelp": "http(s) أو rtmp(s) أو rtsp(s) أو srt. يُخزّن مشفّرًا ولا يُعرض مجددًا.",
+      "sourceKeep": "مخزّن مشفّرًا. اكتب رابطًا جديدًا لاستبداله، أو اتركه فارغًا للإبقاء عليه.",
+      "output": "الصيغة الافتراضية",
+      "outputHelp": "ما يشغّله رابط IPTV القصير.",
+      "transcode": "المعالجة",
+      "transcodeHelp": "النسخ يُبقي المصدر كما هو. إعادة الترميز تستهلك المعالج ولها حد أقصى.",
+      "epgId": "معرّف القناة في الدليل (XMLTV)",
+      "epgIdHelp": "المعرّف في دليل XMLTV الخاص بك، مثل studio.example.com.",
+      "catchup": "المشاهدة اللاحقة (أيام)",
+      "catchupHelp": "0 يوقف المشاهدة اللاحقة. القناة المسجِّلة تعمل طوال الوقت.",
+      "catchupEstimate": "نحو {{size}} من القرص. حد الأرشيف {{budget}}.",
+      "catchupUnknown": "اختبر المصدر لتقدير المساحة. حد الأرشيف {{budget}}.",
+      "always_on": "تعمل دائمًا",
+      "always_onHelp": "تبقى جاهزة دون مشاهدين: تبدأ فورًا، لكنها تستهلك المعالج وعرض نطاق المصدر طوال الوقت.",
+      "enabled": "مفعّلة",
+      "enabledHelp": "تظهر لتطبيقات IPTV وتُشغَّل. تحتاج صاحب حقوق.",
+      "rights": "الحقوق",
+      "rightsHelp": "فقط محتوى تملكه أو مرخّص لك بإعادة بثه. انتهاء الترخيص يخفي القناة.",
+      "rightsHolder": "صاحب الحقوق",
+      "licenseRef": "مرجع الترخيص",
+      "licenseExpires": "انتهاء الترخيص",
+      "logo": "الشعار",
+      "logoHelp": "‏PNG أو JPEG أو WebP، يُخزّن بصيغة WebP لتطبيقات IPTV.",
+      "create": "إنشاء القناة",
+      "saved": "حُفظت {{name}}",
+      "created": "أُنشئت {{name}}",
+      "editTitle": "تعديل القناة",
+      "newTitle": "قناة جديدة",
+      "description": "قناة تملكها أو مرخّص لك بإعادة بثها."
+    },
+    "outputs": {
+      "ts": "‏MPEG-TS (‎.ts)",
+      "hls": "‏HLS (‎.m3u8)"
+    },
+    "transcodes": {
+      "copy": "نسخ (دون إعادة ترميز)",
+      "h264": "إعادة الترميز إلى H.264 (بحد أقصى)"
+    },
+    "test": {
+      "run": "اختبار",
+      "failed": "لم يستجب المصدر",
+      "ok": "المصدر يعمل",
+      "copyOk": "يمكن نسخه كما هو.",
+      "copyNo": "يحتاج إلى إعادة ترميز ليعمل في كل مكان.",
+      "errors": {
+        "unreachable": "تعذّر الوصول إليه أو قراءته.",
+        "timeout": "استغرق وقتًا طويلًا للرد.",
+        "unsupported_scheme": "لا يقرأ FFmpeg في هذا الخادم هذا البروتوكول. أدخله عبر MediaMTX.",
+        "unsafe_destination": "هذا العنوان لا يُجلب منه أبدًا.",
+        "unreadable_source": "تعذّرت قراءة الرابط المخزّن.",
+        "ffprobe_missing": "‏FFprobe غير موجود في العامل.",
+        "no_video": "لا فيديو في المصدر.",
+        "unreadable": "تعذّرت قراءة الرد."
+      }
+    },
+    "validation": {
+      "nameRequired": "أدخل اسمًا.",
+      "groupRequired": "اختر مجموعة.",
+      "epgId": "دون مسافات أو علامات اقتباس.",
+      "catchup": "من 0 إلى 30 يومًا.",
+      "sourceRequired": "أدخل رابط المصدر.",
+      "urlRequired": "أدخل العنوان.",
+      "rightsRequired": "أدخل صاحب الحقوق."
+    }
+  },
+  "epg": {
+    "title": "دليل البرامج",
+    "description": "مصادر دليل XMLTV، والقنوات بلا دليل، وما يُعرض ومتى.",
+    "new": "إضافة مصدر",
+    "kinds": {
+      "url": "رابط",
+      "upload": "ملف مرفوع"
+    },
+    "sources": {
+      "title": "المصادر",
+      "empty": "لا مصادر للدليل",
+      "emptyDescription": "أضف دليل XMLTV برابط أو كملف.",
+      "columns": {
+        "name": "الاسم",
+        "from": "المصدر",
+        "schedule": "الجدول",
+        "lastOk": "آخر استيراد",
+        "guide": "الدليل",
+        "actions": "الإجراءات"
+      },
+      "disabled": "معطّل",
+      "never": "لم يُستورد قط",
+      "counts": "{{channels}} قناة، {{programmes}} برنامج",
+      "refresh": "استيراد {{name}} الآن",
+      "refreshQueued": "جارٍ استيراد {{name}}",
+      "edit": "تعديل {{name}}",
+      "delete": "حذف {{name}}",
+      "deleteTitle": "حذف {{name}}؟",
+      "deleteDescription": "تخرج برامجه من الدليل.",
+      "deleteConfirm": "حذف"
+    },
+    "form": {
+      "name": "الاسم",
+      "kind": "المصدر",
+      "url": "رابط XMLTV",
+      "urlHelp": "‏http أو https، ويُقبل gzip. يُخزّن مشفّرًا.",
+      "urlKeep": "مخزّن مشفّرًا. اكتب رابطًا جديدًا لاستبداله.",
+      "file": "ملف XMLTV",
+      "fileHelp": "ملف ‎.xml أو ‎.xml.gz، حتى 50 ميغابايت.",
+      "cron": "الجدول (cron)",
+      "cronHelp": "خمسة حقول بتوقيت UTC، مثل 0 */6 * * * لكل 6 ساعات.",
+      "priority": "الأولوية",
+      "priorityHelp": "الأقل يفوز حين يصف مصدران القناة نفسها.",
+      "enabled": "مفعّل",
+      "enabledHelp": "يُستورد حسب جدوله.",
+      "create": "إضافة المصدر",
+      "saved": "حُفظ {{name}} ويجري استيراده",
+      "editTitle": "تعديل المصدر",
+      "newTitle": "إضافة مصدر للدليل",
+      "description": "دليل XMLTV الخاص بك، أو الذي يوفّره مانح الترخيص."
+    },
+    "unmatched": {
+      "title": "قنوات بلا دليل",
+      "allMatched": "لكل قناة بيانات في الدليل.",
+      "columns": {
+        "channel": "القناة",
+        "reason": "السبب",
+        "suggestions": "اقتراحات"
+      },
+      "reasons": {
+        "no_id": "لا معرّف دليل",
+        "not_in_guide": "ليست في أي دليل"
+      },
+      "noSuggestion": "لا تطابق",
+      "use": "استخدام {{id}} لـ {{name}}",
+      "mapped": "رُبطت {{name}} ويجري استيراد دليلها",
+      "unused": "قنوات في الدليل لا تستخدمها أي قناة"
+    },
+    "preview": {
+      "title": "معاينة البرامج",
+      "channel": "القناة",
+      "pick": "اختر قناة",
+      "previous": "اليوم السابق",
+      "next": "اليوم التالي",
+      "today": "اليوم",
+      "noChannels": "لا قناة لها معرّف دليل بعد.",
+      "empty": "لا برامج يوم {{day}}.",
+      "onAir": "يُعرض الآن"
+    },
+    "validation": {
+      "nameRequired": "أدخل اسمًا.",
+      "cronRequired": "أدخل جدولًا.",
+      "urlOrFile": "أدخل رابطًا أو اختر ملفًا.",
+      "priority": "من 0 إلى 10000."
     }
   }
 }

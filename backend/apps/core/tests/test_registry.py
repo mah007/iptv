@@ -58,6 +58,7 @@ EXPECTED_DEFAULTS = {
     "security.password_reset_ttl_min": 60,
     "security.password_invite_ttl_days": 7,
     "security.password_reset_emails_per_hour": 3,
+    "security.monitoring_session_hours": 8,
     "playback.progress_min_interval_s": 5,
     "playback.watched_ratio": 0.9,
     # B1 (ADR-0012): billing and trials.
@@ -80,6 +81,14 @@ EXPECTED_DEFAULTS = {
     "features.machine_translation": False,
     "features.include_vod_in_m3u": True,
     "features.approve_new_devices": False,
+    "live.idle_stop_s": 150,
+    "live.max_running_channels": 20,
+    "live.realtime_transcode_max": 1,
+    "live.catchup_max_days": 7,
+    "live.timeshift_max_minutes": 480,
+    "live.epg_past_days": 7,
+    "live.epg_future_days": 14,
+    "live.epg_max_document_mb": 200,
 }
 
 
