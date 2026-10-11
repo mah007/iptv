@@ -13,6 +13,11 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-11:** configuration in the admin and backups/hardening deployed to tv.mah007.net:
+  - The app now runs on restricted database and cache accounts.
+  - The first nightly-style full backup, file backup and restore drill succeeded within minutes of the update.
+  - The live Xtream contract suite passes (195 passed).
+  - The API and Xtream hosts were down for about 10 minutes during this update, because a pull ran under a strict umask; `install.sh` now guards against that.
 - **2026-10-11:** backups and server hardening (M14b):
   - **Backups:** nightly encrypted backups (pgBackRest with continuous WAL archiving, restic for files, optional S3 offsite), point-in-time restore, a restore point before every update, and a weekly restore drill that alerts on failure. The admin's Backups page has *Back up now* and *Run restore drill*.
   - **Data and access:** personal-data retention jobs; least-privilege database roles and cache users.

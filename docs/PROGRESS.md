@@ -307,6 +307,29 @@ Then:
 
 **Owner decision (2026-10-03): proof of concept first.** An admin creates a customer with device credentials, media is scanned, matched and transcoded, and an IPTV app logs in and plays. Everything commercial (plans, subscriptions, billing, payments, invoices, trials, notifications) is the last slice.
 
+## Configuration (ADR-0019) and M14b (ADR-0020) deployed (2026-10-11)
+
+- **Gate:** `make ci ALLOW_DIRTY=1 BUILD_FLAGS="--pull --no-cache"` passed for the tree committed as `5946289` in 1004 s. It covered:
+  - the backend: 3016 tests at 94.6% coverage;
+  - Vitest: ui 155, admin 162, portal 48;
+  - the Xtream contract: offline 161, `compat-live` 210, IPTVnator 9;
+  - the browser suites: `e2e-admin` 116 passed with 1 skipped (the monitoring overlay is off in the gate), `e2e-portal` 3;
+  - `restore-test`, `hardening-test` and `monitoring-test`;
+  - images, Trivy and the licence gate.
+- **Production:** a `pg_dump` safety copy first, then `install.sh --update`.
+  - The first run stopped at `migrate`: the pull had run under `umask 077` in the operator's shell, so 207 changed files were written 600 and the image's app user couldn't read them. The API, tv and media hosts were down for about 10 minutes.
+  - The fix: tracked files made readable again, and the rerun completed in about 2 minutes, with HTTPS green on all six hosts.
+  - `install.sh` now pulls and clones with umask 022 and repairs unreadable tracked files (`bc36c60`).
+- **Verified on production:**
+  - web connects as `iptv_app`;
+  - the first `db_full`, `files` and `drill` backup runs succeeded within 5 minutes of the update;
+  - unsigned media gives 403, and failed Xtream sign-in returns `{"user_info":{"auth":0}}`;
+  - the live contract suite gives 195 passed and 4 skipped (no live channels yet).
+- **Still to do on production:**
+  - move the one setting still read from `.env` (the TMDB token) into the admin;
+  - set SMTP and alert recipients;
+  - keep the backup passphrase (in `/root/smart-iptv-backup-passphrase.txt`) somewhere off the server.
+
 ## M12 and M13 deployed (2026-10-11)
 
 - **Gate:** `make ci ALLOW_DIRTY=1 BUILD_FLAGS="--pull --no-cache"` passed for the tree committed as `35b857f` (only the owner's `.claude/settings.json` was left out). It covered:
