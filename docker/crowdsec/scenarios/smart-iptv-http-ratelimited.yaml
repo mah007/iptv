@@ -1,0 +1,19 @@
+# Smart IPTV (ADR-0020): an address that keeps going after Traefik's or Django's rate
+# limits answered 429 (sign-in storms, catalogue hammering).
+type: leaky
+name: smart-iptv/http-ratelimited
+description: "An address that ignores rate limiting"
+filter: "evt.Meta.log_type == 'http_access-log' && evt.Meta.http_status == '429'"
+groupby: evt.Meta.source_ip
+capacity: 40
+leakspeed: 10s
+blackhole: 5m
+labels:
+  service: http
+  confidence: 2
+  spoofable: 0
+  classification:
+    - attack.T1110
+  behavior: "http:bruteforce"
+  label: "HTTP rate-limit abuse"
+  remediation: true

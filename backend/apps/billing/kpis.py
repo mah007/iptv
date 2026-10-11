@@ -82,7 +82,7 @@ class BillingKpis:
 
 
 def _month_start(moment: datetime) -> datetime:
-    local = moment.astimezone(zone(DEFAULT_TIMEZONE))
+    local = moment.astimezone(zone(str(get_setting("branding.time_zone")) or DEFAULT_TIMEZONE))
     return local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 

@@ -210,3 +210,39 @@ def test_events_flow_through_the_queue_and_the_loop(
 def test_make_observer() -> None:
     assert type(make_observer(polling=True)).__name__ == "PollingObserver"
     assert type(make_observer(polling=False)).__name__ != "PollingObserver"
+
+
+def test_the_watcher_follows_the_polling_setting(
+    make_library: Callable[..., Library], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`library.watcher_polling` swaps inotify and polling without a restart (ADR-0019)."""
+    from apps.core.services import get_setting, set_setting  # noqa: PLC0415
+    from apps.library import watcher as watcher_module  # noqa: PLC0415
+
+    library = make_library()
+    built: list[tuple[bool, FakeObserver]] = []
+
+    def fake_make_observer(*, polling: bool) -> FakeObserver:
+        observer = FakeObserver()
+        built.append((polling, observer))
+        return observer
+
+    monkeypatch.setattr(watcher_module, "make_observer", fake_make_observer)
+    first = FakeObserver()
+    watcher = LibraryWatcher(
+        lambda library_id, path: None,
+        stable_s=lambda: 60.0,
+        observer=first,  # type: ignore[arg-type]
+        polling=lambda: get_setting("library.watcher_polling") is True,
+    )
+    watcher.sync_libraries()
+    watcher.follow_polling_setting()
+    assert built == []  # unchanged: nothing swapped
+    set_setting("library.watcher_polling", True, actor=None)
+    watcher.follow_polling_setting()
+    assert first.stopped
+    ((polling, second),) = built
+    assert polling is True
+    assert second.started
+    assert set(second.scheduled) == {library.path}
+    assert watcher.polling_mode is True

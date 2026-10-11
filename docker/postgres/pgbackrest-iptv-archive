@@ -1,0 +1,13 @@
+#!/bin/sh
+# PostgreSQL's archive_command (ADR-0020): pgbackrest-iptv-archive %p
+#
+# The backup agent writes /backup-config/archive.enabled once the pgBackRest stanza
+# exists and backups are switched on. Until then (a new installation, or backups off
+# in the admin) each finished WAL segment is released instead of piling up in pg_wal:
+# point-in-time recovery starts with the first base backup. pgBackRest requires its
+# name in archive_command, hence this file's name.
+set -eu
+if [ ! -e /backup-config/archive.enabled ]; then
+    exit 0
+fi
+exec pgbackrest --config=/backup-config/pgbackrest.conf --stanza=main archive-push "$1"

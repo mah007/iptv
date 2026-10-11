@@ -14,7 +14,181 @@
 | M11b Customer portal | Done: portal UI with the Shaka player, progress and resume, account, devices and TV apps, checkout; `make e2e-portal` with axe ([ADR-0016](adr/0016-customer-portal.md)); provider sandboxes pending keys | — |
 | M12 Live TV & EPG | Done: licensed channels and groups, XMLTV import (partitioned guide), live and EPG Xtream actions, `xmltv.php`, live M3U, `/live`, short and `/timeshift` URLs, packager and relay behind the edge, catch-up with an admin-set disk budget, ErsatzTV and MediaMTX sync, optional MediaMTX ingest, admin Live TV and EPG pages; G-11 and G-13 closed ([ADR-0017](adr/0017-live-tv-and-epg.md)); portal live TV is a follow-up | — |
 | M13 Monitoring & logging | Done: opt-in overlay (Prometheus 3.13 LTS, Grafana, Loki, Alloy, Alertmanager, exporters), 7 dashboards, 27 alerts delivered by Django per the admin's settings with an Alertmanager fallback, admin-only Grafana through the admin's sign-in, Loki redaction tested in `make ci`, dev fire drill passed ([ADR-0018](adr/0018-observability.md)); production fire drill waits for SMTP or Telegram | — |
-| M10 client matrix (needs the owner's devices), M14, M15 | Planned | — |
+| CFG Dynamic configuration | Done: secret settings encrypted at rest with the `.env` fallback and its source shown, Integrations page (TMDB, TheTVDB, SMTP, Stripe, Moyasar, Telegram) with server-side Tests, System page, branding (logos, contacts, language, time zone) in both apps, emails and invoices, Alertmanager's fallback fetched from Django, installer writes settings instead of `.env` ([ADR-0019](adr/0019-dynamic-configuration.md)) | — |
+| M14b Operations security & backups | Done: pgBackRest with continuous WAL archiving and restic (local, optional S3), weekly restore drill with alerts, admin Backups page, point-in-time restore and restore points before updates, personal-data retention jobs, app database role and Valkey users, socket proxies, every container capability-dropped, read-only and digest-pinned (`make hardening-test`), CrowdSec with a Traefik bouncer switched from the admin, TLS options, ufw policy, `scripts/rotate-keys.sh`, seven runbooks; G-35 to G-39 and G-41 to G-43 closed ([ADR-0020](adr/0020-operations-security-and-backups.md)) | — |
+| M10 client matrix (needs the owner's devices), the rest of M14 (CSP, WebAuthn, step-up, ZAP), M15 | Planned | — |
+
+## M14b: operations security and backups (2026-10-11)
+
+### Done ([ADR-0020](adr/0020-operations-security-and-backups.md))
+- **Backups:**
+  - **Database:** pgBackRest 2.59 (built from source in `docker/postgres.Dockerfile`), a full backup weekly and differentials nightly, continuous WAL archiving (`archive_timeout` 300 s), AES-256 and zstd.
+  - **Files:** restic 0.19 for `.env`, `secrets/`, artwork, a nightly `pg_dump` and optionally media.
+  - **Offsite (optional):** an S3-compatible bucket, with the keys as encrypted settings.
+  - **Encryption:** one passphrase (`secrets/backup_passphrase`) for both.
+  - **Settings:** schedule, retention, media, the drill and the bucket are `backups.*` settings (21 keys, en/ar).
+- **The `backup` service:** a stdlib agent (`apps/ops/agent.py`) that executes the jobs Django queues: `db_full`, `db_diff`, `files`, `offsite`, `drill`, `check`. It posts to `/internal/backups/agent/*` with a bearer token. WAL archiving switches on only once the repository exists.
+- **Restore drill:**
+  - weekly, after the first backup, and on demand;
+  - the latest backup plus WAL goes into a throwaway PostgreSQL with no listener, then migrations, row counts and `pgbackrest verify` are compared with live and judged in Django.
+- **Alerts:** BackupFailed, RestoreDrillFailed, BackupStale, RestoreDrillStale, BackupAgentDown and WalArchiveFailing, as Prometheus rules (with promtool tests) and delivered by Django itself when the monitoring overlay is off. RedisStateMemoryHigh is added too.
+- **Restore:**
+  - the `restore` service (profile `restore`): `--target latest|<time>|name:<point>`;
+  - `install.sh --update` creates `pre-update-<UTC>` restore points.
+- **Admin:**
+  - a **Backups** page (`backups.view` and `backups.run`): status tiles, where and when, the last drill with its checks and row counts, history, **Back up now**, **Run the restore drill** and **Test the destinations**;
+  - settings groups Backups and Privacy, and CrowdSec under Security; en/ar, both themes, axe and the 390 px check included.
+- **Privacy:** a daily retention job from `privacy.*` (9 keys):
+  - session IPs and user agents blanked, then the sessions deleted;
+  - watch history and resume points;
+  - the audit log through `audit_purge` (floors of 1 and 5 years);
+  - the outbox, failed admin sign-ins and webhook payloads; expired sessions.
+  
+  Audited as `privacy.retention`.
+- **Database roles (G-37):**
+  - `db-roles` one-shot over the local socket; `migrate` as the owner; the app services as `iptv_app`; `iptv_reporting` read-only without credential tables;
+  - grants reapplied after every migrate;
+  - `SECURITY DEFINER` functions for partitions and the audit purge; the app role is refused for `migrate`.
+- **Valkey users (G-38):** `default`, `app` (dangerous commands denied) and `exporter`, from a hashed ACL file rendered at start. redis-state gets `maxmemory` 1 GB (G-35).
+- **Socket proxies (G-36):** `docker-proxy` for Traefik and `docker-logs-proxy` for Alloy and CrowdSec, with regex allowlists. cAdvisor and node-exporter are documented exceptions.
+- **Containers (G-39):** `cap_drop: ALL`, `no-new-privileges`, read-only roots and digest pins on every service and Dockerfile base, checked by `scripts/check_hardening.py` (`make hardening-test`, in `make ci`).
+- **CrowdSec:**
+  - **Engine:** an opt-in overlay (`docker/compose.crowdsec.yml`), v1.8.1-slim, reading Traefik's logs through the logs proxy, with two local scenarios (4xx flood, rate-limit abuse); the community blocklist only by opt-in.
+  - **Bouncer:** the maxlerebourg plugin 1.7.1, vendored into `smart-iptv/traefik`.
+  - **Admin control:** **Settings → Security** switches enforcement and the allowlist; the worker renders the middleware file, and Traefik picks it up in seconds.
+  - **Commands:** `make crowdsec-test`; `cscli decisions delete --ip` to unban.
+- **TLS (G-43):** TLS 1.2+, forward-secret AEAD suites, modern curves; HSTS preload as an operator switch (`DJANGO_HSTS_PRELOAD`).
+- **Host (G-42):** the installer's ufw policy (`default deny incoming`, SSH rate-limited or `--ssh-from`, 80 and 443); SSH hardening in the security runbook.
+- **Key rotation:** `scripts/rotate-keys.sh`:
+  - `media-token [--finish]`, `secret-key [--finish]`, `field-encryption` (re-encrypts model fields and, through `apps.core.services.reencrypt_secret_settings()`, the settings' secrets);
+  - `db-app|reporting|monitor|owner`, `valkey-app|exporter|default`.
+  
+  Each step is audited as `keys.rotate`, with the target being the kind (shown on Settings → System).
+- **Installer:**
+  - **New questions:** backups (folder, media, bucket), CrowdSec (default yes; blocklist default no), SSH-from.
+  - **Passphrase:** shown once and kept in `/root/smart-iptv-backup-passphrase.txt`.
+  - **`--update`:** a restore point, migrations via the `migrate` service as the owner; `--crowdsec` and `--no-crowdsec`.
+- **Runbooks:**
+  - `backups.md`, `rollback.md`, `security.md` (with "Privacy and data retention"), `rotate-keys.md`, `leaked-credential.md`, `incident-response.md`, `search-index.md`;
+  - linked from `deploy.md` and the README; the threat model updated.
+- **Development:** the same roles and users (dev parity). `make backup`, `make restore-test` (in `make ci`), `make hardening-test` (in `make ci`), `make crowdsec-test`. The new images (`postgres`, `postgres-backup`, `traefik`) are in `make build` and `make scan`.
+
+### Evidence (dev stack, 2026-10-11)
+- **Backend (lane 2):**
+  - **Full suite:** 3014 passed at 94.55% coverage, except `test_registry`'s two exhaustive lists, since extended with the new keys (109 registry and settings tests pass).
+  - **`apps/ops`:** 136 tests: the agent (with fakes for pgBackRest and restic), scheduling, the drill verdict, alerts, metrics, the API and permissions, privileges per role (denials by SQLSTATE), the Valkey ACLs against the real instances, retention, CrowdSec rendering, and key rotation (media key stage, promote and retire; re-encryption).
+- **`make backup`:** a differential in 1.2 s and files in 2.0 s. The first full backup of the dev cluster (53 MB, 5.7 MB stored) took 3 s.
+- **`make restore-test`:** restore 1.4 s, ready with WAL replayed 3.7 s, data up to the minute, 55 migrations, 16 tables matching live, verify ok.
+- **Rotations:** every kind was run in a throwaway compose project (own networks, Traefik disabled):
+  - `keys.rotate` audited per kind;
+  - stored secrets readable after `field-encryption`;
+  - `migrate` works after `db-owner`;
+  - playback and sign-in work after each;
+  - a point-in-time restore took 27 s and came back on timeline 2, with later backups and drills fine.
+  
+  `db-monitor` and `valkey-exporter` were not run there (no monitoring overlay); their steps share the tested code paths.
+- **`make crowdsec-test`:** 200, banned 403, enforcement off 200, on 403, unbanned 200.
+- **`make hardening-test`:** production alone (20 services) and with every overlay (36), plus every Dockerfile base.
+- **`make monitoring-test`:** 17/17 config checks (6 new backup alerts with promtool tests), and the Alloy/Loki redaction pipeline (38 cases, 66 secrets) through the logs proxy.
+- **E2E after the dev-parity switch (app services as `iptv_app` and Valkey `app`):**
+  - `make compat` 161, `make compat-live` 210, `make e2e-iptvnator` 9;
+  - `make e2e-admin`: the first run found the Backups page scrolling sideways at 390 px (fixed: the page grid is `grid-cols-1`); the rerun on the rebuilt images passed 116, with 1 skipped (monitoring, overlay off);
+  - `make e2e-portal` 3.
+- **Vitest:** Backups 5, locales.
+- **Images:** `make build`, `make smoke-images` and `make licenses` pass. `make scan` passes all seven images:
+  - the official PostgreSQL image's gosu (25 HIGH/CRITICAL, an old Go build) is replaced by su-exec;
+  - restic is built from source with Go 1.26.9 and fixed dependencies (it had 19 HIGH as the release binary);
+  - three Go 1.26.9 fixes in the Traefik binary, which no Traefik release has yet, are accepted until 2026-11-15 in `.trivyignore.yaml`.
+  
+  Its repository secret step currently flags `backend/.pytest_cache` (git-ignored), which holds CFG's key-shaped test ids.
+- **Installer:** ShellCheck clean (also `rotate-keys.sh`, `crowdsec_test.sh`, `secrets.sh` and the entrypoints). `--dry-run` in `ubuntu:24.04` for a new installation (with a bucket, firewall and `--ssh-from`) and for `--update`. The dry run found that the SSH-port probe aborted the installer where `sshd -T` fails; fixed.
+
+### For the production server
+**Before:** the first update to this version has no backup to fall back on, so take a dump first ([rollback.md](runbooks/rollback.md#before-every-update)):
+```bash
+cd /opt/iptv && docker compose -f docker/compose.yml -f docker/compose.prod.yml -f docker/compose.monitoring.yml -f docker/compose.monitoring.prod.yml \
+  exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > /root/pre-m14b.dump
+```
+
+**Then `sudo /opt/iptv/scripts/install.sh --update`** (add `--crowdsec` to turn CrowdSec on; without it, `CROWDSEC` stays off). In order:
+1. A restore point `pre-update-<UTC>` in the running database. It isn't archived yet, because WAL archiving starts with this update.
+2. `git pull --ff-only`, then `APP_COMMIT`.
+3. `scripts/secrets.sh`:
+   - appends the new `.env` keys (app and reporting database passwords, Valkey app and exporter passwords, `BACKUP_AGENT_TOKEN`, `CROWDSEC_BOUNCER_KEY`, `REDIS_STATE_MAXMEMORY` and the CrowdSec switches);
+   - creates `secrets/backup_passphrase` and `secrets/runtime/*`;
+   - with monitoring, the exporter password secrets.
+4. `BACKUP_DIR=/var/backups/smart-iptv` in `.env`, and the folder is created.
+5. The backup passphrase is shown once and saved to `/root/smart-iptv-backup-passphrase.txt` (mode 600). Copy it off the server.
+6. `compose up -d --build --wait --remove-orphans`:
+   - builds `smart-iptv/postgres` (the same `postgres:18.6-alpine` base, plus pgBackRest), `smart-iptv/postgres-backup` and `smart-iptv/traefik`, then recreates the stack;
+   - PostgreSQL restarts once with the archive settings, on the same data volume;
+   - both Valkeys restart once with their ACL files, taking over their old root-owned files;
+   - `db-roles` creates `iptv_app` and `iptv_reporting`;
+   - `migrate` runs as the owner: `ops` 0001 to 0003 (`BackupRun`, permissions, the audit trigger replacement and the `SECURITY DEFINER` functions) and CFG's migrations, then the grants;
+   - the app services start as `iptv_app` and Valkey `app`;
+   - Traefik reaches Docker through `docker-proxy`;
+   - with monitoring, Alloy goes through `docker-logs-proxy`, and the Valkey exporter uses its own user.
+   
+   Customers see one restart of a few seconds, as with every update. App clients stay signed in: redis-state's AOF survives.
+7. `compose run --rm --no-deps migrate` (nothing left to do), the search index, and the HTTPS checks.
+8. **Within a minute,** the backup service creates the stanza, switches WAL archiving on and takes the first full backup, then a restore drill. It took 3 s on the dev cluster; at production's size, expect seconds to a minute. The admin's **Backups** page shows both.
+
+**Afterwards:**
+1. **Security checklist** ([security.md](runbooks/security.md)): SSL Labs A+, ufw (if it wasn't enabled at installation, apply the runbook's policy by hand; `--update` doesn't touch the firewall), and SSH settings.
+2. Optionally an S3 bucket in **Settings → Backups**, then **Test the destinations**.
+3. Delete `/root/pre-m14b.dump` once a drill has passed.
+
+
+### Done ([ADR-0019](adr/0019-dynamic-configuration.md))
+- **Registry:**
+  - `SettingDef` gains `env` (the server-config fallback, with `env_resolve` for derived values) and `widget` (image uploads);
+  - effective value: stored, else `.env`, else default, with the source (`database`, `environment`, `default`) in the API;
+  - an explicitly empty value turns a `.env` value off.
+- **Secrets:**
+  - Fernet ciphertext in a new column (`core/0003`); the settings cache holds ciphertext only;
+  - `get_secret` is the one accessor (`get_setting` refuses secrets);
+  - audited as `{"configured", "source"}`, never a value;
+  - `core/0004` encrypts stored rows and moves `monitoring.telegram_*` to `notifications.telegram_*`;
+  - `reencrypt_secret_settings()` for M14b's key rotation.
+- **API:** bulk PATCH, DELETE (reset), `adopt` (move a `.env` value in), logo upload; integrations list and Test; system facts; the public `GET /api/v1/branding`.
+- **Moved into the admin, with the old variables as fallback:** SMTP (a settings-driven email backend), TMDB (the client follows a credential change without a restart), TheTVDB key and PIN, Stripe and Moyasar keys, the Telegram bot and admins' chat, the runbook URL, watcher polling, transcode attempts, retry delay and time limit.
+- **New branding settings:** support phone and WhatsApp, logos, default language and time zone, used in both apps, emails, invoices and new accounts.
+- **Admin:**
+  - an **Integrations** page: one card each, with status, write-only secrets (Set, Replace, Clear, Move into settings, Turn off), webhook URLs and a Test per card (a test email to the signed-in admin, TMDB authentication, a TheTVDB login, the Stripe balance and webhook registration, Moyasar payments and webhooks, a Telegram getMe plus a message);
+  - a **System** page (version and commit, hosts, folders, overlays, settings still in `.env`, bootstrap secrets and why, key rotations);
+  - the generic Settings page shows sources, write-only secrets and logo uploads;
+  - en/ar, both themes.
+- **Portal:** the admin's name and logo in the header, support contacts in the footer, the service's default language on a first visit.
+- **Alertmanager:** the fallback receiver fetches its settings from Django (`/internal/alert-fallback`, bearer token) every minute, keeps the last copy while web is down, and reloads when they change; M13's config checks render that case too.
+- **Installer:** TMDB, SMTP, alert recipients and Telegram go into the settings with `set_setting --stdin` (nothing into `.env`). `--reconfigure` covers the domain, admin email, media folder and monitoring. `--update` writes `APP_COMMIT` and prints how many settings still come from `.env` (`manage.py settings_report`).
+- **Defence in depth:** provider keys, `whsec_` secrets, bot tokens and JWTs are masked in log text; httpx's request lines are off (WARNING).
+
+### Evidence (dev stack, 2026-10-11)
+- **Backend (lane 1), the full suite:** 3014 passed at 94.55% coverage. The only failures are `test_registry`'s two exhaustive key lists, which M14b's new `backups.*` and `privacy.*` keys extend (H2 updates them).
+  - The new tests cover encryption at rest (the raw row and the cache hold no plaintext), masking, precedence and sources, audit without values, logs without secrets, adopt, reset and bulk changes, key rotation, the migration helpers, pickup without a restart, every Test with a mocked transport, the integrations and system APIs, logo uploads, branding, account defaults, the watcher's polling switch, the packager's log line and the Alertmanager fallback endpoint.
+- **Vitest:** admin 157 (Integrations, System, secret controls), portal 48 (branding, support contacts, first-visit language).
+- **`make e2e-admin`:**
+  - the Integrations journey: move the SMTP host in, a wrong port that the Test explains, then Mailpit's port, with the test email found in Mailpit's API; a Stripe key saved, never in the page or any response, then cleared;
+  - axe on `/settings/integrations` and `/settings/system` in English/light and Arabic/dark, and no sideways scroll at 390 px;
+  - the last full run: 102 passed, 1 skipped (monitoring, overlay off). Six pages of other areas rendered blank while services restarted, as in M12's notes, and the serial journeys after them didn't run; all 19 passed on a rerun.
+- **`make e2e-portal`:** 3 passed. The journey now pins English, because a first visit speaks the service's default language (Arabic).
+- **Runtime pickup on the running stack, no restarts:**
+  - the **worker** sent a queued email to the port set in the admin (refused), then delivered it once the port was fixed;
+  - the **packager** logged `live.limits_changed` 1 s after a change;
+  - the **watcher** swapped to polling 31 s after a change;
+  - **Alertmanager** fetched the settings and reloaded 49 s after the alert recipients changed.
+- **Monitoring config checks:** 17/17, including the new "fallback from Django's settings".
+- **Installer:** ShellCheck clean; `--dry-run` in `ubuntu:24.04` for a new installation, `--update` and `--reconfigure`.
+
+### For the production server
+`sudo /opt/iptv/scripts/install.sh --update` is all it needs:
+- migrations `core/0003`, `core/0004` and `accounts/0006` run on their own;
+- the TMDB token in `.env` keeps working as the fallback.
+
+Then:
+1. open **Settings → Integrations**. TMDB shows **From server config**: press **Move into settings** (then remove `TMDB_READ_ACCESS_TOKEN` from `.env`), and **Check the token**;
+2. set SMTP and press **Send a test email to me**; optionally set Telegram and press **Send a test message**;
+3. with monitoring on, recreate Alertmanager once (`--update` does) so it starts fetching its fallback from Django.
 
 ## M12: live TV and EPG (2026-10-11)
 

@@ -9,18 +9,21 @@ The small tier from SPEC §13: one server runs the whole stack behind Traefik, w
 curl -fsSL https://raw.githubusercontent.com/mah007/iptv/main/scripts/install.sh -o install.sh
 sudo bash install.sh                                  # new server: questions, checks, install
 sudo /opt/iptv/scripts/install.sh --update            # pull, add new .env keys, rebuild, migrate, check HTTPS
-sudo /opt/iptv/scripts/install.sh --reconfigure       # change domain, email, media folder, TMDB, SMTP, monitoring
+sudo /opt/iptv/scripts/install.sh --reconfigure       # change domain, admin email, media folder, monitoring
 sudo /opt/iptv/scripts/install.sh --update --monitoring   # turn monitoring on for an existing server
+sudo /opt/iptv/scripts/install.sh --update --crowdsec     # turn CrowdSec on (or off with --no-crowdsec)
 bash install.sh --help                                # every option, unattended use (--yes)
 ```
-- **Questions:** domain, owner admin (email, sign-in name, password or a generated one), media folder and sample titles, TMDB token, SMTP, monitoring (alert email and an optional Telegram bot and chat), ufw.
+- **Questions:** domain, owner admin (email, sign-in name, password or a generated one), media folder and sample titles, TMDB token, SMTP, monitoring (alert email and an optional Telegram bot and chat), backups (folder, media on or off, an optional S3-compatible bucket), CrowdSec (default yes; its community blocklist default no), ufw (and SSH only from given networks). TMDB, SMTP and the alert answers go into the admin's settings, where they are edited afterwards (**Settings → Integrations**); `--reconfigure` asks only for the domain, the admin email, the media folder and monitoring on or off.
 - **Checks before it changes anything:** OS (Ubuntu 22.04/24.04, Debian 12/13), CPU, memory and disk, ports 80/443, internet access, DNS for every host, and no other installation's containers or volumes on the server.
 - **Then:**
   1. Docker from Docker's repository, and the code in `/opt/iptv`;
-  2. `.env` from `scripts/secrets.sh` plus the answers (`DOMAIN`, `TV_HOST`, `ACME_EMAIL`, `MEDIA_ROOT`, `TMDB_READ_ACCESS_TOKEN`, `EMAIL_*`);
-  3. the stack and migrations (with the monitoring overlay when chosen), then the alert recipients and Telegram into the admin's settings (`manage.py set_setting`);
+  2. `.env` from `scripts/secrets.sh` plus the bootstrap answers (`DOMAIN`, `TV_HOST`, `ACME_EMAIL`, `MEDIA_ROOT`, `APP_COMMIT`, `MONITORING`);
+  3. the stack and migrations (with the monitoring overlay when chosen), then TMDB, SMTP, the alert recipients and Telegram into the admin's settings (`manage.py set_setting KEY --stdin`; secrets encrypted, values never on a command line);
   4. `create_owner --username --email` (password from `OWNER_PASSWORD`, or generated);
-  5. `ensure_libraries` for `movies/` and `series/`, `search_reindex`, and an HTTPS check per host.
+  5. `ensure_libraries` for `movies/` and `series/`, `search_reindex`, and an HTTPS check per host;
+  6. backups: the folder (`BACKUP_DIR`, default `/var/backups/smart-iptv`) and the **backup passphrase**, shown once and kept in `/root/smart-iptv-backup-passphrase.txt` (mode 600). Copy it somewhere off the server: no backup can be read without it. The first full backup and a restore drill run within minutes ([backups.md](backups.md)).
+- **`--update`** creates a restore point (`pre-update-<UTC time>`) before pulling, so an update can be undone ([rollback.md](rollback.md)), keeps every answer, adds what's new (new `.env` keys, the backup folder and passphrase on the first update with backups), rebuilds and migrates. Back up first: [rollback.md](rollback.md#before-every-update).
 - **Where things go:**
   - the log: `/var/log/smart-iptv-install.log`, with no secrets;
   - a generated admin password: shown once and kept in `/root/smart-iptv-admin.txt` (mode 600);
@@ -28,6 +31,19 @@ bash install.sh --help                                # every option, unattended
 - **The public-IP check** (for DNS) asks api.ipify.org, falling back to ifconfig.co; skip it with `--skip-dns-check`.
 
 The sections below are the same steps by hand, for reference and troubleshooting.
+
+## Configuration: the admin, not `.env`
+Everything an operator changes lives in the admin (ADR-0019):
+- **Settings → Integrations:** TMDB, TheTVDB, email (SMTP), Stripe, Moyasar and Telegram, one card each with its status and a **Test** (send a test email to yourself, check a key, send a test Telegram message). Save, then Test.
+- **Settings:** every other setting (branding and logos, playback, library, live TV, billing, monitoring...).
+- **Settings → System:** read-only facts: version and commit, hosts, folders, which settings still come from `.env`, the bootstrap secrets and why they stay out of the settings.
+
+`.env` keeps only bootstrap values: the domain and hosts, folders, data-store passwords, `DJANGO_SECRET_KEY` and `FIELD_ENCRYPTION_KEY` (which encrypts the secrets stored in the settings: back it up with `.env`; without it they must be entered again).
+
+**Servers installed before ADR-0019** keep working: a TMDB token or SMTP settings in `.env` are the settings' fallback, shown as **From server config**. After `--update` the installer prints how many settings still come from `.env`. Press **Move into settings** on each (the value is copied on the server, encrypted, never sent to the browser), then remove the variable from `.env`:
+```bash
+docker compose ... exec web python manage.py settings_report   # names and variables, never values
+```
 
 ## Prerequisites
 - **DNS:** an A record for the base name **and** a wildcard, both pointing at the server. For example `tv.example.com` and `*.tv.example.com` → the server's IP.
@@ -62,31 +78,35 @@ scripts/secrets.sh                                   # .env with fresh secrets, 
 sed -i 's/^DOMAIN=.*/DOMAIN=tv.example.com/' .env
 grep -q '^TV_HOST=' .env || echo 'TV_HOST=tv.example.com' >> .env
 echo 'ACME_EMAIL=ops@example.com' >> .env                # Let's Encrypt contact (optional)
+# `up` creates the database roles (db-roles) and runs the migrations (migrate, as the owner) first.
 docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
   up -d --build --wait --wait-timeout 900
-docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
-  exec -T web python manage.py migrate --noinput
 # The owner admin (roles only, no demo data). The password is printed once:
 # keep it in a password manager. At first sign-in the admin enrols a TOTP app.
 docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
   exec -T web python manage.py create_owner --username admin --email ops@example.com
 ```
-Secrets are generated on the server and never leave it. Back up `/opt/iptv/.env` and `/opt/iptv/secrets/` securely: the database volumes only work with the passwords in `.env`, and `secrets/media_token_keys.json` signs every playback URL.
+Secrets are generated on the server and never leave it. The backups include `/opt/iptv/.env` and `/opt/iptv/secrets/` (encrypted), but keep `secrets/backup_passphrase` somewhere off the server too: it decrypts every backup ([backups.md](backups.md)).
 
 Transcoding runs on the CPU (`transcoder` service). A server with an NVIDIA or Intel GPU can add `docker/compose.gpu-nvidia.yml` or `docker/compose.gpu-intel.yml` to every compose command.
 
 ## Update to the latest `main`
+`install.sh --update` does this; by hand:
 ```bash
-cd /opt/iptv && git pull --ff-only
+cd /opt/iptv
+docker compose ... exec web python manage.py backup_now --wait   # back up first (rollback.md)
+docker compose ... exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+SELECT pg_create_restore_point('pre-update-manual');   -- a point to roll back to
+SQL
+git pull --ff-only
 scripts/secrets.sh                                   # appends keys new in .env.example; never changes existing ones
 docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
-  up -d --build --wait --wait-timeout 600
-docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
-  exec -T web python manage.py migrate --noinput
+  up -d --build --wait --wait-timeout 900 --remove-orphans   # runs db-roles and migrate first
 ```
+Migrations run as the database owner, in the `migrate` service; the app services use the restricted `iptv_app` role and can't change the schema. To migrate again by hand: `docker compose ... run --rm migrate`.
 `scripts/secrets.sh` only appends keys that are new in `.env.example` and creates `secrets/media_token_keys.json` if it's missing, so running it on every update is safe.
 
-There's a single web replica, so an update causes a few seconds of downtime. Zero-downtime rolling updates come with the production hardening in M14–M15.
+There's a single web replica, so an update causes a few seconds of downtime. Zero-downtime rolling updates come in M15.
 
 ## Monitoring (M13, ADR-0018)
 An opt-in overlay: Prometheus, Grafana, Loki, Grafana Alloy, Alertmanager and the exporters (node, cAdvisor, PostgreSQL, Valkey, nginx, blackbox). The installer asks for it (default yes with 8 GB of memory or more) and records the choice as `MONITORING=1` in `.env`; `--update` keeps it.
@@ -104,7 +124,7 @@ docker compose --project-directory . -f docker/compose.yml -f docker/compose.pro
 
 **Open it** from the admin: **Monitoring** in the sidebar (permission `monitoring.view`; owners, admins and viewers have it). Each button opens `grafana.<domain>` with a one-time link, signed in for `monitoring.session_hours` (8 by default). Nothing on that host answers without it: not Grafana, `/prometheus` or `/alertmanager`. Suspending an admin or removing the permission closes their access within a minute.
 
-**Alerts.** Every alert goes to Django, which sends it as the admin's **Settings → Monitoring** say: recipients, a Telegram bot and chat, which severities go where, on or off (SMTP is the server's email settings). For the few alerts that mean Django itself can't deliver (web, PostgreSQL or Valkey down, delivery failing), Alertmanager also sends them itself, to `ALERT_EMAIL_TO` and `ALERT_TELEGRAM_*` in `.env`, which the installer fills from the same answers. Edit those two places separately: the admin's settings don't change `.env`.
+**Alerts.** Every alert goes to Django, which sends it as the admin's **Settings → Monitoring** say: recipients, which severities go where, on or off; the SMTP server and the Telegram bot and chat are under **Settings → Integrations**. For the few alerts that mean Django itself can't deliver (web, PostgreSQL or Valkey down, delivery failing), Alertmanager also sends them itself, with the same settings: it fetches them from Django every minute (`/internal/alert-fallback`), keeps the last copy while web is down, and reloads when they change (ADR-0019). Older installations' `ALERT_EMAIL_TO` and `ALERT_TELEGRAM_*` in `.env` apply only until that first fetch.
 
 **Prove it works (the fire drill, SPEC §17):** admin → **Monitoring** → **Send a test alert**, or `docker compose ... exec web python manage.py fire_drill`. The FireDrill alert arrives by email and Telegram within about 2 minutes and resolves 10 minutes later (or at once with **Stop the test alert** / `fire_drill --stop`). Record the date in the go-live checklist.
 
@@ -143,6 +163,10 @@ apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docke
 - **A new hostname doesn't resolve on one network but works elsewhere:** a resolver (often the home router) cached "no such host" from before the DNS record existed. Check with a public resolver (`https://dns.google/resolve?name=<host>`), then wait for the negative cache to expire or restart that resolver.
 - **A host serves `TRAEFIK DEFAULT CERT`:** no router matches it. Check the router rules in `docker compose ... config` and the ACME lines in `docker compose ... logs traefik`.
 
-## Not covered yet
-- Backups and the restore drill (M14). **Until then, nothing on this server is backed up.**
-- A firewall policy (M14). Today only 22, 80 and 443 are listening; the databases are on Docker's internal network and never published.
+## Backups, security and incidents (M14b, ADR-0020)
+- [backups.md](backups.md): what is backed up, the restore drill, restoring the database to a point in time, single files, a whole server.
+- [rollback.md](rollback.md): undo an update.
+- [security.md](security.md): firewall and SSH, TLS A+ checklist, CrowdSec, container and data-store hardening, personal-data retention.
+- [rotate-keys.md](rotate-keys.md): change every key and password with `scripts/rotate-keys.sh`.
+- [leaked-credential.md](leaked-credential.md) and [incident-response.md](incident-response.md): when something goes wrong.
+- [search-index.md](search-index.md): rebuild the search index.

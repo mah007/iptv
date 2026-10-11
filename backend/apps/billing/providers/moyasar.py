@@ -5,7 +5,7 @@ customer is sent to. Requests use HTTP Basic authentication with the secret key
 (`sk_test_...` for the sandbox) as the user name.
 
 Webhooks carry the endpoint's `secret_token` in the JSON body, compared in
-constant time with MOYASAR_WEBHOOK_SECRET. Events used: `payment_paid`,
+constant time with the `billing.moyasar_webhook_secret` setting. Events used: `payment_paid`,
 `payment_failed` (Moyasar's reference also spells it `payment_faild`),
 `payment_refunded` and `payment_voided`; `data` is the payment, whose
 `invoice_id` is our checkout reference.
@@ -16,7 +16,6 @@ from datetime import timedelta
 from typing import Any, Final
 
 import httpx
-from django.conf import settings
 from django.http import HttpRequest
 from django.utils import timezone
 
@@ -35,7 +34,8 @@ from apps.billing.providers.base import (
     provider_error,
     with_query,
 )
-from apps.core.services import get_setting
+from apps.core.integration import TestCode, TestResult, from_http_error, from_status
+from apps.core.services import get_secret, get_setting
 
 API_BASE: Final = "https://api.moyasar.com/v1"
 #: Moyasar's smallest invoice: 1.00 in the currency's minor units.
@@ -57,19 +57,59 @@ def payment_method(payment: dict[str, Any]) -> str:
     return _METHODS.get(str(source.get("type") or "").lower(), PaymentMethod.OTHER)
 
 
+def _secret_key() -> str:
+    return get_secret("billing.moyasar_secret_key")
+
+
 class MoyasarProvider(PaymentProvider):
     code = PaymentProviderCode.MOYASAR
     name = "Moyasar"
 
     def is_configured(self) -> bool:
-        return bool(settings.MOYASAR_SECRET_KEY and settings.MOYASAR_WEBHOOK_SECRET)
+        return bool(_secret_key() and get_secret("billing.moyasar_webhook_secret"))
 
     def is_enabled(self) -> bool:
         return self.is_configured() and get_setting("billing.moyasar_enabled") is True
 
+    def check(self, webhook_url: str) -> TestResult:
+        """The admin's Test: is the key accepted, is our webhook registered?"""
+        key = _secret_key()
+        if not key:
+            return TestResult.failed(TestCode.NOT_CONFIGURED, "No Moyasar secret key is set.")
+        try:
+            with http_client(auth=(key, "")) as client:
+                payments = client.get(f"{API_BASE}/payments", params={"page": 1})
+                if payments.status_code >= 400:
+                    return from_status("Moyasar", payments)
+                hooks = client.get(f"{API_BASE}/webhooks")
+        except httpx.HTTPError as exc:
+            return from_http_error("Moyasar", exc)
+        registered = "unknown"
+        if hooks.status_code == httpx.codes.OK:
+            try:
+                body = hooks.json()
+            except ValueError:
+                body = None
+            if not isinstance(body, dict):
+                body = {}
+            items = body.get("webhooks") or body.get("data") or []
+            registered = (
+                "yes"
+                if any(isinstance(item, dict) and item.get("url") == webhook_url for item in items)
+                else "no"
+            )
+        mode = "live" if key.startswith("sk_live_") else "test"
+        return TestResult.passed(
+            f"Moyasar accepted the key ({mode} mode).",
+            mode=mode,
+            webhook_url=webhook_url,
+            webhook_registered=registered,
+            webhook_secret_set=bool(get_secret("billing.moyasar_webhook_secret")),
+        )
+
     def _post(self, path: str, data: dict[str, Any]) -> dict[str, Any]:
         try:
-            with http_client(auth=(settings.MOYASAR_SECRET_KEY, "")) as client:
+            with http_client(auth=(_secret_key(), "")) as client:
                 response = client.post(f"{API_BASE}{path}", json=data)
         except httpx.HTTPError as exc:
             msg = f"Moyasar unreachable: {type(exc).__name__}"
@@ -110,7 +150,7 @@ class MoyasarProvider(PaymentProvider):
         payload = json_body(request)
         token = payload.get("secret_token")
         if not isinstance(token, str) or not hmac.compare_digest(
-            token.encode(), settings.MOYASAR_WEBHOOK_SECRET.encode()
+            token.encode(), get_secret("billing.moyasar_webhook_secret").encode()
         ):
             msg = "The webhook secret token does not match."
             raise WebhookError(msg)

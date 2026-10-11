@@ -36,7 +36,10 @@ const PAGES = [
   "/audit",
   "/health",
   "/monitoring",
+  "/backups",
   "/settings",
+  "/settings/integrations",
+  "/settings/system",
 ] as const;
 
 const VARIANTS: readonly { language: Language; theme: Theme }[] = [

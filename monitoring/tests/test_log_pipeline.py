@@ -132,7 +132,8 @@ def docker_logs(name: str) -> str:
 
 def pinned_image(prefix: str, compose: Path = OVERLAY) -> str:
     """The image a compose file pins, so the test runs exactly what production runs."""
-    match = re.search(rf"image:\s*({re.escape(prefix)}:\S+)", compose.read_text())
+    # `image:`, or a build argument such as `TRAEFIK_IMAGE:` (an image built on top of it).
+    match = re.search(rf"(?:image|[A-Z_]+_IMAGE):\s*({re.escape(prefix)}:\S+)", compose.read_text())
     if not match:
         raise RuntimeError(f"{prefix} image not found in {compose}")
     return match[1]

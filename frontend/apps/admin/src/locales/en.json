@@ -44,7 +44,10 @@
     "storage": "Storage",
     "liveTv": "Live TV",
     "epg": "EPG",
-    "monitoring": "Monitoring"
+    "monitoring": "Monitoring",
+    "integrations": "Integrations",
+    "system": "System",
+    "backups": "Backups"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -829,7 +832,23 @@
         "title": "Live TV",
         "description": "Channel packaging, catch-up and the guide."
       },
-      "monitoring": "Monitoring and alerts"
+      "monitoring": "Monitoring and alerts",
+      "email": {
+        "title": "Email",
+        "description": "The SMTP server every email goes through."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Channels for alerts and messages besides email."
+      },
+      "backups": {
+        "title": "Backups",
+        "description": "When and where the database, configuration and artwork are backed up, and the restore drill."
+      },
+      "privacy": {
+        "title": "Privacy and retention",
+        "description": "How long personal data is kept before it is deleted or anonymised."
+      }
     },
     "keys": {
       "branding": {
@@ -848,6 +867,30 @@
         "support_email": {
           "label": "Support email",
           "description": "Where customers write for help."
+        },
+        "support_phone": {
+          "label": "Support phone",
+          "description": "Shown to customers in the portal, emails and invoices; with the country code (+966...)."
+        },
+        "support_whatsapp": {
+          "label": "Support WhatsApp",
+          "description": "A WhatsApp number customers can write to, with the country code (+966...)."
+        },
+        "logo_light": {
+          "label": "Logo (light backgrounds)",
+          "description": "PNG, JPEG or WebP up to 2 MB, shown in the apps, emails and invoices."
+        },
+        "logo_dark": {
+          "label": "Logo (dark backgrounds)",
+          "description": "Used with the dark theme; the light logo is used when this is empty."
+        },
+        "default_language": {
+          "label": "Default language",
+          "description": "The language of new customers and of first visits to the portal."
+        },
+        "time_zone": {
+          "label": "Time zone",
+          "description": "The service's time zone (IANA, e.g. Asia/Riyadh): new customers, the dashboard's days and invoice dates."
         }
       },
       "xtream": {
@@ -930,6 +973,22 @@
         "rendition_retention_days": {
           "label": "Rendition retention",
           "description": "Days the renditions of a removed file are kept before the cleanup deletes them."
+        },
+        "watcher_polling": {
+          "label": "Poll for changes",
+          "description": "For libraries on network shares (NFS, SMB), where change events never arrive."
+        },
+        "transcode_max_attempts": {
+          "label": "Transcode attempts",
+          "description": "Attempts per transcode job before it fails for good."
+        },
+        "transcode_retry_backoff_s": {
+          "label": "Transcode retry delay (s)",
+          "description": "Seconds before a failed job is retried; doubled each time."
+        },
+        "transcode_job_timeout_h": {
+          "label": "Transcode time limit (h)",
+          "description": "A transcode running longer than this many hours is stopped."
         }
       },
       "metadata": {
@@ -948,6 +1007,34 @@
         "genre_category_map": {
           "label": "Genres to categories",
           "description": "TMDB genre ids mapped to category slugs, as a JSON object."
+        },
+        "tmdb_read_access_token": {
+          "label": "TMDB read access token",
+          "description": "From themoviedb.org/settings/api (preferred). Without a credential, metadata comes from the offline sample fixtures."
+        },
+        "tmdb_api_key": {
+          "label": "TMDB API key",
+          "description": "The older v3 key, used when no read access token is set."
+        },
+        "tmdb_language": {
+          "label": "TMDB language",
+          "description": "Language of the main metadata, e.g. en-US; Arabic is always fetched too."
+        },
+        "tmdb_rate_limit_per_s": {
+          "label": "TMDB requests per second",
+          "description": "Shared by every worker; TMDB allows about 40."
+        },
+        "tmdb_cache_ttl_s": {
+          "label": "TMDB cache (s)",
+          "description": "How long TMDB responses are kept."
+        },
+        "tvdb_api_key": {
+          "label": "TheTVDB API key",
+          "description": "For series TMDB can't match confidently."
+        },
+        "tvdb_pin": {
+          "label": "TheTVDB subscriber PIN",
+          "description": "Only for a user-supported key."
         }
       },
       "billing": {
@@ -998,6 +1085,22 @@
         "checkout_ttl_hours": {
           "label": "Checkout lifetime",
           "description": "Unpaid checkouts are voided after this many hours."
+        },
+        "stripe_secret_key": {
+          "label": "Stripe secret key",
+          "description": "sk_test_... uses Stripe's sandbox; sk_live_... takes real payments."
+        },
+        "stripe_webhook_secret": {
+          "label": "Stripe webhook signing secret",
+          "description": "whsec_..., from the webhook endpoint in Stripe's dashboard."
+        },
+        "moyasar_secret_key": {
+          "label": "Moyasar secret key",
+          "description": "sk_test_... uses Moyasar's sandbox; sk_live_... takes real payments."
+        },
+        "moyasar_webhook_secret": {
+          "label": "Moyasar webhook secret token",
+          "description": "The secret token set on the webhook in Moyasar's dashboard."
         }
       },
       "trials": {
@@ -1046,6 +1149,14 @@
         "password_reset_emails_per_hour": {
           "label": "Password reset emails per hour",
           "description": "Password-reset emails one customer can receive per hour."
+        },
+        "crowdsec_enforce": {
+          "label": "Block CrowdSec bans",
+          "description": "Block the addresses CrowdSec bans (when CrowdSec is installed on the server)."
+        },
+        "crowdsec_allowlist": {
+          "label": "Never blocked by CrowdSec",
+          "description": "Addresses and networks CrowdSec never blocks, separated by commas, e.g. your office's 203.0.113.0/24."
         }
       },
       "features": {
@@ -1117,14 +1228,6 @@
           "label": "Alerts by email",
           "description": "Which alerts are emailed: all, critical only, or none."
         },
-        "telegram_bot_token": {
-          "label": "Telegram bot token",
-          "description": "The bot that sends alerts, from @BotFather. Empty: no Telegram."
-        },
-        "telegram_chat_id": {
-          "label": "Telegram chat id",
-          "description": "The chat, group or channel the bot sends alerts to."
-        },
         "telegram_severities": {
           "label": "Alerts on Telegram",
           "description": "Which alerts go to Telegram: all, critical only, or none."
@@ -1136,13 +1239,239 @@
         "session_hours": {
           "label": "Monitoring sign-in length",
           "description": "A monitoring sign-in (Grafana, Prometheus, Alertmanager) lasts this many hours."
+        },
+        "runbook_base_url": {
+          "label": "Runbook links",
+          "description": "Where alert messages link the runbooks (docs/runbooks/alerts.md) to."
+        }
+      },
+      "email": {
+        "smtp_host": {
+          "label": "SMTP server",
+          "description": "Every email goes through it. Empty: emails wait in the outbox."
+        },
+        "smtp_port": {
+          "label": "SMTP port",
+          "description": "587 for STARTTLS, 465 for SSL/TLS, 25 without encryption."
+        },
+        "smtp_security": {
+          "label": "Encryption",
+          "description": "STARTTLS, SSL/TLS from the start, or none."
+        },
+        "smtp_username": {
+          "label": "SMTP user name",
+          "description": "If the server needs one."
+        },
+        "smtp_password": {
+          "label": "SMTP password",
+          "description": "The SMTP user's password."
+        },
+        "from_address": {
+          "label": "Send from",
+          "description": "e.g. Smart IPTV <no-reply@example.com>. Empty: the service name at no-reply@ your domain."
+        },
+        "timeout_s": {
+          "label": "SMTP timeout (s)",
+          "description": "How long to wait for the SMTP server."
+        }
+      },
+      "notifications": {
+        "telegram_bot_token": {
+          "label": "Telegram bot token",
+          "description": "The bot that sends alerts and messages, from @BotFather."
+        },
+        "telegram_chat_id": {
+          "label": "Admins' Telegram chat",
+          "description": "The chat, group or channel id alerts go to, e.g. -1001234567890."
+        }
+      },
+      "backups": {
+        "enabled": {
+          "label": "Back up",
+          "description": "Back up the database (with point-in-time recovery), the configuration and the artwork."
+        },
+        "schedule_time": {
+          "label": "Nightly backup time",
+          "description": "Time of the nightly backup (HH:MM, in the time zone below)."
+        },
+        "schedule_timezone": {
+          "label": "Backup time zone",
+          "description": "Time zone of the backup and restore drill times, e.g. Asia/Riyadh."
+        },
+        "full_weekday": {
+          "label": "Full backup day",
+          "description": "Day of the full database backup (0 Monday ... 6 Sunday); other nights take a differential backup."
+        },
+        "db_full_retention": {
+          "label": "Full database backups kept",
+          "description": "Full database backups kept on this server, each with its differential backups and WAL."
+        },
+        "files_keep_daily": {
+          "label": "Daily snapshots kept",
+          "description": "Daily snapshots of the configuration, artwork and database dump kept."
+        },
+        "files_keep_weekly": {
+          "label": "Weekly snapshots kept",
+          "description": "Weekly snapshots kept."
+        },
+        "files_keep_monthly": {
+          "label": "Monthly snapshots kept",
+          "description": "Monthly snapshots kept."
+        },
+        "media_enabled": {
+          "label": "Back up the media libraries",
+          "description": "Also back up the media libraries (transcoded copies are left out; this can need as much space as the libraries)."
+        },
+        "drill_enabled": {
+          "label": "Weekly restore drill",
+          "description": "Run the weekly restore drill: the latest backup restored into a throwaway database and checked."
+        },
+        "drill_weekday": {
+          "label": "Restore drill day",
+          "description": "Day of the restore drill (0 Monday ... 6 Sunday)."
+        },
+        "drill_time": {
+          "label": "Restore drill time",
+          "description": "Time of the restore drill (HH:MM)."
+        },
+        "s3_enabled": {
+          "label": "Offsite copy (S3)",
+          "description": "Also copy every backup to an S3-compatible bucket (offsite)."
+        },
+        "s3_endpoint": {
+          "label": "Bucket service address",
+          "description": "The bucket service's address, e.g. https://s3.eu-central-1.amazonaws.com."
+        },
+        "s3_region": {
+          "label": "Bucket region",
+          "description": "The bucket's region, if the service needs one."
+        },
+        "s3_bucket": {
+          "label": "Bucket name",
+          "description": "The bucket's name."
+        },
+        "s3_prefix": {
+          "label": "Folder in the bucket",
+          "description": "Folder inside the bucket."
+        },
+        "s3_path_style": {
+          "label": "Path-style addressing",
+          "description": "Address the bucket by path (MinIO and most self-hosted services) instead of by host name."
+        },
+        "s3_access_key": {
+          "label": "Access key id",
+          "description": "The bucket's access key id."
+        },
+        "s3_secret_key": {
+          "label": "Secret access key",
+          "description": "The bucket's secret access key."
+        },
+        "offsite_interval_minutes": {
+          "label": "Offsite copy interval (minutes)",
+          "description": "How often the database's backup repository is copied to the bucket, in minutes (the offsite recovery point)."
+        }
+      },
+      "privacy": {
+        "session_ip_days": {
+          "label": "Session IP addresses kept (days)",
+          "description": "Days ended playback sessions keep their IP address and user agent."
+        },
+        "session_retention_days": {
+          "label": "Playback sessions kept (days)",
+          "description": "Days ended playback sessions are kept."
+        },
+        "watch_history_days": {
+          "label": "Watch history kept (days)",
+          "description": "Days a finished title stays in a customer's watch history."
+        },
+        "resume_days": {
+          "label": "Resume points kept (days)",
+          "description": "Days an unfinished title keeps its resume point."
+        },
+        "audit_retention_days": {
+          "label": "Audit log kept (days)",
+          "description": "Days audit entries are kept (billing entries follow the next setting)."
+        },
+        "audit_billing_retention_days": {
+          "label": "Billing audit kept (days)",
+          "description": "Days billing, payment and subscription audit entries are kept (VAT record-keeping: six years)."
+        },
+        "outbox_retention_days": {
+          "label": "Notification log kept (days)",
+          "description": "Days sent or failed messages stay in the notification log."
+        },
+        "auth_log_retention_days": {
+          "label": "Failed sign-ins kept (days)",
+          "description": "Days failed admin sign-in records (user name and IP) are kept."
+        },
+        "webhook_payload_days": {
+          "label": "Payment webhook payloads kept (days)",
+          "description": "Days payment providers' raw webhook payloads are kept (the payment records stay)."
         }
       }
     },
     "choices": {
       "all": "All",
       "critical": "Critical only",
-      "none": "None"
+      "none": "None",
+      "starttls": "STARTTLS",
+      "ssl": "SSL/TLS",
+      "ar": "Arabic",
+      "en": "English"
+    },
+    "tabs": {
+      "label": "Settings pages",
+      "general": "All settings",
+      "integrations": "Integrations",
+      "system": "System"
+    },
+    "source": {
+      "environment": "Server config",
+      "fromVariable": "From the server config (.env: {{variable}}); a value saved here wins."
+    },
+    "resetToServer": "Back to the server config",
+    "resetDone": "{{name}} reset",
+    "secret": {
+      "state": {
+        "stored": "Set",
+        "server": "From server config",
+        "off": "Turned off",
+        "unset": "Not set",
+        "undecryptable": "Can't be read"
+      },
+      "note": {
+        "stored": "Saved in the settings, encrypted. It is never shown again.",
+        "server": "Comes from .env ({{variable}}). Move it into the settings, then it can be removed from .env.",
+        "off": "Saved as empty here, so nothing from .env is used.",
+        "unset": "Nothing is set.",
+        "undecryptable": "The stored value can't be decrypted with this server's encryption key. Set it again."
+      },
+      "set": "Set",
+      "replace": "Replace",
+      "clear": "Clear",
+      "clearTitle": "Clear {{name}}?",
+      "clearDescription": "The stored value is deleted.",
+      "clearToServer": "The stored value is deleted, and the server config ({{variable}}) applies again, if it has one.",
+      "adopt": "Move into settings",
+      "turnOff": "Turn off",
+      "turnOffTitle": "Turn off {{name}}?",
+      "turnOffDescription": "An empty value is saved here, so the value in .env is no longer used. Clear it later to use .env again.",
+      "cleared": "{{name}}: cleared",
+      "adopted": "{{name}}: moved into the settings",
+      "turnedOff": "{{name}}: turned off"
+    },
+    "logo": {
+      "preview": "{{name}}: the current logo",
+      "none": "No logo",
+      "upload": "Upload",
+      "replace": "Replace",
+      "remove": "Remove",
+      "removeTitle": "Remove {{name}}?",
+      "removed": "{{name}} removed",
+      "choose": "Choose an image for {{name}}",
+      "uploaded": "Uploaded; it appears in a few seconds.",
+      "slow": "The logo is taking long to appear; check again in a minute.",
+      "tooLarge": "The image is too large (2 MB at most)."
     }
   },
   "notFound": {
@@ -3010,6 +3339,272 @@
       "fallbackEmail": "Fallback email (when the app is down)",
       "fallbackTelegram": "Fallback Telegram (when the app is down)",
       "restart": "Changing them needs the installer (scripts/install.sh --reconfigure) and a restart."
+    }
+  },
+  "integrations": {
+    "title": "Integrations",
+    "description": "Outside services, each with its settings and a Test. Save first, then test: tests use the saved settings.",
+    "saved": "{{name}}: saved",
+    "discard": "Discard changes",
+    "saveFirst": "Save the changes before testing: a test uses the saved settings.",
+    "webhookUrl": "Webhook URL (paste it into the provider's dashboard)",
+    "status": {
+      "configured": "Configured",
+      "server_config": "From server config",
+      "partial": "Incomplete",
+      "not_set": "Not set"
+    },
+    "cards": {
+      "tmdb": {
+        "title": "TMDB",
+        "description": "Posters, plots and cast in English and Arabic. Create a free account, then copy the API Read Access Token at themoviedb.org/settings/api.",
+        "test": "Check the token",
+        "passed": "TMDB accepted the credential"
+      },
+      "tvdb": {
+        "title": "TheTVDB",
+        "description": "The fallback for series TMDB can't match confidently (its key is checked here now; matching with it comes with the TV fallback).",
+        "test": "Check the key",
+        "passed": "TheTVDB accepted the key"
+      },
+      "email": {
+        "title": "Email (SMTP)",
+        "description": "Invitations, password resets, invoices and alerts go through this server.",
+        "test": "Send a test email to me",
+        "passed": "Test email sent"
+      },
+      "stripe": {
+        "title": "Stripe",
+        "description": "Card payments through Stripe's hosted checkout.",
+        "test": "Check the key",
+        "passed": "Stripe accepted the key"
+      },
+      "moyasar": {
+        "title": "Moyasar",
+        "description": "mada, Apple Pay and STC Pay in Saudi Arabia, through Moyasar's hosted invoices.",
+        "test": "Check the key",
+        "passed": "Moyasar accepted the key"
+      },
+      "telegram": {
+        "title": "Telegram",
+        "description": "A bot that sends alerts to the admins' chat. Create it with @BotFather, add it to the chat, then get the chat's id.",
+        "test": "Send a test message",
+        "passed": "Test message sent"
+      }
+    },
+    "codes": {
+      "ok": "It works",
+      "not_configured": "Not configured yet",
+      "auth_failed": "The key or password was refused",
+      "forbidden": "Access was refused",
+      "unreachable": "The service could not be reached",
+      "timeout": "The service did not answer in time",
+      "tls_failed": "The secure connection failed",
+      "rejected": "The service refused the request",
+      "no_recipient": "Your admin account has no email address",
+      "chat_not_found": "The chat was not found (is the bot in it?)",
+      "unexpected": "Something unexpected went wrong"
+    },
+    "facts": {
+      "recipient": "Sent to {{address}}",
+      "reference": "Reference {{reference}} (in the subject)",
+      "bot": "Bot @{{bot}}",
+      "mode": {
+        "test": "Test mode (sandbox)",
+        "live": "Live mode: real payments"
+      },
+      "webhook": {
+        "yes": "Our webhook is registered",
+        "no": "Our webhook is not registered yet: add the URL above",
+        "unknown": "Couldn't check the webhook with this key"
+      },
+      "noWebhookSecret": "No webhook secret is set yet"
+    }
+  },
+  "system": {
+    "title": "System",
+    "description": "Read-only facts about this installation. What stays in .env is set when the server is installed (scripts/install.sh --reconfigure).",
+    "on": "On",
+    "off": "Off",
+    "unknown": "Unknown",
+    "environment": {
+      "development": "Development",
+      "production": "Production"
+    },
+    "installation": {
+      "title": "Installation",
+      "description": "What runs, and where.",
+      "environment": "Environment",
+      "version": "Version",
+      "commit": "Commit",
+      "domain": "Domain",
+      "time": "Server time",
+      "monitoring": "Monitoring overlay",
+      "liveIngest": "Live ingest (MediaMTX)"
+    },
+    "hosts": {
+      "title": "Addresses and folders",
+      "description": "The hosts each app answers on, and the media folders.",
+      "roles": {
+        "tv": "IPTV apps (Xtream)",
+        "admin": "Admin",
+        "app": "Customer portal",
+        "api": "Customer API",
+        "media": "Media edge",
+        "grafana": "Monitoring"
+      }
+    },
+    "paths": {
+      "mediaRoot": "Media folder on the server",
+      "libraryRoot": "Libraries inside the apps",
+      "dataRoot": "Artwork and renditions volume"
+    },
+    "serverConfig": {
+      "title": "Settings still in .env",
+      "description": "These settings take their value from .env. Move each into the settings (Integrations), then remove it from .env.",
+      "none": "None: every setting is managed here.",
+      "open": "Open Integrations"
+    },
+    "secrets": {
+      "title": "Secrets kept out of the settings",
+      "description": "These are needed before the database is reachable, or by programs other than the app, so they stay in .env or secrets/. Values are never shown.",
+      "name": "Name",
+      "location": "Where",
+      "why": "Why it stays there",
+      "where": {
+        "environment": ".env",
+        "file": "File (secrets/)",
+        "missing": "Missing",
+        "unused": "Not used"
+      },
+      "reasons": {
+        "signing": "Signs sign-in sessions and form tokens before anything else runs.",
+        "encryption": "Decrypts the secrets stored in the settings, so it can't be one of them.",
+        "datastore": "Needed to reach the database or Valkey where the settings live.",
+        "edge": "The media edge checks playback links with it, without the app.",
+        "monitoring": "Read by the monitoring containers when they start.",
+        "ingest": "Read by MediaMTX (live ingest) when it starts."
+      }
+    },
+    "rotations": {
+      "title": "Key rotations",
+      "description": "The last rotation of each key, as the rotation tools record it.",
+      "none": "No rotation recorded yet (see the rotate-keys runbook).",
+      "kinds": {
+        "media_token": "Media token keys",
+        "secret_key": "Django secret key",
+        "field_encryption": "Field-encryption key",
+        "db": "Database passwords",
+        "valkey": "Valkey passwords"
+      }
+    }
+  },
+  "backups": {
+    "title": "Backups",
+    "description": "The database with point-in-time recovery, the configuration and the artwork, every night, encrypted; a restore drill every week.",
+    "never": "Never",
+    "unknown": "Unknown",
+    "on": "On",
+    "off": "Off",
+    "freeOf": "{{free}} free of {{total}}",
+    "drillPassed": "Passed in {{time}}",
+    "pendingTitle": "Working",
+    "pending_one": "{{count}} job is queued or running; this page refreshes until it ends.",
+    "pending_other": "{{count}} jobs are queued or running; this page refreshes until they end.",
+    "status": {
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed"
+    },
+    "kind": {
+      "db_full": "Database (full)",
+      "db_diff": "Database (differential)",
+      "files": "Configuration, artwork and dump",
+      "offsite": "Offsite copy",
+      "drill": "Restore drill",
+      "check": "Destination test"
+    },
+    "trigger": {
+      "schedule": "Schedule",
+      "manual": "Admin",
+      "initial": "First backup",
+      "command": "Command line"
+    },
+    "actions": {
+      "backup": "Back up now",
+      "drill": "Run the restore drill",
+      "check": "Test the destinations"
+    },
+    "started": {
+      "backup": "The backup has started.",
+      "drill": "The restore drill has started.",
+      "check": "The destination test has started."
+    },
+    "warnings": {
+      "offTitle": "Backups are switched off",
+      "off": "Nothing is backed up and PostgreSQL releases its WAL. Switch them on in Settings → Backups.",
+      "missingTitle": "No backup service on this server",
+      "missing": "The backup service has never asked for work. Update the server (install.sh --update) so it runs.",
+      "downTitle": "The backup service is not answering",
+      "down": "It has not asked for work for over 10 minutes: no backup or drill runs. On the server: docker compose ... up -d backup.",
+      "passphraseTitle": "The backup passphrase is missing",
+      "passphrase": "secrets/backup_passphrase is not in place, so nothing can be encrypted. Restore it from your copy."
+    },
+    "tiles": {
+      "database": "Last database backup",
+      "drill": "Last restore drill",
+      "service": "Backup service",
+      "space": "Space where backups are kept"
+    },
+    "service": {
+      "running": "Running",
+      "stopped": "Not running"
+    },
+    "setup": {
+      "title": "Where and when",
+      "description": "Schedule, retention and the offsite bucket are in Settings → Backups.",
+      "local": "On this server",
+      "offsite": "Offsite copy",
+      "offsiteIncomplete": "Switched on, but the address, bucket or keys are missing",
+      "offsiteOff": "Off",
+      "archiving": "Point-in-time recovery (WAL archiving)",
+      "nextBackup": "Next backup",
+      "nextDrill": "Next restore drill",
+      "edit": "Change in Settings"
+    },
+    "drill": {
+      "title": "Last restore drill",
+      "description": "The latest backup restored into a throwaway database, its WAL replayed, and read back.",
+      "noneTitle": "No drill yet",
+      "none": "The first drill runs right after the first backup, then every week.",
+      "result": "Result",
+      "when": "When",
+      "restore": "Restore time",
+      "times": "{{restore}} to restore, {{ready}} until ready",
+      "reaches": "Data reaches",
+      "verify": "Repository check",
+      "verifyOk": "No errors",
+      "verifyBad": "Errors found",
+      "problems": "Problems",
+      "counts": "Rows restored"
+    },
+    "history": {
+      "title": "History",
+      "description": "The latest jobs of the backup service.",
+      "emptyTitle": "No backups yet",
+      "empty": "The first full backup runs as soon as the backup service starts."
+    },
+    "columns": {
+      "table": "Table",
+      "restored": "Restored",
+      "live": "Live",
+      "kind": "Job",
+      "status": "Status",
+      "started": "Started",
+      "duration": "Duration",
+      "size": "Added",
+      "by": "By"
     }
   }
 }

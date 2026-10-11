@@ -53,3 +53,19 @@ def env_list(name: str, default: list[str]) -> list[str]:
     if value is None or value.strip() == "":
         return list(default)
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def env_optional_int(name: str) -> int | None:
+    """An integer, or None when unset (a fallback the settings registry may use)."""
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return None
+    return env_int(name, default=0)
+
+
+def env_optional_bool(name: str) -> bool | None:
+    """A boolean, or None when unset (a fallback the settings registry may use)."""
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return None
+    return env_bool(name, default=False)

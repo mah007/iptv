@@ -301,6 +301,7 @@ def _seller() -> dict[str, str]:
         "vat_number": str(get_setting("billing.vat_number")),
         "address": str(get_setting("billing.seller_address")),
         "email": str(get_setting("branding.support_email")),
+        "phone": str(get_setting("branding.support_phone")),
     }
 
 

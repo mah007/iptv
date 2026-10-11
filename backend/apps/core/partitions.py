@@ -13,6 +13,11 @@ per calendar month in UTC, named `<table>_yYYYYmMM`:
 Both serialise on a transaction-level advisory lock per table, so two importers
 creating the same month never race. ADR-0017 introduced this for `live_epgprogram`;
 M15 can reuse it for the tables ADR-0005 deferred.
+
+The app services sign in as a role without DDL (G-37, ADR-0020): when the connection
+doesn't own the table, partitions are created and dropped through the SECURITY DEFINER
+functions `iptv_partition_create` and `iptv_partition_drop` (ops migration 0003), which
+accept only the tables they list. Migrations, which run as the owner, use plain DDL.
 """
 
 import re
@@ -61,6 +66,16 @@ def _bound(month: date) -> str:
     return f"{month.isoformat()} 00:00:00+00"
 
 
+def _owns(cursor: object, table: str) -> bool:
+    """True when this connection may run DDL on `table` itself (it owns it)."""
+    cursor.execute(  # type: ignore[attr-defined]
+        "SELECT pg_has_role(current_user, relowner, 'USAGE') FROM pg_class WHERE relname = %s",
+        [table],
+    )
+    row = cursor.fetchone()  # type: ignore[attr-defined]
+    return bool(row and row[0])
+
+
 def _lock(cursor: object, table: str) -> None:
     cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [f"partitions:{table}"])  # type: ignore[attr-defined]
 
@@ -100,16 +115,20 @@ def ensure_monthly(
     quote = connection.ops.quote_name
     with transaction.atomic(using=using), connection.cursor() as cursor:
         _lock(cursor, table)
+        owner = _owns(cursor, table)
         existing = {partition.name for partition in list_partitions(table, using=using)}
         for offset in range(max(0, months)):
             month = add_months(start, offset)
             name = partition_name(table, month)
             if name in existing:
                 continue
-            cursor.execute(
-                f"CREATE TABLE IF NOT EXISTS {quote(name)} PARTITION OF {quote(table)} "
-                f"FOR VALUES FROM ('{_bound(month)}') TO ('{_bound(add_months(month, 1))}')"
-            )
+            if owner:
+                cursor.execute(
+                    f"CREATE TABLE IF NOT EXISTS {quote(name)} PARTITION OF {quote(table)} "
+                    f"FOR VALUES FROM ('{_bound(month)}') TO ('{_bound(add_months(month, 1))}')"
+                )
+            else:
+                cursor.execute("SELECT iptv_partition_create(%s, %s)", [table, month])
             created.append(name)
     return created
 
@@ -129,8 +148,14 @@ def drop_monthly_before(
         # Deferred foreign-key checks of rows written earlier in this transaction would
         # block the DROP ("pending trigger events"): run them now.
         cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+        owner = _owns(cursor, table)
         for partition in list_partitions(table, using=using):
             if partition.upper <= cutoff_day:
-                cursor.execute(f"DROP TABLE IF EXISTS {connection.ops.quote_name(partition.name)}")
+                if owner:
+                    cursor.execute(
+                        f"DROP TABLE IF EXISTS {connection.ops.quote_name(partition.name)}"
+                    )
+                else:
+                    cursor.execute("SELECT iptv_partition_drop(%s, %s)", [table, partition.name])
                 dropped.append(partition.name)
     return dropped

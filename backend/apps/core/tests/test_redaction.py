@@ -208,3 +208,25 @@ def test_telegram_bot_tokens_are_masked() -> None:
     redacted = redact_text(line)
     assert token not in redacted
     assert "https://api.telegram.org/bot***/sendMessage" in redacted
+
+
+@pytest.mark.parametrize(
+    ("text", "secret", "kept"),
+    [
+        ("Stripe said: bad key " + "sk_" + "test_51ABCdef0123", "51ABCdef0123", "sk_test_"),
+        ("key " + "rk_" + "live_0123456789abcdef in a trace", "0123456789abcdef", "rk_live_"),
+        ("signing secret " + "whsec_" + "AbC123dEf456 refused", "AbC123dEf456", "whsec_"),
+        ("bot 123456789:" + "AAHdqTcvCH1vGWJ" + "x" * 20 + " failed", "AAHdqTcvCH1vGWJ", ""),
+        (
+            "token " + "ey" + "J" + "x" * 20 + "." + "y" * 20 + ".dozjgNryP4J3jVmNHl0w5N",
+            "dozjgNryP4J3jVmNHl0w5N",
+            "",
+        ),
+    ],
+)
+def test_integration_secrets_are_masked_in_text(text: str, secret: str, kept: str) -> None:
+    """CFG (ADR-0019): provider keys, webhook secrets, bot tokens and JWTs."""
+    redacted = redact_text(text)
+    assert secret not in redacted
+    assert kept in redacted
+    assert MASK in redacted

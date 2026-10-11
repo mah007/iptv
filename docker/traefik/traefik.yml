@@ -9,6 +9,8 @@ entryPoints:
 
 providers:
   docker:
+    # The Docker API through a read-only proxy, never the socket itself (G-36, ADR-0020).
+    endpoint: tcp://docker-proxy:2375
     exposedByDefault: false
     network: smart-iptv-edge
   file:

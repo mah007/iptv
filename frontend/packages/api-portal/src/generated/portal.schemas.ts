@@ -125,6 +125,39 @@ export interface BecauseRow {
   readonly items: readonly TitleCard[];
 }
 
+export interface BrandingNames {
+  en: string;
+  ar: string;
+}
+
+export interface BrandingSupport {
+  email: string;
+  phone: string;
+  whatsapp: string;
+}
+
+/**
+ * * `ar` - ar
+ * * `en` - en
+ */
+export type DefaultLanguageEnum = (typeof DefaultLanguageEnum)[keyof typeof DefaultLanguageEnum];
+
+export const DefaultLanguageEnum = {
+  ar: "ar",
+  en: "en",
+} as const;
+
+export interface Branding {
+  service_name: BrandingNames;
+  accent_color: string;
+  /** @nullable */
+  logo_light_url: string | null;
+  /** @nullable */
+  logo_dark_url: string | null;
+  support: BrandingSupport;
+  default_language: DefaultLanguageEnum;
+}
+
 export interface Cast {
   id: string;
   readonly name: string;

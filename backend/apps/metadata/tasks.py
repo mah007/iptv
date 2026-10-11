@@ -30,7 +30,7 @@ def match_media_file(self: Task, file_id: str) -> None:
     except TMDBRetryableError as exc:
         raise self.retry(countdown=_retry_delay(exc), exc=exc) from None
     except TMDBAuthError:
-        logger.exception("TMDB rejected the credential; check TMDB_API_KEY")
+        logger.exception("TMDB rejected the credential; check Settings, Integrations, TMDB")
         MediaFile.objects.filter(pk=file_id).update(
             state=FileState.ERROR, error="TMDB rejected the configured credential."
         )

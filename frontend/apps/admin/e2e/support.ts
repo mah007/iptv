@@ -11,6 +11,8 @@ export const env = {
   /** argv that prints the admin's next TOTP code (`manage.py totp_code`), JSON-encoded. */
   totpCommand: JSON.parse(required("E2E_TOTP_COMMAND")) as string[],
   tvUrl: process.env.TV_URL ?? "http://tv.localhost:8080",
+  /** Mailpit's base URL (the dev stack's SMTP catcher), for the Integrations journey. */
+  mailUrl: process.env.E2E_MAIL_URL ?? "http://mail.localhost:8080",
   artifacts:
     process.env.E2E_ARTIFACTS ?? path.resolve(import.meta.dirname, "../../../../dist/admin-e2e"),
 };

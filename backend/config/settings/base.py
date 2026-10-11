@@ -6,14 +6,19 @@ from celery.schedules import crontab
 from kombu import Exchange, Queue
 
 from apps.core.logs import configure_structlog, logging_config, parse_log_format
-from config.env import env, env_bool, env_int, env_list
+from config.env import env, env_int, env_list, env_optional_bool, env_optional_int
 from config.origins import origin, origins
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
+# Older keys that still verify sessions and password links during a rotation
+# (scripts/rotate-keys.sh secret-key, docs/runbooks/rotate-keys.md); newest first.
+SECRET_KEY_FALLBACKS = env_list("DJANGO_SECRET_KEY_FALLBACKS", [])
 DEBUG = False
 APP_VERSION = env("APP_VERSION", "0.1.0-dev")
+# The git commit this installation runs (the installer and the Makefile set it).
+APP_COMMIT = env("APP_COMMIT", "")
 
 # --- Hosts and routing --------------------------------------------------------
 # Traefik forwards only the public hosts below to Django. Each host gets its own
@@ -76,6 +81,8 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.audit",
     "apps.dashboard",
+    # Backups, retention, database privileges, CrowdSec, key rotation (H2, ADR-0020).
+    "apps.ops",
 ]
 
 MIDDLEWARE = [
@@ -149,14 +156,26 @@ AXES_DISABLE_ACCESS_LOG = True
 FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY")
 
 # --- Data stores ----------------------------------------------------------------
+# Which database role this process signs in as (G-37, ADR-0020): `app` (the app
+# services: rows only, no schema changes, an append-only audit log) or `owner` (the
+# migrator: `migrate`, tests, one-off maintenance). Compose sets it per service.
+DB_ROLE = env("DB_ROLE", "owner")
+if DB_ROLE not in ("app", "owner"):
+    msg = f"DB_ROLE must be app or owner, not {DB_ROLE!r}"
+    raise ValueError(msg)
+_DB_USER, _DB_PASSWORD = (
+    (env("POSTGRES_APP_USER", "iptv_app"), env("POSTGRES_APP_PASSWORD"))
+    if DB_ROLE == "app"
+    else (env("POSTGRES_USER"), env("POSTGRES_PASSWORD"))
+)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "HOST": env("POSTGRES_HOST", "postgres"),
         "PORT": env_int("POSTGRES_PORT", default=5432),
         "NAME": env("POSTGRES_DB"),
-        "USER": env("POSTGRES_USER"),
-        "PASSWORD": env("POSTGRES_PASSWORD"),
+        "USER": _DB_USER,
+        "PASSWORD": _DB_PASSWORD,
         # Persistent connections are off under ASGI (Django's guidance);
         # pooling is decided with the load tests in M15.
         "CONN_MAX_AGE": env_int("POSTGRES_CONN_MAX_AGE", default=0),
@@ -165,16 +184,29 @@ DATABASES = {
 }
 
 
-def _redis_url(host_var: str, password_var: str, default_host: str, db: int) -> str:
-    return f"redis://:{env(password_var)}@{env(host_var, default_host)}:6379/{db}"
+# Which Valkey user this process signs in as (G-38, ADR-0020): `app` (the app services:
+# FLUSHALL, FLUSHDB, CONFIG, DEBUG, MODULE, KEYS and other admin commands refused) or
+# `default` (the operator's account; tests, which flush their own databases).
+VALKEY_USER = env("VALKEY_USER", "default")
+if VALKEY_USER not in ("app", "default"):
+    msg = f"VALKEY_USER must be app or default, not {VALKEY_USER!r}"
+    raise ValueError(msg)
+
+
+def _redis_url(host_var: str, store: str, default_host: str, db: int) -> str:
+    if VALKEY_USER == "app":
+        user, password = "app", env(f"{store}_APP_PASSWORD")
+    else:
+        user, password = "", env(f"{store}_PASSWORD")
+    return f"redis://{user}:{password}@{env(host_var, default_host)}:6379/{db}"
 
 
 # redis-state: noeviction + AOF. Sessions, concurrency slots, entitlements, kicks,
 # Celery broker. Nothing here may be evicted.
-REDIS_STATE_URL = _redis_url("REDIS_STATE_HOST", "REDIS_STATE_PASSWORD", "redis-state", 0)
-CELERY_BROKER_URL = _redis_url("REDIS_STATE_HOST", "REDIS_STATE_PASSWORD", "redis-state", 1)
+REDIS_STATE_URL = _redis_url("REDIS_STATE_HOST", "REDIS_STATE", "redis-state", 0)
+CELERY_BROKER_URL = _redis_url("REDIS_STATE_HOST", "REDIS_STATE", "redis-state", 1)
 # redis-cache: allkeys-lru. Only data that can be recomputed.
-REDIS_CACHE_URL = _redis_url("REDIS_CACHE_HOST", "REDIS_CACHE_PASSWORD", "redis-cache", 0)
+REDIS_CACHE_URL = _redis_url("REDIS_CACHE_HOST", "REDIS_CACHE", "redis-cache", 0)
 
 CACHES = {
     "default": {
@@ -193,34 +225,35 @@ MEILI_MASTER_KEY = env("MEILI_MASTER_KEY")
 # and, from slice 3, renditions (renditions/); the edge serves it read-only.
 LIBRARY_ROOT = env("LIBRARY_ROOT", "/media")
 DATA_ROOT = env("DATA_ROOT", "/data")
-# inotify sees nothing on network shares (NFS, SMB): poll them instead.
-LIBRARY_WATCHER_POLLING = env_bool("LIBRARY_WATCHER_POLLING", default=False)
+# Polling for network shares is the admin setting `library.watcher_polling`; this
+# variable is only its fallback (ADR-0019).
+LIBRARY_WATCHER_POLLING = env_optional_bool("LIBRARY_WATCHER_POLLING")
 
-# --- Metadata (SPEC §7.2) ------------------------------------------------------------
-# Without a TMDB credential the client runs in fixture mode: synthetic sample metadata,
-# offline (apps.metadata.tmdb.factory). A v4 read-access token is preferred over a key.
+# --- Integrations: server-config fallbacks (ADR-0019) -----------------------------------
+# TMDB, SMTP, Stripe and Moyasar are configured in the admin (Settings → Integrations),
+# stored in the settings registry (secrets encrypted). The variables below are only
+# their fallbacks, for servers set up before that: unset means "not provided", and a
+# value the admin stores wins. Without a TMDB credential, metadata comes from the
+# offline fixtures; without an SMTP host, emails wait in the outbox.
 TMDB_API_KEY = env("TMDB_API_KEY", "")
 TMDB_READ_ACCESS_TOKEN = env("TMDB_READ_ACCESS_TOKEN", "")
-TMDB_LANGUAGE = env("TMDB_LANGUAGE", "en-US")
-TMDB_RATE_LIMIT_PER_S = env_int("TMDB_RATE_LIMIT_PER_S", default=35)
-TMDB_CACHE_TTL_S = env_int("TMDB_CACHE_TTL_S", default=24 * 60 * 60)
+TMDB_LANGUAGE = env("TMDB_LANGUAGE", "")
+TMDB_RATE_LIMIT_PER_S = env_optional_int("TMDB_RATE_LIMIT_PER_S")
+TMDB_CACHE_TTL_S = env_optional_int("TMDB_CACHE_TTL_S")
 
-# --- Email (SPEC §7.7, B1/ADR-0012) -----------------------------------------------------
-# SMTP for notifications. Without EMAIL_HOST nothing is sent: messages wait in the
-# outbox, visible in the admin, and go out once it is set (dev: Mailpit, dev.py).
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Email (SPEC §7.7): the backend reads the admin's SMTP settings at every send.
+EMAIL_BACKEND = "apps.notifications.email_backend.SettingsEmailBackend"
 EMAIL_HOST = env("EMAIL_HOST", "")
-EMAIL_PORT = env_int("EMAIL_PORT", default=587)
+EMAIL_PORT = env_optional_int("EMAIL_PORT")
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", default=True)
-EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", default=False)
-EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", default=20)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", f"Smart IPTV <no-reply@{DOMAIN}>")
-SERVER_EMAIL = DEFAULT_FROM_EMAIL
+EMAIL_USE_TLS = env_optional_bool("EMAIL_USE_TLS")
+EMAIL_USE_SSL = env_optional_bool("EMAIL_USE_SSL")
+EMAIL_TIMEOUT = env_optional_int("EMAIL_TIMEOUT")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "")
+SERVER_EMAIL = DEFAULT_FROM_EMAIL or f"Smart IPTV <no-reply@{DOMAIN}>"
 
-# --- Payment providers (SPEC §7.6, B1/ADR-0012) ------------------------------------------
-# Sandbox or live keys; a provider is offered only with its keys set and its
+# Payment providers (SPEC §7.6): offered with their keys set and their
 # billing.<provider>_enabled setting on. Webhooks: https://api.<DOMAIN>/api/v1/webhooks/<provider>.
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", "")
@@ -368,6 +401,26 @@ CELERY_BEAT_SCHEDULE = {
         "options": {"expires": 55},
     },
     # --- end O1 ---
+    # --- Operations (H2, ADR-0020) ---
+    # Backups, offsite copies and restore drills that are due; lost runs; backup alerts.
+    "ops-schedule-backups": {
+        "task": "apps.ops.tasks.schedule_backups",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
+    # Personal-data retention (Settings → Privacy).
+    "ops-apply-retention": {
+        "task": "apps.ops.tasks.apply_retention",
+        "schedule": crontab(hour=4, minute=20),
+        "options": {"expires": 3 * 3600},
+    },
+    # Traefik's CrowdSec middleware file from Settings → Security (when installed).
+    "ops-render-crowdsec": {
+        "task": "apps.ops.tasks.render_crowdsec",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
+    # --- end H2 ---
 }
 
 # --- I18n -----------------------------------------------------------------------
@@ -428,6 +481,7 @@ SPECTACULAR_SETTINGS = {
     # Stable enum component names; every shared enum gets an entry here.
     "ENUM_NAME_OVERRIDES": {
         "SettingKind": "apps.core.registry.SettingKind",
+        "SettingSource": "apps.core.services.SettingSource",
         "UserStatus": "apps.accounts.models.UserStatus",
         "Locale": "apps.accounts.models.Locale",
         "MaxQuality": "apps.accounts.models.MaxQuality",
@@ -475,10 +529,21 @@ SPECTACULAR_SETTINGS = {
         "SubtitleFormat": "apps.media.models.SubtitleFormat",
         # Live TV (M12, ADR-0017).
         "LiveIntegrationKind": "apps.live.models.IntegrationKind",
+        # Dynamic configuration (CFG, ADR-0019).
+        "IntegrationName": "apps.dashboard.integrations.IntegrationName",
+        "IntegrationStatus": "apps.dashboard.integrations.IntegrationStatus",
+        "IntegrationTestCode": "apps.core.integration.TestCode",
+        "SecretReason": "apps.dashboard.system.SecretReason",
+        "SecretLocation": "apps.dashboard.system.SecretLocation",
+        "SystemEnvironment": "apps.dashboard.system.SystemEnvironment",
         "EpgSourceKind": "apps.live.models.EpgSourceKind",
         "ChannelOutput": "apps.live.models.ChannelOutput",
         "ChannelTranscode": "apps.live.models.ChannelTranscode",
         "ChannelOrigin": "apps.live.models.ChannelOrigin",
+        # Backups and the restore drill (H2, ADR-0020).
+        "BackupKind": "apps.ops.models.BackupKind",
+        "BackupRunStatus": "apps.ops.models.RunStatus",
+        "BackupTrigger": "apps.ops.models.RunTrigger",
     },
     "ENUM_ADD_EXPLICIT_BLANK_NULL_CHOICE": False,
     "POSTPROCESSING_HOOKS": [
@@ -498,19 +563,25 @@ EDGE_HEALTH_URLS = env_list("EDGE_HEALTH_URLS", ["http://nginx-stream:8080/healt
 GRAFANA_URL = env("GRAFANA_URL", "")
 # Alertmanager authenticates to /internal/alerts with this (ADR-0018); empty: no webhook.
 ALERT_WEBHOOK_TOKEN = env("ALERT_WEBHOOK_TOKEN", "")
-# Where alert messages link the runbook (docs/runbooks/alerts.md) to.
-RUNBOOK_BASE_URL = env("RUNBOOK_BASE_URL", "https://github.com/mah007/iptv/blob/main/")
+# --- Operations (H2, ADR-0020) ---
+# The backup service authenticates to /internal/backups/agent with this; empty: no API.
+BACKUP_AGENT_TOKEN = env("BACKUP_AGENT_TOKEN", "")
+# Where the server keeps its backups (set at installation, shown read-only).
+BACKUP_DIR_LABEL = env("BACKUP_DIR", "") or "the backup-repo Docker volume"
+# Where the worker writes Traefik's CrowdSec middleware file (CrowdSec overlay only).
+CROWDSEC_TRAEFIK_DIR = env("CROWDSEC_TRAEFIK_DIR", "")
+# --- end H2 ---
+# Where alert messages link the runbooks: the admin setting monitoring.runbook_base_url;
+# this variable is only its fallback (ADR-0019).
+RUNBOOK_BASE_URL = env("RUNBOOK_BASE_URL", "")
 # What the monitoring overlay runs with, shown read-only on the admin's Monitoring page.
 MONITORING_DEPLOYMENT = {
     "prometheus_retention": env("MONITORING_PROMETHEUS_RETENTION", ""),
     "prometheus_retention_size": env("MONITORING_PROMETHEUS_RETENTION_SIZE", ""),
     "loki_retention": env("MONITORING_LOKI_RETENTION", ""),
 }
-# Alertmanager's own channels for the alerts about web being down (the .env fallback).
-ALERT_FALLBACK = {
-    "email": bool(env("ALERT_EMAIL_TO", "")),
-    "telegram": bool(env("ALERT_TELEGRAM_BOT_TOKEN", "") and env("ALERT_TELEGRAM_CHAT_ID", "")),
-}
+# Alertmanager's own channels for the alerts about web being down come from the admin's
+# settings too: it fetches them from /internal/alert-fallback (ADR-0019).
 
 # --- Logging (SPEC §11, §14) -------------------------------------------------------------
 # structlog for everything, redacted, on stderr. JSON by default; dev.py picks the

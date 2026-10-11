@@ -1,0 +1,20 @@
+# Findings `make scan` accepts for now (ADR-0020). Each entry is scoped to one upstream
+# binary and expires, so the gate fails again on that date and someone re-checks it.
+# Only for fixes no upstream release ships yet; never for our code or our dependencies.
+vulnerabilities:
+  # Go standard library (and golang.org/x/net) fixes from Go 1.26.9, released in
+  # October 2026; Traefik v3.7.13 and v3.7.14 are built with Go 1.26.8. Bump
+  # TRAEFIK_IMAGE (docker/traefik.Dockerfile, docker/compose.yml) to the first release
+  # built with Go 1.26.9 or later, then delete these entries.
+  - id: CVE-2026-78667
+    paths: ["usr/local/bin/traefik"]
+    expired_at: 2026-11-15
+    statement: net/http Range DoS; fixed in Go 1.26.9, no Traefik release built with it yet
+  - id: CVE-2026-78669
+    paths: ["usr/local/bin/traefik"]
+    expired_at: 2026-11-15
+    statement: HTTP/2 SETTINGS DoS (stdlib and x/net); fixed in Go 1.26.9 and x/net 0.60.0, no Traefik release with them yet
+  - id: CVE-2026-97031
+    paths: ["usr/local/bin/traefik"]
+    expired_at: 2026-11-15
+    statement: crypto/tls ECH DoS; fixed in Go 1.26.9, no Traefik release built with it yet

@@ -9,8 +9,9 @@
 # added keys are printed, never values.
 #
 # For the dev .env it also creates secrets/media_token_keys.json (media token keys,
-# ADR-0007) when that file is missing, and refreshes the monitoring overlay's Docker
-# secrets in secrets/monitoring/ from .env (ADR-0018).
+# ADR-0007) and secrets/backup_passphrase (ADR-0020) when they are missing, and refreshes
+# the Docker secrets copied from .env: the monitoring overlay's in secrets/monitoring/
+# (ADR-0018), the backup service's token and CrowdSec's bouncer key in secrets/runtime/.
 #
 # Placeholders:
 #   __GENERATE__         64 hex characters (safe inside URLs and shell quoting)
@@ -81,6 +82,24 @@ media_keys() {
   echo "Created $keys (media token keys)."
 }
 
+# The backup passphrase (ADR-0020): pgBackRest's repository cipher and restic's password.
+# Created once and never changed (a new one could not read the existing backups); the
+# installer shows it once so the owner can keep a copy away from the server. Six groups
+# of five letters and digits (about 155 bits). Never printed here.
+backup_passphrase() {
+  local file=secrets/backup_passphrase
+  [[ "$out" == ".env" && ! -s "$file" ]] || return 0
+  command -v python3 >/dev/null || { echo "python3 is required" >&2; exit 1; }
+  mkdir -p secrets
+  chmod 700 secrets
+  python3 -c 'import secrets, string
+alphabet = string.ascii_lowercase + string.digits
+print("-".join("".join(secrets.choice(alphabet) for _ in range(5)) for _ in range(6)))' > "$file.tmp"
+  chmod 600 "$file.tmp"
+  mv "$file.tmp" "$file"
+  echo "Created $file (the backup passphrase): keep a copy away from this server."
+}
+
 # Docker secrets of the monitoring overlay (docker/compose.monitoring.yml, ADR-0018),
 # copied from .env on every run so they follow it: one file per secret under
 # secrets/monitoring/ (the folder is 700; the files are readable by the containers'
@@ -90,8 +109,8 @@ MONITORING_SECRETS=(
   grafana_admin_password:GRAFANA_ADMIN_PASSWORD
   postgres_password:POSTGRES_PASSWORD
   postgres_monitor_password:POSTGRES_MONITOR_PASSWORD
-  redis_state_password:REDIS_STATE_PASSWORD
-  redis_cache_password:REDIS_CACHE_PASSWORD
+  redis_state_exporter_password:REDIS_STATE_EXPORTER_PASSWORD
+  redis_cache_exporter_password:REDIS_CACHE_EXPORTER_PASSWORD
   alert_webhook_token:ALERT_WEBHOOK_TOKEN
   alert_smtp_password:EMAIL_HOST_PASSWORD
   alert_telegram_bot_token:ALERT_TELEGRAM_BOT_TOKEN
@@ -99,12 +118,26 @@ MONITORING_SECRETS=(
   alert_watchdog_url:ALERT_WATCHDOG_URL
 )
 
+# Docker secrets of the base stack copied from .env (ADR-0020): the backup service's
+# token for Django's internal API and Traefik's CrowdSec bouncer key. Readable by the
+# containers' own users (Traefik reads as root without capabilities); secrets/ is 700.
+RUNTIME_SECRETS=(
+  backup_agent_token:BACKUP_AGENT_TOKEN
+  crowdsec_bouncer_key:CROWDSEC_BOUNCER_KEY
+)
+
 monitoring_secrets() {
+  copy_secrets secrets/monitoring "${MONITORING_SECRETS[@]}"
+  copy_secrets secrets/runtime "${RUNTIME_SECRETS[@]}"
+}
+
+copy_secrets() {
   [[ "$out" == ".env" && -s "$out" ]] || return 0
-  local dir=secrets/monitoring entry name key value
+  local dir="$1" entry name key value
+  shift
   mkdir -p "$dir"
   chmod 700 secrets "$dir"
-  for entry in "${MONITORING_SECRETS[@]}"; do
+  for entry in "$@"; do
     name=${entry%%:*}
     key=${entry#*:}
     value=$(sed -n "s/^${key}=//p" "$out" | tail -n 1)
@@ -118,6 +151,7 @@ monitoring_secrets() {
 
 umask 077
 media_keys
+backup_passphrase
 
 if [[ -f "$out" && -s "$out" ]]; then
   additions="$(mktemp)"

@@ -70,9 +70,14 @@ services:
     environment:
       # Every alert goes to Django, which delivers it as Settings (Monitoring) say.
       ALERT_WEBHOOK_URL: http://web:8000/internal/alerts
-      # The fallback for the alerts about web itself being down (.env only).
+      # The fallback for the alerts about web itself being down: the admin's SMTP server,
+      # recipients and Telegram bot, fetched from Django every minute and kept in the
+      # data volume while web is down (ADR-0019).
+      # "web." fully qualified: busybox's wget mishandles Docker's `search .` for short names.
+      ALERT_FALLBACK_URL: http://web.:8000/internal/alert-fallback
+      # Only until Django's settings have been fetched once (installations from before
+      # ADR-0019 that set these in .env).
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
-      # Django's SMTP settings (SPEC §7.7): the same server sends alerts.
       ALERT_SMTP_SMARTHOST: ${EMAIL_HOST:-}:${EMAIL_PORT:-587}
       ALERT_SMTP_FROM: ${DEFAULT_FROM_EMAIL:-Smart IPTV <no-reply@${DOMAIN:-localhost}>}
       ALERT_SMTP_USERNAME: ${EMAIL_HOST_USER:-}
@@ -189,9 +194,9 @@ services:
     networks: [monitoring]
 
   # Container logs -> redaction -> Loki, and the edge's iptv_edge_* metrics
-  # (monitoring/alloy). It reads the Docker API through a read-only socket mount, which
-  # can still inspect every container (environment included): it stays on the internal
-  # monitoring network with no route in, and its UI is never exposed (ADR-0018).
+  # (monitoring/alloy). It reads the Docker API through docker-logs-proxy (G-36,
+  # ADR-0020): the container list, details and logs, nothing else. It stays on the
+  # internal networks with no route in, and its UI is never exposed (ADR-0018).
   alloy:
     <<: *hardened
     image: grafana/alloy:v1.20.1@sha256:2aa2099af76c0098d4af7a4d6e48f86cb66dc1a000222ad927a1c67c6542d13f
@@ -199,29 +204,59 @@ services:
       - run
       - /etc/alloy/config.alloy
       # Not the image's /var/lib/alloy, which belongs to its alloy user: Alloy runs as
-      # root without capabilities here (the Docker socket is root's) and keeps its read
-      # positions on a volume of its own.
+      # root without capabilities here and keeps its read positions on a volume of its
+      # own (created that way before the socket proxy).
       - --storage.path=/alloy-data
       - --server.http.listen-addr=0.0.0.0:12345
       - --disable-reporting
     environment:
       ALLOY_COMPOSE_PROJECT: smart-iptv
       LOKI_PUSH_URL: http://loki:3100/loki/api/v1/push
+      DOCKER_HOST: tcp://docker-logs-proxy:2375
     volumes:
       - ./monitoring/alloy:/etc/alloy:ro
       - alloy-data:/alloy-data
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     tmpfs: ["/tmp:mode=1777"]
     mem_limit: ${ALLOY_MEM_LIMIT:-512m}
-    networks: [monitoring]
+    networks: [monitoring, docker-logs]
     depends_on:
       loki: { condition: service_started }
+      docker-logs-proxy: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/12345 && printf 'GET /-/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q ' 200 ' <&3"]
       interval: 15s
       timeout: 5s
       start_period: 20s
       retries: 5
+
+  # A read-only view of the Docker API for Alloy and CrowdSec (G-36, ADR-0020): the
+  # version, the container list, one container's details, its logs, the events and the
+  # networks. Not exec, not start or stop, not the files inside a container.
+  # docker/compose.crowdsec.yml defines the same service.
+  docker-logs-proxy:
+    <<: *hardened
+    # Root without capabilities: the socket is root's (0660 root:docker on the host).
+    user: "0:0"
+    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+    mem_limit: 64m
+    command:
+      - -loglevel=warn
+      - -listenip=0.0.0.0
+      - -allowfrom=alloy,crowdsec
+      - -allowGET=/(v[0-9.]+/)?(version|_ping|info|containers/json|containers/[a-zA-Z0-9_.-]+/(json|logs)|events|networks)
+      - -allowHEAD=/(v[0-9.]+/)?_ping
+      - -allowhealthcheck
+      - -watchdoginterval=600
+      - -stoponwatchdog
+      - -shutdowngracetime=5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [docker-logs]
+    healthcheck:
+      test: ["CMD", "./healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   # The host: CPU, memory, load and filesystems (read through /host). Network collectors
   # are off: in a container they would see the container's own interfaces.
@@ -246,8 +281,11 @@ services:
       timeout: 5s
       retries: 3
 
-  # Per-container CPU, memory, network and OOM kills. Reads the Docker socket and the
-  # host's cgroups read-only, like Alloy (ADR-0018 security notes).
+  # Per-container CPU, memory, network and OOM kills. Reads the host's cgroups, Docker's
+  # state and the container runtime's sockets read-only (ADR-0018). A documented exception
+  # to G-36 (ADR-0020): cAdvisor names Docker containers through containerd's socket, so
+  # the Docker API proxy can't stand in for it; it has no capability but SYSLOG and stays
+  # on the internal monitoring network with no route in.
   cadvisor:
     <<: *hardened
     image: ghcr.io/google/cadvisor:v0.60.6@sha256:b8e7d1093144fd088f425ff003d75a4aa405de075db78dae3bc563730b1bd07a
@@ -279,9 +317,12 @@ services:
   # Creates (or updates) the read-only `iptv_monitor` PostgreSQL role (pg_monitor) that
   # postgres-exporter signs in as, once per start.
   postgres-monitor-init:
-    image: postgres:18.6-alpine
+    image: postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     restart: "no"
     logging: *logging
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
     entrypoint: ["sh", "/monitor-role.sh"]
     environment:
       PGHOST: postgres
@@ -313,8 +354,8 @@ services:
       timeout: 10s
       retries: 3
 
-  # Both Valkeys (Prometheus passes ?target=); the password map is built in /tmp from
-  # the secrets at start.
+  # Both Valkeys (Prometheus passes ?target=), as their `exporter` user (read-only
+  # metrics, G-38); the password map is built in /tmp from the secrets at start.
   redis-exporter:
     <<: *hardened
     image: oliver006/redis_exporter:v1.93.0-alpine@sha256:93831cd4d5d67687de67c9d5221b14312fea580af8d157583ed9d4459bf2dd70
@@ -324,11 +365,11 @@ services:
       - >-
         umask 077 &&
         printf '{"redis://redis-state:6379":"%s","redis://redis-cache:6379":"%s"}'
-        "$$(cat /run/secrets/redis_state_password)" "$$(cat /run/secrets/redis_cache_password)"
+        "$$(cat /run/secrets/redis_state_exporter_password)" "$$(cat /run/secrets/redis_cache_exporter_password)"
         > /tmp/redis-passwords.json &&
-        exec /redis_exporter --redis.addr= --redis.password-file=/tmp/redis-passwords.json
-        --redact-config-metrics=true
-    secrets: [redis_state_password, redis_cache_password]
+        exec /redis_exporter --redis.addr= --redis.user=exporter
+        --redis.password-file=/tmp/redis-passwords.json --redact-config-metrics=true
+    secrets: [redis_state_exporter_password, redis_cache_exporter_password]
     tmpfs: ["/tmp:mode=1777"]
     mem_limit: 64m
     networks: [monitoring, backend]
@@ -404,6 +445,10 @@ networks:
   monitoring:
     name: smart-iptv-monitoring
     internal: true
+  # docker-logs-proxy and its clients only (G-36). docker/compose.crowdsec.yml too.
+  docker-logs:
+    name: smart-iptv-docker-logs
+    internal: true
   # Traefik and the three UIs only. Traefik has a fixed address (Grafana trusts it for
   # the sign-in headers) below the range Docker hands out to the others.
   monitoring-ingress:
@@ -431,10 +476,10 @@ secrets:
     file: ./secrets/monitoring/postgres_password
   postgres_monitor_password:
     file: ./secrets/monitoring/postgres_monitor_password
-  redis_state_password:
-    file: ./secrets/monitoring/redis_state_password
-  redis_cache_password:
-    file: ./secrets/monitoring/redis_cache_password
+  redis_state_exporter_password:
+    file: ./secrets/monitoring/redis_state_exporter_password
+  redis_cache_exporter_password:
+    file: ./secrets/monitoring/redis_cache_exporter_password
   alert_webhook_token:
     file: ./secrets/monitoring/alert_webhook_token
   alert_smtp_password:

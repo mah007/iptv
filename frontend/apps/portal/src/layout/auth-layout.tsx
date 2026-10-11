@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { BrandLockup } from "./brand";
+import { SupportContacts } from "./support-contacts";
 
 /** Full-page frame for screens outside the signed-in area: sign-in, passwords, 404, fatal errors. */
 export function CenteredLayout({
@@ -26,8 +27,9 @@ export function CenteredLayout({
       <main id="main" className="flex flex-1 items-center justify-center px-4 py-10">
         <div className={cn("w-full max-w-sm", className)}>{children}</div>
       </main>
-      <footer className="px-4 pb-6 text-center text-xs text-muted-foreground">
-        {t("auth.footer")}
+      <footer className="grid gap-2 px-4 pb-6 text-center text-xs text-muted-foreground">
+        <p>{t("auth.footer")}</p>
+        <SupportContacts />
       </footer>
     </div>
   );

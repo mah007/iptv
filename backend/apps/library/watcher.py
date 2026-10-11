@@ -77,10 +77,15 @@ class LibraryWatcher:
         stable_s: Callable[[], float],
         observer: BaseObserver | None = None,
         clock: Callable[[], float] = time.monotonic,
+        polling: Callable[[], bool] | None = None,
     ) -> None:
         self.enqueue = enqueue
         self.stable_s = stable_s
         self.observer = observer or Observer()
+        # The admin's `library.watcher_polling`, re-read with each library sync: a change
+        # swaps the observer without a restart (ADR-0019).
+        self.polling = polling
+        self.polling_mode = polling() if polling is not None else None
         self.clock = clock
         self.events: queue.Queue[tuple[str, FileSystemEvent]] = queue.Queue()
         self.watched: dict[str, tuple[str, ObservedWatch]] = {}
@@ -112,6 +117,22 @@ class LibraryWatcher:
                 continue
             self.watched[library_id] = (path, watch)
             logger.info("library watched", extra={"library": library_id})
+
+    def follow_polling_setting(self) -> None:
+        """Swap inotify and polling when the admin switches `library.watcher_polling`."""
+        if self.polling is None:
+            return
+        wanted = self.polling()
+        if wanted == self.polling_mode:
+            return
+        self.observer.stop()
+        self.observer.join(timeout=10)
+        self.watched.clear()
+        self.observer = make_observer(polling=wanted)
+        self.polling_mode = wanted
+        self.sync_libraries()
+        self.observer.start()
+        logger.info("library watcher mode changed", extra={"polling": wanted})
 
     # --- events -----------------------------------------------------------------------------------
 
@@ -211,6 +232,7 @@ class LibraryWatcher:
                 self.poll()
                 now = self.clock()
                 if now - last_sync >= SYNC_S:
+                    self.follow_polling_setting()
                     self.sync_libraries()
                     last_sync = now
                 if now - last_beat >= HEARTBEAT_S:

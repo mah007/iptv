@@ -8,6 +8,7 @@ feeds the generated TypeScript client (`make api-client`).
 from django.urls import include, path, re_path
 
 from apps.core import errors, views
+from apps.core.api import BrandingView
 from apps.core.schema import AdminSchemaView
 
 # Each app keeps its admin routes in apps/<app>/urls_admin.py.
@@ -25,12 +26,16 @@ admin_api = [
     path("", include("apps.notifications.urls_admin")),
     # Live TV and the guide (M12, ADR-0017).
     path("", include("apps.live.urls_admin")),
+    # Backups and the restore drill (H2, ADR-0020).
+    path("", include("apps.ops.urls_admin")),
 ]
 
 urlpatterns = [
     path("api/v1/health", views.public_health, name="admin-health"),
     path("api/v1/schema", AdminSchemaView.as_view(), name="admin-schema"),
     path("api/v1/auth/", include("apps.accounts.urls_auth")),
+    # Public: the sign-in page shows the admin's branding too (CFG, ADR-0019).
+    path("api/v1/branding", BrandingView.as_view(), name="admin-branding"),
     path("api/v1/admin/", include(admin_api)),
     # Last: unknown API paths answer problem+json 404, also when DEBUG is on.
     re_path(r"^api(?:/|$)", errors.api_not_found),

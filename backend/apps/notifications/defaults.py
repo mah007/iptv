@@ -4,7 +4,8 @@
 
 An admin's `NotificationTemplate` row replaces the default of one (event, channel,
 locale). Every template can use the common variables (`service_name`, `name`,
-`support_email`, `portal_url`) plus its event's variables listed in `EVENTS`.
+`support_email`, `support_phone`, `support_whatsapp`, `portal_url`) plus its event's
+variables listed in `EVENTS`.
 `body_html` is the message's content; `rendering.wrap_html` puts it in the
 branded email layout.
 """
@@ -13,7 +14,14 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-COMMON_VARIABLES: Final = ("service_name", "name", "support_email", "portal_url")
+COMMON_VARIABLES: Final = (
+    "service_name",
+    "name",
+    "support_email",
+    "support_phone",
+    "support_whatsapp",
+    "portal_url",
+)
 
 
 @dataclass(frozen=True, slots=True)

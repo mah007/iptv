@@ -21,6 +21,7 @@
 
 import logging
 import re
+import threading
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date
@@ -77,7 +78,7 @@ from apps.metadata.scoring import (
     decide,
 )
 from apps.metadata.tmdb import JSONObject, TMDBClient, TMDBError, TMDBNotFoundError, image_url
-from apps.metadata.tmdb.factory import client_from_settings
+from apps.metadata.tmdb.factory import client_for, tmdb_config
 
 logger = logging.getLogger(__name__)
 
@@ -101,19 +102,41 @@ class PlacementError(Exception):
 # --- The client -----------------------------------------------------------------------------------
 
 
-@cache
+# (configuration fingerprint, client) of the current TMDB settings in this process.
+_client: tuple[str, TMDBClient] | None = None
+_client_lock = threading.Lock()
+
+
 def tmdb() -> TMDBClient:
-    """The process's TMDB client: live with a credential, fixture mode without."""
-    return client_from_settings()
+    """The process's TMDB client: live with a credential, fixture mode without.
+
+    It follows the admin's settings without a restart: when the token, key, language,
+    rate or cache lifetime change, the next call builds a new client (ADR-0019).
+    """
+    global _client  # noqa: PLW0603 (process-local, replaced under the lock)
+    config = tmdb_config()
+    current = _client
+    if current is not None and current[0] == config.fingerprint:
+        return current[1]
+    with _client_lock:
+        if _client is None or _client[0] != config.fingerprint:
+            if _client is not None:
+                logger.info("metadata.tmdb_client_rebuilt")
+            _client = (config.fingerprint, client_for(config))
+        return _client[1]
 
 
 def source_of(client: TMDBClient) -> str:
     return MetadataSource.SYNTHETIC if client.fixture_mode else MetadataSource.TMDB
 
 
-@cache
 def _genre_names_ar(kind: str) -> Mapping[int, str]:
-    client = tmdb()
+    """TMDB's Arabic genre names, per client (they follow a credential change)."""
+    return _genre_names_for(kind, tmdb())
+
+
+@cache
+def _genre_names_for(kind: str, client: TMDBClient) -> Mapping[int, str]:
     try:
         data = (
             client.movie_genres(language=ARABIC_LANGUAGE)
@@ -132,9 +155,11 @@ def _genre_names_ar(kind: str) -> Mapping[int, str]:
 
 
 def reset_caches() -> None:
-    """Forget the client and the genre names (tests, or after a credential change)."""
-    tmdb.cache_clear()
-    _genre_names_ar.cache_clear()
+    """Forget the client and the genre names (tests)."""
+    global _client  # noqa: PLW0603
+    with _client_lock:
+        _client = None
+    _genre_names_for.cache_clear()
 
 
 # --- Matching -------------------------------------------------------------------------------------

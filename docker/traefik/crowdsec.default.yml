@@ -1,0 +1,20 @@
+# The CrowdSec middleware until Django has written its own file from the admin's
+# settings (apps/ops/crowdsec.py; ADR-0020). Same options as Django's defaults:
+# enforcing, nothing allowlisted, failing open when the CrowdSec engine is unreachable.
+http:
+  middlewares:
+    crowdsec:
+      plugin:
+        crowdsec:
+          enabled: true
+          logLevel: INFO
+          crowdsecMode: stream
+          updateIntervalSeconds: 15
+          updateMaxFailure: -1
+          streamStartupBlock: false
+          crowdsecLapiScheme: http
+          crowdsecLapiHost: crowdsec:8080
+          crowdsecLapiKeyFile: /run/secrets/crowdsec_bouncer_key
+          remediationStatusCode: 403
+          clientTrustedIPs: []
+          metricsUpdateIntervalSeconds: 600

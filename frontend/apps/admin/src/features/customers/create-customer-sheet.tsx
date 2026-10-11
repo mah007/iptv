@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCustomersCreate, type CustomerCreated } from "@smart-iptv/api";
+import { useBrandingRetrieve, useCustomersCreate, type CustomerCreated } from "@smart-iptv/api";
 import {
   Button,
   DEFAULT_TIME_ZONE,
@@ -114,9 +114,14 @@ function Wizard({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(0);
   const [created, setCreated] = useState<CustomerCreated | null>(null);
   const body = useRef<HTMLDivElement>(null);
+  // New customers speak the service's default language (Settings → Branding, ADR-0019).
+  const serviceLanguage = useBrandingRetrieve({ query: { staleTime: 5 * 60_000, retry: false } })
+    .data?.default_language;
   const form = useForm<WizardInput, unknown, WizardValues>({
     resolver: zodResolver(wizardSchema),
-    defaultValues: wizardDefaults(i18n.language.startsWith("en") ? "en" : "ar"),
+    defaultValues: wizardDefaults(
+      serviceLanguage ?? (i18n.language.startsWith("en") ? "en" : "ar"),
+    ),
     mode: "onTouched",
   });
   const create = useCustomersCreate();

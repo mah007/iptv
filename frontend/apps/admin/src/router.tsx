@@ -226,10 +226,27 @@ const monitoringRoute = createRoute({
   validateSearch: parseMonitoringSearch,
   component: lazyRouteComponent(() => import("./pages/monitoring"), "MonitoringPage"),
 });
+/** H2 (ADR-0020): backups, the restore drill and "Back up now". */
+const backupsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/backups",
+  component: lazyRouteComponent(() => import("./pages/backups"), "BackupsPage"),
+});
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
   component: lazyRouteComponent(() => import("./pages/settings"), "SettingsPage"),
+});
+/** CFG (ADR-0019): integrations with a Test each, and read-only facts about the server. */
+const integrationsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/settings/integrations",
+  component: lazyRouteComponent(() => import("./pages/integrations"), "IntegrationsPage"),
+});
+const systemRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/settings/system",
+  component: lazyRouteComponent(() => import("./pages/system"), "SystemPage"),
 });
 
 /** Sign-in screens, outside the shell. */
@@ -280,7 +297,10 @@ export const routeTree = rootRoute.addChildren([
     accessRulesRoute,
     healthRoute,
     monitoringRoute,
+    backupsRoute,
     settingsRoute,
+    integrationsRoute,
+    systemRoute,
   ]),
   authRoute.addChildren([loginRoute, mfaRoute]),
 ]);

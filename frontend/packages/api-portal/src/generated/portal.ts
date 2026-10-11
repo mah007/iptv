@@ -22,6 +22,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  Branding,
   CategoriesListParams,
   Category,
   CheckoutRequestRequest,
@@ -577,6 +578,120 @@ export const useAuthPasswordReset = <TError = ErrorType<Problem>, TContext = unk
 > => {
   return useMutation(getAuthPasswordResetMutationOptions(options), queryClient);
 };
+
+export const getBrandingRetrieveUrl = () => {
+  return `/api/v1/branding`;
+};
+
+/**
+ * Public: every app shows the admin's branding, sign-in pages included.
+ * @summary The service's name, logos, colour and support contacts
+ */
+export const brandingRetrieve = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Branding> => {
+  return apiFetch<Branding>(getBrandingRetrieveUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getBrandingRetrieveQueryKey = () => {
+  return [`/api/v1/branding`] as const;
+};
+
+export const getBrandingRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getBrandingRetrieveQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof brandingRetrieve>>> = ({ signal }) =>
+    brandingRetrieve({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof brandingRetrieve>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type BrandingRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof brandingRetrieve>>>;
+export type BrandingRetrieveQueryError = ErrorType<Problem>;
+
+export function useBrandingRetrieve<
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof brandingRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof brandingRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useBrandingRetrieve<
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof brandingRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof brandingRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useBrandingRetrieve<
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The service's name, logos, colour and support contacts
+ */
+
+export function useBrandingRetrieve<
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getBrandingRetrieveQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export const getCategoriesListUrl = (params?: CategoriesListParams) => {
   const normalizedParams = new URLSearchParams();

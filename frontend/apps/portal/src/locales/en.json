@@ -656,5 +656,10 @@
       "NETWORK_ERROR": "Can't reach the service. Check your connection.",
       "UNEXPECTED": "Something went wrong. Try again."
     }
+  },
+  "support": {
+    "title": "Need help?",
+    "phone": "Call support",
+    "whatsapp": "Message support on WhatsApp"
   }
 }

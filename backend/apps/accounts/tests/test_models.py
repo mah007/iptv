@@ -90,3 +90,17 @@ def test_time_zones() -> None:
     validators.validate_timezone("Asia/Riyadh")
     with pytest.raises(ValidationError):
         validators.validate_timezone("Mars/Base")
+
+
+def test_new_accounts_take_the_service_language_and_time_zone(db: None) -> None:
+    """`branding.default_language` and `branding.time_zone` (ADR-0019)."""
+    from apps.core.services import set_setting  # noqa: PLC0415
+
+    before = User.objects.create_user(username="before-change", password="x" * 12)
+    assert (before.locale, before.timezone) == ("ar", "Asia/Riyadh")
+    set_setting("branding.default_language", "en", actor=None)
+    set_setting("branding.time_zone", "Europe/London", actor=None)
+    after = User.objects.create_user(username="after-change", password="x" * 12)
+    assert (after.locale, after.timezone) == ("en", "Europe/London")
+    chosen = User.objects.create_user(username="chosen", password="x" * 12, locale="ar")
+    assert chosen.locale == "ar"

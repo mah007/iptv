@@ -108,23 +108,37 @@ _LAYOUT = """<!doctype html>
 <tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
  style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden">
-<tr><td style="background:{accent};color:#ffffff;padding:18px 24px;font-size:18px;font-weight:600;
-text-align:{align}">{service}</td></tr>
+{header}
 <tr><td style="padding:24px;color:#1f2933;font-size:15px;line-height:1.6;text-align:{align}">
 {content}</td></tr>
 </table></td></tr></table></body></html>"""
 
 
+_HEADER = """<tr><td style="background:{accent};color:#ffffff;padding:18px 24px;font-size:18px;
+font-weight:600;text-align:{align}">{service}</td></tr>"""
+# With the admin's logo (CFG, ADR-0019): the logo on white above an accent rule.
+_LOGO_HEADER = """<tr><td style="background:#ffffff;padding:18px 24px;
+border-bottom:4px solid {accent};text-align:{align}"><img src="{logo}" alt="{service}" height="40"
+ style="height:40px;max-width:240px;border:0;display:inline-block"></td></tr>"""
+
+
 def wrap_html(content: str, *, title: str, locale: str, context: Mapping[str, Any]) -> str:
     rtl = locale == "ar"
-    accent = str(context.get("accent_color") or "#0F766E")
+    align = "right" if rtl else "left"
+    accent = escape(str(context.get("accent_color") or "#0F766E"))
+    service = escape(str(context.get("service_name") or ""))
+    logo = str(context.get("logo_url") or "")
     # Every interpolated value is escaped; `content` was rendered with autoescape.
+    header = (
+        _LOGO_HEADER.format(accent=accent, align=align, logo=escape(logo), service=service)
+        if logo.startswith(("https://", "http://"))
+        else _HEADER.format(accent=accent, align=align, service=service)
+    )
     return _LAYOUT.format(
         lang="ar" if rtl else "en",
         dir="rtl" if rtl else "ltr",
-        align="right" if rtl else "left",
+        align=align,
         title=escape(title),
-        accent=escape(accent),
-        service=escape(str(context.get("service_name") or "")),
+        header=header,
         content=content,
     )

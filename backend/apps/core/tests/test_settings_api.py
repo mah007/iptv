@@ -1,6 +1,5 @@
 """GET/PATCH /api/v1/admin/settings on the admin host (plan §2.5)."""
 
-from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -12,8 +11,7 @@ from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.core import registry
 from apps.core.models import Setting
-from apps.core.registry import SettingDef, SettingKind
-from apps.core.services import get_setting
+from apps.core.services import get_setting, set_setting
 
 pytestmark = pytest.mark.django_db
 
@@ -64,7 +62,13 @@ def test_staff_list_every_setting(staff_client: APIClient) -> None:
         "default": 80,
         "value": 80,
         "is_default": True,
+        "source": "default",
+        "is_set": True,
+        "undecryptable": False,
         "sensitive": False,
+        "env": [],
+        "widget": None,
+        "image_url": None,
         "min_value": 1.0,
         "max_value": 65535.0,
         "choices": None,
@@ -83,23 +87,24 @@ def test_the_list_costs_two_queries(
 
 
 def test_sensitive_values_are_never_sent(
-    staff_client: APIClient, staff_user: User, monkeypatch: pytest.MonkeyPatch
+    staff_client: APIClient, staff_user: User, no_server_config: None
 ) -> None:
     key = "metadata.tmdb_api_key"
-    definition = SettingDef(key, SettingKind.STR, "", "TMDB API key.", "metadata", sensitive=True)
-    monkeypatch.setattr(
-        registry, "REGISTRY", MappingProxyType({**registry.REGISTRY, key: definition})
-    )
-    Setting.objects.create(key=key, value="tmdb-secret", updated_by=staff_user)
+    old, new = "0123456789abcdef0123456789abcdef", "fedcba9876543210fedcba9876543210"
+    set_setting(key, old, actor=staff_user)
 
     listed = {entry["key"]: entry for entry in staff_client.get(LIST_URL, headers=ADMIN).json()}
     assert listed[key]["value"] is None
     assert listed[key]["default"] is None
     assert listed[key]["sensitive"] is True
     assert listed[key]["is_default"] is False
-    patched = staff_client.patch(url(key), {"value": "tmdb-new"}, headers=ADMIN)
+    assert listed[key]["source"] == "database"
+    assert listed[key]["is_set"] is True
+    assert listed[key]["env"] == ["TMDB_API_KEY"]
+    patched = staff_client.patch(url(key), {"value": new}, headers=ADMIN)
     assert patched.status_code == 200
-    assert "tmdb-new" not in patched.content.decode()
+    assert new not in patched.content.decode()
+    assert old not in staff_client.get(LIST_URL, headers=ADMIN).content.decode()
 
 
 def test_staff_change_a_setting(staff_client: APIClient, staff_user: User) -> None:
@@ -165,9 +170,10 @@ def test_unknown_settings_are_404s(staff_client: APIClient) -> None:
         }
 
 
-def test_only_get_and_patch_are_allowed(staff_client: APIClient) -> None:
+def test_only_the_documented_methods_are_allowed(staff_client: APIClient) -> None:
     assert staff_client.post(LIST_URL, {}, headers=ADMIN).json()["code"] == "METHOD_NOT_ALLOWED"
-    assert staff_client.delete(url("xtream.port"), headers=ADMIN).status_code == 405
+    assert staff_client.delete(LIST_URL, headers=ADMIN).status_code == 405
+    assert staff_client.post(url("xtream.port"), {}, headers=ADMIN).status_code == 405
 
 
 def test_the_settings_api_lives_only_on_the_admin_host(staff_client: APIClient) -> None:

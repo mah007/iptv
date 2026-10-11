@@ -1,0 +1,131 @@
+# CrowdSec (SPEC §11, ADR-0020): the engine reads Traefik's access log; its bouncer, a
+# Traefik plugin, blocks banned addresses on every router of the public entry point.
+# Opt-in: CROWDSEC=1 in .env (the installer asks; default yes), or `make up CROWDSEC=1`.
+#   ... -f docker/compose.yml -f docker/compose.prod.yml -f docker/compose.crowdsec.yml
+# Enforcement on or off and the addresses never blocked are admin settings (Settings →
+# Security): the worker renders them into Traefik's middleware file. Unban an address:
+#   docker compose ... exec crowdsec cscli decisions delete --ip 203.0.113.7
+# Runbook: docs/runbooks/security.md.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.8.1-slim@sha256:07e51c9526b6e8f43180f053a69966782d1be0d54a5445f691868bbba4a40d31
+    restart: unless-stopped
+    logging: *logging
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: ${CROWDSEC_MEM_LIMIT:-384m}
+    # CROWDSEC_ONLINE=1 adds the community blocklist, which also shares the attacking
+    # addresses this server sees with CrowdSec; off unless the owner opts in.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        case "$${CROWDSEC_ONLINE:-0}" in
+          1 | yes | true) export DISABLE_ONLINE_API=false ;;
+          *) export DISABLE_ONLINE_API=true ;;
+        esac
+        exec /bin/bash /docker_start.sh
+    environment:
+      CROWDSEC_ONLINE: ${CROWDSEC_ONLINE:-0}
+      # Hub items, installed at start. Traefik's parser, the private-range allowlist, and
+      # the scenarios that work without request paths (ADR-0020).
+      PARSERS: crowdsecurity/traefik-logs crowdsecurity/dateparse-enrich crowdsecurity/whitelists crowdsecurity/http-logs
+      SCENARIOS: crowdsecurity/http-bad-user-agent
+      LEVEL_INFO: "true"
+    # The bouncer's key: the image registers a bouncer named after the file (traefik).
+    secrets:
+      - source: crowdsec_bouncer_key
+        target: bouncer_key_traefik
+    volumes:
+      - crowdsec-config:/etc/crowdsec
+      - crowdsec-data:/var/lib/crowdsec/data
+      - ./docker/crowdsec/acquis.yaml:/etc/crowdsec/acquis.d/smart-iptv.yaml:ro
+      - ./docker/crowdsec/scenarios/smart-iptv-http-4xx-flood.yaml:/etc/crowdsec/scenarios/smart-iptv-http-4xx-flood.yaml:ro
+      - ./docker/crowdsec/scenarios/smart-iptv-http-ratelimited.yaml:/etc/crowdsec/scenarios/smart-iptv-http-ratelimited.yaml:ro
+    # edge: Traefik's bouncer reaches the local API; egress: the hub (and the community
+    # blocklist when opted in); docker-logs: Traefik's log through the API proxy.
+    networks: [edge, egress, docker-logs]
+    depends_on:
+      docker-logs-proxy: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "cscli", "lapi", "status"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  # A read-only view of the Docker API for Alloy and CrowdSec (G-36); the monitoring
+  # overlay defines the same service.
+  docker-logs-proxy:
+    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+    restart: unless-stopped
+    logging: *logging
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    # Root without capabilities: the socket is root's (0660 root:docker on the host).
+    user: "0:0"
+    mem_limit: 64m
+    command:
+      - -loglevel=warn
+      - -listenip=0.0.0.0
+      - -allowfrom=alloy,crowdsec
+      - -allowGET=/(v[0-9.]+/)?(version|_ping|info|containers/json|containers/[a-zA-Z0-9_.-]+/(json|logs)|events|networks)
+      - -allowHEAD=/(v[0-9.]+/)?_ping
+      - -allowhealthcheck
+      - -watchdoginterval=600
+      - -stoponwatchdog
+      - -shutdowngracetime=5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [docker-logs]
+    healthcheck:
+      test: ["CMD", "./healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # The bouncer plugin in front of the public entry point, configured by the file the
+  # worker renders (read-only here; docker/traefik/entrypoint.sh copies it in).
+  traefik:
+    environment:
+      CROWDSEC: "1"
+    secrets: [crowdsec_bouncer_key]
+    volumes:
+      - crowdsec-traefik:/etc/traefik/generated:ro
+
+  worker:
+    environment:
+      CROWDSEC_TRAEFIK_DIR: /crowdsec-traefik
+    volumes:
+      - crowdsec-traefik:/crowdsec-traefik
+
+  # Gives the folder to the user the worker runs as (docker/compose.yml).
+  media-init:
+    volumes:
+      - crowdsec-traefik:/crowdsec-traefik
+
+networks:
+  docker-logs:
+    name: smart-iptv-docker-logs
+    internal: true
+
+volumes:
+  crowdsec-config:
+  crowdsec-data:
+  # Traefik's CrowdSec middleware file, written by the worker from the admin's settings.
+  crowdsec-traefik:
+
+secrets:
+  # Generated in .env (CROWDSEC_BOUNCER_KEY) and copied here by scripts/secrets.sh.
+  crowdsec_bouncer_key:
+    file: ./secrets/runtime/crowdsec_bouncer_key

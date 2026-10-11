@@ -11,9 +11,11 @@
 # It asks for the domain, the admin's email and sign-in name, the media folder, the
 # optional TMDB and SMTP settings and the monitoring overlay, and checks the server (OS, CPU, memory, disk, ports
 # 80/443, DNS). Then it installs Docker if needed, gets the code, writes .env with fresh
-# secrets, builds and starts the stack, creates the owner admin and the default
-# libraries, and checks HTTPS on every host. Run again on an installed server, it offers
-# to update or to change the settings.
+# secrets (bootstrap only: domain, folders, passwords of the data stores), builds and
+# starts the stack, saves the optional answers in the admin's settings (where they stay
+# editable: Settings → Integrations), creates the owner admin and the default libraries,
+# and checks HTTPS on every host. Run again on an installed server, it offers to update
+# or to change the domain, email, media folder or monitoring.
 #
 # Secrets are never taken from the command line (other users can read it): pass them in
 # environment variables (ADMIN_PASSWORD, TMDB_TOKEN, SMTP_PASSWORD, TELEGRAM_BOT_TOKEN)
@@ -55,6 +57,21 @@ MONITORING="${MONITORING:-}"              # yes | no: Grafana, Prometheus, Loki,
 ALERT_EMAIL="${ALERT_EMAIL:-}"
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
 TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
+# Backups (ADR-0020): where, and an optional S3-compatible bucket (keys from the environment).
+BACKUP_DIR="${BACKUP_DIR:-}"
+BACKUP_MEDIA="${BACKUP_MEDIA:-}"          # yes | no: also the media libraries
+S3_ENDPOINT="${S3_ENDPOINT:-}"
+S3_REGION="${S3_REGION:-}"
+S3_BUCKET="${S3_BUCKET:-}"
+S3_PREFIX="${S3_PREFIX:-}"
+S3_PATH_STYLE="${S3_PATH_STYLE:-}"        # yes | no
+S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
+S3_SECRET_KEY="${S3_SECRET_KEY:-}"
+CROWDSEC="${CROWDSEC:-}"                  # yes | no: CrowdSec and its Traefik bouncer
+CROWDSEC_ONLINE="${CROWDSEC_ONLINE:-}"    # yes | no: the community blocklist
+SSH_FROM="${SSH_FROM:-}"                  # with --firewall: SSH only from these networks
+BACKUP_PASSPHRASE_FILE="/root/smart-iptv-backup-passphrase.txt"
+readonly DEFAULT_BACKUP_DIR="/var/backups/smart-iptv"
 
 # --- Output -------------------------------------------------------------------------------
 if [[ -t 1 ]]; then
@@ -80,7 +97,8 @@ Usage: sudo scripts/install.sh [options]
 
 Modes (asked when there's already an installation):
   --update               pull the latest code and restart; keeps every setting
-  --reconfigure          change the domain, email, media folder, TMDB, SMTP or monitoring
+  --reconfigure          change the domain, admin email, media folder or monitoring
+                         (TMDB, email, payments and alerts: admin → Settings → Integrations)
 
 Answers (otherwise asked):
   --dir DIR              where the code lives (default $DEFAULT_DIR, or this checkout)
@@ -101,6 +119,16 @@ Answers (otherwise asked):
                          (about 1.5-2 GB of memory; default on with 8 GB or more). With
                          --update, --monitoring turns it on for an existing installation
   --alert-email ADDRESS  where alerts are emailed (default: the admin email)
+  --backup-dir DIR       where backups are kept on this server (default $DEFAULT_BACKUP_DIR;
+                         another disk is better). Schedule and retention: admin → Settings → Backups
+  --backup-media | --no-backup-media   also back up the media libraries (default no)
+  --s3-endpoint URL      also copy backups to an S3-compatible bucket: its address, with
+                         --s3-bucket NAME, optionally --s3-region R, --s3-prefix P, --s3-path-style
+                         (keys: S3_ACCESS_KEY and S3_SECRET_KEY in the environment)
+  --crowdsec | --no-crowdsec      CrowdSec on Traefik's logs and its bouncer (default on)
+  --crowdsec-online | --no-crowdsec-online   CrowdSec's community blocklist (default off;
+                         it shares the attacking addresses this server sees with CrowdSec)
+  --ssh-from CIDRS       with --firewall: allow SSH only from these networks (comma-separated)
 
 Other:
   -y, --yes              unattended: no questions; defaults for whatever isn't given
@@ -113,6 +141,7 @@ Secrets come from environment variables, never options:
   TMDB_TOKEN       TMDB API read access token (v4) for metadata; optional
   SMTP_PASSWORD    the SMTP password; optional
   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   a Telegram bot and chat for alerts; optional
+  S3_ACCESS_KEY, S3_SECRET_KEY           the backup bucket's keys; optional
 
 Example (unattended):
   sudo ADMIN_PASSWORD='...' TMDB_TOKEN='...' scripts/install.sh --yes \\
@@ -146,6 +175,19 @@ parse_args() {
       --monitoring) MONITORING=yes ;;
       --no-monitoring) MONITORING=no ;;
       --alert-email) ALERT_EMAIL="${2:?--alert-email needs a value}"; shift ;;
+      --backup-dir) BACKUP_DIR="${2:?--backup-dir needs a value}"; shift ;;
+      --backup-media) BACKUP_MEDIA=yes ;;
+      --no-backup-media) BACKUP_MEDIA=no ;;
+      --s3-endpoint) S3_ENDPOINT="${2:?--s3-endpoint needs a value}"; shift ;;
+      --s3-region) S3_REGION="${2:?--s3-region needs a value}"; shift ;;
+      --s3-bucket) S3_BUCKET="${2:?--s3-bucket needs a value}"; shift ;;
+      --s3-prefix) S3_PREFIX="${2:?--s3-prefix needs a value}"; shift ;;
+      --s3-path-style) S3_PATH_STYLE=yes ;;
+      --crowdsec) CROWDSEC=yes ;;
+      --no-crowdsec) CROWDSEC=no ;;
+      --crowdsec-online) CROWDSEC_ONLINE=yes ;;
+      --no-crowdsec-online) CROWDSEC_ONLINE=no ;;
+      --ssh-from) SSH_FROM="${2:?--ssh-from needs a value}"; shift ;;
       -y | --yes) ASSUME_YES=1 ;;
       --skip-dns-check) SKIP_DNS_CHECK=1 ;;
       --dry-run) DRY_RUN=1 ;;
@@ -297,6 +339,21 @@ valid_chat_id() {
   [[ "$1" =~ ^-?[0-9]{1,20}$ ]] && return 0
   warn "A chat id is a number, e.g. 123456789 or -1001234567890."; return 1
 }
+valid_s3_endpoint() {
+  [[ "$1" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?/?$ ]] && return 0
+  warn "Enter the service's address, e.g. https://s3.eu-central-1.amazonaws.com."; return 1
+}
+valid_bucket() {
+  [[ "$1" =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]] && return 0
+  warn "A bucket name has 3 to 63 lowercase letters, digits, dots or dashes."; return 1
+}
+valid_networks() {
+  local part
+  for part in ${1//,/ }; do
+    [[ "$part" =~ ^[0-9a-fA-F:.]+(/[0-9]{1,3})?$ ]] || { warn "$part is not an address or network (e.g. 203.0.113.0/24)."; return 1; }
+  done
+  return 0
+}
 valid_env_value() {
   [[ "$1" != *"'"* && "$1" != *$'\n'* ]] && return 0
   warn "Single quotes and line breaks aren't allowed."; return 1
@@ -331,6 +388,13 @@ monitoring_enabled() {
   return 1
 }
 
+# CrowdSec (ADR-0020) is on when this run says so, else when .env says so.
+crowdsec_enabled() {
+  case "$CROWDSEC" in yes) return 0 ;; no) return 1 ;; esac
+  case "$(get_env CROWDSEC)" in 1 | yes | true) return 0 ;; esac
+  return 1
+}
+
 # The compose files, relative to the installation (for messages) or absolute.
 compose_files() {
   local prefix="${1-}"
@@ -338,6 +402,7 @@ compose_files() {
   if monitoring_enabled; then
     printf -- ' -f %sdocker/compose.monitoring.yml -f %sdocker/compose.monitoring.prod.yml' "$prefix" "$prefix"
   fi
+  if crowdsec_enabled; then printf -- ' -f %sdocker/compose.crowdsec.yml' "$prefix"; fi
   if live_ingest_enabled; then printf -- ' -f %sdocker/compose.mediamtx.yml' "$prefix"; fi
 }
 
@@ -558,25 +623,28 @@ gather_answers() {
     yes_no SAMPLE_MEDIA "Add legal synthetic sample titles to try it out (about 20 MB)?" no
   fi
 
-  info ""
-  info "${B}TMDB (optional).${R} Posters, plots and cast in English and Arabic come from"
-  info "TMDB: create a free account, then an API key at themoviedb.org/settings/api and"
-  info "copy the \"API Read Access Token\". Without one, titles keep their file names."
-  if [[ -n "$(get_env TMDB_READ_ACCESS_TOKEN)" ]]; then info "A token is already set; press Enter to keep it."; fi
-  ask_secret TMDB_TOKEN "TMDB API read access token"
+  # TMDB and SMTP are admin settings (ADR-0019): asked once here for convenience, then
+  # edited in the admin (Settings → Integrations), not by --reconfigure.
+  if [[ "$MODE" == install ]]; then
+    info ""
+    info "${B}TMDB (optional).${R} Posters, plots and cast in English and Arabic come from"
+    info "TMDB: create a free account, then an API key at themoviedb.org/settings/api and"
+    info "copy the \"API Read Access Token\". Without one, titles keep their file names."
+    info "You can also set it later in the admin (Settings → Integrations)."
+    ask_secret TMDB_TOKEN "TMDB API read access token"
 
-  info ""
-  info "${B}Email (optional).${R} Invitations, password resets and invoices are emailed"
-  info "through your SMTP server. Skip it now and they wait in the outbox until it's set."
-  ask_optional SMTP_HOST "SMTP server (e.g. smtp.example.com)"
-  [[ -z "$SMTP_HOST" ]] && SMTP_HOST="$(get_env EMAIL_HOST)"
-  if [[ -n "$SMTP_HOST" ]]; then
-    current="$(get_env EMAIL_PORT)"
-    ask SMTP_PORT "SMTP port" "${current:-587}" valid_port
-    ask SMTP_SECURITY "Encryption: starttls, ssl or none" "starttls" valid_security
-    ask_optional SMTP_USER "SMTP user name"
-    if [[ -n "$SMTP_USER" ]]; then ask_secret SMTP_PASSWORD "SMTP password"; fi
-    ask SMTP_FROM "Send emails from" "Smart IPTV <no-reply@$DOMAIN>" valid_env_value
+    info ""
+    info "${B}Email (optional).${R} Invitations, password resets and invoices are emailed"
+    info "through your SMTP server. Skip it now and they wait in the outbox until it's set"
+    info "(admin → Settings → Integrations → Email)."
+    ask_optional SMTP_HOST "SMTP server (e.g. smtp.example.com)"
+    if [[ -n "$SMTP_HOST" ]]; then
+      ask SMTP_PORT "SMTP port" "587" valid_port
+      ask SMTP_SECURITY "Encryption: starttls, ssl or none" "starttls" valid_security
+      ask_optional SMTP_USER "SMTP user name"
+      if [[ -n "$SMTP_USER" ]]; then ask_secret SMTP_PASSWORD "SMTP password"; fi
+      ask SMTP_FROM "Send emails from" "Smart IPTV <no-reply@$DOMAIN>" valid_env_value
+    fi
   fi
 
   ask_monitoring
@@ -588,14 +656,66 @@ gather_answers() {
     [[ "$INSTALL_DOCKER" == yes ]] || die "Docker Engine with the Compose plugin is needed."
   fi
 
+  ask_backups
+  ask_crowdsec
+
   if command -v ufw >/dev/null 2>&1; then
     info ""
     info "${B}Firewall.${R} ufw can allow only SSH, HTTP and HTTPS. Say no if another"
     info "firewall (e.g. your cloud provider's) already does this."
     yes_no FIREWALL "Configure and enable ufw?" no
+    if [[ "$FIREWALL" == yes ]] && ((!ASSUME_YES)); then
+      info "SSH can be limited to your own networks (e.g. 203.0.113.0/24, comma-separated);"
+      info "press Enter to allow it from anywhere (rate-limited). Don't lock yourself out."
+      ask_optional SSH_FROM "Allow SSH only from"
+      [[ -z "$SSH_FROM" ]] || valid_networks "$SSH_FROM" || die "Invalid --ssh-from value."
+    fi
   else
     FIREWALL=no
   fi
+}
+
+# Backups (ADR-0020): every night, encrypted, here and optionally in an S3 bucket.
+ask_backups() {
+  local current
+  info ""
+  info "${B}Backups.${R} Every night the database (with point-in-time recovery), .env, secrets/"
+  info "and the artwork are backed up, encrypted, and a restore drill runs every week."
+  info "Keep them on another disk if you can, and add an S3-compatible bucket for an offsite copy."
+  current="$(get_env BACKUP_DIR)"
+  ask BACKUP_DIR "Keep backups in" "${current:-$DEFAULT_BACKUP_DIR}" valid_dir
+  yes_no BACKUP_MEDIA "Also back up the media libraries (can need as much space as they take)?" no
+  [[ "$MODE" == install ]] || return 0
+  if [[ -z "$S3_ENDPOINT" ]] && ((!ASSUME_YES)); then
+    info "Offsite copy (optional): the address of an S3-compatible service (AWS S3, Backblaze B2,"
+    info "Wasabi, Cloudflare R2, MinIO, ...). Press Enter to skip; it can be set later in the admin."
+    ask_optional S3_ENDPOINT "S3 service address"
+  fi
+  [[ -n "$S3_ENDPOINT" ]] || return 0
+  valid_s3_endpoint "$S3_ENDPOINT" || die "Invalid --s3-endpoint value."
+  ask S3_BUCKET "Bucket name" "" valid_bucket
+  ask_optional S3_REGION "Region (if the service needs one)"
+  [[ -n "$S3_PREFIX" ]] || S3_PREFIX=smart-iptv
+  ask_secret S3_ACCESS_KEY "Access key id"
+  ask_secret S3_SECRET_KEY "Secret access key"
+  [[ -n "$S3_ACCESS_KEY" && -n "$S3_SECRET_KEY" ]] || warn "Without both keys the offsite copy stays off until they are set (admin → Settings → Backups)."
+}
+
+# CrowdSec (ADR-0020): bans abusive addresses at Traefik; on or off later in the admin.
+ask_crowdsec() {
+  local current default=yes
+  current="$(get_env CROWDSEC)"
+  case "$current" in 0 | no | false) [[ "$MODE" == install ]] || default=no ;; esac
+  info ""
+  info "${B}CrowdSec.${R} Watches Traefik's log and blocks addresses that probe or hammer the"
+  info "server (about 150 MB of memory). Blocking can be switched off later in the admin."
+  yes_no CROWDSEC "Enable CrowdSec?" "$default"
+  [[ "$CROWDSEC" == yes ]] || return 0
+  info "The community blocklist adds addresses other CrowdSec users reported; it shares the"
+  info "attacking addresses this server sees with CrowdSec in return."
+  current="$(get_env CROWDSEC_ONLINE)"
+  case "$current" in 1 | yes | true) default=yes ;; *) default=no ;; esac
+  yes_no CROWDSEC_ONLINE "Use the community blocklist?" "$default"
 }
 
 # Monitoring (ADR-0018): Grafana, Prometheus, Loki and Alertmanager on grafana.<domain>,
@@ -612,12 +732,12 @@ ask_monitoring() {
   info "admin. Alerts go by email (through the SMTP server above) and, optionally, Telegram."
   yes_no MONITORING "Enable monitoring (Grafana, Prometheus, Loki, alerts; about 1.5-2 GB RAM)?" "$default"
   [[ "$MONITORING" == yes ]] || return 0
-  current="$(get_env ALERT_EMAIL_TO)"
-  ask ALERT_EMAIL "Email alerts to" "${current:-$ADMIN_EMAIL}" valid_email
-  [[ -n "$SMTP_HOST" ]] || warn "No SMTP server is set, so email alerts stay off until one is (--reconfigure)."
+  # Recipients and Telegram are admin settings (Settings → Monitoring, → Integrations).
+  [[ "$MODE" == install ]] || return 0
+  ask ALERT_EMAIL "Email alerts to" "$ADMIN_EMAIL" valid_email
+  [[ -n "$SMTP_HOST" ]] || warn "No SMTP server is set, so email alerts stay off until one is (admin → Settings → Integrations)."
   info "Telegram (optional): create a bot with @BotFather, add it to a chat, and get the"
   info "chat's id (e.g. from @userinfobot). Press Enter to skip."
-  if [[ -n "$(get_env ALERT_TELEGRAM_BOT_TOKEN)" ]]; then info "A bot is already set; press Enter to keep it."; fi
   while true; do
     ask_secret TELEGRAM_BOT_TOKEN "Telegram bot token"
     valid_telegram_token "$TELEGRAM_BOT_TOKEN" && break
@@ -640,11 +760,15 @@ show_plan() {
   info "Domain:        $DOMAIN (+ admin., app., api., media.)"
   info "Owner admin:   ${ADMIN_USER:-unchanged} <$ADMIN_EMAIL>, password $([[ -n "$ADMIN_PASSWORD" ]] && echo "as typed" || echo "generated")"
   info "Media folder:  $MEDIA_ROOT$([[ "$SAMPLE_MEDIA" == yes ]] && echo ", with sample titles")"
-  info "TMDB:          $([[ -n "$TMDB_TOKEN" || -n "$(get_env TMDB_READ_ACCESS_TOKEN)" ]] && echo "token set" || echo "not set (file names only)")"
-  info "Email:         $([[ -n "$SMTP_HOST" ]] && echo "$SMTP_HOST:$SMTP_PORT ($SMTP_SECURITY)" || echo "not set (outbox only)")"
-  info "Firewall:      $([[ "$FIREWALL" == yes ]] && echo "ufw: SSH, 80, 443" || echo "unchanged")"
+  if [[ "$MODE" == install ]]; then
+    info "TMDB:          $([[ -n "$TMDB_TOKEN" ]] && echo "token set (saved in the admin's settings)" || echo "not set (file names only; set it in the admin)")"
+    info "Email:         $([[ -n "$SMTP_HOST" ]] && echo "$SMTP_HOST:$SMTP_PORT ($SMTP_SECURITY), saved in the admin's settings" || echo "not set (outbox only; set it in the admin)")"
+  fi
+  info "Firewall:      $([[ "$FIREWALL" == yes ]] && echo "ufw: SSH${SSH_FROM:+ from $SSH_FROM}, 80, 443" || echo "unchanged")"
+  info "Backups:       $BACKUP_DIR$([[ "$BACKUP_MEDIA" == yes ]] && echo ", media included")$([[ -n "$S3_ENDPOINT" ]] && echo "; offsite: $S3_BUCKET at $S3_ENDPOINT")"
+  info "CrowdSec:      $(crowdsec_enabled && echo "on$([[ "$CROWDSEC_ONLINE" == yes ]] && echo ", with the community blocklist")" || echo "off")"
   if monitoring_enabled; then
-    info "Monitoring:    grafana.$DOMAIN; alerts to $ALERT_EMAIL$([[ -n "$TELEGRAM_BOT_TOKEN" || -n "$(get_env ALERT_TELEGRAM_BOT_TOKEN)" ]] && echo " and Telegram")"
+    info "Monitoring:    grafana.$DOMAIN$([[ -n "$ALERT_EMAIL" ]] && echo "; alerts to $ALERT_EMAIL")$([[ -n "$TELEGRAM_BOT_TOKEN" ]] && echo " and Telegram")"
   else
     info "Monitoring:    off"
   fi
@@ -694,14 +818,46 @@ install_docker() {
   run "Starting Docker" systemctl enable --now docker
 }
 
+# SSH's ports, wherever they come from: sshd's own configuration, sshd or systemd's
+# ssh.socket listening (Ubuntu 24.04 starts sshd on demand, so `ss` names systemd), and
+# the port this session came in on. Missing one would lock the operator out (G-42).
+ssh_ports() {
+  # Each probe may fail (no sshd host keys yet, no ss, no socket unit): never fatal here.
+  (
+    set +eE +o pipefail
+    trap - ERR
+    {
+      sshd -T 2>/dev/null | awk '$1 == "port" {print $2}'
+      ss -Hltnp 2>/dev/null | awk '/sshd|"systemd"/ {n = split($4, a, ":"); print a[n]}' |
+        while read -r port; do
+          if systemctl show ssh.socket -p Listen 2>/dev/null | grep -q ":$port "; then echo "$port"; fi
+          ss -Hltnp "( sport = :$port )" 2>/dev/null | grep -q sshd && echo "$port"
+        done
+      [[ -n "${SSH_CONNECTION:-}" ]] && awk '{print $4}' <<<"$SSH_CONNECTION"
+    } | grep -E '^[0-9]+$' | sort -un
+    exit 0
+  )
+}
+
 configure_firewall() {
   [[ "$FIREWALL" == yes ]] || return 0
-  local ports
-  ports="$(ss -Hltnp 2>/dev/null | awk '/sshd/ {n = split($4, a, ":"); print a[n]}' | sort -u)"
+  local ports port network
+  ports="$(ssh_ports)"
   [[ -n "$ports" ]] || ports=22
-  for port in $ports; do run "Allowing SSH on port $port" ufw allow "$port/tcp"; done
+  run "Denying other incoming connections by default" ufw default deny incoming
+  for port in $ports; do
+    if [[ -n "$SSH_FROM" ]]; then
+      for network in ${SSH_FROM//,/ }; do
+        run "Allowing SSH on port $port from $network" ufw allow from "$network" to any port "$port" proto tcp
+      done
+    else
+      # limit: more than 6 connections in 30 s from one address are refused.
+      run "Allowing SSH on port $port (rate-limited)" ufw limit "$port/tcp"
+    fi
+  done
   run "Allowing HTTP and HTTPS" sh -c "ufw allow 80/tcp && ufw allow 443/tcp"
   run "Enabling ufw" ufw --force enable
+  info "Docker publishes its ports past ufw: only 80 and 443 (and the live ingest, if on) are published."
 }
 
 get_code() {
@@ -730,29 +886,96 @@ write_config() {
   set_env TV_HOST "$DOMAIN"
   set_env ACME_EMAIL "$ADMIN_EMAIL"
   set_env MEDIA_ROOT "$MEDIA_ROOT"
-  [[ -z "$TMDB_TOKEN" ]] || set_env TMDB_READ_ACCESS_TOKEN "$TMDB_TOKEN"
-  if [[ -n "$SMTP_HOST" ]]; then
-    set_env EMAIL_HOST "$SMTP_HOST"
-    set_env EMAIL_PORT "$SMTP_PORT"
-    set_env EMAIL_USE_TLS "$([[ "$SMTP_SECURITY" == starttls ]] && echo true || echo false)"
-    set_env EMAIL_USE_SSL "$([[ "$SMTP_SECURITY" == ssl ]] && echo true || echo false)"
-    [[ -z "$SMTP_USER" ]] || set_env EMAIL_HOST_USER "$SMTP_USER"
-    [[ -z "$SMTP_PASSWORD" ]] || set_env EMAIL_HOST_PASSWORD "$SMTP_PASSWORD"
-    set_env DEFAULT_FROM_EMAIL "$SMTP_FROM"
-  fi
+  set_commit
+  write_backup_config
+  write_crowdsec_config
   write_monitoring_config
   ok "Settings written to $INSTALL_DIR/.env (mode 600; secrets generated on this server)"
   mkdir -p "$CONF_DIR"
   printf 'INSTALL_DIR=%s\n' "$INSTALL_DIR" > "$CONF_DIR/install.conf"
 }
 
-# The monitoring answers into .env, then its Docker secrets (secrets/monitoring/) from .env.
+# Backups (ADR-0020): the folder in .env (a host folder the containers mount), created
+# here; everything else is an admin setting. The backup passphrase file is created by
+# scripts/secrets.sh; show_passphrase shows it once.
+write_backup_config() {
+  [[ -n "$BACKUP_DIR" ]] || BACKUP_DIR="$(get_env BACKUP_DIR)"
+  [[ -n "$BACKUP_DIR" ]] || BACKUP_DIR="$DEFAULT_BACKUP_DIR"
+  set_env BACKUP_DIR "$BACKUP_DIR"
+  if ((DRY_RUN)); then info "${DIM}would create $BACKUP_DIR${R}"; return 0; fi
+  mkdir -p "$BACKUP_DIR"
+  chmod 711 "$BACKUP_DIR"
+}
+
+# CrowdSec on or off in .env (the overlay), with the community blocklist choice.
+write_crowdsec_config() {
+  case "$CROWDSEC" in yes) set_env CROWDSEC 1 ;; no) set_env CROWDSEC 0 ;; esac
+  case "$CROWDSEC_ONLINE" in yes) set_env CROWDSEC_ONLINE 1 ;; no) set_env CROWDSEC_ONLINE 0 ;; esac
+}
+
+# The backup passphrase, shown once when scripts/secrets.sh has just created it, and kept
+# in a root-only file: without it the backups cannot be read.
+show_passphrase() {
+  local file="$INSTALL_DIR/secrets/backup_passphrase"
+  ((DRY_RUN)) && return 0
+  [[ -s "$file" && ! -e "$BACKUP_PASSPHRASE_FILE" ]] || return 0
+  umask 077
+  {
+    printf 'Smart IPTV backup passphrase (created %s)\n\n' "$(date -u +%FT%TZ)"
+    cat "$file"
+    printf '\nEvery backup is encrypted with it. Keep a copy away from this server (a password\n'
+    printf 'manager, paper in a safe): if the server is lost, the backups cannot be read without it.\n'
+  } > "$BACKUP_PASSPHRASE_FILE"
+  BACKUP_PASSPHRASE_SHOWN="$(cat "$file")"
+}
+
+# Backups: the media choice and the optional bucket into the admin's settings.
+write_backup_settings() {
+  local extra=("$@")
+  case "$BACKUP_MEDIA" in
+    yes) store_setting backups.media_enabled true "${extra[@]}" ;;
+    no) store_setting backups.media_enabled false "${extra[@]}" ;;
+  esac
+  [[ -n "$S3_ENDPOINT" && -n "$S3_BUCKET" ]] || return 0
+  store_setting backups.s3_endpoint "$S3_ENDPOINT"
+  store_setting backups.s3_bucket "$S3_BUCKET"
+  [[ -z "$S3_REGION" ]] || store_setting backups.s3_region "$S3_REGION"
+  [[ -z "$S3_PREFIX" ]] || store_setting backups.s3_prefix "$S3_PREFIX"
+  [[ "$S3_PATH_STYLE" != yes ]] || store_setting backups.s3_path_style true
+  [[ -z "$S3_ACCESS_KEY" ]] || store_setting backups.s3_access_key "$S3_ACCESS_KEY"
+  [[ -z "$S3_SECRET_KEY" ]] || store_setting backups.s3_secret_key "$S3_SECRET_KEY"
+  if [[ -n "$S3_ACCESS_KEY" && -n "$S3_SECRET_KEY" ]]; then store_setting backups.s3_enabled true; fi
+  ((DRY_RUN)) || ok "The backup bucket saved in the admin's settings (Settings → Backups)"
+}
+
+# Before an update: a named restore point in the WAL, so a bad migration can be undone
+# by restoring to just before it (docs/runbooks/rollback.md). Needs a running database.
+restore_point() {
+  local name user db
+  name="pre-update-$(date -u +%Y%m%dT%H%M%SZ)"
+  if ((DRY_RUN)); then info "${DIM}would create the restore point $name${R}"; return 0; fi
+  user="$(get_env POSTGRES_USER)"; db="$(get_env POSTGRES_DB)"
+  if compose exec -T postgres psql -U "${user:-iptv}" -d "${db:-iptv}" -Atc \
+    "SELECT pg_create_restore_point('$name')" >> "$LOG_FILE" 2>&1; then
+    ok "Restore point $name (to undo this update: docs/runbooks/rollback.md)"
+  else
+    warn "No restore point: the database isn't running."
+  fi
+}
+
+# The git commit this installation runs, shown in the admin (Settings → System).
+set_commit() {
+  local commit
+  commit="$(git -C "$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || true)"
+  [[ -z "$commit" ]] || set_env APP_COMMIT "$commit"
+}
+
+# The monitoring overlay on or off in .env, then its Docker secrets (secrets/monitoring/).
+# Its alert recipients and channels are admin settings, which Alertmanager fetches
+# from Django (ADR-0019), so nothing else goes into .env.
 write_monitoring_config() {
   if [[ "$MONITORING" == yes ]]; then
     set_env MONITORING 1
-    [[ -z "$ALERT_EMAIL" ]] || set_env ALERT_EMAIL_TO "$ALERT_EMAIL"
-    [[ -z "$TELEGRAM_BOT_TOKEN" ]] || set_env ALERT_TELEGRAM_BOT_TOKEN "$TELEGRAM_BOT_TOKEN"
-    [[ -z "$TELEGRAM_CHAT_ID" ]] || set_env ALERT_TELEGRAM_CHAT_ID "$TELEGRAM_CHAT_ID"
   elif [[ "$MONITORING" == no ]]; then
     set_env MONITORING 0
   fi
@@ -769,15 +992,44 @@ store_setting() {
     >> "$LOG_FILE" 2>&1 || die "Storing the $key setting failed (see $LOG_FILE)."
 }
 
-# Alert recipients and Telegram go into the settings (Settings, Monitoring in the admin);
-# .env keeps a copy for Alertmanager's fallback route when the app itself is down.
+# Alert recipients and Telegram go into the settings (Settings → Monitoring and →
+# Integrations in the admin); Alertmanager's fallback fetches them from Django.
 write_monitoring_settings() {
   local extra=("$@")
   monitoring_enabled || return 0
   [[ -z "$ALERT_EMAIL" ]] || store_setting monitoring.alert_emails "$ALERT_EMAIL" "${extra[@]}"
-  [[ -z "$TELEGRAM_BOT_TOKEN" ]] || store_setting monitoring.telegram_bot_token "$TELEGRAM_BOT_TOKEN"
-  [[ -z "$TELEGRAM_CHAT_ID" ]] || store_setting monitoring.telegram_chat_id "$TELEGRAM_CHAT_ID"
+  [[ -z "$TELEGRAM_BOT_TOKEN" ]] || store_setting notifications.telegram_bot_token "$TELEGRAM_BOT_TOKEN"
+  [[ -z "$TELEGRAM_CHAT_ID" ]] || store_setting notifications.telegram_chat_id "$TELEGRAM_CHAT_ID"
   ((DRY_RUN)) || ok "Alert recipients saved in the admin's settings (Settings, Monitoring)"
+}
+
+# The optional TMDB and SMTP answers go into the admin's settings (ADR-0019): encrypted
+# when secret, and edited there from now on (Settings → Integrations).
+write_integration_settings() {
+  [[ -z "$TMDB_TOKEN" ]] || store_setting metadata.tmdb_read_access_token "$TMDB_TOKEN"
+  if [[ -n "$SMTP_HOST" ]]; then
+    store_setting email.smtp_host "$SMTP_HOST"
+    store_setting email.smtp_port "$SMTP_PORT"
+    store_setting email.smtp_security "$SMTP_SECURITY"
+    [[ -z "$SMTP_USER" ]] || store_setting email.smtp_username "$SMTP_USER"
+    [[ -z "$SMTP_PASSWORD" ]] || store_setting email.smtp_password "$SMTP_PASSWORD"
+    [[ -z "$SMTP_FROM" ]] || store_setting email.from_address "$SMTP_FROM"
+  fi
+  if [[ -n "$TMDB_TOKEN$SMTP_HOST" ]] && ((!DRY_RUN)); then
+    ok "TMDB and email saved in the admin's settings (Settings → Integrations)"
+  fi
+}
+
+# Settings that still come from .env (servers installed before ADR-0019): names only.
+report_server_config() {
+  local count
+  ((DRY_RUN)) && return 0
+  count="$(compose exec -T web python manage.py settings_report --count 2>>"$LOG_FILE" | tail -n 1 || true)"
+  [[ "$count" =~ ^[0-9]+$ ]] || return 0
+  if ((count > 0)); then
+    info "$count setting(s) still come from .env; move them into the admin (Settings → Integrations,"
+    info "\"Move into settings\"), then they can be removed from .env."
+  fi
 }
 
 prepare_media() {
@@ -799,7 +1051,9 @@ start_stack() {
   fi
   # --remove-orphans: services that left the compose files (e.g. monitoring turned off) stop.
   run "Building and starting the services" compose up -d --build --wait --wait-timeout 1800 --remove-orphans
-  run "Applying database migrations" compose exec -T web python manage.py migrate --noinput
+  # The migrate service ran before the app services; once more, as the database owner
+  # (the app services use a restricted role that can't change the schema, ADR-0020).
+  run "Applying database migrations" compose run --rm --no-deps migrate
 }
 
 create_owner() {
@@ -883,9 +1137,11 @@ summary() {
   fi
   say "  Customer portal  https://app.$DOMAIN"
   say "  IPTV apps        server URL https://$DOMAIN (customer logins are made in the admin)"
+  say "  Integrations     TMDB, email (SMTP), payments, Telegram, branding: admin → Settings →"
+  say "                   Integrations (each with a Test); server facts: Settings → System"
   if monitoring_enabled; then
     say "  Monitoring       https://grafana.$DOMAIN (open it from the admin: Monitoring)"
-    say "  Alerts           recipients and Telegram: admin → Settings → Monitoring;"
+    say "  Alerts           recipients: admin → Settings → Monitoring; Telegram: → Integrations;"
     say "                   test them: admin → Monitoring → Send a test alert"
   fi
   if live_ingest_enabled; then
@@ -895,10 +1151,20 @@ summary() {
   say "  Media            copy owned or licensed files into $MEDIA_ROOT/movies and $MEDIA_ROOT/series"
   say ""
   say "  Update later     sudo $INSTALL_DIR/scripts/install.sh --update"
-  say "  Change settings  sudo $INSTALL_DIR/scripts/install.sh --reconfigure"
+  say "  Change domain    sudo $INSTALL_DIR/scripts/install.sh --reconfigure (domain, admin email,"
+  say "                   media folder, monitoring; everything else is in the admin)"
   say "  Service status   cd $INSTALL_DIR && docker compose $(compose_files) ps"
   say "  Install log      $LOG_FILE"
-  say "  Back up          $INSTALL_DIR/.env and $INSTALL_DIR/secrets/ (the databases need them)"
+  say "  Backups          every night into ${BACKUP_DIR:-$(get_env BACKUP_DIR)}, restore drill weekly:"
+  say "                   admin → Backups; schedule, retention and the bucket: Settings → Backups"
+  if [[ -n "${BACKUP_PASSPHRASE_SHOWN:-}" ]]; then
+    say "                   backup passphrase (shown once): ${B}$BACKUP_PASSPHRASE_SHOWN${R}"
+    say "                   also in $BACKUP_PASSPHRASE_FILE (root only): keep a copy away from this server"
+  fi
+  if crowdsec_enabled; then
+    say "  CrowdSec         on; unban an address: cd $INSTALL_DIR && docker compose $(compose_files) \\"
+    say "                   exec crowdsec cscli decisions delete --ip <address>"
+  fi
   say ""
 }
 
@@ -967,13 +1233,17 @@ main() {
     MEDIA_ROOT="$(get_env MEDIA_ROOT)"; MEDIA_ROOT="${MEDIA_ROOT:-/srv/media}"
     step "Updating"
     install_docker
+    restore_point
     get_code
+    if ((DRY_RUN)); then info "${DIM}would set APP_COMMIT in .env${R}"; else set_commit; fi
     if ((DRY_RUN)); then info "${DIM}would add new .env keys (scripts/secrets.sh)${R}"; else
       (cd "$INSTALL_DIR" && scripts/secrets.sh >> "$LOG_FILE" 2>&1) || die "scripts/secrets.sh failed."
     fi
+    write_backup_config
+    write_crowdsec_config
+    show_passphrase
     # --monitoring / --no-monitoring switch the overlay; otherwise .env decides.
     if [[ -n "$MONITORING" ]]; then
-      [[ "$MONITORING" == no ]] || ALERT_EMAIL="${ALERT_EMAIL:-$(get_env ALERT_EMAIL_TO)}"
       [[ "$MONITORING" == no || -n "$ALERT_EMAIL" ]] || ALERT_EMAIL="$(get_env ACME_EMAIL)"
       write_monitoring_config
     elif ! monitoring_enabled && [[ -z "$(get_env MONITORING)" ]]; then
@@ -983,7 +1253,9 @@ main() {
     start_stack
     # A recipient the admin already chose in Settings wins over .env's.
     [[ "$MONITORING" != yes ]] || write_monitoring_settings --if-unset
+    write_backup_settings --if-unset
     run "Building the search index" compose exec -T web python manage.py search_reindex
+    report_server_config
     check_https
     summary
     return 0
@@ -1000,9 +1272,12 @@ main() {
   configure_firewall
   [[ "$MODE" == install ]] && get_code
   write_config
+  show_passphrase
   prepare_media
   start_stack
+  write_integration_settings
   write_monitoring_settings
+  write_backup_settings
   if [[ "$MODE" == install ]]; then
     create_owner
     finish_setup

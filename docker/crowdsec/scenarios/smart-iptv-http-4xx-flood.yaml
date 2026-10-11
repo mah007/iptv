@@ -1,0 +1,21 @@
+# Smart IPTV (ADR-0020): one address collecting client errors at a rate no player or
+# browser produces (probing for paths, guessing tokens or logins). Path-less: Traefik's
+# log carries the status, not the path. The bucket holds 120, leaking one every 2 s, so
+# shared addresses (carrier-grade NAT) have room.
+type: leaky
+name: smart-iptv/http-4xx-flood
+description: "Many 400/401/403/404/405 answers to one address"
+filter: "evt.Meta.log_type == 'http_access-log' && evt.Meta.http_status in ['400', '401', '403', '404', '405']"
+groupby: evt.Meta.source_ip
+capacity: 120
+leakspeed: 2s
+blackhole: 5m
+labels:
+  service: http
+  confidence: 2
+  spoofable: 0
+  classification:
+    - attack.T1595
+  behavior: "http:scan"
+  label: "HTTP client error flood"
+  remediation: true

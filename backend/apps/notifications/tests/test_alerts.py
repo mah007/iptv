@@ -12,8 +12,10 @@ from django.core import mail
 from django.test import Client
 from prometheus_client import REGISTRY
 
+from apps.core.integration import use_transport
 from apps.core.services import set_setting
 from apps.notifications import alerts
+from apps.notifications.mail import SETTINGS_BACKEND
 
 pytestmark = pytest.mark.django_db
 
@@ -66,14 +68,28 @@ def recipients() -> None:
     set_setting("monitoring.alert_emails", "ops@example.com, oncall@example.com", actor=None)
 
 
+class FakeTelegram:
+    """The Bot API behind a mock transport: records requests, answers `response`."""
+
+    def __init__(self) -> None:
+        self.requests: list[httpx.Request] = []
+        self.response = httpx.Response(200, json={"ok": True})
+        self.error: Exception | None = None
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        if self.error is not None:
+            raise self.error
+        return self.response
+
+
 @pytest.fixture
-def telegram() -> Iterator[mock.MagicMock]:
-    set_setting("monitoring.telegram_bot_token", BOT, actor=None)
-    set_setting("monitoring.telegram_chat_id", "-1001234567890", actor=None)
-    with mock.patch(
-        "apps.notifications.alerts.httpx.post", return_value=httpx.Response(200, json={"ok": True})
-    ) as post:
-        yield post
+def telegram() -> Iterator[FakeTelegram]:
+    set_setting("notifications.telegram_bot_token", BOT, actor=None)
+    set_setting("notifications.telegram_chat_id", "-1001234567890", actor=None)
+    fake = FakeTelegram()
+    with use_transport(httpx.MockTransport(fake)):
+        yield fake
 
 
 def post(body: object, token: str = TOKEN) -> Any:
@@ -88,7 +104,7 @@ def post(body: object, token: str = TOKEN) -> Any:
 # --- The webhook ----------------------------------------------------------------------------
 
 
-def test_an_alert_goes_to_email_and_telegram(recipients: None, telegram: mock.MagicMock) -> None:
+def test_an_alert_goes_to_email_and_telegram(recipients: None, telegram: FakeTelegram) -> None:
     response = post(payload(alert("FireDrill", "critical", drill="true")))
     assert response.status_code == 200
     assert response.json() == {"email": "sent", "telegram": "sent"}
@@ -102,9 +118,9 @@ def test_an_alert_goes_to_email_and_telegram(recipients: None, telegram: mock.Ma
         in message.body
     )
     assert "Silence or inspect: http://grafana.localhost/alertmanager" in message.body
-    (call,) = telegram.call_args_list
-    assert call.args[0] == f"https://api.telegram.org/bot{BOT}/sendMessage"
-    sent = call.kwargs["json"]
+    (request,) = telegram.requests
+    assert str(request.url) == f"https://api.telegram.org/bot{BOT}/sendMessage"
+    sent = json.loads(request.content)
     assert sent["chat_id"] == "-1001234567890"
     assert sent["parse_mode"] == "HTML"
     assert "<b>FIRING: FireDrill</b>" in sent["text"]
@@ -134,7 +150,7 @@ def test_a_resolved_alert_says_so(recipients: None) -> None:
 )
 def test_severities_choose_the_channels(
     recipients: None,
-    telegram: mock.MagicMock,
+    telegram: FakeTelegram,
     case: tuple[str, str, str, dict[str, str]],
 ) -> None:
     email_policy, telegram_policy, severity, expected = case
@@ -144,14 +160,14 @@ def test_severities_choose_the_channels(
     assert response.json() == expected
 
 
-def test_switched_off_nothing_is_sent(recipients: None, telegram: mock.MagicMock) -> None:
+def test_switched_off_nothing_is_sent(recipients: None, telegram: FakeTelegram) -> None:
     set_setting("monitoring.alerts_enabled", False, actor=None)
     assert post(payload(alert("WebNotReady", "critical"))).json() == {
         "email": "skipped",
         "telegram": "skipped",
     }
     assert mail.outbox == []
-    telegram.assert_not_called()
+    assert telegram.requests == []
 
 
 def test_without_recipients_or_a_bot_nothing_is_attempted() -> None:
@@ -161,15 +177,15 @@ def test_without_recipients_or_a_bot_nothing_is_attempted() -> None:
 
 
 def test_no_smtp_server_means_no_email(recipients: None, settings: Any) -> None:
-    settings.EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    settings.EMAIL_BACKEND = SETTINGS_BACKEND
     settings.EMAIL_HOST = ""
     assert post(payload(alert("WebNotReady", "critical"))).json()["email"] == "skipped"
 
 
 def test_one_failing_channel_is_reported_and_counted(
-    recipients: None, telegram: mock.MagicMock
+    recipients: None, telegram: FakeTelegram
 ) -> None:
-    telegram.return_value = httpx.Response(400, json={"ok": False, "description": "chat not found"})
+    telegram.response = httpx.Response(400, json={"ok": False, "description": "chat not found"})
     failed = deliveries("telegram", "failed")
     response = post(payload(alert("WebNotReady", "critical")))
     assert response.status_code == 200  # email went out; Alertmanager must not resend it
@@ -178,9 +194,9 @@ def test_one_failing_channel_is_reported_and_counted(
 
 
 def test_every_channel_failing_asks_alertmanager_to_retry(
-    recipients: None, telegram: mock.MagicMock, caplog: pytest.LogCaptureFixture
+    recipients: None, telegram: FakeTelegram, caplog: pytest.LogCaptureFixture
 ) -> None:
-    telegram.side_effect = httpx.ConnectError("no route")
+    telegram.error = httpx.ConnectError("no route")
     with mock.patch("django.core.mail.EmailMessage.send", side_effect=OSError("SMTP down")):
         response = post(payload(alert("WebNotReady", "critical")))
     assert response.status_code == 503
@@ -240,3 +256,53 @@ def test_odd_payloads_are_tolerated() -> None:
     assert notice.status == "firing"
     assert len(notice.alerts) == 1
     assert notice.alerts[0].name == ""
+
+
+# --- Alertmanager's fallback channels (CFG, ADR-0019) ----------------------------------------
+
+
+def fallback(token: str = TOKEN) -> Any:
+    return Client().get(
+        "/internal/alert-fallback", headers={**INTERNAL, "authorization": f"Bearer {token}"}
+    )
+
+
+def decoded(response: Any) -> dict[str, str]:
+    import base64  # noqa: PLC0415
+
+    lines = response.content.decode().splitlines()
+    return {
+        name: base64.b64decode(value).decode()
+        for name, value in (line.split("\t") for line in lines)
+    }
+
+
+@pytest.mark.usefixtures("no_server_config")
+def test_the_fallback_follows_the_admin_s_settings(recipients: None) -> None:
+    assert decoded(fallback())["email_to"] == ""  # no SMTP server yet
+    set_setting("email.smtp_host", "smtp.example.com", actor=None)
+    set_setting("email.smtp_port", 465, actor=None)
+    set_setting("email.smtp_security", "ssl", actor=None)
+    set_setting("email.smtp_username", "alerts", actor=None)
+    set_setting("email.smtp_password", "smtp-Fallback-1", actor=None)
+    set_setting("notifications.telegram_bot_token", BOT, actor=None)
+    set_setting("notifications.telegram_chat_id", "-100123", actor=None)
+    response = fallback()
+    assert response.status_code == 200
+    assert response["Cache-Control"].startswith("max-age=0")
+    values = decoded(response)
+    assert values["email_to"] == "ops@example.com, oncall@example.com"
+    assert values["smarthost"] == "smtp.example.com:465"
+    assert values["require_tls"] == "false"
+    assert (values["username"], values["smtp_password"]) == ("alerts", "smtp-Fallback-1")
+    assert (values["telegram_bot_token"], values["telegram_chat_id"]) == (BOT, "-100123")
+    set_setting("monitoring.telegram_severities", "none", actor=None)
+    assert decoded(fallback())["telegram_bot_token"] == ""
+    set_setting("monitoring.alerts_enabled", False, actor=None)
+    assert set(decoded(fallback()).values()) == {"", "true"}
+
+
+def test_the_fallback_needs_the_shared_secret(settings: Any) -> None:
+    assert fallback("wrong").status_code == 401
+    settings.ALERT_WEBHOOK_TOKEN = ""
+    assert fallback().status_code == 404

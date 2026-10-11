@@ -16,6 +16,7 @@ from apps.accounts.permissions import HasPermission, Requirements, request_permi
 from apps.audit.models import AuditLog
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.schema import problems
+from apps.core.services import get_setting
 from apps.dashboard import activity, charts, health, services, storage
 from apps.dashboard.serializers import (
     ActivityQuerySerializer,
@@ -28,6 +29,7 @@ from apps.dashboard.serializers import (
 )
 from apps.engagement.models import WatchProgress
 
+#: When neither the admin nor the service's settings name a valid zone.
 DEFAULT_TIME_ZONE = "Asia/Riyadh"
 
 
@@ -45,8 +47,10 @@ class KpisView(APIView):
 
 
 def _time_zone(request: Request) -> ZoneInfo:
+    """The admin's own zone, else the service's (`branding.time_zone`)."""
+    service = str(get_setting("branding.time_zone")) or DEFAULT_TIME_ZONE
     try:
-        return ZoneInfo(getattr(request.user, "timezone", "") or DEFAULT_TIME_ZONE)
+        return ZoneInfo(getattr(request.user, "timezone", "") or service)
     except (ZoneInfoNotFoundError, ValueError):
         return ZoneInfo(DEFAULT_TIME_ZONE)
 

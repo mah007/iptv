@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import { AccountMenu } from "./account-menu";
 import { BrandLockup } from "./brand";
+import { SupportContacts } from "./support-contacts";
 import { needsRenewNotice, RenewBanner, useAccessState } from "./renew-banner";
 
 interface NavLink {
@@ -112,6 +113,9 @@ export function PortalLayout() {
       >
         <RenewBanner state={access} />
         <Outlet />
+        <footer className="mx-auto max-w-[1800px] px-4 pt-10 sm:px-6 lg:px-10">
+          <SupportContacts />
+        </footer>
       </main>
       <nav
         aria-label={t("nav.label")}

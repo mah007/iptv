@@ -28,7 +28,6 @@ def _overlay(settings: Any) -> None:
         "prometheus_retention_size": "10GB",
         "loki_retention": "720h",
     }
-    settings.ALERT_FALLBACK = {"email": True, "telegram": False}
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
     core_metrics.FIRE_DRILL.publish({})
 
@@ -39,8 +38,12 @@ def api(user: User) -> APIClient:
     return client
 
 
-def test_the_status_shows_delivery_and_the_values_that_need_a_restart(owner: User) -> None:
+def test_the_status_shows_delivery_and_the_values_that_need_a_restart(
+    owner: User, no_server_config: None
+) -> None:
     set_setting("monitoring.alert_emails", "a@example.com, b@example.com", actor=None)
+    # Alertmanager's fallback uses the same settings (fetched from Django, ADR-0019).
+    set_setting("email.smtp_host", "smtp.example.com", actor=None)
     body = api(owner).get(STATUS, headers=ADMIN).json()
     assert body == {
         "enabled": True,

@@ -172,6 +172,26 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/branding:
+    get:
+      operationId: branding_retrieve
+      description: "Public: every app shows the admin's branding, sign-in pages included."
+      summary: The service's name, logos, colour and support contacts
+      tags:
+        - branding
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branding"
+          description: ""
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/categories:
     get:
       operationId: categories_list
@@ -2062,6 +2082,55 @@ components:
       required:
         - because_of
         - items
+    Branding:
+      type: object
+      properties:
+        service_name:
+          $ref: "#/components/schemas/BrandingNames"
+        accent_color:
+          type: string
+        logo_light_url:
+          type:
+            - string
+            - "null"
+        logo_dark_url:
+          type:
+            - string
+            - "null"
+        support:
+          $ref: "#/components/schemas/BrandingSupport"
+        default_language:
+          $ref: "#/components/schemas/DefaultLanguageEnum"
+      required:
+        - accent_color
+        - default_language
+        - logo_dark_url
+        - logo_light_url
+        - service_name
+        - support
+    BrandingNames:
+      type: object
+      properties:
+        en:
+          type: string
+        ar:
+          type: string
+      required:
+        - ar
+        - en
+    BrandingSupport:
+      type: object
+      properties:
+        email:
+          type: string
+        phone:
+          type: string
+        whatsapp:
+          type: string
+      required:
+        - email
+        - phone
+        - whatsapp
     Cast:
       type: object
       properties:
@@ -2460,6 +2529,14 @@ components:
         - source
         - starts_at
         - status
+    DefaultLanguageEnum:
+      enum:
+        - ar
+        - en
+      type: string
+      description: |-
+        * `ar` - ar
+        * `en` - en
     DeliveryEnum:
       enum:
         - progressive

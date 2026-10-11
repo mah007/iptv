@@ -77,7 +77,14 @@ def test_templates_list_every_event_in_both_languages(owner_client: APIClient) -
     assert len(rows) == len(EVENTS) * 2
     expired = next(r for r in rows if (r["key"], r["locale"]) == ("expired", "en"))
     assert expired["is_default"] is True
-    assert expired["variables"][:4] == ["service_name", "name", "support_email", "portal_url"]
+    assert expired["variables"][:6] == [
+        "service_name",
+        "name",
+        "support_email",
+        "support_phone",
+        "support_whatsapp",
+        "portal_url",
+    ]
     assert "plan_name" in expired["variables"]
     reset = next(r for r in rows if r["key"] == "password_reset")
     assert reset["secret"] is True

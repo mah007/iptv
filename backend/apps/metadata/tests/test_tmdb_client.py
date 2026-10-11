@@ -73,6 +73,8 @@ def make_client(fake: FakeTMDB, sleeps: list[float] | None = None, **options: An
 
 def test_api_key_is_a_query_parameter_and_never_logged(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG)
+    # httpx is quiet (WARNING) by default; with its request lines turned on, the key is masked.
+    caplog.set_level(logging.DEBUG, logger="httpx")
     fake = FakeTMDB(ok())
     with make_client(fake) as client:
         assert client.movie_details(603) == {"id": 603}

@@ -4,8 +4,8 @@
 
 > 🚧 **Status: the VOD platform is built and runs in production at tv.mah007.net, with optional monitoring. Live TV with EPG and catch-up is built (M12); security hardening and scale-out come next.**
 > - **Working end to end:** an admin signs in with MFA and creates a customer, typing the IPTV username and password or generating them. Media is scanned, matched on TMDB (English and Arabic), transcoded and served by the signed-URL edge, and IPTV apps log in and play over the Xtream API. The contract suite and an automated IPTVnator journey prove it.
-> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout); and monitoring (M13): seven Grafana dashboards, logs in Loki with credentials redacted, and alerts by email and Telegram, opened from the admin and configured in its Settings; and live TV (M12): your own licensed channels with an XMLTV guide, catch-up and timeshift, played by IPTV apps over the Xtream live URLs and managed in the admin.
-> - **Still to come:** security hardening (M14), scale-out and CDN (M15), and testing on real TVs and phones (M10).
+> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout); and monitoring (M13): seven Grafana dashboards, logs in Loki with credentials redacted, and alerts by email and Telegram, opened from the admin and configured in its Settings; and live TV (M12): your own licensed channels with an XMLTV guide, catch-up and timeshift, played by IPTV apps over the Xtream live URLs and managed in the admin; and dynamic configuration: TMDB, email, payments, Telegram, branding and every other setting are edited in the admin (secrets encrypted, each integration with a Test), with `.env` kept for bootstrap only; and operations security (M14b): encrypted backups with point-in-time restore and a weekly restore drill, CrowdSec, least-privilege database and Valkey users, hardened containers and scripted key rotation.
+> - **Still to come:** the rest of security hardening (M14: CSP, re-authentication, ZAP baseline), scale-out and CDN (M15), and testing on real TVs and phones (M10).
 >
 > See the [roadmap](#roadmap), [docs/PROGRESS.md](docs/PROGRESS.md) and the decisions in [docs/adr/](docs/adr/).
 
@@ -13,6 +13,15 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-11:** backups and server hardening (M14b):
+  - **Backups:** nightly encrypted backups (pgBackRest with continuous WAL archiving, restic for files, optional S3 offsite), point-in-time restore, a restore point before every update, and a weekly restore drill that alerts on failure. The admin's Backups page has *Back up now* and *Run restore drill*.
+  - **Data and access:** personal-data retention jobs; least-privilege database roles and cache users.
+  - **Hardening:** no Docker socket outside two allow-listing proxies, locked-down containers, TLS options, CrowdSec switched from the admin, and a key-rotation script with seven new runbooks.
+- **2026-10-11:** every password and integration is now configured in the admin:
+  - Settings → Integrations has TMDB, TheTVDB, email, Stripe, Moyasar and Telegram, each with a Test button; Settings → System shows the server facts.
+  - Secrets are encrypted in the database, write-only and audited without values; values already in `.env` keep working until moved in.
+  - Logo, name and contacts show in the admin, portal, emails and invoices.
+- **2026-10-11:** operations security and backups (M14b). Encrypted backups (pgBackRest with continuous WAL archiving, restic for `.env`, secrets, artwork and optionally media), kept on the server and optionally in an S3-compatible bucket, with point-in-time restore and an automatic weekly restore drill that alerts when it fails; a Backups page in the admin. Also: CrowdSec with a Traefik bouncer (switched in Settings → Security), a restricted database role and Valkey users for the app, no Docker socket outside two allowlisting proxies, every container capability-dropped, read-only and digest-pinned, TLS options for an A+, personal-data retention jobs (Settings → Privacy), `scripts/rotate-keys.sh`, and runbooks for backups, rollback, key rotation, leaks and incidents.
 - **2026-10-11:** live TV and monitoring deployed to tv.mah007.net with `install.sh --update --monitoring` (about 3 minutes). Every host answers over HTTPS, including grafana.tv.mah007.net behind the admin sign-in, and the live Xtream contract suite passes (195 passed; the live-channel checks skip until channels are added). Milestones M12 and M13 are tagged.
 - **2026-10-11:** monitoring (M13): an opt-in overlay with Prometheus, Grafana, Loki and Alertmanager, 7 dashboards and 27 alerts. Alerts go to email and Telegram, set in the admin (Settings → Monitoring), with a "Send a test alert" button. Grafana opens only through the admin's MFA sign-in, and logs are scrubbed of credentials twice. `install.sh` asks whether to turn it on.
 - **2026-10-11:** live TV and EPG (M12): channels you own or license (with licence dates), XMLTV guide import, the Xtream live endpoints and `xmltv.php`, live playback as `.ts` or HLS, and catch-up within a disk budget set in the admin. Also: optional MediaMTX ingest for your own encoders and ErsatzTV sync, the admin Live TV and EPG pages, and two threat-model fixes (one login can't feed two households; no internal addresses as sources).
@@ -39,6 +48,7 @@ Newest first; each step that lands on `main` adds a line here. Details in [docs/
 - [Quick start (development)](#quick-start-development)
 - [Connecting an IPTV app](#connecting-an-iptv-app)
 - [Deployment (production)](#deployment-production)
+- [Configuration](#configuration)
 - [Roadmap](#roadmap)
 - [Repository layout](#repository-layout)
 - [Development workflow](#development-workflow)
@@ -101,11 +111,15 @@ From a file on disk to a TV screen:
 - ✅ Payments: manual, Stripe and Moyasar (mada, Apple Pay, STC Pay); the card providers switch on with their keys. 🔜 PayPal, HyperPay and Tap.
 - ✅ Sequential invoices with VAT, as print-ready pages in Arabic and English (the browser saves them as PDF).
 - ✅ Notifications by email, with admin-editable Arabic and English templates; monitoring alerts by email and Telegram. 🔜 Telegram and WhatsApp for customer messages.
+- ✅ Branding from the admin: the service name, logos (light and dark), support phone, email and WhatsApp, default language and time zone, shown in both apps, emails and invoices.
 
 **Operations**
 - ✅ Prometheus metrics and credential redaction in every log (Django, Nginx and Traefik at the source, Alloy again before Loki, with an automated test).
 - ✅ Optional monitoring overlay: seven Grafana dashboards (streaming, transcoding, library, business, platform, edges, hosts and GPU), 30 days of logs in Loki with one request id across Traefik, Django and the edge, and 27 alerts sent by email and Telegram. Admins open it from the admin with their own MFA sign-in; recipients, Telegram, severities and the edge capacity are admin settings; "Send a test alert" checks the whole path.
-- ✅ An audit log of every admin action; sign-in rate limits and lockouts. 🔜 Backups with a restore drill, and CrowdSec.
+- ✅ An audit log of every admin action (append-only in the database); sign-in rate limits and lockouts.
+- ✅ Encrypted backups: the database with point-in-time recovery (pgBackRest, continuous WAL archiving), plus `.env`, secrets, artwork and optionally media (restic), on the server and optionally in an S3-compatible bucket. An automatic weekly restore drill proves they restore, and alerts if not. The admin's **Backups** page shows it all and has **Back up now**; schedule and retention are in Settings → Backups.
+- ✅ CrowdSec on Traefik's logs with a bouncer that blocks at the edge (switch and allowlist in Settings → Security); personal-data retention jobs (Settings → Privacy); scripted rotation of every key and password.
+- ✅ **Configuration in the admin, not in files.** Integrations (TMDB, TheTVDB, SMTP, Stripe, Moyasar, Telegram) each have a card with its status and a server-side **Test**; secrets are encrypted at rest, never shown again and audited without values; changes apply in every process within seconds, Alertmanager's fallback included. A System page shows the installation's facts and why the few bootstrap secrets stay in `.env`. Older `.env` values keep working and can be moved in with one click.
 
 ## Architecture
 
@@ -186,7 +200,7 @@ Every dependency imported into our code is permissively licensed (MIT, BSD, Apac
 ### Accounts and keys
 - **TMDB API key.** Commercial use needs a TMDB commercial licence. Without a key, development runs on recorded fixtures.
 - **TheTVDB** (optional, for TV ordering). Its paid tier is required above $50k revenue.
-- Payment provider, SMTP, Telegram bot and WhatsApp Business accounts, as needed.
+- Payment provider, SMTP, Telegram bot and WhatsApp Business accounts, as needed. Keys are entered in the admin (**Settings → Integrations**), not in files.
 
 ### Hardware sizing
 These are starting points, not benchmarks. The M15 load-test report will replace them with measured figures.
@@ -238,6 +252,8 @@ On port 8080, add `:8080` to each URL. Modern browsers and curl resolve `*.local
 | `make monitoring-test` | Monitoring configs, alert-rule unit tests, dashboard queries and the log-redaction pipeline test, in Docker without the stack (part of `make ci`) |
 | `make monitoring-smoke` · `make monitoring-firedrill` | With the overlay up: targets, rules, the admin-only Grafana and a request id traced in Loki · a test alert end to end, read back from Mailpit |
 | `make monitoring-dashboards` | Regenerate the Grafana dashboards from `monitoring/grafana/build_dashboards.py` |
+| `make backup` · `make restore-test` | Back up now through the `backup` service · the restore drill: the latest backup and WAL restored into a throwaway server and compared with live (part of `make ci`) |
+| `make hardening-test` · `make crowdsec-test` | Every production service capability-dropped, read-only, digest-pinned and off the Docker socket (part of `make ci`) · with `CROWDSEC=1`: a banned address gets 403, and the admin's switch works |
 
 Demo data and media:
 
@@ -248,7 +264,7 @@ Demo data and media:
 | `make media-ready` | Adds the sample libraries if missing, then waits until a movie and a series are scanned, matched and transcoded |
 | `make live-ready` | The legal synthetic live channel: a test pattern looped by the dev MediaMTX, with a generated guide, waiting until 3 minutes of catch-up are recorded; about a second on reruns |
 | `make compat` · `make compat-live` · `make e2e-iptvnator` | Xtream contract suite: offline, against the running stack, and an IPTVnator journey that signs in and plays |
-| `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session, add a live channel) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
+| `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session, add a live channel, set SMTP to Mailpit and send a test email from Integrations) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
 | `make e2e-portal` | Portal journey in Playwright (sign in, Arabic search, play The Matrix, continue watching, sign out) and axe on ten pages in Arabic/light and English/dark at 390 px. Report in `dist/portal-e2e` |
 
 ## Connecting an IPTV app
@@ -275,7 +291,7 @@ Supported apps include IPTV Smarters, TiviMate, XCIPTV, OTT Navigator, IBO Playe
 
 ## Deployment (production)
 
-> **The small tier works today, with a one-command installer.** One host runs everything behind Traefik with Let's Encrypt TLS and HSTS, optionally with monitoring. The live server at tv.mah007.net runs exactly this. Backups, zero-downtime deploys and the medium/large tiers come in M14–M15.
+> **The small tier works today, with a one-command installer.** One host runs everything behind Traefik with Let's Encrypt TLS and HSTS, optionally with monitoring. The live server at tv.mah007.net runs exactly this. It includes encrypted backups with a weekly restore drill, and CrowdSec. Zero-downtime deploys and the medium/large tiers come in M15.
 
 ### Install on a server
 **You need:**
@@ -293,8 +309,10 @@ sudo bash install.sh
 - the domain;
 - the owner admin's email (also the Let's Encrypt contact), sign-in name and password (or generates a strong one);
 - the media folder (`/srv/media`), and whether to add legal synthetic sample titles to try it out;
-- optionally a TMDB token for posters and Arabic/English metadata, SMTP settings for emails, and whether to enable the ufw firewall;
-- whether to enable monitoring (default yes with 8 GB of memory or more; about 1.5–2 GB), who gets alert emails (the admin email by default) and an optional Telegram bot and chat.
+- optionally a TMDB token for posters and Arabic/English metadata, SMTP settings for emails (both saved in the admin's settings, where you edit them later), and whether to enable the ufw firewall;
+- whether to enable monitoring (default yes with 8 GB of memory or more; about 1.5–2 GB), who gets alert emails (the admin email by default) and an optional Telegram bot and chat;
+- where to keep backups (`/var/backups/smart-iptv`; another disk is better), whether to include the media, and optionally an S3-compatible bucket for offsite copies;
+- whether to run CrowdSec (default yes), and whether to share with its community blocklist (default no).
 
 **It checks** the OS, CPU, memory, disk, ports 80/443, internet access and the DNS records, and refuses to install over an existing installation.
 
@@ -303,18 +321,23 @@ sudo bash install.sh
 2. writes `.env` with secrets generated on the server (mode 600; never shown or logged);
 3. builds and starts the stack (10–20 minutes the first time);
 4. creates the owner admin and the Movies and Series libraries;
-5. checks HTTPS on every host and prints the URLs.
+5. checks HTTPS on every host and prints the URLs;
+6. shows the **backup passphrase** once (also in `/root/smart-iptv-backup-passphrase.txt`): keep a copy away from the server, because no backup can be read without it. The first backup and restore drill run within minutes.
 
 | Task | Command |
 |---|---|
 | Update to the latest code, keeping every setting | `sudo /opt/iptv/scripts/install.sh --update` |
-| Change the domain, email, media folder, TMDB, SMTP or monitoring | `sudo /opt/iptv/scripts/install.sh --reconfigure` |
+| Change the domain, admin email, media folder or monitoring (everything else: admin → Settings) | `sudo /opt/iptv/scripts/install.sh --reconfigure` |
 | Turn monitoring on (or off) for an existing installation | `sudo /opt/iptv/scripts/install.sh --update --monitoring` (`--no-monitoring`) |
+| Turn CrowdSec on (or off) | `sudo /opt/iptv/scripts/install.sh --update --crowdsec` (`--no-crowdsec`) |
+| Back up now, or run the restore drill | admin → **Backups**, or `docker compose ... exec web python manage.py backup_now --wait` (`restore_drill --wait`) |
+| Restore the database to a point in time, undo an update | [docs/runbooks/backups.md](docs/runbooks/backups.md), [docs/runbooks/rollback.md](docs/runbooks/rollback.md) |
+| Rotate a key or password | `sudo /opt/iptv/scripts/rotate-keys.sh <kind>` ([docs/runbooks/rotate-keys.md](docs/runbooks/rotate-keys.md)) |
 | Unattended install (secrets in environment variables, never options) | `sudo ADMIN_PASSWORD=... TMDB_TOKEN=... bash install.sh --yes --domain tv.example.com --email ops@example.com` |
 | See what it would do, changing nothing | `bash install.sh --dry-run` |
 | Every option | `bash install.sh --help` |
 
-The admin enrols an authenticator app (TOTP) at first sign-in. A generated password is shown once and saved to `/root/smart-iptv-admin.txt` (root only): move it to a password manager. Back up `/opt/iptv/.env` and `/opt/iptv/secrets/`, because the databases and playback URLs depend on them. The manual steps the installer runs are in [docs/runbooks/deploy.md](docs/runbooks/deploy.md).
+The admin enrols an authenticator app (TOTP) at first sign-in. A generated password is shown once and saved to `/root/smart-iptv-admin.txt` (root only): move it to a password manager. `/opt/iptv/.env` and `/opt/iptv/secrets/` are in the nightly backups (encrypted); the backup passphrase is the one thing you must keep elsewhere. Every update first creates a restore point, so it can be undone. The manual steps the installer runs are in [docs/runbooks/deploy.md](docs/runbooks/deploy.md), and the security checklist after installing is in [docs/runbooks/security.md](docs/runbooks/security.md).
 
 ### Tiers
 | Tier | Layout | Status |
@@ -325,7 +348,8 @@ The admin enrols an authenticator app (TOTP) at first sign-in. A generated passw
 ### Beyond the installer
 - ✅ **Monitoring (M13):** the `compose.monitoring.yml` overlay (the installer's monitoring question) with Grafana, Prometheus and Alertmanager on `grafana.<domain>` behind the admin's sign-in, and alerts by email and Telegram; what each alert means and what to do is in [docs/runbooks/alerts.md](docs/runbooks/alerts.md).
 - ✅ **Live TV (M12):** included in every install and update (the `live` packager, the `live-relay` and the `live-data` volume). The catch-up disk budget and the other live settings are in the admin (**Settings → Live TV**). The optional MediaMTX ingest for your own encoders and OBS is `LIVE_INGEST=1` in `.env` plus `install.sh --update`. Channels, ingest, ErsatzTV, guides and disk sizing are in [docs/runbooks/live-tv.md](docs/runbooks/live-tv.md).
-- 🔜 **Backups (M14):** nightly `pg_dump` plus WAL archiving, encrypted to object storage; media with restic (renditions are excluded because they can be regenerated); `make restore-test` weekly.
+- ✅ **Backups (M14b):** included in every install and update. pgBackRest takes a full backup weekly and a differential nightly, and archives WAL continuously (at most 5 minutes of data at risk); restic keeps `.env`, `secrets/`, the artwork, a logical dump and optionally the media (renditions are excluded because they can be regenerated). Everything is encrypted, kept in `BACKUP_DIR` and optionally copied to an S3-compatible bucket (Settings → Backups). A restore drill runs weekly; its result and restore time are on the admin's Backups page, and a failure alerts. Restores, disaster recovery and rollback: [docs/runbooks/backups.md](docs/runbooks/backups.md), [docs/runbooks/rollback.md](docs/runbooks/rollback.md).
+- ✅ **Server security (M14b):** CrowdSec (opt-in at install, on by default), ufw with SSH rate-limited or limited to your networks, TLS 1.2+ with forward-secret ciphers, least-privilege database and Valkey users, and key rotation. The checklist, CrowdSec commands and the privacy settings are in [docs/runbooks/security.md](docs/runbooks/security.md); for trouble, [leaked-credential.md](docs/runbooks/leaked-credential.md) and [incident-response.md](docs/runbooks/incident-response.md).
 - 🔜 **Zero-downtime deploys (M15):** `make deploy` with prebuilt images and two health-gated `web` replicas. Today an update restarts the app for a few seconds.
 - **GPU transcoding:** a server with an NVIDIA or Intel GPU can add `docker/compose.gpu-nvidia.yml` or `docker/compose.gpu-intel.yml` (the NVIDIA Container Toolkit, or `/dev/dri`, must be available).
 
@@ -347,6 +371,22 @@ The admin enrols an authenticator app (TOTP) at first sign-in. A generated passw
 - [ ] Privacy policy and terms published in Arabic and English, with data-retention jobs active.
 - [ ] Rate limits and CrowdSec active, OWASP ZAP baseline clean, dependency scans clean.
 
+## Configuration
+
+Everything you change while running the service lives in the admin, like any end-user product ([ADR-0019](docs/adr/0019-dynamic-configuration.md)):
+
+| Where | What |
+|---|---|
+| **Settings → Integrations** | TMDB, TheTVDB, email (SMTP), Stripe, Moyasar and Telegram: one card each with its status (configured, from server config, incomplete, not set) and a **Test**: a test email to yourself, a key check against the provider, a test Telegram message. Save, then Test. |
+| **Settings** | Every setting, grouped: branding (names, logos, support contacts, language, time zone), Xtream, playback, library and transcoding, metadata, email, notifications, billing, trials, security, feature flags, live TV, monitoring. Each shows where its value comes from. |
+| **Settings → System** | Read-only: version and commit, hosts, folders, monitoring and live ingest, the settings still read from `.env`, the bootstrap secrets (where each lives and why) and key rotations. |
+
+**Secrets** (SMTP password, TMDB token, payment keys, the Telegram bot token) are encrypted in the database with `FIELD_ENCRYPTION_KEY`, never sent back to the browser, never logged, and audited as "changed" without values. Inputs are never prefilled: **Replace**, **Clear**, and for a value from `.env`, **Move into settings** or **Turn off**.
+
+**Changes apply without a restart**, in every process: web, the workers, the transcoder, the live packager, the watcher, and Alertmanager's fallback (which fetches its settings from Django every minute).
+
+**What stays in `.env`, and why:** only what is needed before the database is reachable, or would break the stack if changed live: the domain and hosts, folders, the data stores' passwords, `DJANGO_SECRET_KEY`, `FIELD_ENCRYPTION_KEY` (it decrypts the stored secrets), the media token keys, and the monitoring and MediaMTX containers' own credentials. `install.sh --reconfigure` changes the domain, admin email, media folder and monitoring. Servers installed earlier keep their `.env` TMDB and SMTP values working as a fallback ("from server config") until you move them in; `manage.py settings_report` lists them (names only), and `manage.py set_setting KEY --stdin` sets a value from a script.
+
 ## Roadmap
 
 Each milestone ends with a checkpoint: what was built, how to verify it, and an acceptance checklist. A milestone is tagged `m{N}-done` once every criterion passes.
@@ -367,7 +407,8 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 | M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, checkout (manual, Stripe, Moyasar) | ✅ Done (provider sandboxes need keys) |
 | M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up and timeshift, ErsatzTV and MediaMTX integrations | ✅ Done (portal live TV later) |
 | M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | ✅ Done |
-| M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | Partly (rate limits, lockouts) |
+| CFG | Dynamic configuration | Encrypted secret settings with the `.env` fallback, Integrations page with Tests, System page, branding, Alertmanager's fallback from Django, installer writes settings | ✅ Done |
+| M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | Partly: rate limits, lockouts; backups, restore drill, CrowdSec, key rotation and container hardening (M14b) done |
 | M15 | Scale & CDN | Standalone edges, S3 origin, Bunny CDN token auth, Postgres replica, load-test report at 1,000+ virtual users | Planned |
 | Later | Beyond v1 | Native TV apps, pluggable ML recommender | Ideas |
 
@@ -379,11 +420,11 @@ backend/     Django apps: accounts, billing, catalog, library, metadata, media,
 frontend/    pnpm workspace: packages/ui (design system), packages/api (generated client),
              apps/admin, apps/portal
 streaming/   Nginx edge config, njs token verification, FFmpeg rendition profiles
-docker/      Dockerfiles and compose files (base, dev, prod, GPU, monitoring), Traefik config
+docker/      Dockerfiles and compose files (base, dev, prod, GPU, monitoring, CrowdSec), Traefik config
 monitoring/  Prometheus rules, Grafana dashboards, Loki and Alloy config
 compat/      Xtream JSON schemas, golden fixtures, client checklist
 loadtests/   Locust and k6 scenarios
-scripts/     secrets, sample media, backup/restore, key rotation
+scripts/     installer, secrets, sample media, key rotation, hardening and CrowdSec checks
 docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, client setup guides (ar/en)
 ```
 
@@ -395,7 +436,8 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, client setup guides (ar/en
   - the stack and smoke test;
   - lint (with a missing-migrations check) and types;
   - the Xtream contract suite;
-  - tests;
+  - the monitoring checks and the container hardening check;
+  - tests, then a backup and a restore drill on the dev stack;
   - sample media scanned and transcoded, live Xtream contract checks, and the IPTVnator journey;
   - production images, started and health-checked with `check --deploy`;
   - a Trivy CVE and secret scan, and the licence gate.
@@ -412,6 +454,8 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, client setup guides (ar/en
 - Server-side concurrency limits, with sessions killable within 60 seconds.
 - Admin MFA (TOTP and WebAuthn), re-authentication for sensitive actions, and an idle timeout.
 - Rate limiting at Traefik and in Django, CrowdSec, a strict CSP and an append-only audit log.
+- Least privilege on the server: the app uses a database role that can't change the schema or rewrite the audit log, and Valkey users without dangerous commands; only two allowlisting proxies reach the Docker socket; every container drops all capabilities, can't gain privileges, has a read-only root and a digest-pinned image (`make hardening-test` enforces it).
+- Encrypted backups with point-in-time recovery and a weekly restore drill; scripted rotation of every key and password; personal-data retention jobs.
 - Credentials and tokens are redacted in every log pipeline (Traefik, Nginx, Django, Alloy), and a test enforces it.
 
 Please report vulnerabilities privately to the maintainer via [mah007.net](https://mah007.net), not in a public issue.

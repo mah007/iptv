@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from apps.dashboard import api, monitoring_api
+from apps.dashboard import api, integrations_api, monitoring_api
 
 urlpatterns = [
     path("dashboard/kpis", api.KpisView.as_view(), name="admin-dashboard-kpis"),
@@ -17,6 +17,18 @@ urlpatterns = [
         monitoring_api.MonitoringTestAlertView.as_view(),
         name="admin-monitoring-test-alert",
     ),
+    # CFG (ADR-0019): the Integrations and System pages.
+    path(
+        "integrations",
+        integrations_api.IntegrationListView.as_view(),
+        name="admin-integrations",
+    ),
+    path(
+        "integrations/<slug:name>/test",
+        integrations_api.IntegrationTestView.as_view(),
+        name="admin-integrations-test",
+    ),
+    path("system", integrations_api.SystemInfoView.as_view(), name="admin-system-info"),
     # SPEC §10 admin/users/{id}/history (customers are users; the admin API calls them customers).
     path(
         "customers/<uuid:pk>/history",

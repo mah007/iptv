@@ -1,15 +1,22 @@
 """The typed settings registry (SPEC §6 ops, §8.3 Settings).
 
-Every runtime-tunable value (branding, token TTLs, thresholds, feature flags) is
-declared here once with its type, default, constraints and group. The database
-(`core.Setting`) stores admin overrides only. Read values with
-`apps.core.services.get_setting`, change them with `set_setting`.
+Every runtime-tunable value (branding, token TTLs, thresholds, feature flags,
+integration credentials) is declared here once with its type, default, constraints
+and group. The database (`core.Setting`) stores admin overrides only. Read values
+with `apps.core.services.get_setting` (secrets: `get_secret`), change them with
+`set_setting`.
+
+Secrets (`sensitive=True`) are encrypted at rest, never returned by the API and
+audited without values. A setting may name server-config variables (`env`) as its
+fallback: the effective value is the admin's stored value, else the variable (set in
+`.env` before the admin existed), else the default (ADR-0019).
 """
 
 import json
 import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from email.utils import parseaddr
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Any
@@ -17,7 +24,12 @@ from typing import Any
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.validators import EmailValidator, URLValidator
 
+from apps.accounts.validators import validate_e164_phone, validate_timezone
+
 type SettingValue = bool | int | float | str
+#: Turns the raw server-config values of a setting's `env` names (None: unset) into
+#: one value for the setting, or None when they don't provide one.
+type EnvResolver = Callable[[Mapping[str, object | None]], object | None]
 
 
 class SettingKind(StrEnum):
@@ -29,6 +41,35 @@ class SettingKind(StrEnum):
 
 class UnknownSettingError(KeyError):
     """The key is not declared in the registry."""
+
+
+#: Widgets the admin renders instead of a text input (the value stays a string).
+WIDGETS: tuple[str, ...] = ("image",)
+
+_TRUE = {"1", "true", "yes", "on"}
+_FALSE = {"0", "false", "no", "off"}
+
+
+def parse_text(kind: SettingKind, raw: str) -> object:
+    """Text (stdin, an environment variable) into the setting's type; the registry
+    checks the rest. Raises ValidationError."""
+    text = raw.strip() if kind != SettingKind.STR else raw.rstrip("\r\n")
+    if kind == SettingKind.BOOL:
+        if text.lower() in _TRUE:
+            return True
+        if text.lower() in _FALSE:
+            return False
+        msg = "Expected true or false."
+        raise ValidationError(msg, code="invalid_type")
+    try:
+        if kind == SettingKind.INT:
+            return int(text)
+        if kind == SettingKind.FLOAT:
+            return float(text)
+    except ValueError:
+        msg = f"Expected a value of type {kind.value}."
+        raise ValidationError(msg, code="invalid_type") from None
+    return text
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,9 +84,19 @@ class SettingDef:
     min_value: float | None = field(default=None, kw_only=True)
     max_value: float | None = field(default=None, kw_only=True)
     choices: tuple[str, ...] | None = field(default=None, kw_only=True)
+    #: Server-config variables (Django settings, else the environment) used when the
+    #: admin has stored nothing; the first one set wins unless `env_resolve` decides.
+    env: tuple[str, ...] = field(default=(), kw_only=True)
+    env_resolve: EnvResolver | None = field(default=None, kw_only=True)
+    #: How the admin edits it when a text input won't do ("image": an upload).
+    widget: str | None = field(default=None, kw_only=True)
 
-    def clean(self, value: object) -> SettingValue:
-        """Return `value` converted to this setting's type, or raise ValidationError."""
+    def clean(self, value: object, *, check_format: bool = True) -> SettingValue:
+        """Return `value` converted to this setting's type, or raise ValidationError.
+
+        `check_format=False` skips the format validator (type, range and choices still
+        apply): a server-config value set before the validator existed keeps working.
+        """
         cleaned = self._coerce(value)
         if isinstance(cleaned, int | float) and not isinstance(cleaned, bool):
             if self.min_value is not None and cleaned < self.min_value:
@@ -57,7 +108,7 @@ class SettingDef:
         if self.choices is not None and cleaned not in self.choices:
             msg = f"Must be one of: {', '.join(self.choices)}."
             raise ValidationError(msg, code="invalid_choice")
-        if self.validator is not None:
+        if check_format and self.validator is not None:
             self.validator(cleaned)
         return cleaned
 
@@ -75,6 +126,22 @@ class SettingDef:
                 return value
         msg = f"Expected a value of type {self.kind.value}."
         raise ValidationError(msg, code="invalid_type")
+
+    def from_server_config(self, raw: Mapping[str, object | None]) -> SettingValue | None:
+        """This setting's value from its server-config variables, or None when they hold
+        none. Raises ValidationError for a value of the wrong type or out of range; the
+        format validator is not applied (`.env` values from before it keep working)."""
+        if self.env_resolve is not None:
+            candidate = self.env_resolve(raw)
+        else:
+            candidate = next((raw[name] for name in self.env if raw.get(name) is not None), None)
+        if candidate is None:
+            return None
+        if isinstance(candidate, str) and self.kind != SettingKind.STR:
+            candidate = parse_text(self.kind, candidate)
+        elif self.kind == SettingKind.STR and not isinstance(candidate, str):
+            candidate = str(candidate)
+        return self.clean(candidate, check_format=False)
 
 
 # --- Validators -------------------------------------------------------------------
@@ -147,9 +214,167 @@ def alert_email_list(value: Any) -> None:
 
 
 # --- end O1 ---
+# --- Integrations, email and branding (CFG, ADR-0019) ---
+SMTP_SECURITY_CHOICES: tuple[str, ...] = ("starttls", "ssl", "none")
+LANGUAGE_CHOICES: tuple[str, ...] = ("ar", "en")
+host_name = _optional(
+    _pattern(
+        re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?"),
+        "Enter a host name or address, e.g. smtp.example.com.",
+    )
+)
+tmdb_read_access_token = _optional(
+    _pattern(
+        re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
+        "Paste TMDB's API Read Access Token (a long text starting with eyJ).",
+    )
+)
+tmdb_api_key = _optional(
+    _pattern(re.compile(r"[0-9a-f]{32}"), "A TMDB API key is 32 letters and digits.")
+)
+tmdb_language = _pattern(re.compile(r"[a-z]{2}-[A-Z]{2}"), "Use a language tag such as en-US.")
+tvdb_api_key = _optional(
+    _pattern(re.compile(r"[A-Za-z0-9-]{16,64}"), "Paste the API key TheTVDB gave your project.")
+)
+tvdb_pin = _optional(
+    _pattern(re.compile(r"[A-Za-z0-9]{1,32}"), "Use the PIN's letters and digits.")
+)
+stripe_secret_key = _optional(
+    _pattern(
+        re.compile(r"(?:sk|rk)_(?:test|live)_[A-Za-z0-9]{10,250}"),
+        "A Stripe secret key starts with sk_test_, sk_live_, rk_test_ or rk_live_.",
+    )
+)
+stripe_webhook_secret = _optional(
+    _pattern(
+        re.compile(r"whsec_[A-Za-z0-9+/=]{10,200}"),
+        "A Stripe webhook signing secret starts with whsec_.",
+    )
+)
+moyasar_secret_key = _optional(
+    _pattern(
+        re.compile(r"sk_(?:test|live)_[A-Za-z0-9]{10,200}"),
+        "A Moyasar secret key starts with sk_test_ or sk_live_.",
+    )
+)
+webhook_token = _optional(
+    _pattern(re.compile(r"[!-~]{8,200}"), "Use 8 to 200 characters without spaces.")
+)
+
+
+def _phone(value: Any) -> None:
+    try:
+        validate_e164_phone(value)
+    except ValidationError:
+        msg = "Enter the number with its country code, e.g. +966501234567."
+        raise ValidationError(msg, code="invalid_phone") from None
+
+
+optional_phone = _optional(_phone)
+#: Logos are uploaded (the admin's image widget), stored under the media volume.
+branding_image = _optional(
+    _pattern(
+        re.compile(r"images/branding/logo-(?:light|dark)-[0-9a-f]{12}\.png"),
+        "Upload the logo; its stored name is set for you.",
+    )
+)
+
+
+def email_sender(value: Any) -> None:
+    """An address, or "Name <address>"; empty means the default sender."""
+    text = str(value)
+    if text == "":
+        return
+    message = 'Enter an address, or a name and an address: "Smart IPTV <no-reply@example.com>".'
+    if "\n" in text or "\r" in text:
+        raise ValidationError(message, code="invalid")
+    _name, address = parseaddr(text)
+    if not address:
+        raise ValidationError(message, code="invalid")
+    EmailValidator(message=message)(address)
+
+
+def smtp_security_from_env(raw: Mapping[str, object | None]) -> str | None:
+    """`EMAIL_USE_SSL`/`EMAIL_USE_TLS` (Django's pair) as one choice."""
+
+    def flag(name: str) -> bool | None:
+        value = raw.get(name)
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return value
+        text = str(value).strip().lower()
+        return True if text in _TRUE else False if text in _FALSE else None
+
+    ssl, tls = flag("EMAIL_USE_SSL"), flag("EMAIL_USE_TLS")
+    if ssl:
+        return "ssl"
+    if tls is None:
+        return None
+    return "starttls" if tls else "none"
+
+
+def seconds_to_hours_from_env(raw: Mapping[str, object | None]) -> int | None:
+    """`TRANSCODE_JOB_TIMEOUT_S` (seconds) as whole hours, rounded up."""
+    value = next((v for v in raw.values() if v is not None), None)
+    if value is None:
+        return None
+    try:
+        seconds = int(str(value).strip())
+    except ValueError:
+        return None
+    return max(1, -(-seconds // 3600))
+
+
+# --- end CFG ---
 
 
 # --- The registry -------------------------------------------------------------------
+
+# --- Backups, privacy and CrowdSec validators (H2, ADR-0020) ---
+_CLOCK = re.compile(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]")
+clock_time = _pattern(_CLOCK, "Enter a time as HH:MM (24-hour), e.g. 03:30.")
+_S3_BUCKET = re.compile(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")
+s3_bucket = _optional(_pattern(_S3_BUCKET, "Enter a bucket name, e.g. my-backups."))
+s3_prefix = _pattern(
+    re.compile(r"[A-Za-z0-9._/-]{0,200}"), "Use letters, digits, dots, dashes and slashes."
+)
+s3_region = _optional(
+    _pattern(re.compile(r"[a-z0-9-]{1,40}"), "Enter a region, e.g. eu-central-1.")
+)
+_S3_CREDENTIAL = re.compile(r"[A-Za-z0-9/+=._-]{3,256}")
+s3_credential = _optional(
+    _pattern(_S3_CREDENTIAL, "Paste the key exactly as the provider gave it.")
+)
+
+
+def time_zone(value: Any) -> None:
+    """An IANA time zone name such as Asia/Riyadh or UTC."""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError  # noqa: PLC0415
+
+    try:
+        ZoneInfo(str(value))
+    except (ZoneInfoNotFoundError, ValueError):
+        msg = "Enter a time zone such as Asia/Riyadh or UTC."
+        raise ValidationError(msg, code="invalid") from None
+
+
+def network_list(value: Any) -> None:
+    """IP addresses and CIDR networks separated by commas; empty: none."""
+    import ipaddress  # noqa: PLC0415
+
+    for part in (item.strip() for item in str(value).split(",")):
+        if not part:
+            continue
+        try:
+            ipaddress.ip_network(part, strict=False)
+        except ValueError:
+            msg = f"{part} is not an IP address or network (e.g. 203.0.113.0/24)."
+            raise ValidationError(msg, code="invalid") from None
+
+
+# --- end H2 ---
+
 
 GROUPS: tuple[str, ...] = (
     "branding",
@@ -163,6 +388,10 @@ GROUPS: tuple[str, ...] = (
     "features",
     "live",
     "monitoring",
+    "email",
+    "notifications",
+    "backups",
+    "privacy",
 )
 
 _K = SettingKind
@@ -191,6 +420,26 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "branding", hex_color),
     SettingDef("branding.support_email", _K.STR, "", "Support contact email.", "branding",
                optional_email),
+    # --- Branding and business (CFG, ADR-0019) ---
+    SettingDef("branding.support_phone", _K.STR, "",
+               "Support phone number, with its country code (+966...).", "branding",
+               optional_phone),
+    SettingDef("branding.support_whatsapp", _K.STR, "",
+               "Support WhatsApp number, with its country code (+966...).", "branding",
+               optional_phone),
+    SettingDef("branding.logo_light", _K.STR, "",
+               "Logo on light backgrounds (PNG, JPEG or WebP; shown in the apps, emails "
+               "and invoices).", "branding", branding_image, widget="image"),
+    SettingDef("branding.logo_dark", _K.STR, "",
+               "Logo on dark backgrounds (the dark theme); the light logo when empty.",
+               "branding", branding_image, widget="image"),
+    SettingDef("branding.default_language", _K.STR, "ar",
+               "Language of new customers and of first visits to the portal.", "branding",
+               choices=LANGUAGE_CHOICES),
+    SettingDef("branding.time_zone", _K.STR, "Asia/Riyadh",
+               "Time zone of new customers, the dashboard's days and invoice dates (IANA).",
+               "branding", validate_timezone),
+    # --- end CFG ---
     # Xtream server_info (SPEC §7.5)
     SettingDef("xtream.server_url", _K.STR, "",
                "Public base URL IPTV apps use as the server, e.g. https://tv.example.com.",
@@ -237,6 +486,22 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("library.watcher_stable_s", _K.INT, 60,
                "A new file is scanned once its size has not changed for this many seconds.",
                "library", min_value=5, max_value=3600),
+    # --- CFG (ADR-0019): formerly environment variables ---
+    SettingDef("library.watcher_polling", _K.BOOL, False,
+               "Poll the libraries for changes instead of listening for them (network "
+               "shares such as NFS or SMB, where change events never arrive).", "library",
+               env=("LIBRARY_WATCHER_POLLING",)),
+    SettingDef("library.transcode_max_attempts", _K.INT, 3,
+               "Attempts per transcode job before it fails for good.", "library",
+               min_value=1, max_value=10, env=("TRANSCODE_MAX_ATTEMPTS",)),
+    SettingDef("library.transcode_retry_backoff_s", _K.INT, 60,
+               "Seconds before a failed transcode job is retried (doubled each time).",
+               "library", min_value=0, max_value=3600, env=("TRANSCODE_RETRY_BACKOFF_S",)),
+    SettingDef("library.transcode_job_timeout_h", _K.INT, 12,
+               "A transcode running longer than this many hours is stopped.", "library",
+               min_value=1, max_value=72, env=("TRANSCODE_JOB_TIMEOUT_S",),
+               env_resolve=seconds_to_hours_from_env),
+    # --- end CFG ---
     # Media processing (SPEC §7.3, ADR-0014; T1)
     SettingDef("library.hls_enabled", _K.BOOL, True,
                "Encode the HLS ladder (adaptive streaming for the portal) at ingest.",
@@ -263,6 +528,30 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                json.dumps(dict(DEFAULT_GENRE_CATEGORY_MAP), separators=(",", ":")),
                "TMDB genre ids mapped to category slugs, as a JSON object.", "metadata",
                genre_category_map),
+    # --- TMDB and TheTVDB credentials (CFG, ADR-0019) ---
+    SettingDef("metadata.tmdb_read_access_token", _K.STR, "",
+               "TMDB API Read Access Token (preferred); without a credential, metadata comes "
+               "from the offline sample fixtures.", "metadata", tmdb_read_access_token,
+               sensitive=True, env=("TMDB_READ_ACCESS_TOKEN",)),
+    SettingDef("metadata.tmdb_api_key", _K.STR, "",
+               "TMDB API key (v3), used when no Read Access Token is set.", "metadata",
+               tmdb_api_key, sensitive=True, env=("TMDB_API_KEY",)),
+    SettingDef("metadata.tmdb_language", _K.STR, "en-US",
+               "Language of TMDB's main metadata; Arabic is always fetched as well.",
+               "metadata", tmdb_language, env=("TMDB_LANGUAGE",)),
+    SettingDef("metadata.tmdb_rate_limit_per_s", _K.INT, 35,
+               "Most TMDB requests per second, shared by every worker.", "metadata",
+               min_value=1, max_value=50, env=("TMDB_RATE_LIMIT_PER_S",)),
+    SettingDef("metadata.tmdb_cache_ttl_s", _K.INT, 86400,
+               "Seconds TMDB responses are cached.", "metadata",
+               min_value=3600, max_value=604800, env=("TMDB_CACHE_TTL_S",)),
+    SettingDef("metadata.tvdb_api_key", _K.STR, "",
+               "TheTVDB API key, for series TMDB can't match confidently.", "metadata",
+               tvdb_api_key, sensitive=True, env=("THETVDB_API_KEY",)),
+    SettingDef("metadata.tvdb_pin", _K.STR, "",
+               "TheTVDB subscriber PIN, needed only with a user-supported key.", "metadata",
+               tvdb_pin, sensitive=True),
+    # --- end CFG ---
     # Billing (SPEC §7.6)
     SettingDef("billing.vat_rate", _K.FLOAT, 0.15, "VAT rate applied to invoices.", "billing",
                min_value=0.0, max_value=1.0),
@@ -289,11 +578,25 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "حوّل المبلغ إلى حسابنا البنكي وأرسل لنا الإيصال مع ذكر الرقم المرجعي أدناه.",
                "How to pay by bank transfer or cash (Arabic).", "billing"),
     SettingDef("billing.stripe_enabled", _K.BOOL, False,
-               "Offer card payments through Stripe (needs STRIPE_SECRET_KEY and "
-               "STRIPE_WEBHOOK_SECRET).", "billing"),
+               "Offer card payments through Stripe (needs its secret key and webhook secret).",
+               "billing"),
     SettingDef("billing.moyasar_enabled", _K.BOOL, False,
-               "Offer mada, Apple Pay and STC Pay through Moyasar (needs MOYASAR_SECRET_KEY "
-               "and MOYASAR_WEBHOOK_SECRET).", "billing"),
+               "Offer mada, Apple Pay and STC Pay through Moyasar (needs its secret key and "
+               "webhook secret).", "billing"),
+    # --- Payment provider credentials (CFG, ADR-0019) ---
+    SettingDef("billing.stripe_secret_key", _K.STR, "",
+               "Stripe secret key (sk_test_... uses Stripe's sandbox).", "billing",
+               stripe_secret_key, sensitive=True, env=("STRIPE_SECRET_KEY",)),
+    SettingDef("billing.stripe_webhook_secret", _K.STR, "",
+               "Signing secret of the Stripe webhook endpoint (whsec_...).", "billing",
+               stripe_webhook_secret, sensitive=True, env=("STRIPE_WEBHOOK_SECRET",)),
+    SettingDef("billing.moyasar_secret_key", _K.STR, "",
+               "Moyasar secret key (sk_test_... uses Moyasar's sandbox).", "billing",
+               moyasar_secret_key, sensitive=True, env=("MOYASAR_SECRET_KEY",)),
+    SettingDef("billing.moyasar_webhook_secret", _K.STR, "",
+               "The secret token Moyasar sends with each webhook.", "billing",
+               webhook_token, sensitive=True, env=("MOYASAR_WEBHOOK_SECRET",)),
+    # --- end CFG ---
     SettingDef("billing.checkout_ttl_hours", _K.INT, 24,
                "Unpaid checkouts are voided after this many hours.", "billing",
                min_value=1, max_value=168),
@@ -375,16 +678,10 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "Send the monitoring alerts by email and Telegram.", "monitoring"),
     SettingDef("monitoring.alert_emails", _K.STR, "",
                "Who receives alert emails, separated by commas; empty: no alert email.",
-               "monitoring", alert_email_list),
+               "monitoring", alert_email_list, env=("ALERT_EMAIL_TO",)),
     SettingDef("monitoring.alert_email_severities", _K.STR, "all",
                "Which alerts are emailed: all, critical only, or none.", "monitoring",
                choices=ALERT_SEVERITY_CHOICES),
-    SettingDef("monitoring.telegram_bot_token", _K.STR, "",
-               "The Telegram bot that sends alerts (from @BotFather); empty: no Telegram.",
-               "monitoring", telegram_bot_token, sensitive=True),
-    SettingDef("monitoring.telegram_chat_id", _K.STR, "",
-               "The Telegram chat (or group, or channel) the bot sends alerts to.",
-               "monitoring", telegram_chat_id),
     SettingDef("monitoring.telegram_severities", _K.STR, "all",
                "Which alerts go to Telegram: all, critical only, or none.", "monitoring",
                choices=ALERT_SEVERITY_CHOICES),
@@ -395,7 +692,153 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "A monitoring sign-in (Grafana, Prometheus, Alertmanager) lasts this many hours.",
                "monitoring", min_value=1, max_value=24),
     # --- end O1 ---
+    SettingDef("monitoring.runbook_base_url", _K.STR,
+               "https://github.com/mah007/iptv/blob/main/",
+               "Where alert messages link the runbooks (docs/runbooks/alerts.md) to.",
+               "monitoring", optional_http_url, env=("RUNBOOK_BASE_URL",)),
+    # --- Email (SPEC §7.7; CFG, ADR-0019) ---
+    SettingDef("email.smtp_host", _K.STR, "",
+               "SMTP server for every email; empty: emails wait in the outbox.", "email",
+               host_name, env=("EMAIL_HOST",)),
+    SettingDef("email.smtp_port", _K.INT, 587, "SMTP port (587 STARTTLS, 465 SSL, 25 none).",
+               "email", min_value=1, max_value=65535, env=("EMAIL_PORT",)),
+    SettingDef("email.smtp_security", _K.STR, "starttls",
+               "Encryption: STARTTLS, SSL/TLS from the start, or none.", "email",
+               choices=SMTP_SECURITY_CHOICES, env=("EMAIL_USE_SSL", "EMAIL_USE_TLS"),
+               env_resolve=smtp_security_from_env),
+    SettingDef("email.smtp_username", _K.STR, "", "SMTP user name, if the server needs one.",
+               "email", env=("EMAIL_HOST_USER",)),
+    SettingDef("email.smtp_password", _K.STR, "", "SMTP password.", "email",
+               sensitive=True, env=("EMAIL_HOST_PASSWORD",)),
+    SettingDef("email.from_address", _K.STR, "",
+               "Sender of every email, e.g. \"Smart IPTV <no-reply@example.com>\"; empty: the "
+               "service name at no-reply@ the domain.", "email", email_sender,
+               env=("DEFAULT_FROM_EMAIL",)),
+    SettingDef("email.timeout_s", _K.INT, 20,
+               "Seconds to wait for the SMTP server before an attempt fails.", "email",
+               min_value=5, max_value=120, env=("EMAIL_TIMEOUT",)),
+    # --- Notification channels (SPEC §7.7; CFG, ADR-0019) ---
+    SettingDef("notifications.telegram_bot_token", _K.STR, "",
+               "The Telegram bot that sends alerts and messages (from @BotFather).",
+               "notifications", telegram_bot_token, sensitive=True,
+               env=("ALERT_TELEGRAM_BOT_TOKEN",)),
+    SettingDef("notifications.telegram_chat_id", _K.STR, "",
+               "The admins' Telegram chat (or group, or channel): alerts go there.",
+               "notifications", telegram_chat_id, env=("ALERT_TELEGRAM_CHAT_ID",)),
+    # --- end CFG ---
+    # --- Backups (H2, ADR-0020): the backup service asks Django for these ---
+    SettingDef("backups.enabled", _K.BOOL, True,
+               "Back up the database (with point-in-time recovery), the configuration and "
+               "the artwork.", "backups"),
+    SettingDef("backups.schedule_time", _K.STR, "03:30",
+               "Time of the nightly backup (HH:MM, in the time zone below).", "backups",
+               clock_time),
+    SettingDef("backups.schedule_timezone", _K.STR, "UTC",
+               "Time zone of the backup and restore drill times, e.g. Asia/Riyadh.", "backups",
+               time_zone),
+    SettingDef("backups.full_weekday", _K.INT, 6,
+               "Day of the full database backup (0 Monday ... 6 Sunday); other nights take a "
+               "differential backup.", "backups", min_value=0, max_value=6),
+    SettingDef("backups.db_full_retention", _K.INT, 2,
+               "Full database backups kept on this server, each with its differential "
+               "backups and WAL.", "backups", min_value=1, max_value=52),
+    SettingDef("backups.files_keep_daily", _K.INT, 7,
+               "Daily snapshots of the configuration, artwork and database dump kept.",
+               "backups", min_value=1, max_value=365),
+    SettingDef("backups.files_keep_weekly", _K.INT, 4, "Weekly snapshots kept.", "backups",
+               min_value=0, max_value=104),
+    SettingDef("backups.files_keep_monthly", _K.INT, 6, "Monthly snapshots kept.", "backups",
+               min_value=0, max_value=120),
+    SettingDef("backups.media_enabled", _K.BOOL, False,
+               "Also back up the media libraries (transcoded copies are left out; this can "
+               "need as much space as the libraries).", "backups"),
+    SettingDef("backups.drill_enabled", _K.BOOL, True,
+               "Run the weekly restore drill: the latest backup restored into a throwaway "
+               "database and checked.", "backups"),
+    SettingDef("backups.drill_weekday", _K.INT, 0,
+               "Day of the restore drill (0 Monday ... 6 Sunday).", "backups",
+               min_value=0, max_value=6),
+    SettingDef("backups.drill_time", _K.STR, "05:00", "Time of the restore drill (HH:MM).",
+               "backups", clock_time),
+    SettingDef("backups.s3_enabled", _K.BOOL, False,
+               "Also copy every backup to an S3-compatible bucket (offsite).", "backups"),
+    SettingDef("backups.s3_endpoint", _K.STR, "",
+               "The bucket service's address, e.g. https://s3.eu-central-1.amazonaws.com.",
+               "backups", optional_http_url),
+    SettingDef("backups.s3_region", _K.STR, "", "The bucket's region, if the service needs one.",
+               "backups", s3_region),
+    SettingDef("backups.s3_bucket", _K.STR, "", "The bucket's name.", "backups", s3_bucket),
+    SettingDef("backups.s3_prefix", _K.STR, "smart-iptv", "Folder inside the bucket.",
+               "backups", s3_prefix),
+    SettingDef("backups.s3_path_style", _K.BOOL, False,
+               "Address the bucket by path (MinIO and most self-hosted services) instead of "
+               "by host name.", "backups"),
+    SettingDef("backups.s3_access_key", _K.STR, "", "The bucket's access key id.", "backups",
+               s3_credential, sensitive=True),
+    SettingDef("backups.s3_secret_key", _K.STR, "", "The bucket's secret access key.",
+               "backups", s3_credential, sensitive=True),
+    SettingDef("backups.offsite_interval_minutes", _K.INT, 60,
+               "How often the database's backup repository is copied to the bucket, in "
+               "minutes (the offsite recovery point).", "backups", min_value=15,
+               max_value=1440),
+    # --- Personal-data retention (H2, ADR-0020; SPEC §17) ---
+    SettingDef("privacy.session_ip_days", _K.INT, 30,
+               "Days ended playback sessions keep their IP address and user agent.",
+               "privacy", min_value=1, max_value=3650),
+    SettingDef("privacy.session_retention_days", _K.INT, 365,
+               "Days ended playback sessions are kept.", "privacy", min_value=90,
+               max_value=3650),
+    SettingDef("privacy.watch_history_days", _K.INT, 365,
+               "Days a finished title stays in a customer's watch history.", "privacy",
+               min_value=30, max_value=3650),
+    SettingDef("privacy.resume_days", _K.INT, 730,
+               "Days an unfinished title keeps its resume point.", "privacy", min_value=30,
+               max_value=3650),
+    SettingDef("privacy.audit_retention_days", _K.INT, 730,
+               "Days audit entries are kept (billing entries follow the next setting).",
+               "privacy", min_value=365, max_value=3650),
+    SettingDef("privacy.audit_billing_retention_days", _K.INT, 2190,
+               "Days billing, payment and subscription audit entries are kept (VAT "
+               "record-keeping: six years).", "privacy", min_value=1826, max_value=7300),
+    SettingDef("privacy.outbox_retention_days", _K.INT, 90,
+               "Days sent or failed messages stay in the notification log.", "privacy",
+               min_value=7, max_value=3650),
+    SettingDef("privacy.auth_log_retention_days", _K.INT, 90,
+               "Days failed admin sign-in records (user name and IP) are kept.", "privacy",
+               min_value=7, max_value=3650),
+    SettingDef("privacy.webhook_payload_days", _K.INT, 365,
+               "Days payment providers' raw webhook payloads are kept (the payment records "
+               "stay).", "privacy", min_value=30, max_value=3650),
+    # --- CrowdSec (H2, ADR-0020): applied by Traefik when CrowdSec is installed ---
+    SettingDef("security.crowdsec_enforce", _K.BOOL, True,
+               "Block the addresses CrowdSec bans (when CrowdSec is installed on the server).",
+               "security"),
+    SettingDef("security.crowdsec_allowlist", _K.STR, "",
+               "Addresses and networks CrowdSec never blocks, separated by commas, e.g. your "
+               "office's 203.0.113.0/24.", "security", network_list),
+    # --- end H2 ---
 )  # fmt: skip
+
+
+_ENV_NAME = re.compile(r"[A-Z][A-Z0-9_]*")
+
+
+def _check_extras(definition: SettingDef) -> None:
+    """Secrets are text, env names are variable names, widgets are known."""
+    problem = ""
+    if definition.sensitive and definition.kind is not SettingKind.STR:
+        problem = "is sensitive but not a string"
+    elif not all(_ENV_NAME.fullmatch(name) for name in definition.env):
+        problem = f"names an invalid environment variable in {definition.env}"
+    elif definition.env_resolve is not None and not definition.env:
+        problem = "has env_resolve without env"
+    elif definition.widget is not None and (
+        definition.widget not in WIDGETS or definition.kind is not SettingKind.STR
+    ):
+        problem = f"has an unknown widget {definition.widget}"
+    if problem:
+        msg = f"Setting {definition.key} {problem}"
+        raise ImproperlyConfigured(msg)
 
 
 def build_registry(definitions: Iterable[SettingDef]) -> Mapping[str, SettingDef]:
@@ -413,6 +856,7 @@ def build_registry(definitions: Iterable[SettingDef]) -> Mapping[str, SettingDef
         except ValidationError as exc:
             msg = f"Setting {definition.key} has an invalid default: {exc.messages}"
             raise ImproperlyConfigured(msg) from exc
+        _check_extras(definition)
         registry[definition.key] = definition
     return MappingProxyType(registry)
 

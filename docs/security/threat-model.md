@@ -28,9 +28,9 @@
 2. **One slot can serve two households.** The session identity `sha256(user, device, title)` merges two clients watching the same title on one credential into one session and one concurrency slot. With live channels (M12), that lets one credential feed many viewers of the same match (G-13).
 3. **The edge must bind tokens to what they unlock.** Stream-auth must require an existing session, and the edge must check the requested title and rendition against the token, or a leaked key or a cheap token unlocks everything (G-14, G-15).
 4. **Client IP trust.** Lockouts, the audit trail, IP rules and anti-sharing scores all depend on the client IP; it must come only from the trusted proxy (G-04).
-5. **Traefik holds the Docker socket.** The `:ro` mount protects only the socket file, not the Docker API, so a Traefik compromise means root on the host (G-36).
+5. **Traefik holds the Docker socket.** The `:ro` mount protects only the socket file, not the Docker API, so a Traefik compromise means root on the host (G-36). **Fixed in M14b:** Traefik reaches Docker only through a socket proxy that allows container listing and events.
 6. **Passwords in messages.** The spec's welcome notification includes a QR code; if it encodes the password as the admin screen does, plaintext passwords end up in the outbox table and in mailboxes (G-28).
-7. **No backups yet.** The deploy runbook says nothing on the server is backed up until M14 (G-41).
+7. **No backups yet.** The deploy runbook said nothing on the server was backed up until M14 (G-41). **Fixed in M14b:** encrypted backups with point-in-time recovery and a weekly restore drill.
 8. **Anti-sharing scoring has no milestone.** Spec §11.1 risk scoring is not in any milestone row of spec §16 (G-27).
 9. **Licensors and DRM.** Xtream apps can't play DRM-protected streams, so every licence must accept non-DRM delivery (G-45).
 
@@ -183,7 +183,7 @@ flowchart TB
 |---|---|---|---|
 | TB1 | Internet ↔ Traefik | All public traffic: DF1 to DF5, DF9 | TLS, HTTP to HTTPS redirect, HSTS, host routing (**Built**); rate limits and CrowdSec (**Planned M14**) |
 | TB2 | Traefik ↔ web and frontend (`edge` network) | Routed requests | One router per public host, `/internal` excluded (**Built**), `/metrics` excluded (**In progress**), one URLconf per host (**Built**) |
-| TB3 | web and workers ↔ data stores (`backend` network) | Queries, cache, broker | No route from Traefik, no egress, passwords (**Built**); separate database roles (**Planned M14**); Valkey ACLs (G-38) |
+| TB3 | web and workers ↔ data stores (`backend` network) | Queries, cache, broker | No route from Traefik, no egress, passwords (**Built**); separate database roles and Valkey ACL users (**Built**, M14b; G-37, G-38) |
 | TB4 | Control plane ↔ streaming plane | Signed tokens (DF2, DF3), `auth_request` | HMAC keys with `kid`, stream-auth on Redis only (**Planned M7**) |
 | TB5 | Edge ↔ media storage | File reads, S3 requests | `internal` locations (**Planned M7**); private bucket (**Planned M15**) |
 | TB6 | Workers ↔ external services | DF8, DF10, payment API calls | A deliberate egress network ([ADR-0002](../adr/0002-foundations-identity-routing-networks.md), from M5); SSRF guard (G-11) |
@@ -191,8 +191,8 @@ flowchart TB
 | TB8 | Staff ↔ admin host | DF4 | MFA and RBAC (**M3 slice**), session cookie, CSRF and audit (**In progress**); WebAuthn, re-authentication and IP allowlist (**Planned M14**) |
 | TB9 | Customer devices and vendor clouds ↔ our hosts | DF1, DF2, DF13 | Per-device credentials and revocation (**M3 slice**); concurrency and kick (**Planned M7**) |
 | TB10 | Library content ↔ scanner and transcoder | DF7 | Separate transcoder image (**Planned M8**); sandboxing (G-07, G-39) |
-| TB11 | Containers ↔ host | Docker socket, volumes | Non-root app and frontend images (**Built**); Docker socket mounted into Traefik (G-36) |
-| TB12 | Operator ↔ host | DF12 | Secrets generated on the host, `.env` mode 600 (**Built**); firewall policy (**Planned M14**); SSH hardening (G-42) |
+| TB11 | Containers ↔ host | Docker socket, volumes | Non-root app and frontend images (**Built**); the Docker socket only in two allowlisting proxies, capabilities dropped, read-only roots (**Built**, M14b; G-36, G-39) |
+| TB12 | Operator ↔ host | DF12 | Secrets generated on the host, `.env` mode 600 (**Built**); ufw policy in the installer (**Built**, M14b); SSH hardening (runbook, G-42) |
 
 ## 8. STRIDE analysis per element
 
@@ -214,11 +214,11 @@ Each table lists the threat, its likelihood (L) and impact (I), what mitigates i
 | ID | STRIDE | Threat | L | I | Mitigations | Gap |
 |---|---|---|---|---|---|---|
 | TR-1 | S | Host-header tricks reach internal endpoints | M | H | Routers only for known hosts; `ALLOWED_HOSTS`; each public host has its own URLconf, and only in-network hosts fall back to the internal one; routers exclude `/internal`, and the smoke test checks it (**Built**); `/metrics` excluded (**In progress**) | — |
-| TR-2 | T | TLS stripping or downgrade on hostile networks | M | H | Permanent redirect to HTTPS, HSTS for one year including subdomains at Traefik and in Django, secure cookies (**Built**, production overlay). Preload is left to the operator | G-43 |
+| TR-2 | T | TLS stripping or downgrade on hostile networks | M | H | Permanent redirect to HTTPS, HSTS for one year including subdomains at Traefik and in Django, secure cookies (**Built**, production overlay); TLS 1.2+ with forward-secret AEAD suites only (**Built**, M14b). Preload is the operator's choice (`DJANGO_HSTS_PRELOAD`) | G-43 |
 | TR-3 | R | No ingress request log, so an attack or abuse can't be reconstructed at the edge | H | M | Traefik's access log is off on purpose, because Xtream paths carry credentials (**Built**); Django logs every request with a redacted path and a request id (**In progress**) | G-34 |
 | TR-4 | I | The admin hostname is public through certificate transparency and DNS | H | L | MFA (**M3 slice**); optional IP allowlist (**Planned M14**) | — |
 | TR-5 | D | Floods, login storms, slow clients | H | M | Nothing at the ingress yet; rate limits and CrowdSec (**Planned M14**); Xtream rate limits (**Planned M9**) | G-20 |
-| TR-6 | E | Traefik mounts the Docker socket. The `:ro` flag protects only the socket file: the Docker API stays fully usable, so a Traefik compromise is root on the host | L | H | Socket proxy (**Planned M14**) | G-36 |
+| TR-6 | E | Traefik mounts the Docker socket. The `:ro` flag protects only the socket file: the Docker API stays fully usable, so a Traefik compromise is root on the host | L | H | Socket proxy allowing only container listing and events (**Built**, M14b) | G-36 |
 
 ### 8.3 Django web: Xtream host (process, `tv.`, DF1, DF2)
 
@@ -281,7 +281,7 @@ Each table lists the threat, its likelihood (L) and impact (I), what mitigates i
 | ED-4 | R | Disputes about playback or bandwidth | M | L | JSON edge logs with a session-id prefix, bytes and cache status (**Planned M7, M13**) | — |
 | ED-5 | I | Tokens leak through `Referer` headers or logs; storage paths leak | M | M | Tokens redacted in logs, `internal` locations, no storage keys in URLs (**Planned M7**); `Referrer-Policy: no-referrer` on media hosts (**Planned M14**) | G-15, G-19 |
 | ED-6 | D | Bulk downloading at full line rate exhausts bandwidth | H | M | Slots and short tokens (**Planned M7**); egress alerts (**Planned M13**); CDN tier (**Planned M15**) | G-17 |
-| ED-7 | E | Bugs in njs or Nginx | L | H | A small njs surface, unprivileged Nginx, read-only filesystem (**Planned M7, M14**) | G-39 |
+| ED-7 | E | Bugs in njs or Nginx | L | H | A small njs surface, unprivileged Nginx, read-only filesystem and dropped capabilities (**Built**, M14b) | G-39 |
 
 ### 8.8 Media storage (data store)
 
@@ -297,18 +297,18 @@ Each table lists the threat, its likelihood (L) and impact (I), what mitigates i
 | ID | STRIDE | Threat | L | I | Mitigations | Gap |
 |---|---|---|---|---|---|---|
 | DB-1 | T | SQL injection | L | H | Parameterised ORM queries only (spec §11); Ruff's Bandit (`S`) rules in `make ci` (**Built**) | — |
-| DB-2 | T, R | The application's database role can drop the audit trigger, delete billing rows or truncate tables | L | H | One owner role today (**Built**); app, migrator and read-only roles (**Planned M14**) | G-37 |
+| DB-2 | T, R | The application's database role can drop the audit trigger, delete billing rows or truncate tables | L | H | App (`iptv_app`: no DDL, audit log append-only, purge only through `audit_purge` with floors), owner-as-migrator and read-only reporting roles (**Built**, M14b) | G-37 |
 | DB-3 | I | Exposure of personal data and credential hashes | L | H | `backend` network only, no published port, password (**Built**); Argon2id hashes and Fernet-encrypted TOTP secrets (**M3 slice**) | G-41 |
-| DB-4 | D | Data loss: nothing is backed up yet ([deploy runbook](../runbooks/deploy.md)) | M | H | Nightly `pg_dump` plus encrypted WAL archiving and a weekly restore test (**Planned M14**) | G-41 |
+| DB-4 | D | Data loss: disk failure, operator error, a bad migration | M | H | pgBackRest with continuous encrypted WAL archiving, restic for configuration and artwork, optional offsite copies, a weekly restore drill that alerts, restore points before updates (**Built**, M14b; [backups runbook](../runbooks/backups.md)) | G-41 |
 
 ### 8.10 redis-state (data store)
 
 | ID | STRIDE | Threat | L | I | Mitigations | Gap |
 |---|---|---|---|---|---|---|
-| RS-1 | T | Writes to `ent:`, `conc:`, `kick:` or broker keys grant access or end sessions | L | H | `backend` network only, password (**Built**) | G-38 |
+| RS-1 | T | Writes to `ent:`, `conc:`, `kick:` or broker keys grant access or end sessions | L | H | `backend` network only, password (**Built**); per-client ACL users, the app without dangerous commands (**Built**, M14b) | G-38 |
 | RS-2 | T | Injected Celery messages run unexpected tasks or unsafe deserialisation | L | H | Broker password (**Built**); Celery's default JSON-only content type, not overridden in the settings (**Built**); keep pickle disabled | — |
 | RS-3 | I | Plaintext credentials end up in the cache | L | H | Cache keyed by an HMAC of the credential pair, with no plaintext in the value (**Planned**, spec §11) | G-02 |
-| RS-4 | D | `noeviction` without `maxmemory`: once memory runs out, writes fail and logins and playback stop | M | H | AOF persistence (**Built**); eviction alert (**Planned M13**) | G-35 |
+| RS-4 | D | `noeviction` without `maxmemory`: once memory runs out, writes fail and logins and playback stop | M | H | AOF persistence (**Built**); `maxmemory` (1 GB) with the RedisStateMemoryHigh alert at 80% (**Built**, M14b) | G-35 |
 
 ### 8.11 redis-cache and Meilisearch (data stores)
 
@@ -331,7 +331,7 @@ Each table lists the threat, its likelihood (L) and impact (I), what mitigates i
 
 | ID | STRIDE | Threat | L | I | Mitigations | Gap |
 |---|---|---|---|---|---|---|
-| IG-1 | E | Crafted media files exploit FFmpeg, ffprobe, guessit or Pillow | M | H | Separate transcoder image (**Planned M8**); non-root, read-only filesystem, dropped capabilities (**Planned M14**) | G-39 |
+| IG-1 | E | Crafted media files exploit FFmpeg, ffprobe, guessit or Pillow | M | H | Separate transcoder image (**Planned M8**); non-root, read-only filesystem, dropped capabilities, no internet (internal network only) (**Built**, M14b) | G-39 |
 | IG-2 | T | Symlinks or `..` paths make the scanner read or publish files outside a library | M | M | Only relative paths shown in the UI (**Planned M4**) | G-07 |
 | IG-3 | S | Bidirectional-text control characters in file names or titles disguise what admins see in the Arabic and English UI | M | L | — | G-08 |
 | IG-4 | D | Huge or malformed files stall the transcode queue | M | M | Retries with backoff, error tail, priorities (**Planned M8**) | — |
@@ -378,11 +378,11 @@ Each table lists the threat, its likelihood (L) and impact (I), what mitigates i
 
 | ID | STRIDE | Threat | L | I | Mitigations | Gap |
 |---|---|---|---|---|---|---|
-| HO-1 | E | Container escape or misuse of privileges | L | H | App image runs as uid 10001 without pip; frontend on unprivileged nginx (**Built**); read-only root, dropped capabilities, `no-new-privileges` (**Planned M14**) | G-36, G-39 |
+| HO-1 | E | Container escape or misuse of privileges | L | H | App image runs as uid 10001 without pip; frontend on unprivileged nginx (**Built**); read-only root, dropped capabilities, `no-new-privileges`, socket proxies (**Built**, M14b; `make hardening-test`) | G-36, G-39 |
 | HO-2 | I | Secrets leak through git, images or logs | M | H | `.env` generated on the host with `umask 077`, ignored by git and by Docker builds; Trivy secret scan of images and repository (**Built**); Docker secrets or SOPS (**Planned M14**) | — |
 | HO-3 | T | A malicious dependency or base image | L | H | Lockfiles, pinned versions, licence gate, Trivy CVE scan (**Built**); pip-audit, pnpm audit, Semgrep (**Planned M14**) | G-39 |
-| HO-4 | S | SSH or console compromise of the host | L | H | Firewall policy (**Planned M14**) | G-42 |
-| HO-5 | D | One host and one web replica: updates cause seconds of downtime, and losing the host loses everything | M | M | Health-gated restarts (**Built**); two web replicas and zero-downtime deploys (**Planned M13 to M15**); backups (**Planned M14**) | G-41 |
+| HO-4 | S | SSH or console compromise of the host | L | H | ufw policy (deny incoming, SSH rate-limited or from given networks) in the installer, SSH hardening in the security runbook (**Built**, M14b) | G-42 |
+| HO-5 | D | One host and one web replica: updates cause seconds of downtime, and losing the host loses everything | M | M | Health-gated restarts (**Built**); two web replicas and zero-downtime deploys (**Planned M13 to M15**); encrypted backups with a weekly restore drill and disaster-recovery steps (**Built**, M14b) | G-41 |
 
 ## 9. Abuse cases: credential sharing and reselling
 
@@ -458,15 +458,15 @@ Severity follows the ratings in [section 3](#3-how-to-read-this-document). Items
 | G-32 | Commercial slice | Telegram link tokens: single use, short expiry, high entropy | Low | NT-4 |
 | G-33 | Commercial slice | SPF, DKIM and DMARC on sending domains (`p=reject` once stable) | Medium | NT-2 |
 | G-34 | M13 | Turn on Traefik's JSON access log with the request path and query dropped or redacted (`accessLog.fields.names`), keeping host, status, duration, router and client address | Medium | TR-3, OB-1 |
-| G-35 | M13 | Set `maxmemory` on redis-state with headroom and alert on memory use, because with `noeviction` a full instance rejects writes | Medium | RS-4 |
-| G-36 | M14 | Take the Docker socket away from Traefik in production: use the file provider (the production services are static) or a socket proxy that allows only read endpoints | High | TR-6, HO-1 |
-| G-37 | M14 | Separate database roles *(spec)*: an app role without DDL and without UPDATE or DELETE on the audit table, a migrator, a read-only reporting role | Medium | DB-2, AD-6 |
-| G-38 | M14 | Valkey ACL users per service, with dangerous commands (`FLUSHALL`, `CONFIG`, `DEBUG`, `MODULE`, `KEYS`) disabled | Medium | RS-1 |
-| G-39 | M14 | Containers: `cap_drop: [ALL]`, `no-new-privileges`, read-only root where possible, no network for the transcoder; production images pinned by digest *(spec, in part)* | Medium | HO-1, HO-3, IG-1, ED-7 |
+| G-35 | M13 | Set `maxmemory` on redis-state with headroom and alert on memory use, because with `noeviction` a full instance rejects writes. **Status: fixed in M14b** ([ADR-0020](../adr/0020-operations-security-and-backups.md)): `--maxmemory` (`REDIS_STATE_MAXMEMORY`, 1 GB) and the RedisStateMemoryHigh alert at 80% | Medium | RS-4 |
+| G-36 | M14 | Take the Docker socket away from Traefik in production: use the file provider (the production services are static) or a socket proxy that allows only read endpoints. **Status: fixed in M14b** ([ADR-0020](../adr/0020-operations-security-and-backups.md)): `docker-proxy` (Traefik) and `docker-logs-proxy` (Alloy, CrowdSec) allow only the requests they need; cAdvisor and node-exporter in the monitoring overlay are documented exceptions | High | TR-6, HO-1 |
+| G-37 | M14 | Separate database roles *(spec)*: an app role without DDL and without UPDATE or DELETE on the audit table, a migrator, a read-only reporting role. **Status: fixed in M14b** ([ADR-0020](../adr/0020-operations-security-and-backups.md)): `iptv_app`, the owner as migrator, `iptv_reporting`; grants reapplied after every migration | Medium | DB-2, AD-6 |
+| G-38 | M14 | Valkey ACL users per service, with dangerous commands (`FLUSHALL`, `CONFIG`, `DEBUG`, `MODULE`, `KEYS`) disabled. **Status: fixed in M14b** ([ADR-0020](../adr/0020-operations-security-and-backups.md)): `default` (operator), `app` (deny list), `exporter` (read-only) | Medium | RS-1 |
+| G-39 | M14 | Containers: `cap_drop: [ALL]`, `no-new-privileges`, read-only root where possible, no network for the transcoder; production images pinned by digest *(spec, in part)*. **Status: fixed in M14b** ([ADR-0020](../adr/0020-operations-security-and-backups.md)): every service, all overlays included; the transcoder has no internet (it needs the broker, so it keeps the internal network); `make hardening-test` in `make ci` | Medium | HO-1, HO-3, IG-1, ED-7 |
 | G-40 | M14 | WebAuthn for owner and admin roles, and an admin IP allowlist where staff have stable networks *(spec)* | Medium | AD-1 |
-| G-41 | M14 | Backups with a restore drill *(spec)*, host disk encryption, and retention jobs for personal data | High | DB-3, DB-4, HO-5 |
-| G-42 | M14 | Key-only SSH without root login, and a host firewall that allows SSH from known addresses plus 80 and 443 | Medium | HO-4 |
-| G-43 | M14 | Explicit TLS options (TLS 1.2 minimum, modern cipher suites) and an SSL Labs A+ check before go-live *(spec)* | Low | TR-2 |
+| G-41 | M14 | Backups with a restore drill *(spec)*, host disk encryption, and retention jobs for personal data. **Status: fixed in M14b** ([ADR-0020](../adr/0020-operations-security-and-backups.md)), except host disk encryption, which is the operator's (security runbook checklist): backups are encrypted, retention runs daily from Settings → Privacy | High | DB-3, DB-4, HO-5 |
+| G-42 | M14 | Key-only SSH without root login, and a host firewall that allows SSH from known addresses plus 80 and 443. **Status: fixed in M14b** ([ADR-0020](../adr/0020-operations-security-and-backups.md)): the installer's ufw policy (`--ssh-from`), SSH settings in the security runbook | Medium | HO-4 |
+| G-43 | M14 | Explicit TLS options (TLS 1.2 minimum, modern cipher suites) and an SSL Labs A+ check before go-live *(spec)*. **Status: fixed in M14b** ([ADR-0020](../adr/0020-operations-security-and-backups.md)): `docker/traefik/prod/dynamic/tls.yml`; the A+ check is on the go-live checklist (security runbook) | Low | TR-2 |
 | G-44 | M15 | Private S3 bucket with read-only, edge-only credentials; CDN token authentication; TLS on every link that leaves the host, such as standalone edges and the database replica *(spec, in part)* | Medium | ST-2 |
 | G-45 | Before go-live | Record in an ADR whether every licensor accepts non-DRM delivery. Titles whose licence requires DRM can't be offered to Xtream apps and need a separate DRM-capable path | High | AC-7 |
 

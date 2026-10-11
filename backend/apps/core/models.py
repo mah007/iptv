@@ -21,10 +21,15 @@ class Setting(BaseModel):
     Only overrides live here; defaults, types and validation live in code
     (`apps.core.registry`). Read through `apps.core.services.get_setting`, which
     caches values under a version key so changes apply without a restart.
+
+    A secret (a sensitive setting) keeps `value` NULL and its Fernet token in
+    `ciphertext` (FIELD_ENCRYPTION_KEY, `apps.accounts.crypto`); an empty
+    `ciphertext` is a secret the admin set to empty on purpose (ADR-0019).
     """
 
     key = models.CharField(max_length=100, unique=True)
-    value = models.JSONField()
+    value = models.JSONField(null=True, blank=True)
+    ciphertext = models.TextField(blank=True, default="")
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

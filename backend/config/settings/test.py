@@ -20,6 +20,11 @@ os.environ.setdefault("REDIS_CACHE_PASSWORD", "iptv")
 os.environ.setdefault("MEILI_MASTER_KEY", "test-only-master-key")
 # A valid Fernet key (urlsafe base64 of 32 bytes) for host-side tooling such as mypy.
 os.environ.setdefault("FIELD_ENCRYPTION_KEY", "dGVzdC1vbmx5LWluc2VjdXJlLWZlcm5ldC1rZXkhISE=")
+# Tests create and drop their database and flush their Redis indexes: they sign in as the
+# database owner and Valkey's default user, whatever role the container's services use
+# (ADR-0020). The restricted roles have tests of their own (apps/ops/tests).
+os.environ["DB_ROLE"] = "owner"
+os.environ["VALKEY_USER"] = "default"
 
 from .base import *
 

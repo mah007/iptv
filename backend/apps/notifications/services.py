@@ -26,11 +26,12 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.billing.renewal import zone
+from apps.core.branding import logo_url
 from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.metrics import NOTIFICATIONS
 from apps.core.redaction import redact_text, redact_value
 from apps.core.services import get_setting
-from apps.notifications import rendering
+from apps.notifications import mail, rendering
 from apps.notifications.defaults import EVENTS, SECRET_EVENTS, default_for
 from apps.notifications.models import (
     Channel,
@@ -61,10 +62,10 @@ def portal_url() -> str:
 
 
 def local_time(moment: datetime | None, user: User | None) -> str:
-    """`2026-11-03 21:00` on the user's clock (Asia/Riyadh by default)."""
+    """`2026-11-03 21:00` on the user's clock (the service's time zone without one)."""
     if moment is None:
         return ""
-    tz = zone(user.timezone if user is not None else "Asia/Riyadh")
+    tz = zone(user.timezone if user is not None else str(get_setting("branding.time_zone")))
     return moment.astimezone(tz).strftime("%Y-%m-%d %H:%M")
 
 
@@ -73,7 +74,10 @@ def common_context(user: User | None, locale: str) -> dict[str, Any]:
     return {
         "service_name": str(get_setting(f"branding.service_name_{locale}")),
         "support_email": str(get_setting("branding.support_email")),
+        "support_phone": str(get_setting("branding.support_phone")),
+        "support_whatsapp": str(get_setting("branding.support_whatsapp")),
         "accent_color": str(get_setting("branding.accent_color")),
+        "logo_url": logo_url(),
         "portal_url": portal_url(),
         "name": user.get_full_name() if user is not None else "",
     }
@@ -301,10 +305,8 @@ def enqueue(  # noqa: PLR0913 (keyword-only options)
 
 
 def email_configured() -> bool:
-    """SMTP needs a host; Django's other backends (tests, console) always send."""
-    if settings.EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
-        return bool(settings.EMAIL_HOST)
-    return True
+    """SMTP needs a host (the admin's Settings → Integrations → Email)."""
+    return mail.email_configured()
 
 
 def _finish(row: NotificationOutbox, status: OutboxStatus, error: str = "") -> str:
@@ -332,7 +334,7 @@ def _send_email(row: NotificationOutbox, message: rendering.RenderedMessage) -> 
     email = EmailMultiAlternatives(
         subject=message.subject,
         body=message.text,
-        from_email=settings.DEFAULT_FROM_EMAIL,
+        from_email=mail.from_address(),
         to=[row.to_address],
     )
     email.attach_alternative(message.html, "text/html")

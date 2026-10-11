@@ -26,6 +26,29 @@ class Locale(models.TextChoices):
 DEFAULT_TIMEZONE = "Asia/Riyadh"
 
 
+def _service_setting(key: str, fallback: str) -> str:
+    # Local import: apps.core.services imports this module.
+    from django.db import DatabaseError  # noqa: PLC0415
+
+    from apps.core.services import get_setting  # noqa: PLC0415
+
+    try:
+        return str(get_setting(key)) or fallback
+    except DatabaseError:  # before the settings table exists (early migrations)
+        return fallback
+
+
+def default_locale() -> str:
+    """New accounts speak the service's default language (`branding.default_language`)."""
+    value = _service_setting("branding.default_language", Locale.AR)
+    return value if value in Locale.values else Locale.AR
+
+
+def default_timezone() -> str:
+    """New accounts live in the service's time zone (`branding.time_zone`)."""
+    return _service_setting("branding.time_zone", DEFAULT_TIMEZONE)
+
+
 class User(BaseModel, AbstractUser):
     """Customers and staff alike; `is_staff=True` marks admin users (SPEC §6).
 
@@ -42,9 +65,9 @@ class User(BaseModel, AbstractUser):
     name = models.CharField(max_length=150, blank=True)
     phone = models.CharField(max_length=16, blank=True, validators=[validate_e164_phone])
     status = models.CharField(max_length=16, choices=UserStatus.choices, default=UserStatus.ACTIVE)
-    locale = models.CharField(max_length=2, choices=Locale.choices, default=Locale.AR)
+    locale = models.CharField(max_length=2, choices=Locale.choices, default=default_locale)
     timezone = models.CharField(
-        max_length=64, default=DEFAULT_TIMEZONE, validators=[validate_timezone]
+        max_length=64, default=default_timezone, validators=[validate_timezone]
     )
     notes = models.TextField(blank=True)
     mfa_enabled = models.BooleanField(default=False)

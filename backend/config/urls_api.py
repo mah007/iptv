@@ -5,21 +5,24 @@ same `customer_api` routes on app.<domain>/api/v1 with its session cookie
 (config.urls_portal); each authentication class answers on its own host only.
 """
 
-from django.urls import include, path, re_path
+from django.urls import URLPattern, URLResolver, include, path, re_path
 
 from apps.accounts.urls_customer import token_auth
 from apps.billing.urls_customer import webhook_urlpatterns
 from apps.core import errors, views
+from apps.core.api import BrandingView
 
 # The customer API, shared by api.<domain> (tokens) and app.<domain> (session). Each app
 # keeps its customer routes in apps/<app>/urls_customer.py.
-customer_api = [
+customer_api: list[URLPattern | URLResolver] = [
     path("", include("apps.accounts.urls_customer")),
     path("", include("apps.catalog.urls_customer")),
     path("", include("apps.engagement.urls_customer")),
     path("", include("apps.search.urls_customer")),
     # Billing (B1): plans, checkout, me/subscription, me/invoices.
     path("", include("apps.billing.urls_customer")),
+    # Public branding: name, logos, colour, support contacts (CFG, ADR-0019).
+    path("branding", BrandingView.as_view(), name="branding"),
 ]
 
 urlpatterns = [

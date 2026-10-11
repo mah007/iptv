@@ -309,3 +309,19 @@ def test_healthchecks(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(healthcheck, "_fresh", lambda key, age: key == "hb:live")
     assert healthcheck.check_live()
     assert not healthcheck.check_relay()  # nothing listens on 8090 in the test container
+
+
+def test_the_packager_logs_when_the_admin_changes_its_limits(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The packager re-reads the live settings each loop (ADR-0019): a change applies
+    without a restart, and the log says so."""
+    from apps.core.services import set_setting  # noqa: PLC0415
+
+    run_live._last_limits = None
+    assert run_live.load_limits().max_running == 20
+    run_live.load_limits()
+    assert "live.limits_changed" not in caplog.text
+    set_setting("live.max_running_channels", 5, actor=None)
+    assert run_live.load_limits().max_running == 5
+    assert "live.limits_changed" in caplog.text
