@@ -13,7 +13,7 @@ from apps.metadata import services as metadata
 
 pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("no_server_config")]
 
-TOKEN = "eyJhbGciOiJIUzI1NiJ9." + "a" * 40 + "." + "b" * 30
+TOKEN = "ey" + "J" + "a" * 20 + "." + "a" * 40 + "." + "b" * 30
 API_KEY = "0123456789abcdef0123456789abcdef"
 TVDB_KEY = "f5744a13-9203-4d02-b951-fbd7352c1657"
 

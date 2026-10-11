@@ -10,6 +10,11 @@ services:
   mediamtx:
     image: bluenviron/mediamtx:1.21.1@sha256:5ce2a948eb68df06ce2e13870db8df8e30d516ac4dc40e04bfe8aee3bdf7be40
     restart: unless-stopped
+    # No capabilities (its ports are above 1024), no privilege gain, read-only (G-39).
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
     environment:
       MTX_AUTHINTERNALUSERS_0_USER: ${MEDIAMTX_PUBLISH_USER:-publisher}
       MTX_AUTHINTERNALUSERS_0_PASS: ${MEDIAMTX_PUBLISH_PASS:?set MEDIAMTX_PUBLISH_PASS in .env}

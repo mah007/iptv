@@ -46,7 +46,8 @@
     "epg": "EPG",
     "monitoring": "Monitoring",
     "integrations": "Integrations",
-    "system": "System"
+    "system": "System",
+    "backups": "Backups"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -3496,6 +3497,114 @@
         "db": "Database passwords",
         "valkey": "Valkey passwords"
       }
+    }
+  },
+  "backups": {
+    "title": "Backups",
+    "description": "The database with point-in-time recovery, the configuration and the artwork, every night, encrypted; a restore drill every week.",
+    "never": "Never",
+    "unknown": "Unknown",
+    "on": "On",
+    "off": "Off",
+    "freeOf": "{{free}} free of {{total}}",
+    "drillPassed": "Passed in {{time}}",
+    "pendingTitle": "Working",
+    "pending_one": "{{count}} job is queued or running; this page refreshes until it ends.",
+    "pending_other": "{{count}} jobs are queued or running; this page refreshes until they end.",
+    "status": {
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed"
+    },
+    "kind": {
+      "db_full": "Database (full)",
+      "db_diff": "Database (differential)",
+      "files": "Configuration, artwork and dump",
+      "offsite": "Offsite copy",
+      "drill": "Restore drill",
+      "check": "Destination test"
+    },
+    "trigger": {
+      "schedule": "Schedule",
+      "manual": "Admin",
+      "initial": "First backup",
+      "command": "Command line"
+    },
+    "actions": {
+      "backup": "Back up now",
+      "drill": "Run the restore drill",
+      "check": "Test the destinations"
+    },
+    "started": {
+      "backup": "The backup has started.",
+      "drill": "The restore drill has started.",
+      "check": "The destination test has started."
+    },
+    "warnings": {
+      "offTitle": "Backups are switched off",
+      "off": "Nothing is backed up and PostgreSQL releases its WAL. Switch them on in Settings → Backups.",
+      "missingTitle": "No backup service on this server",
+      "missing": "The backup service has never asked for work. Update the server (install.sh --update) so it runs.",
+      "downTitle": "The backup service is not answering",
+      "down": "It has not asked for work for over 10 minutes: no backup or drill runs. On the server: docker compose ... up -d backup.",
+      "passphraseTitle": "The backup passphrase is missing",
+      "passphrase": "secrets/backup_passphrase is not in place, so nothing can be encrypted. Restore it from your copy."
+    },
+    "tiles": {
+      "database": "Last database backup",
+      "drill": "Last restore drill",
+      "service": "Backup service",
+      "space": "Space where backups are kept"
+    },
+    "service": {
+      "running": "Running",
+      "stopped": "Not running"
+    },
+    "setup": {
+      "title": "Where and when",
+      "description": "Schedule, retention and the offsite bucket are in Settings → Backups.",
+      "local": "On this server",
+      "offsite": "Offsite copy",
+      "offsiteIncomplete": "Switched on, but the address, bucket or keys are missing",
+      "offsiteOff": "Off",
+      "archiving": "Point-in-time recovery (WAL archiving)",
+      "nextBackup": "Next backup",
+      "nextDrill": "Next restore drill",
+      "edit": "Change in Settings"
+    },
+    "drill": {
+      "title": "Last restore drill",
+      "description": "The latest backup restored into a throwaway database, its WAL replayed, and read back.",
+      "noneTitle": "No drill yet",
+      "none": "The first drill runs right after the first backup, then every week.",
+      "result": "Result",
+      "when": "When",
+      "restore": "Restore time",
+      "times": "{{restore}} to restore, {{ready}} until ready",
+      "reaches": "Data reaches",
+      "verify": "Repository check",
+      "verifyOk": "No errors",
+      "verifyBad": "Errors found",
+      "problems": "Problems",
+      "counts": "Rows restored"
+    },
+    "history": {
+      "title": "History",
+      "description": "The latest jobs of the backup service.",
+      "emptyTitle": "No backups yet",
+      "empty": "The first full backup runs as soon as the backup service starts."
+    },
+    "columns": {
+      "table": "Table",
+      "restored": "Restored",
+      "live": "Live",
+      "kind": "Job",
+      "status": "Status",
+      "started": "Started",
+      "duration": "Duration",
+      "size": "Added",
+      "by": "By"
     }
   }
 }

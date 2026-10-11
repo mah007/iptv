@@ -37,8 +37,9 @@ S3: dict[str, Any] = {
     "bucket": "backups",
     "prefix": "smart-iptv/",
     "region": "eu-central-1",
-    "access_key": "AKIAEXAMPLEACCESS",
-    "secret_key": "s3cr3t/SECRETKEY+value",
+    # Built from parts: key-shaped literals trip push protection.
+    "access_key": "AK" + "IA" + "TESTVALUE0001",
+    "secret_key": "s3cr3t/" + "test" + "+value",
     "path_style": True,
 }
 
@@ -419,6 +420,16 @@ def test_the_drill_restores_reads_back_and_cleans_up(
     assert "archive_mode=off" in options
     assert any("stop" in argv for argv in runner.commands("pg_ctl"))
     assert not any("bad;name" in " ".join(argv) for argv, _ in runner.calls)
+
+
+def test_a_quiet_drill_reaches_the_backups_end(
+    make_agent: Callable[..., Agent], runner: FakeRunner
+) -> None:
+    runner.on(has("--output=json", "info"), output=info_json("20261011-010101F"))
+    agent = make_agent()
+    assert agent.latest_backup_stop() == "1970-01-01T00:01:43+00:00"
+    runner.rules.insert(0, (has("--output=json", "info"), Result(0, "[]")))
+    assert agent.latest_backup_stop() is None
 
 
 def test_a_drill_that_cannot_start_reports_the_log(

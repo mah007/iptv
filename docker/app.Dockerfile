@@ -3,8 +3,9 @@
 # Targets: `dev` (dev dependencies and FFmpeg, sources bind-mounted), `runtime`
 # (production web and beat) and `media` (runtime plus FFmpeg: worker, watcher, transcoder).
 
-ARG PYTHON_IMAGE=python:3.13.16-slim
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.22
+# Base images pinned by digest as well as tag (G-39, ADR-0020).
+ARG PYTHON_IMAGE=python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.22@sha256:f513a91fc62fe7c17567eee97230dd198e43edb8a9fbecca843714a4358fe1bc
 # FFmpeg (ADR-0009): jellyfin-ffmpeg's Debian 13 package, matching the python image's
 # Debian. GPL, so it only ever runs as a separate process (ffprobe/ffmpeg/vainfo), never
 # linked or imported. It bundles the Intel iHD VA-API driver and the oneVPL GPU runtime

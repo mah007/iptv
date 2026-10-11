@@ -32,6 +32,13 @@ test.beforeAll(() => {
 test("sign in, search in Arabic, play The Matrix, continue watching, sign out", async ({
   page,
 }) => {
+  // An English evening: a first visit would otherwise speak the service's default
+  // language (Settings → Branding, Arabic by default; ADR-0019).
+  await page.addInitScript(() => {
+    if (window.localStorage.getItem("smart-iptv.language") === null) {
+      window.localStorage.setItem("smart-iptv.language", "en");
+    }
+  });
   await test.step("sign in", async () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();

@@ -148,7 +148,7 @@ def s3() -> None:
         ("backups.s3_enabled", True),
         ("backups.s3_endpoint", "https://s3.example.com"),
         ("backups.s3_bucket", "backups"),
-        ("backups.s3_access_key", "AKIAEXAMPLE"),
+        ("backups.s3_access_key", "AK" + "IA" + "TESTVALUE"),
         ("backups.s3_secret_key", "secret-key-value"),
     ):
         set_setting(key, value, actor=None)

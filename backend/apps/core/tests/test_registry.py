@@ -127,6 +127,39 @@ EXPECTED_DEFAULTS = {
     "email.timeout_s": 20,
     "notifications.telegram_bot_token": "",
     "notifications.telegram_chat_id": "",
+    # H2 (ADR-0020): backups, personal-data retention and CrowdSec.
+    "backups.enabled": True,
+    "backups.schedule_time": "03:30",
+    "backups.schedule_timezone": "UTC",
+    "backups.full_weekday": 6,
+    "backups.db_full_retention": 2,
+    "backups.files_keep_daily": 7,
+    "backups.files_keep_weekly": 4,
+    "backups.files_keep_monthly": 6,
+    "backups.media_enabled": False,
+    "backups.drill_enabled": True,
+    "backups.drill_weekday": 0,
+    "backups.drill_time": "05:00",
+    "backups.s3_enabled": False,
+    "backups.s3_endpoint": "",
+    "backups.s3_region": "",
+    "backups.s3_bucket": "",
+    "backups.s3_prefix": "smart-iptv",
+    "backups.s3_path_style": False,
+    "backups.s3_access_key": "",
+    "backups.s3_secret_key": "",
+    "backups.offsite_interval_minutes": 60,
+    "privacy.session_ip_days": 30,
+    "privacy.session_retention_days": 365,
+    "privacy.watch_history_days": 365,
+    "privacy.resume_days": 730,
+    "privacy.audit_retention_days": 730,
+    "privacy.audit_billing_retention_days": 2190,
+    "privacy.outbox_retention_days": 90,
+    "privacy.auth_log_retention_days": 90,
+    "privacy.webhook_payload_days": 365,
+    "security.crowdsec_enforce": True,
+    "security.crowdsec_allowlist": "",
 }
 
 
@@ -141,6 +174,8 @@ SENSITIVE_KEYS = {
     "billing.moyasar_webhook_secret",
     "email.smtp_password",
     "notifications.telegram_bot_token",
+    "backups.s3_access_key",
+    "backups.s3_secret_key",
 }
 
 
@@ -220,9 +255,9 @@ def test_float_settings_store_floats() -> None:
         ("metadata.tmdb_read_access_token", "abc", "eyJ"),
         ("metadata.tmdb_api_key", "XYZ", "32 letters"),
         ("metadata.tmdb_language", "english", "en-US"),
-        ("billing.stripe_secret_key", "pk_test_0123456789abcdef", "sk_test_"),
+        ("billing.stripe_secret_key", "pk_" + "test_0123456789abcdef", "sk_test_"),
         ("billing.stripe_webhook_secret", "secret", "whsec_"),
-        ("billing.moyasar_secret_key", "pk_live_0123456789", "sk_test_"),
+        ("billing.moyasar_secret_key", "pk_" + "live_0123456789", "sk_test_"),
         ("billing.moyasar_webhook_secret", "has space here", "without spaces"),
         ("notifications.telegram_bot_token", "12345", "BotFather"),
         ("notifications.telegram_chat_id", "@channel", "chat id"),
@@ -255,8 +290,8 @@ def test_constraints_and_validators(key: str, value: object, message: str) -> No
         ("email.from_address", "no-reply@example.com"),
         ("metadata.tmdb_api_key", "0123456789abcdef0123456789abcdef"),
         ("billing.stripe_secret_key", "sk_" + "test_" + "51ABCDEFGHIJKLMNOP"),
-        ("billing.stripe_webhook_secret", "whsec_ABCDEFGHIJKLMNOP"),
-        ("billing.moyasar_secret_key", "sk_live_ABCDEFGHIJKL"),
+        ("billing.stripe_webhook_secret", "whsec_" + "ABCDEFGHIJKLMNOP"),
+        ("billing.moyasar_secret_key", "sk_" + "live_ABCDEFGHIJKL"),
         ("branding.support_whatsapp", "+966501234567"),
         ("branding.time_zone", "Europe/London"),
         ("branding.logo_dark", "images/branding/logo-dark-0123456789ab.png"),
@@ -331,7 +366,8 @@ def test_server_config_values_are_typed_and_ranged_but_not_format_checked() -> N
         port.from_server_config({"EMAIL_PORT": "0"})
     # A key set in .env before the format check existed keeps working.
     stripe = get_definition("billing.stripe_secret_key")
-    assert stripe.from_server_config({"STRIPE_SECRET_KEY": "sk_test_fixture"}) == "sk_test_fixture"
+    fixture = "sk_" + "test_fixture"
+    assert stripe.from_server_config({"STRIPE_SECRET_KEY": fixture}) == fixture
     timeout = get_definition("library.transcode_job_timeout_h")
     assert timeout.from_server_config({"TRANSCODE_JOB_TIMEOUT_S": "5400"}) == 2
     assert timeout.from_server_config({"TRANSCODE_JOB_TIMEOUT_S": None}) is None

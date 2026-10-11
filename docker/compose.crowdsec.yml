@@ -20,6 +20,8 @@ services:
     logging: *logging
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
     mem_limit: ${CROWDSEC_MEM_LIMIT:-384m}
     # CROWDSEC_ONLINE=1 adds the community blocklist, which also shares the attacking
     # addresses this server sees with CrowdSec; off unless the owner opts in.
@@ -76,7 +78,7 @@ services:
     command:
       - -loglevel=warn
       - -listenip=0.0.0.0
-      - -allowfrom=alloy,crowdsec,cadvisor
+      - -allowfrom=alloy,crowdsec
       - -allowGET=/(v[0-9.]+/)?(version|_ping|info|containers/json|containers/[a-zA-Z0-9_.-]+/(json|logs)|events|networks)
       - -allowHEAD=/(v[0-9.]+/)?_ping
       - -allowhealthcheck

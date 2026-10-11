@@ -444,9 +444,9 @@ export interface BackupAgent {
  * * `drill` - Restore drill
  * * `check` - Check the destinations
  */
-export type BackupRunKindEnum = (typeof BackupRunKindEnum)[keyof typeof BackupRunKindEnum];
+export type BackupKind = (typeof BackupKind)[keyof typeof BackupKind];
 
-export const BackupRunKindEnum = {
+export const BackupKind = {
   db_full: "db_full",
   db_diff: "db_diff",
   files: "files",
@@ -461,9 +461,9 @@ export const BackupRunKindEnum = {
  * * `succeeded` - Succeeded
  * * `failed` - Failed
  */
-export type BackupRunStatusEnum = (typeof BackupRunStatusEnum)[keyof typeof BackupRunStatusEnum];
+export type BackupRunStatus = (typeof BackupRunStatus)[keyof typeof BackupRunStatus];
 
-export const BackupRunStatusEnum = {
+export const BackupRunStatus = {
   queued: "queued",
   running: "running",
   succeeded: "succeeded",
@@ -476,9 +476,9 @@ export const BackupRunStatusEnum = {
  * * `initial` - First backup
  * * `command` - Command line
  */
-export type BackupRunTriggerEnum = (typeof BackupRunTriggerEnum)[keyof typeof BackupRunTriggerEnum];
+export type BackupTrigger = (typeof BackupTrigger)[keyof typeof BackupTrigger];
 
-export const BackupRunTriggerEnum = {
+export const BackupTrigger = {
   schedule: "schedule",
   manual: "manual",
   initial: "initial",
@@ -487,9 +487,9 @@ export const BackupRunTriggerEnum = {
 
 export interface BackupRun {
   readonly id: string;
-  readonly kind: BackupRunKindEnum;
-  readonly status: BackupRunStatusEnum;
-  readonly trigger: BackupRunTriggerEnum;
+  readonly kind: BackupKind;
+  readonly status: BackupRunStatus;
+  readonly trigger: BackupTrigger;
   /** @nullable */
   readonly requested_by: string | null;
   readonly created_at: string;

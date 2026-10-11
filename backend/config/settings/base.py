@@ -540,6 +540,10 @@ SPECTACULAR_SETTINGS = {
         "ChannelOutput": "apps.live.models.ChannelOutput",
         "ChannelTranscode": "apps.live.models.ChannelTranscode",
         "ChannelOrigin": "apps.live.models.ChannelOrigin",
+        # Backups and the restore drill (H2, ADR-0020).
+        "BackupKind": "apps.ops.models.BackupKind",
+        "BackupRunStatus": "apps.ops.models.RunStatus",
+        "BackupTrigger": "apps.ops.models.RunTrigger",
     },
     "ENUM_ADD_EXPLICIT_BLANK_NULL_CHOICE": False,
     "POSTPROCESSING_HOOKS": [

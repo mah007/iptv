@@ -9936,6 +9936,22 @@ components:
         - offsite_snapshots
         - passphrase
         - seen_at
+    BackupKind:
+      enum:
+        - db_full
+        - db_diff
+        - files
+        - offsite
+        - drill
+        - check
+      type: string
+      description: |-
+        * `db_full` - Database (full)
+        * `db_diff` - Database (differential)
+        * `files` - Configuration, artwork and database dump
+        * `offsite` - Offsite copy
+        * `drill` - Restore drill
+        * `check` - Check the destinations
     BackupRun:
       type: object
       properties:
@@ -9945,15 +9961,15 @@ components:
           readOnly: true
         kind:
           allOf:
-            - $ref: "#/components/schemas/BackupRunKindEnum"
+            - $ref: "#/components/schemas/BackupKind"
           readOnly: true
         status:
           allOf:
-            - $ref: "#/components/schemas/BackupRunStatusEnum"
+            - $ref: "#/components/schemas/BackupRunStatus"
           readOnly: true
         trigger:
           allOf:
-            - $ref: "#/components/schemas/BackupRunTriggerEnum"
+            - $ref: "#/components/schemas/BackupTrigger"
           readOnly: true
         requested_by:
           type:
@@ -10005,23 +10021,7 @@ components:
         - started_at
         - status
         - trigger
-    BackupRunKindEnum:
-      enum:
-        - db_full
-        - db_diff
-        - files
-        - offsite
-        - drill
-        - check
-      type: string
-      description: |-
-        * `db_full` - Database (full)
-        * `db_diff` - Database (differential)
-        * `files` - Configuration, artwork and database dump
-        * `offsite` - Offsite copy
-        * `drill` - Restore drill
-        * `check` - Check the destinations
-    BackupRunStatusEnum:
+    BackupRunStatus:
       enum:
         - queued
         - running
@@ -10033,18 +10033,6 @@ components:
         * `running` - Running
         * `succeeded` - Succeeded
         * `failed` - Failed
-    BackupRunTriggerEnum:
-      enum:
-        - schedule
-        - manual
-        - initial
-        - command
-      type: string
-      description: |-
-        * `schedule` - Schedule
-        * `manual` - Admin
-        * `initial` - First backup
-        * `command` - Command line
     BackupSummary:
       type: object
       properties:
@@ -10093,6 +10081,18 @@ components:
         - next_drill_at
         - pending
         - s3
+    BackupTrigger:
+      enum:
+        - schedule
+        - manual
+        - initial
+        - command
+      type: string
+      description: |-
+        * `schedule` - Schedule
+        * `manual` - Admin
+        * `initial` - First backup
+        * `command` - Command line
     BillingKpis:
       type: object
       properties:

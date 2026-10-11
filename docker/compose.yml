@@ -290,6 +290,7 @@ services:
       target: runtime
     user: "0:0"
     cap_add: [CHOWN]
+    read_only: true
     entrypoint: ["sh", "-c"]
     # The CrowdSec overlay mounts /crowdsec-traefik too: the worker writes Traefik's file there.
     command: ["mkdir -p /data/images /data/renditions && chown \"$$DATA_OWNER\" /data /data/images /data/renditions /live && if [ -d /crowdsec-traefik ]; then chown \"$$DATA_OWNER\" /crowdsec-traefik; fi"]

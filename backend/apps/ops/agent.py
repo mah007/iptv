@@ -54,6 +54,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -861,7 +862,9 @@ class Agent:
                 ),
                 timeout=300,
             )
-        recovered_to = last_transaction(log)
+        # The last transaction replayed; on a quiet database nothing was committed after
+        # the backup, so the data reaches the backup's own end.
+        recovered_to = last_transaction(log) or self.latest_backup_stop()
         verify = self.run(self.pgbackrest("verify"), timeout=timeout)
         return {
             "detail": {
@@ -876,6 +879,16 @@ class Agent:
             },
             "duration_s": round(ready - started, 1),
         }
+
+    def latest_backup_stop(self) -> str | None:
+        stops = [
+            backup["stop"]
+            for backup in self.pgbackrest_info()
+            if isinstance(backup.get("stop"), int)
+        ]
+        if not stops:
+            return None
+        return datetime.fromtimestamp(max(stops), tz=UTC).isoformat()
 
     def drill_cleanup(self) -> None:
         data = self.paths.drill / "pgdata"

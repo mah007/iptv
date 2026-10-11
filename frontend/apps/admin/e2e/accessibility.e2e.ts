@@ -36,6 +36,7 @@ const PAGES = [
   "/audit",
   "/health",
   "/monitoring",
+  "/backups",
   "/settings",
   "/settings/integrations",
   "/settings/system",

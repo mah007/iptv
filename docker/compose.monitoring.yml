@@ -242,7 +242,7 @@ services:
     command:
       - -loglevel=warn
       - -listenip=0.0.0.0
-      - -allowfrom=alloy,crowdsec,cadvisor
+      - -allowfrom=alloy,crowdsec
       - -allowGET=/(v[0-9.]+/)?(version|_ping|info|containers/json|containers/[a-zA-Z0-9_.-]+/(json|logs)|events|networks)
       - -allowHEAD=/(v[0-9.]+/)?_ping
       - -allowhealthcheck
@@ -281,8 +281,11 @@ services:
       timeout: 5s
       retries: 3
 
-  # Per-container CPU, memory, network and OOM kills. Reads the Docker socket and the
-  # host's cgroups read-only, like Alloy (ADR-0018 security notes).
+  # Per-container CPU, memory, network and OOM kills. Reads the host's cgroups, Docker's
+  # state and the container runtime's sockets read-only (ADR-0018). A documented exception
+  # to G-36 (ADR-0020): cAdvisor names Docker containers through containerd's socket, so
+  # the Docker API proxy can't stand in for it; it has no capability but SYSLOG and stays
+  # on the internal monitoring network with no route in.
   cadvisor:
     <<: *hardened
     image: ghcr.io/google/cadvisor:v0.60.6@sha256:b8e7d1093144fd088f425ff003d75a4aa405de075db78dae3bc563730b1bd07a
@@ -314,9 +317,12 @@ services:
   # Creates (or updates) the read-only `iptv_monitor` PostgreSQL role (pg_monitor) that
   # postgres-exporter signs in as, once per start.
   postgres-monitor-init:
-    image: postgres:18.6-alpine
+    image: postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     restart: "no"
     logging: *logging
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
     entrypoint: ["sh", "/monitor-role.sh"]
     environment:
       PGHOST: postgres

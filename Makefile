@@ -42,11 +42,11 @@ RUN_FRONTEND := $(COMPOSE) run --rm --no-deps -T frontend
 # Trivy pinned by digest: a moved or compromised tag can't change what runs.
 TRIVY_IMAGE := aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
 IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/media:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION) \
-	smart-iptv/postgres:$(APP_VERSION) smart-iptv/postgres-backup:$(APP_VERSION)
+	smart-iptv/postgres:$(APP_VERSION) smart-iptv/postgres-backup:$(APP_VERSION) smart-iptv/traefik:$(APP_VERSION)
 # Extra docker build flags; before tagging a milestone use BUILD_FLAGS="--pull --no-cache".
 BUILD_FLAGS ?= --pull
 
-.PHONY: help secrets up down ps logs migrate backup restore-test crowdsec-test seed sample-media shell smoke test test-backend test-frontend \
+.PHONY: help secrets up down ps logs migrate backup restore-test crowdsec-test hardening-test seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
 	api-client api-client-check build smoke-images scan licenses ci ci-steps \
 	media-ready compat compat-live e2e-iptvnator e2e-admin e2e-portal \
@@ -88,6 +88,9 @@ logs: ## Follow logs; one service with s=<name>, e.g. make logs s=web
 
 migrate: ## Apply database migrations (as the database owner; the app services use a restricted role)
 	$(COMPOSE) exec -T -e DB_ROLE=owner web python manage.py migrate --noinput
+
+hardening-test: ## Every production container drops capabilities, can't gain privileges, has a read-only root, a digest-pinned image and no Docker socket (G-36, G-39; no stack needed)
+	python3 scripts/check_hardening.py
 
 crowdsec-test: ## With CROWDSEC=1 up: a probe bans its own address and gets 403 from Traefik, the admin switch lets it pass, unban restores 200
 	@scripts/crowdsec_test.sh
@@ -288,12 +291,13 @@ monitoring-firedrill: ## With MONITORING=1 up: fire the FireDrill alert and wait
 	$(COMPOSE) exec -T web python manage.py fire_drill --stop; trap - EXIT; \
 	python3 monitoring/tests/fire_drill.py --mailpit "$(MAIL_URL)" --since "$$since" --resolved --timeout 420
 
-build: ## Build the production images (app, media, frontend, postgres, postgres-backup), pulling fresh base images
+build: ## Build the production images (app, media, frontend, postgres, postgres-backup, traefik), pulling fresh base images
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target media -t smart-iptv/media:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/frontend.Dockerfile --target runtime -t smart-iptv/frontend:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/postgres.Dockerfile --target postgres -t smart-iptv/postgres:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/postgres.Dockerfile --target backup -t smart-iptv/postgres-backup:$(APP_VERSION) .
+	docker build $(BUILD_FLAGS) -f docker/traefik.Dockerfile -t smart-iptv/traefik:$(APP_VERSION) .
 
 smoke-images: ## Start the production images (env from .env.example), check --deploy, wait for health
 	@scripts/smoke_images.sh
@@ -332,6 +336,7 @@ ci-steps:
 	$(MAKE) lint
 	$(MAKE) compat
 	$(MAKE) monitoring-test
+	$(MAKE) hardening-test
 	$(MAKE) typecheck
 	$(MAKE) api-client-check
 	$(MAKE) test

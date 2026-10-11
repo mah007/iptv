@@ -2,8 +2,9 @@
 # Admin SPA + customer portal.
 # Targets: `dev` (Vite dev servers, sources bind-mounted) and `runtime` (static files on nginx).
 
-ARG NODE_IMAGE=node:24.21.0-trixie-slim
-ARG NGINX_IMAGE=nginx:1.30.5-alpine
+# Base images pinned by digest as well as tag (G-39, ADR-0020).
+ARG NODE_IMAGE=node:24.21.0-trixie-slim@sha256:173f125896c3b47ddf056734c7ea789d04595a6a08769a8f78e0df642781fb66
+ARG NGINX_IMAGE=nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
 
 FROM ${NODE_IMAGE} AS base
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0

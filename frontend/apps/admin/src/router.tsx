@@ -226,6 +226,12 @@ const monitoringRoute = createRoute({
   validateSearch: parseMonitoringSearch,
   component: lazyRouteComponent(() => import("./pages/monitoring"), "MonitoringPage"),
 });
+/** H2 (ADR-0020): backups, the restore drill and "Back up now". */
+const backupsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/backups",
+  component: lazyRouteComponent(() => import("./pages/backups"), "BackupsPage"),
+});
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
@@ -291,6 +297,7 @@ export const routeTree = rootRoute.addChildren([
     accessRulesRoute,
     healthRoute,
     monitoringRoute,
+    backupsRoute,
     settingsRoute,
     integrationsRoute,
     systemRoute,

@@ -13,6 +13,7 @@ import {
   Clapperboard,
   Cpu,
   Database,
+  DatabaseBackup,
   FolderTree,
   Gauge,
   HardDrive,
@@ -189,6 +190,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         icon: Gauge,
         permission: "monitoring.view",
       },
+      { to: "/backups", labelKey: "nav.backups", icon: DatabaseBackup, permission: "backups.view" },
       {
         to: "/settings",
         labelKey: "nav.settings",

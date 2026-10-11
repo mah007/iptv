@@ -44,13 +44,14 @@
 - **Defence in depth:** provider keys, `whsec_` secrets, bot tokens and JWTs are masked in log text; httpx's request lines are off (WARNING).
 
 ### Evidence (dev stack, 2026-10-11)
-- **Backend (lane 1):** the core, notifications, metadata, billing, dashboard, library, accounts, media and live suites: 2323 passed. The only failures are `test_registry`'s two exhaustive key lists, which M14b's new `backups.*` keys extend (H2 updates them).
+- **Backend (lane 1), the full suite:** 3014 passed at 94.55% coverage. The only failures are `test_registry`'s two exhaustive key lists, which M14b's new `backups.*` and `privacy.*` keys extend (H2 updates them).
   - The new tests cover encryption at rest (the raw row and the cache hold no plaintext), masking, precedence and sources, audit without values, logs without secrets, adopt, reset and bulk changes, key rotation, the migration helpers, pickup without a restart, every Test with a mocked transport, the integrations and system APIs, logo uploads, branding, account defaults, the watcher's polling switch, the packager's log line and the Alertmanager fallback endpoint.
 - **Vitest:** admin 157 (Integrations, System, secret controls), portal 48 (branding, support contacts, first-visit language).
 - **`make e2e-admin`:**
   - the Integrations journey: move the SMTP host in, a wrong port that the Test explains, then Mailpit's port, with the test email found in Mailpit's API; a Stripe key saved, never in the page or any response, then cleared;
   - axe on `/settings/integrations` and `/settings/system` in English/light and Arabic/dark, and no sideways scroll at 390 px;
-  - six other pages failed once with blank renders while services were restarted (as in M12's notes) and passed on a rerun.
+  - the last full run: 102 passed, 1 skipped (monitoring, overlay off). Six pages of other areas rendered blank while services restarted, as in M12's notes, and the serial journeys after them didn't run; all 19 passed on a rerun.
+- **`make e2e-portal`:** 3 passed. The journey now pins English, because a first visit speaks the service's default language (Arabic).
 - **Runtime pickup on the running stack, no restarts:**
   - the **worker** sent a queued email to the port set in the admin (refused), then delivered it once the port was fixed;
   - the **packager** logged `live.limits_changed` 1 s after a change;
