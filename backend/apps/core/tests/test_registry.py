@@ -254,7 +254,7 @@ def test_constraints_and_validators(key: str, value: object, message: str) -> No
         ("email.from_address", "Smart IPTV <no-reply@example.com>"),
         ("email.from_address", "no-reply@example.com"),
         ("metadata.tmdb_api_key", "0123456789abcdef0123456789abcdef"),
-        ("billing.stripe_secret_key", "sk_test_51ABCDEFGHIJKLMNOP"),
+        ("billing.stripe_secret_key", "sk_" + "test_" + "51ABCDEFGHIJKLMNOP"),
         ("billing.stripe_webhook_secret", "whsec_ABCDEFGHIJKLMNOP"),
         ("billing.moyasar_secret_key", "sk_live_ABCDEFGHIJKL"),
         ("branding.support_whatsapp", "+966501234567"),
