@@ -81,7 +81,20 @@ def _matches_ip(rule: Rule, address: IPAddress) -> bool:
         return False
 
 
-def evaluate(rules: Iterable[Rule], *, client_ip: str | None, country: str | None) -> RuleVerdict:
+def evaluate(
+    rules: Iterable[Rule],
+    *,
+    client_ip: str | None,
+    country: str | None,
+    local: bool = False,
+    unknown_allowed: bool = False,
+) -> RuleVerdict:
+    """IP rules first (an allow wins), then country rules.
+
+    Country rules need a known country. Without one, local network addresses (`local`)
+    always pass them, and other addresses pass allow-only rules when `unknown_allowed`
+    (the admin's `geoip.unknown_country_policy`); deny rules can't match an unknown
+    country either way."""
     rules = list(rules)
     address = _address(client_ip)
     if address is not None:
@@ -95,6 +108,8 @@ def evaluate(rules: Iterable[Rule], *, client_ip: str | None, country: str | Non
         if any(_matches_ip(rule, address) for rule in denies):
             return RuleVerdict.IP_BLOCKED
     code = (country or "").upper() or None
+    if code is None and (local or unknown_allowed):
+        return RuleVerdict.ALLOWED
     denied = {rule.value for rule in rules if rule.type == AccessRuleType.COUNTRY_DENY}
     allowed = {rule.value for rule in rules if rule.type == AccessRuleType.COUNTRY_ALLOW}
     if code is not None and code in denied:

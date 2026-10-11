@@ -209,6 +209,20 @@ def rotate(refresh_token: str) -> Rotation:
     )
 
 
+def set_step_up(family: str, until: int) -> None:
+    """Remember that the family's customer confirmed their password (step-up, ADR-0021)."""
+    if state_redis().exists(_family_key(family)):
+        state_redis().hset(_family_key(family), "su", str(int(until)))
+
+
+def step_up_until(family: str) -> int | None:
+    raw = cast("bytes | None", state_redis().hget(_family_key(family), "su"))
+    try:
+        return int(raw) if raw else None
+    except ValueError:
+        return None
+
+
 def revoke_family(family: str) -> UUID | None:
     """End a family (sign-out); returns its device id, if the family was live."""
     raw = cast("bytes | None", state_redis().hget(_family_key(family), "d"))

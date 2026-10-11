@@ -85,6 +85,7 @@ class BackupRunListView(generics.ListAPIView[BackupRun]):
 class BackupRunNowView(APIView):
     permission_classes = (HasPermission,)
     required_permissions: ClassVar[Requirements] = {"POST": RUN}
+    step_up_methods = frozenset({"POST"})
 
     @extend_schema(
         operation_id="backups_run",

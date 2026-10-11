@@ -49,3 +49,9 @@ if TEST_LANE:
     DATABASES["default"]["TEST"] = {"NAME": f"test_{DATABASES['default']['NAME']}_lane{TEST_LANE}"}
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+# No GeoIP database unless a test builds one (the `geoip_dir` fixture and a generated
+# file): lookups never depend on what the dev stack downloaded (ADR-0021).
+GEOIP_DIR = "/nonexistent/geoip"
+# The internal stream-auth's shared secret (G-16, ADR-0021); tests send it as X-Edge-Auth.
+EDGE_AUTH_TOKEN = "test-edge-auth-token-0123456789abcdef"

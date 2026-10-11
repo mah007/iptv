@@ -34,6 +34,10 @@ dependencies = [
     "watchdog>=6.0.0,<7",
     # Sidecar subtitle encodings (cp1256 Arabic, ...), SPEC §7.3 (MIT).
     "charset-normalizer>=3.4.0,<4",
+    # Admin passkeys and security keys (WebAuthn, M14a, ADR-0021; BSD-3-Clause).
+    "webauthn>=3.0.1,<4",
+    # DB-IP Lite country and ASN lookups for playback rules and anti-sharing (Apache-2.0).
+    "maxminddb>=3.2.0,<4",
 ]
 
 [dependency-groups]
@@ -51,6 +55,8 @@ dev = [
     "types-pyyaml>=6.0.12.20260906",
     # The Xtream contract tests validate live payloads against compat/ JSON Schemas.
     "jsonschema==4.26.0",
+    # Small generated GeoIP databases for tests; no download in tests (MIT).
+    "mmdb-writer>=0.2.7,<0.3",
 ]
 
 [tool.uv]
@@ -113,6 +119,9 @@ django_settings_module = "config.settings.test"
 # Coverage is enforced on full runs only (make test-backend); subsets skip it.
 addopts = "--ds=config.settings.test --strict-markers"
 testpaths = ["apps"]
+markers = [
+    "step_up: the test checks step-up itself (no automatic confirmation, ADR-0021)",
+]
 python_files = ["test_*.py"]
 
 [tool.coverage.run]

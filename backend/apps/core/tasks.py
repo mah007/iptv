@@ -50,3 +50,12 @@ def delete_branding_image(name: str) -> None:
     from apps.core import branding  # noqa: PLC0415
 
     branding.delete_logo_file(name)
+
+
+@shared_task(name="apps.core.tasks.measure_replica_lag", ignore_result=True)
+def measure_replica_lag() -> float | None:
+    """The read replica's lag every 15 s (M15, ADR-0022); nothing without a replica."""
+    from apps.core import replica  # noqa: PLC0415
+
+    measured = replica.measure()
+    return None if measured is None else measured.get("lag_s")

@@ -10,7 +10,7 @@
 Secret values are never returned. Every write needs `settings.edit`.
 """
 
-from typing import Any, ClassVar, NoReturn
+from typing import Any, ClassVar, Final, NoReturn
 
 from django.core.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema
@@ -27,6 +27,7 @@ from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.http import acting_user, client_ip
 from apps.core.registry import UnknownSettingError, get_definition
 from apps.core.schema import problems
+from apps.core.security import allowlist_permits
 from apps.core.serializers import (
     SettingEntrySerializer,
     SettingImageSerializer,
@@ -52,12 +53,35 @@ def _entries(states: list[services.SettingState]) -> Any:
     return serializers.ListSerializer(child=SettingEntrySerializer(), instance=states).data
 
 
+ALLOWLIST_KEY: Final = "security.admin_ip_allowlist"
+
+
+def _keep_own_access(request: Request, value: object, *, field: str) -> None:
+    """Refuse an admin allowlist that would lock out the admin saving it (ADR-0021)."""
+    if value is None or not str(value).strip():
+        return
+    if not allowlist_permits(client_ip(request), raw=str(value)):
+        raise ProblemError(
+            ErrorCode.VALIDATION_ERROR,
+            "The list must include the address you are using now.",
+            field_errors={
+                field: [
+                    field_error(
+                        f"Add your current address ({client_ip(request) or 'unknown'}) first.",
+                        code="allowlist_excludes_you",
+                    )
+                ]
+            },
+        )
+
+
 class SettingListView(APIView):
     permission_classes = (HasPermission,)
     required_permissions: ClassVar[Requirements] = {
         "GET": "settings.view",
         "PATCH": "settings.edit",
     }
+    step_up_methods = frozenset({"PATCH"})
 
     @extend_schema(
         operation_id="settings_list",
@@ -79,6 +103,8 @@ class SettingListView(APIView):
         body = SettingsBulkSerializer(data=request.data)
         body.is_valid(raise_exception=True)
         changes: dict[str, object | None] = body.validated_data["values"]
+        if ALLOWLIST_KEY in changes:
+            _keep_own_access(request, changes[ALLOWLIST_KEY], field=f"values.{ALLOWLIST_KEY}")
         try:
             states = services.set_settings(
                 changes, actor=acting_user(request), ip=client_ip(request)
@@ -103,6 +129,7 @@ class SettingDetailView(APIView):
         "PATCH": "settings.edit",
         "DELETE": "settings.edit",
     }
+    step_up_methods = frozenset({"PATCH", "DELETE"})
 
     @extend_schema(
         operation_id="settings_update",
@@ -116,6 +143,8 @@ class SettingDetailView(APIView):
         try:
             if "value" not in payload.validated_data:
                 return Response(SettingEntrySerializer(services.setting_state(key)).data)
+            if key == ALLOWLIST_KEY:
+                _keep_own_access(request, payload.validated_data["value"], field="value")
             state = services.set_setting(
                 key,
                 payload.validated_data["value"],
@@ -151,6 +180,7 @@ class SettingDetailView(APIView):
 class SettingAdoptView(APIView):
     permission_classes = (HasPermission,)
     required_permissions: ClassVar[Requirements] = {"POST": "settings.edit"}
+    step_up_methods = frozenset({"POST"})
 
     @extend_schema(
         operation_id="settings_adopt",
@@ -174,6 +204,7 @@ class SettingImageView(APIView):
     permission_classes = (HasPermission,)
     required_permissions: ClassVar[Requirements] = {"POST": "settings.edit"}
     parser_classes = (MultiPartParser,)
+    step_up_methods = frozenset({"POST"})
 
     @extend_schema(
         operation_id="settings_image_upload",

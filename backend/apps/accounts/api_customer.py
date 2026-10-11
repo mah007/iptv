@@ -7,6 +7,7 @@ Anonymous unsafe requests on the portal check CSRF themselves (ADR-0004). Respon
 with a secret (tokens, Xtream passwords, password links) are `Cache-Control: no-store`.
 """
 
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 from uuid import UUID
 
@@ -20,7 +21,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts import customer_auth, customer_services, services
+from apps.accounts import customer_auth, customer_services, services, stepup
 from apps.accounts.customer_auth import (
     CUSTOMER_AUTHENTICATION,
     BearerTokenAuthentication,
@@ -32,6 +33,7 @@ from apps.accounts.customer_auth import (
 from apps.accounts.customer_tokens import AccessGrant, TokenPair
 from apps.accounts.models import Device, User
 from apps.accounts.permissions import HasPermission, Requirements
+from apps.accounts.serializers import CustomerStepUpSerializer, StepUpResultSerializer
 from apps.accounts.serializers_customer import (
     AppLoginSerializer,
     AppSignInSerializer,
@@ -49,6 +51,7 @@ from apps.accounts.serializers_customer import (
     ResetPasswordSerializer,
     TokenPairSerializer,
 )
+from apps.accounts.stepup import CustomerStepUp
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
 
@@ -276,7 +279,41 @@ def _issued_body(issued: services.IssuedCredential) -> dict[str, Any]:
     }
 
 
+class CustomerStepUpView(CustomerView):
+    """POST /api/v1/auth/step-up: the password again (G-31); DELETE locks again."""
+
+    @extend_schema(
+        operation_id="auth_step_up",
+        summary="Confirm it's you with your password",
+        description="Adding a TV app or a new TV app login needs a confirmation within "
+        "security.customer_step_up_window_min; signing in counts as one.",
+        request=CustomerStepUpSerializer,
+        responses={200: StepUpResultSerializer, **problems(400, 401, 403, 429)},
+    )
+    def post(self, request: Request) -> Response:
+        payload = CustomerStepUpSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        end = customer_auth.confirm_password(
+            request, customer_of(request), payload.validated_data["password"]
+        )
+        body = {"step_up_until": datetime.fromtimestamp(end, tz=UTC)}
+        return no_store(Response(StepUpResultSerializer(body).data))
+
+    @extend_schema(
+        operation_id="auth_step_up_forget",
+        summary="Lock adding TV apps until the next confirmation",
+        request=None,
+        responses={204: OpenApiResponse(description="Locked."), **problems(401, 403)},
+    )
+    def delete(self, request: Request) -> Response:
+        stepup.forget(request)
+        return Response(status=204)
+
+
 class MyDeviceListView(CustomerView):
+    permission_classes = (IsCustomer, CustomerStepUp)
+    step_up_methods = frozenset({"POST"})
+
     @extend_schema(
         operation_id="me_devices_list",
         summary="The customer's devices: IPTV apps, browsers and apps signed in",
@@ -344,6 +381,9 @@ class MyDeviceDetailView(CustomerView):
 
 
 class MyDeviceCredentialsView(CustomerView):
+    permission_classes = (IsCustomer, CustomerStepUp)
+    step_up_methods = frozenset({"POST"})
+
     @extend_schema(
         operation_id="me_devices_xtream_credentials",
         summary="New Xtream credentials for an IPTV app device, shown once",
@@ -373,6 +413,7 @@ class MyDeviceCredentialsView(CustomerView):
 
 
 class CustomerPasswordInviteView(APIView):
+    step_up_methods = frozenset({"POST"})
     """POST /api/v1/admin/customers/{id}/password-invite (admin host)."""
 
     permission_classes = (HasPermission,)

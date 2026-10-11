@@ -51,7 +51,7 @@ from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
-from apps.accounts import customer_tokens, services
+from apps.accounts import customer_tokens, services, stepup
 from apps.accounts.customer_tokens import AccessGrant, RefreshOutcome, TokenPair
 from apps.accounts.lockout import LOGIN_USERNAME_ATTR
 from apps.accounts.models import Device, DeviceKind, User, UserStatus
@@ -264,6 +264,29 @@ def _record_sign_in(user: User, ip: str | None) -> None:
         user.save(update_fields=["last_login_ip", "updated_at"])
 
 
+# --- Step-up: the password again before adding a TV app login (G-31, ADR-0021) --------------
+
+
+def confirm_password(request: Request, user: User, password: str) -> int:
+    """Check the signed-in customer's password again; returns when the window ends.
+
+    Wrong passwords count towards django-axes' lockout and the account's step-up limit."""
+    wait = stepup.blocked(user)
+    if wait:
+        raise stepup.too_many(wait)
+    raw = request._request
+    setattr(raw, LOGIN_USERNAME_ATTR, user.username)
+    confirmed = authenticate(raw, username=user.username, password=password)
+    if getattr(raw, "axes_locked_out", False):
+        raise ProblemError(
+            ErrorCode.ACCOUNT_LOCKED, "Too many failed sign-in attempts. Try again later."
+        )
+    if not isinstance(confirmed, User) or confirmed.pk != user.pk:
+        stepup.count_failure(user)
+        raise ProblemError(ErrorCode.INVALID_CREDENTIALS, "The password is incorrect.")
+    return stepup.elevate(request, user)
+
+
 # --- The portal (session) ---------------------------------------------------------------------
 
 
@@ -273,6 +296,7 @@ def portal_login(request: HttpRequest, login_value: str, password: str) -> User:
     days = int(cast("int", get_setting("security.customer_session_days")))
     request.session.set_expiry(days * 86400)
     _record_sign_in(user, client_ip(request))
+    stepup.elevate(request, user)  # signing in counts as a confirmation
     return user
 
 
@@ -314,6 +338,10 @@ def app_login(
         last_ip=ip,
     )
     pair = customer_tokens.issue(user.pk, device.pk)
+    # Signing in counts as a confirmation (step-up) for this app's token family.
+    customer_tokens.set_step_up(
+        pair.family, int(timezone.now().timestamp()) + stepup.window_s(user)
+    )
     # last_login and django-axes' reset on success, as a session sign-in would do.
     user_logged_in.send(sender=User, request=request, user=user)
     _record_sign_in(user, ip)

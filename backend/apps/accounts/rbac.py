@@ -42,6 +42,9 @@ PERMISSIONS: Mapping[str, str] = MappingProxyType(
         # Backups and the restore drill (H2, ADR-0020).
         "backups.view": "See backups, the backup service and the restore drills.",
         "backups.run": "Start a backup, a restore drill or a destination test.",
+        # Media edges and CDN zones (M15, ADR-0022).
+        "edges.view": "See the media edges, their health and load.",
+        "edges.manage": "Add, change and remove edges; rotate an edge's secret.",
         "roles.manage": "Create and change roles.",
         "admins.manage": "Create admin users and assign their roles.",
     }

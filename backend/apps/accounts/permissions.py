@@ -6,7 +6,10 @@ from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
+from apps.accounts import stepup
+from apps.accounts.passkeys import ENROL_SESSION_KEY
 from apps.accounts.rbac import permission_codes
+from apps.core.errors import ErrorCode, ProblemError
 
 # What a view requires: one code, or several of which any one suffices.
 type Requirement = str | tuple[str, ...]
@@ -51,6 +54,10 @@ class HasPermission(BasePermission):
     request the mapping does not cover is refused: access fails closed (methods the
     view does not implement get 405). Non-staff users never pass, whatever their
     roles. Anonymous requests get 401.
+
+    Sensitive views also declare `step_up_methods = frozenset({"POST", ...})`: once the
+    permission check passes, those methods need a recent confirmation
+    (`apps.accounts.stepup`, ADR-0021), else 403 STEP_UP_REQUIRED.
     """
 
     message = "You do not have permission to perform this action."
@@ -68,4 +75,14 @@ class HasPermission(BasePermission):
             return False
         required = (requirement,) if isinstance(requirement, str) else requirement
         codes = request_permission_codes(request)
-        return any(code in codes for code in required)
+        if not any(code in codes for code in required):
+            return False
+        session = getattr(request._request, "session", None)
+        if session is not None and session.get(ENROL_SESSION_KEY):
+            raise ProblemError(
+                ErrorCode.PERMISSION_DENIED,
+                "Register a security key or passkey first (My account → Security).",
+            )
+        if (request.method or "").upper() in stepup.methods_of(view):
+            stepup.require(request)
+        return True

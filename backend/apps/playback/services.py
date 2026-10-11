@@ -36,10 +36,12 @@ from django.utils import timezone
 
 from apps.accounts.models import Device, User, UserStatus
 from apps.audit import services as audit
+from apps.core import geoip
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.metrics import ACTIVE_STREAMS, CONCURRENCY_REJECTIONS, KICKS, STREAM_STARTS
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
+from apps.edges import services as edges
 from apps.playback import concurrency, conf, entitlements, records, rules, tokens
 from apps.playback.concurrency import KickReason, SlotStatus
 from apps.playback.entitlements import Entitlement, EntitlementStatus
@@ -113,6 +115,10 @@ class PlayableRendition:
     `path` names the entry file when it is not derived from the kind: a live channel's
     `live.ts` or `live/index.m3u8`, or a catch-up window `archive/<start>-<s>.ts`
     (ADR-0017). It must stay inside the token's scope.
+
+    `published_key` is the asset's prefix on the S3 origin when this rendition is
+    published there and current ("" otherwise): an S3-origin edge's token title
+    (ADR-0022). Edges that read the media volume use `storage_key`.
     """
 
     storage_key: str
@@ -121,10 +127,14 @@ class PlayableRendition:
     container: str = "mp4"
     name: str = ""
     path: str = ""
+    published_key: str = ""
 
     def __post_init__(self) -> None:
         if not tokens.TITLE.fullmatch(self.storage_key):
             msg = "storage_key must be an asset key ([A-Za-z0-9_-]{1,64}), not a path"
+            raise ValueError(msg)
+        if self.published_key and not tokens.TITLE.fullmatch(self.published_key):
+            msg = "published_key must be an origin prefix ([A-Za-z0-9_-]{1,64})"
             raise ValueError(msg)
         if not tokens.EXTENSION.fullmatch(self.container):
             msg = "container must be a file extension such as mp4"
@@ -183,6 +193,7 @@ class PlaybackGrant:
     rendition: PlayableRendition
     expires_at: int  # Unix seconds: the token's exp
     reused: bool  # True within the reuse window (seek, reconnect)
+    edge: str = "local"  # the edge the URL points at (ADR-0022)
 
 
 # --- Denials --------------------------------------------------------------------------
@@ -313,15 +324,28 @@ def _check_device(user: User, device: Device) -> None:
 
 
 def _check_rules(
-    entitlement: Entitlement, *, client_ip: str | None, country: str | None, now: datetime
+    entitlement: Entitlement,
+    *,
+    client_ip: str | None,
+    country: str | None,
+    now: datetime,
+    local: bool = False,
 ) -> None:
-    """Check 4."""
+    """Check 4. An unknown country (DB-IP doesn't know the address, or no database) meets
+    allow-only country rules as `geoip.unknown_country_policy` says; local network
+    addresses never meet country rules (ADR-0021)."""
     applicable = [
         *rules.customer_rules(entitlement["ip_rules"], now),
         *rules.customer_rules(entitlement["country_rules"], now),
         *rules.global_rules(now),
     ]
-    verdict = rules.evaluate(applicable, client_ip=client_ip, country=country)
+    verdict = rules.evaluate(
+        applicable,
+        client_ip=client_ip,
+        country=country,
+        local=local,
+        unknown_allowed=get_setting("geoip.unknown_country_policy") == "allow",
+    )
     if verdict is rules.RuleVerdict.IP_BLOCKED:
         raise PlaybackDenied(Denial.IP_BLOCKED)
     if verdict is rules.RuleVerdict.GEO_BLOCKED:
@@ -394,6 +418,7 @@ class _Start:
     country: str
     user_agent: str
     moment: datetime
+    asn: int | None = None
 
 
 def _close_row(
@@ -465,6 +490,7 @@ def _session_row(
             "rendition": start.rendition.kind.value,
             "ip": start.client_ip,
             "country": start.country,
+            "asn": start.asn,
             "user_agent": start.user_agent[:256],
             "player": start.device.app_hint,
             "started_at": start.moment,
@@ -516,13 +542,22 @@ def _open_session(start: _Start) -> PlaybackGrant:
         with transaction.atomic():
             row, reused = _session_row(start, key, slot, previous)
             _close_evicted(slot.evicted, start.moment)
+        # Which edge serves it, and the title that edge understands (ADR-0022).
+        target = edges.choose(
+            session=key,
+            user_id=str(start.user.pk),
+            live=start.title.kind in LIVE_KINDS,
+            storage_key=start.rendition.storage_key,
+            published_key=start.rendition.published_key,
+        )
+        net = _token_net(start.client_ip)
         token = tokens.sign(
             keyset,
             session=key,
-            title=start.rendition.storage_key,
+            title=target.title,
             rendition=start.rendition.token_rendition,
             exp=exp,
-            net=_token_net(start.client_ip),
+            net=net,
         )
         # Within the reuse window the record carries on; otherwise it starts afresh.
         carried = previous if reused and previous and previous.row == str(row.pk) else None
@@ -563,7 +598,14 @@ def _open_session(start: _Start) -> PlaybackGrant:
             KickReason.REPLACED,
             now=start.moment,
         )
-    url = f"{conf.media_base_url()}/v/{token}/{start.rendition.entry}"
+    url = edges.media_url(
+        target,
+        token=token,
+        rendition=start.rendition.token_rendition,
+        entry=start.rendition.entry,
+        exp=exp,
+        client_ip=start.client_ip,
+    )
     return PlaybackGrant(
         url=url,
         session=row,
@@ -571,6 +613,7 @@ def _open_session(start: _Start) -> PlaybackGrant:
         rendition=start.rendition,
         expires_at=exp,
         reused=reused,
+        edge=target.edge.edge_id,
     )
 
 
@@ -593,12 +636,17 @@ def start_playback(  # noqa: PLR0913 (keyword-only request context)
     """
     moment = now or timezone.now()
     client_ip = _valid_ip(client_ip)
+    # The client's country and network from DB-IP Lite unless the caller knows (ADR-0021).
+    geo = geoip.lookup(client_ip) if country is None else geoip.Geo(country=country)
+    country = geo.country
     # Every later line of this request, the request line included, names the device (SPEC §14).
     structlog.contextvars.bind_contextvars(device_id=str(device.pk))
     try:
         entitlement = _check_account(user, moment)
         _check_device(user, device)
-        _check_rules(entitlement, client_ip=client_ip, country=country, now=moment)
+        _check_rules(
+            entitlement, client_ip=client_ip, country=country, now=moment, local=geo.local
+        )
         _check_content(entitlement, title)
         rendition = _choose_rendition(entitlement, title, prefer)
         _check_license(title, moment)
@@ -613,6 +661,7 @@ def start_playback(  # noqa: PLR0913 (keyword-only request context)
                 country=(country or "").upper()[:2],
                 user_agent=user_agent,
                 moment=moment,
+                asn=geo.asn,
             )
         )
     except PlaybackDenied as denied:

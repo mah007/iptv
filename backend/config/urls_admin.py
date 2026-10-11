@@ -10,6 +10,7 @@ from django.urls import include, path, re_path
 from apps.core import errors, views
 from apps.core.api import BrandingView
 from apps.core.schema import AdminSchemaView
+from apps.core.security import csp_report
 
 # Each app keeps its admin routes in apps/<app>/urls_admin.py.
 admin_api = [
@@ -28,10 +29,14 @@ admin_api = [
     path("", include("apps.live.urls_admin")),
     # Backups and the restore drill (H2, ADR-0020).
     path("", include("apps.ops.urls_admin")),
+    # Media edges and CDN zones (M15, ADR-0022).
+    path("", include("apps.edges.urls_admin")),
 ]
 
 urlpatterns = [
     path("api/v1/health", views.public_health, name="admin-health"),
+    # Browsers' Content-Security-Policy violation reports (M14a, ADR-0021).
+    path("api/v1/csp-report", csp_report, name="admin-csp-report"),
     path("api/v1/schema", AdminSchemaView.as_view(), name="admin-schema"),
     path("api/v1/auth/", include("apps.accounts.urls_auth")),
     # Public: the sign-in page shows the admin's branding too (CFG, ADR-0019).

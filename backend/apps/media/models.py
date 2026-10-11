@@ -309,3 +309,47 @@ class SubtitleTrack(BaseModel):
     @property
     def is_text(self) -> bool:
         return self.format not in (SubtitleFormat.PGS, SubtitleFormat.VOBSUB)
+
+
+class PublicationStatus(models.TextChoices):
+    PENDING = "pending", "Waiting"
+    PUBLISHING = "publishing", "Publishing"
+    PUBLISHED = "published", "Published"
+    FAILED = "failed", "Failed"
+
+
+class AssetPublication(BaseModel):
+    """A media file's renditions on the S3 origin (M15, ADR-0022; `apps.media.publisher`).
+
+    Objects live under `<prefix>/<asset key>-g<generation>/`. `generation` is the complete
+    set edges may read now (0: nothing published yet), and `renditions` the token
+    renditions it holds. Playlists and subtitles are overwritten in place; a change to an
+    object that never changes otherwise (a segment, an MP4, a sprite) publishes a new
+    generation instead, so no edge keeps serving stale cached slices, and the replaced one
+    is deleted after `storage.old_generation_hours` (`retired`).
+    """
+
+    media_file = models.OneToOneField(
+        "catalog.MediaFile", on_delete=models.CASCADE, related_name="publication"
+    )
+    generation = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=12, choices=PublicationStatus.choices, default=PublicationStatus.PENDING
+    )
+    #: Token renditions in the published generation (`compat`, `hls`, `hls720`, ...).
+    renditions = models.JSONField(default=list, blank=True)
+    #: {object path in the asset: [size, mtime_ns]} of the published generation.
+    manifest = models.JSONField(default=dict, blank=True)
+    #: Replaced generations waiting for deletion: [{"generation": n, "at": unix seconds}].
+    retired = models.JSONField(default=list, blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    size = models.BigIntegerField(default=0)
+    object_count = models.PositiveIntegerField(default=0)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    error = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        indexes = (models.Index(fields=("status", "updated_at"), name="media_pub_status"),)
+
+    def __str__(self) -> str:
+        return f"publication:{self.media_file_id}:g{self.generation}"

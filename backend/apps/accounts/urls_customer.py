@@ -10,6 +10,7 @@ portal_auth = [
     path("csrf", api_auth.CsrfView.as_view(), name="customer-auth-csrf"),
     path("login", api_customer.PortalLoginView.as_view(), name="customer-auth-login"),
     path("logout", api_customer.PortalLogoutView.as_view(), name="customer-auth-logout"),
+    path("step-up", api_customer.CustomerStepUpView.as_view(), name="customer-auth-step-up"),
     path(
         "password/forgot",
         api_customer.ForgotPasswordView.as_view(),
@@ -27,6 +28,7 @@ token_auth = [
     path("login", api_customer.AppLoginView.as_view(), name="token-auth-login"),
     path("refresh", api_customer.AppRefreshView.as_view(), name="token-auth-refresh"),
     path("logout", api_customer.AppLogoutView.as_view(), name="token-auth-logout"),
+    path("step-up", api_customer.CustomerStepUpView.as_view(), name="token-auth-step-up"),
     path(
         "password/forgot",
         api_customer.ForgotPasswordView.as_view(),

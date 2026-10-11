@@ -8,7 +8,12 @@
  * streaming/tests/vectors.json.
  *
  * Keys come from the key file that nginx preloads at configuration time
- * (`js_preload_object edge_keys from <file>`), so workers never open it.
+ * (`js_preload_object edge_keys from <file>`), so workers never open it. A standalone
+ * edge gets them from the control plane instead (control.js, ADR-0022): the shared
+ * dictionary `edge_ctl` holds the last key set the control channel fetched.
+ *
+ * In the S3 origin mode ($edge_mode = s3), $edge_object is the bucket object s3.js maps
+ * the path to, and a path past a capped presentation's ceiling is out of scope.
  *
  * This module never logs anything: every error line nginx writes while serving a
  * request ends with the raw request line, and that line holds the token.
@@ -25,6 +30,7 @@
  * ip_mismatch, scope, no_keys.
  */
 import crypto from 'crypto';
+import s3 from 's3.js';
 
 const CLOCK_SKEW_S = 30;
 const MAX_TTL_S = 7 * 24 * 3600;
@@ -319,11 +325,26 @@ function check(keys, token, tail, addr, now) {
 var keyCache = null;
 var parseCache = { token: null, value: null };
 
+/* The key set from the control channel's dictionary (standalone edges, ADR-0022). */
+function controlKeySet() {
+    var dict = typeof ngx !== 'undefined' && ngx.shared && ngx.shared.edge_ctl;
+    if (!dict) {
+        return { keys: null, error: 'no key file preloaded' };
+    }
+    var raw = dict.get('keys');
+    if (!raw) {
+        return { keys: null, error: 'no keys from the control plane yet' };
+    }
+    try {
+        return parseKeySet(JSON.parse(raw));
+    } catch (e) {
+        return { keys: null, error: 'the control plane sent an invalid key set' };
+    }
+}
+
 function keySet() {
     if (keyCache === null) {
-        keyCache = typeof edge_keys === 'undefined'
-            ? { keys: null, error: 'no key file preloaded' }
-            : parseKeySet(edge_keys);
+        keyCache = typeof edge_keys === 'undefined' ? controlKeySet() : parseKeySet(edge_keys);
     }
     return keyCache;
 }
@@ -359,15 +380,29 @@ function verify(r) {
     if (ks.error !== null) {
         return 'no_keys';
     }
-    return check(ks.keys, token, r.variables.tail, r.variables.remote_addr,
-                 Math.floor(Date.now() / 1000));
+    var verdict = check(ks.keys, token, r.variables.tail, r.variables.remote_addr,
+                        Math.floor(Date.now() / 1000));
+    if (verdict === 'ok' && r.variables.edge_mode === 's3') {
+        var t = parsed(token);
+        if (s3.map(t.title, t.rendition, r.variables.tail) === null) {
+            return 'scope';
+        }
+    }
+    return verdict;
 }
 
-/* js_set $edge_object: only used once $edge_verdict is "ok". */
+/* js_set $edge_object: only used once $edge_verdict is "ok". Local mode: the path under
+ * the media root; S3 mode: the bucket object (s3.js). */
 function object(r) {
     var t = parsed(r.variables.token);
     var tail = r.variables.tail;
-    return t !== null && validTail(tail) ? t.title + '/' + tail : '';
+    if (t === null || !validTail(tail)) {
+        return '';
+    }
+    if (r.variables.edge_mode === 's3') {
+        return s3.map(t.title, t.rendition, tail) || '';
+    }
+    return t.title + '/' + tail;
 }
 
 /* js_set $edge_auth_key: the cache stores this hash, never the token. */
@@ -532,7 +567,8 @@ function originHeaders(r) {
     mediaHeaders(r);
 }
 
-/* js_content for /healthz: the edge is healthy when its key file is usable. */
+/* js_content for /healthz: the edge is healthy when its key set is usable (the key
+ * file, or the control channel's copy on a standalone edge). */
 function health(r) {
     if (keySet().error !== null) {
         r.return(503, 'unavailable\n');
@@ -556,6 +592,7 @@ export default {
     /* Pure functions for check_keys.js and streaming/tests/njs/token_test.js. */
     parseToken,
     parseKeySet,
+    keySet,
     check,
     clientNet,
     validTail,

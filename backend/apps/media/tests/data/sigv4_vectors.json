@@ -1,0 +1,173 @@
+{
+ "access_key": "AKIAIOSFODNN7EXAMPLE",
+ "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+ "presign": [
+  {
+   "host": "examplebucket.s3.amazonaws.com",
+   "path": "/test.txt",
+   "region": "us-east-1",
+   "amz_date": "20130524T000000Z",
+   "expires": 86400,
+   "expect_signature": "aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404",
+   "query": "X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20130524%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20130524T000000Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=host&X-Amz-Signature=aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404"
+  },
+  {
+   "host": "seaweedfs:8333",
+   "path": "/media/renditions/0192f3a4b5c67d8e9f00112233445566-g3/hls/v1-h720/seg_00001.m4s",
+   "region": "us-east-1",
+   "amz_date": "20261011T120000Z",
+   "expires": 900,
+   "query": "X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20261011%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261011T120000Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&X-Amz-Signature=0e6892efc289b198d1c18bb9d23c6944123cd32286407508adbe50ca790faf47"
+  },
+  {
+   "host": "account.r2.cloudflarestorage.com",
+   "path": "/smart-iptv/renditions/edgeprobe/probe.txt",
+   "region": "auto",
+   "amz_date": "20261231T235959Z",
+   "expires": 60,
+   "query": "X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20261231%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20261231T235959Z&X-Amz-Expires=60&X-Amz-SignedHeaders=host&X-Amz-Signature=2b0fa83bfcd293893e64f62d10d858e7698b284fe4cda1d4a4d73d5d14fb8cc8"
+  },
+  {
+   "host": "s3.us-west-004.backblazeb2.com",
+   "path": "/bucket/a b/~tilde_dash-dot.mp4",
+   "region": "us-west-004",
+   "amz_date": "20270101T000000Z",
+   "expires": 900,
+   "query": "X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20270101%2Fus-west-004%2Fs3%2Faws4_request&X-Amz-Date=20270101T000000Z&X-Amz-Expires=900&X-Amz-SignedHeaders=host&X-Amz-Signature=32c2e244eeda9a7ff7afa580fcdc19aea16937b892f326808f401f77897d6eb0"
+  }
+ ],
+ "map": [
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "compat",
+   "tail": "compat.mp4",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/compat.mp4"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "source",
+   "tail": "source.mkv",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/source.mkv"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "compat",
+   "tail": "compat/thumbs/thumbs.vtt",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/thumbs/thumbs.vtt"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "compat",
+   "tail": "compat/subs/3.eng.vtt",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/subs/3.eng.vtt"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls",
+   "tail": "hls/master.m3u8",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls/master.m3u8"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls",
+   "tail": "hls/v0-h1080/seg_00001.m4s",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls/v0-h1080/seg_00001.m4s"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls",
+   "tail": "hls/a0/index.m3u8",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls/a0/index.m3u8"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls",
+   "tail": "hls/subs/x1.ara.m3u8",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/subs/x1.ara.m3u8"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls720",
+   "tail": "hls720/master.m3u8",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls720/master.m3u8"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls720",
+   "tail": "hls720/v1-h720/index.m3u8",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls/v1-h720/index.m3u8"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls720",
+   "tail": "hls720/v2-h540/init.mp4",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls/v2-h540/init.mp4"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls720",
+   "tail": "hls720/v0-h1080/seg_00001.m4s",
+   "object": null
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls720",
+   "tail": "hls720/v0/seg_00001.m4s",
+   "object": null
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls720",
+   "tail": "hls720/a1/seg_00002.m4s",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls/a1/seg_00002.m4s"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls720",
+   "tail": "hls720/thumbs/sprite_0.jpg",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/thumbs/sprite_0.jpg"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls480",
+   "tail": "hls480/v3-h360/index.m3u8",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls/v3-h360/index.m3u8"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls480",
+   "tail": "hls480/v2-h540/index.m3u8",
+   "object": null
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls2160",
+   "tail": "hls2160/v0-h1080/seg_00001.m4s",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls/v0-h1080/seg_00001.m4s"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls2160",
+   "tail": "hls2160/uhd/init.mp4",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/hls2160/uhd/init.mp4"
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls720",
+   "tail": "hls720/uhd/init.mp4",
+   "object": null
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "hls720",
+   "tail": "hls720/other/file.ts",
+   "object": null
+  },
+  {
+   "title": "0192f3a4b5c67d8e9f00112233445566-g3",
+   "rendition": "probe",
+   "tail": "probe.txt",
+   "object": "0192f3a4b5c67d8e9f00112233445566-g3/probe.txt"
+  }
+ ]
+}

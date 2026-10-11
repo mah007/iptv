@@ -27,6 +27,7 @@ from apps.accounts.permissions import HasPermission, Requirements
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.http import client_ip
 from apps.core.schema import problems
+from apps.core.security import allowlist_permits
 from apps.core.services import get_setting
 
 
@@ -118,6 +119,9 @@ def forward_auth(request: HttpRequest) -> HttpResponse:
     to the admin to sign in (and come back to the same page), and anything else (API
     calls from an open Grafana tab) gets a plain 401.
     """
+    if not allowlist_permits(client_ip(request)):
+        # The admin IP allowlist covers the monitoring UIs too (G-40, ADR-0021).
+        return HttpResponse(status=403)
     identity = monitoring.authorize(request.COOKIES.get(monitoring.cookie_name()))
     if identity is not None:
         response = HttpResponse(status=200)

@@ -57,7 +57,12 @@ def publish(file: MediaFile) -> list[str]:
     root = layout.asset_dir(layout.asset_key(file))
     rows = list(Rendition.objects.filter(media_file=file))
     _link_scopes(root, rows)
-    return _publish_hls(file, root, rows)
+    published = _publish_hls(file, root, rows)
+    # The S3 origin's copy follows (M15, ADR-0022; nothing when publishing is off).
+    from apps.media import publisher  # noqa: PLC0415 (publisher imports this app's models)
+
+    publisher.mark_stale(file)
+    return published
 
 
 def _shared_links(root: Path, scope: Path) -> None:

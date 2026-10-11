@@ -115,9 +115,29 @@ def _renditions(rows: QuerySet[Rendition], kinds: tuple[str, ...]) -> list[dict[
                 media_file__removed_at__isnull=True,
             )
             .order_by("-media_file__is_primary", "-height", "kind", "name")
-            .values("storage_key", "kind", "name", "height", "container", "duration_s")
+            .values(
+                "storage_key",
+                "kind",
+                "name",
+                "height",
+                "container",
+                "duration_s",
+                # The S3 origin's copy (ADR-0022): same query, one join.
+                "media_file__publication__generation",
+                "media_file__publication__renditions",
+            )
         ),
     )
+
+
+def _published_key(row: dict[str, Any], token_rendition: str) -> str:
+    """The asset's prefix on the S3 origin when this rendition is in its published
+    generation, else "" (ADR-0022)."""
+    generation = row.get("media_file__publication__generation") or 0
+    published = row.get("media_file__publication__renditions") or []
+    if generation <= 0 or token_rendition not in published:
+        return ""
+    return f"{row['storage_key']}-g{generation}"
 
 
 def _build(  # noqa: PLR0913 (the title's playback facts)
@@ -148,6 +168,7 @@ def _build(  # noqa: PLR0913 (the title's playback facts)
                 height=row["height"] or 0,
                 container="m3u8" if segmented else (row["container"] or "mp4"),
                 name=presentation,
+                published_key=_published_key(row, presentation or rendition_kind.value),
             )
         )
     durations = [

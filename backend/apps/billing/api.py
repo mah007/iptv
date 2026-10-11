@@ -55,6 +55,7 @@ from apps.billing.serializers import (
 )
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
+from apps.core.security import document_csp
 
 
 class AdminView(APIView):
@@ -128,6 +129,7 @@ class PlanDetailView(AdminView):
         "PATCH": "plans.edit",
         "DELETE": "plans.edit",
     }
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="plans_retrieve",
@@ -189,6 +191,7 @@ class PlanReorderView(AdminView):
 
 class PlanMigrateView(AdminView):
     required_permissions: ClassVar[Requirements] = {"POST": "plans.edit"}
+    step_up_methods = frozenset({"POST"})
 
     @extend_schema(
         operation_id="plans_migrate_subscriptions",
@@ -240,6 +243,7 @@ class SubscriptionListView(generics.ListCreateAPIView[Subscription]):
     filter_backends = (DjangoFilterBackend, filters.SearchFilter)
     filterset_class = SubscriptionFilter
     search_fields = ("user__name", "user__email", "user__phone", "user__username", "plan__code")
+    step_up_methods = frozenset({"POST"})
 
     def get_queryset(self) -> QuerySet[Subscription]:
         return subscriptions_queryset().order_by("-created_at", "-id")
@@ -281,6 +285,8 @@ class _SubscriptionAction(AdminView):
 
 
 class SubscriptionExtendView(_SubscriptionAction):
+    step_up_methods = frozenset({"POST"})
+
     @extend_schema(
         operation_id="subscriptions_extend",
         summary="Add days: from max(now, end); reopens an ended subscription",
@@ -300,6 +306,8 @@ class SubscriptionExtendView(_SubscriptionAction):
 
 
 class SubscriptionChangePlanView(_SubscriptionAction):
+    step_up_methods = frozenset({"POST"})
+
     @extend_schema(
         operation_id="subscriptions_change_plan",
         summary="Move the subscription to another plan; its dates stay",
@@ -371,6 +379,8 @@ class SubscriptionResumeView(_SubscriptionAction):
 
 
 class SubscriptionApproveView(_SubscriptionAction):
+    step_up_methods = frozenset({"POST"})
+
     @extend_schema(
         operation_id="subscriptions_approve_trial",
         summary="Start a customer's waiting trial request now",
@@ -386,6 +396,7 @@ class SubscriptionApproveView(_SubscriptionAction):
 
 class TrialStartView(AdminView):
     required_permissions: ClassVar[Requirements] = {"POST": "subscriptions.edit"}
+    step_up_methods = frozenset({"POST"})
 
     @extend_schema(
         operation_id="subscriptions_start_trial",
@@ -452,6 +463,7 @@ class PaymentListView(generics.ListCreateAPIView[Payment]):
         "user__email",
         "user__username",
     )
+    step_up_methods = frozenset({"POST"})
 
     def get_queryset(self) -> QuerySet[Payment]:
         return payments_queryset().order_by("-created_at", "-id")
@@ -490,6 +502,7 @@ class PaymentDetailView(AdminView):
 
 class PaymentRefundView(AdminView):
     required_permissions: ClassVar[Requirements] = {"POST": "billing.refund"}
+    step_up_methods = frozenset({"POST"})
 
     @extend_schema(
         operation_id="payments_refund",
@@ -562,9 +575,8 @@ def invoice_document(invoice: Invoice, request: Request) -> HttpResponse:
     response = HttpResponse(html, content_type="text/html; charset=utf-8")
     response["Content-Disposition"] = f'inline; filename="{invoices.filename(invoice)}"'
     response["Cache-Control"] = "private, no-store"
-    response["Content-Security-Policy"] = (
-        "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'"
-    )
+    # Inline styles and the logo from the media edge (N3, ADR-0021); never scripts.
+    response["Content-Security-Policy"] = document_csp()
     return response
 
 

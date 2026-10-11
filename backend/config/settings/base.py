@@ -34,13 +34,24 @@ APP_HOST = env("APP_HOST", f"app.{DOMAIN}")
 INTERNAL_HOSTS = env_list("INTERNAL_HOSTS", ["web", "localhost", "127.0.0.1"])
 # The monitoring UIs (O1, ADR-0018): Django serves only the sign-in exchange there.
 GRAFANA_HOST = env("GRAFANA_HOST", f"grafana.{DOMAIN}")
-ALLOWED_HOSTS = [API_HOST, TV_HOST, ADMIN_HOST, APP_HOST, GRAFANA_HOST, *INTERNAL_HOSTS]
+# Standalone edges' control channel and stream-auth over TLS (M15, ADR-0022).
+EDGES_HOST = env("EDGES_HOST", f"edges.{DOMAIN}")
+ALLOWED_HOSTS = [
+    API_HOST,
+    TV_HOST,
+    ADMIN_HOST,
+    APP_HOST,
+    GRAFANA_HOST,
+    EDGES_HOST,
+    *INTERNAL_HOSTS,
+]
 HOST_URLCONFS = {
     API_HOST: "config.urls_api",
     TV_HOST: "config.urls_xtream",
     ADMIN_HOST: "config.urls_admin",
     APP_HOST: "config.urls_portal",
     GRAFANA_HOST: "config.urls_monitoring",
+    EDGES_HOST: "config.urls_edge",
 }
 ROOT_URLCONF = "config.urls_internal"
 # The media edge (nginx-stream) serves artwork, and from slice 3 media, on its own host.
@@ -83,6 +94,10 @@ INSTALLED_APPS = [
     "apps.dashboard",
     # Backups, retention, database privileges, CrowdSec, key rotation (H2, ADR-0020).
     "apps.ops",
+    # Media edges: standalone edges, CDN zones, edge selection (M15, ADR-0022).
+    "apps.edges",
+    # Anti-sharing: sightings, the risk score and flags (M14a, ADR-0021).
+    "apps.antisharing",
 ]
 
 MIDDLEWARE = [
@@ -91,7 +106,11 @@ MIDDLEWARE = [
     # Early, so every response (even a 400 for a bad Host) gets a request id and a log line.
     "apps.core.middleware.RequestLogMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # M14a (ADR-0021): per-host CSP, Permissions-Policy, COOP and Referrer-Policy.
+    "apps.core.security.SecurityHeadersMiddleware",
     "apps.core.middleware.HostURLConfMiddleware",
+    # M14a (ADR-0021): the optional admin IP allowlist (security.admin_ip_allowlist).
+    "apps.core.security.AdminAllowlistMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -182,6 +201,18 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,
     }
 }
+# The optional read replica (M15, ADR-0022; docker/compose.replica.yml): reporting reads
+# only, chosen by apps.core.replica.reporting_db(); writes and migrations stay on default.
+POSTGRES_REPLICA_HOST = env("POSTGRES_REPLICA_HOST", "")
+if POSTGRES_REPLICA_HOST:
+    DATABASES["replica"] = {
+        **DATABASES["default"],
+        "HOST": POSTGRES_REPLICA_HOST,
+        "PORT": env_int("POSTGRES_REPLICA_PORT", default=5432),
+        # Tests use the primary's test database for it.
+        "TEST": {"MIRROR": "default"},
+    }
+DATABASE_ROUTERS = ["apps.core.replica.ReplicaRouter"]
 
 
 # Which Valkey user this process signs in as (G-38, ADR-0020): `app` (the app services:
@@ -225,6 +256,9 @@ MEILI_MASTER_KEY = env("MEILI_MASTER_KEY")
 # and, from slice 3, renditions (renditions/); the edge serves it read-only.
 LIBRARY_ROOT = env("LIBRARY_ROOT", "/media")
 DATA_ROOT = env("DATA_ROOT", "/data")
+# DB-IP Lite country and ASN databases (M14a, ADR-0021): the `geoip-data` volume, written
+# by the worker's monthly update, read by web (apps.core.geoip).
+GEOIP_DIR = env("GEOIP_DIR", "/geoip")
 # Polling for network shares is the admin setting `library.watcher_polling`; this
 # variable is only its fallback (ADR-0019).
 LIBRARY_WATCHER_POLLING = env_optional_bool("LIBRARY_WATCHER_POLLING")
@@ -278,6 +312,8 @@ CELERY_TASK_QUEUES = tuple(
         "metadata",
         "images",
         "notify",
+        # Uploads of renditions to the S3 origin (M15, ADR-0022), on the worker.
+        "publish",
         "transcode.cpu",
         "transcode.qsv",
         "transcode.vaapi",
@@ -296,6 +332,8 @@ CELERY_TASK_ROUTES = {
     "apps.metadata.tasks.*": {"queue": "metadata"},
     # Notifications (SPEC §7.7, B1/ADR-0012): delivery on the notify queue.
     "apps.notifications.tasks.*": {"queue": "notify"},
+    # The S3 origin's publisher (M15, ADR-0022): network-bound, on the worker (egress).
+    "apps.media.publish_tasks.*": {"queue": "publish"},
 }
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_ACKS_LATE = True
@@ -421,6 +459,46 @@ CELERY_BEAT_SCHEDULE = {
         "options": {"expires": 55},
     },
     # --- end H2 ---
+    # --- Application security (M14a, ADR-0021) ---
+    # The anti-sharing score of everyone seen in the last 24 hours; GeoIP health.
+    "antisharing-score-recent": {
+        "task": "apps.antisharing.tasks.score_recent",
+        "schedule": 300.0,
+        "options": {"expires": 280},
+    },
+    # DB-IP Lite: a no-op unless this month's release is newer than the installed one.
+    "antisharing-update-geoip": {
+        "task": "apps.antisharing.tasks.update_geoip",
+        "schedule": crontab(hour=4, minute=50),
+        "options": {"expires": 3 * 3600},
+    },
+    # --- end M14a ---
+    # --- Scale and CDN (M15, ADR-0022) ---
+    # The local edge's health and connections, for edge selection and the Edges page.
+    "edges-probe-local": {
+        "task": "apps.edges.tasks.probe_local",
+        "schedule": 15.0,
+        "options": {"expires": 14},
+    },
+    # The bearer hashes stream-auth reads, rebuilt from Postgres (self-healing).
+    "edges-rebuild-auth": {
+        "task": "apps.edges.tasks.rebuild_auth",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
+    # Renditions waiting for the S3 origin, failed uploads, replaced copies to delete.
+    "media-reconcile-publications": {
+        "task": "apps.media.publish_tasks.reconcile_publications",
+        "schedule": 300.0,
+        "options": {"expires": 290},
+    },
+    # The read replica's lag, for routing reporting reads (when a replica is installed).
+    "core-replica-lag": {
+        "task": "apps.core.tasks.measure_replica_lag",
+        "schedule": 15.0,
+        "options": {"expires": 14},
+    },
+    # --- end M15 ---
 }
 
 # --- I18n -----------------------------------------------------------------------
@@ -560,6 +638,9 @@ PROMETHEUS_EXPORT_MIGRATIONS = False
 # Edge health URLs the Health page probes from inside the backend network (comma-separated),
 # and the Grafana base URL for its "Open in Grafana" links (empty: no links).
 EDGE_HEALTH_URLS = env_list("EDGE_HEALTH_URLS", ["http://nginx-stream:8080/healthz"])
+# The local edge's probe for edge selection (M15, ADR-0022): health and nginx stub_status.
+EDGE_LOCAL_HEALTH_URL = env("EDGE_LOCAL_HEALTH_URL", "http://nginx-stream:8080/healthz")
+EDGE_LOCAL_STATUS_URL = env("EDGE_LOCAL_STATUS_URL", "http://nginx-stream:8081/stub_status")
 GRAFANA_URL = env("GRAFANA_URL", "")
 # Alertmanager authenticates to /internal/alerts with this (ADR-0018); empty: no webhook.
 ALERT_WEBHOOK_TOKEN = env("ALERT_WEBHOOK_TOKEN", "")

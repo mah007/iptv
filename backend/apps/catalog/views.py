@@ -439,6 +439,7 @@ class CategoryDetailView(AdminView):
         "PATCH": "library.manage",
         "DELETE": "library.manage",
     }
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="categories_retrieve",
@@ -547,6 +548,7 @@ class CollectionDetailView(AdminView):
         "PATCH": "library.manage",
         "DELETE": "library.manage",
     }
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="collections_retrieve",
