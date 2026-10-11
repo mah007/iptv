@@ -26,6 +26,10 @@
 #   movies/The Matrix.mp4
 #       H.264 720p, AAC stereo, faststart MP4 (direct play); no year, so the metadata match
 #       is ambiguous between the film and its sequels and goes to the review queue
+#   live/test-pattern.mp4
+#       the live test channel's source (ADR-0017): testsrc2 (a running clock) and a sine
+#       tone, H.264 Main 640x360 25 fps with 2 s GOPs, AAC stereo, 60 s; the dev MediaMTX
+#       loops it into RTSP. Libraries never scan live/.
 #
 # Clips run 30 s (the double episode 60 s); the whole set is about 20 MB.
 # Idempotent: files that exist are skipped. Each file is written in a hidden work folder and
@@ -340,6 +344,16 @@ make_ambiguous() {
 		-c:a aac -b:a 128k -metadata:s:a:0 language=eng
 }
 
+make_live_source() {
+	produce "live/test-pattern.mp4" \
+		"H.264 Main 640x360 25 fps, 2 s GOP, AAC stereo, 60 s (the live test channel)" \
+		-filter_complex "testsrc2=size=640x360:rate=25,format=yuv420p[v];${SINE_STEREO}[a]" \
+		-map '[v]' -map '[a]' -t 60 \
+		-c:v libx264 -preset veryfast -profile:v main -b:v 600k -maxrate 700k -bufsize 1200k \
+		-g 50 -keyint_min 50 -sc_threshold 0 "${SDR_TAGS[@]}" \
+		-c:a aac -b:a 64k -ac 2
+}
+
 make_double_episode() {
 	local chapters="$WORK/show.ffmetadata"
 	cat >"$chapters" <<'EOF'
@@ -384,7 +398,7 @@ main() {
 	local target=${1:-./media} runner_label
 	# Settle on FFmpeg before creating anything, so a bad setup leaves no folders behind.
 	choose_runner
-	mkdir -p -- "$target/movies" "$target/series" || die "cannot create $target"
+	mkdir -p -- "$target/movies" "$target/series" "$target/live" || die "cannot create $target"
 	cd -- "$target"
 	if [[ $RUNNER == host ]]; then
 		runner_label="FFmpeg $(ffmpeg -hide_banner -version | sed -n '1s/^ffmpeg version \([^ ]*\).*/\1/p') on PATH"
@@ -406,6 +420,7 @@ main() {
 	make_breaking_bad
 	make_double_episode
 	make_ambiguous
+	make_live_source
 	printf 'Done: %d made, %d already there; %s in movies/ and series/.\n' \
 		"$MADE" "$SKIPPED" "$(human_size "$TOTAL_BYTES")"
 }

@@ -58,17 +58,37 @@ def key(scope: CatalogScope, locale: Locale, action: str, extra: str = "", *, ve
     return f"{base}:{extra}" if extra else base
 
 
-def cached(
+def cached(  # noqa: PLR0913 (ttl is the one optional knob)
     scope: CatalogScope,
     locale: Locale,
     action: str,
     build: Callable[[], object | None],
     extra: str = "",
+    *,
+    ttl: int = TTL_S,
 ) -> bytes | None:
     """The cached orjson body, else `build()` serialised and stored.
 
     `build` returns None for "not found"; that is passed through and not cached.
     """
+
+    def build_json() -> bytes | None:
+        payload = build()
+        return None if payload is None else orjson.dumps(payload)
+
+    return cached_bytes(scope, locale, action, build_json, extra, ttl=ttl)
+
+
+def cached_bytes(  # noqa: PLR0913
+    scope: CatalogScope,
+    locale: Locale,
+    action: str,
+    build: Callable[[], bytes | None],
+    extra: str = "",
+    *,
+    ttl: int = TTL_S,
+) -> bytes | None:
+    """`cached` for a body that is not JSON (xmltv.php): `build` returns the bytes."""
     client = cache_redis()
     entry = ""
     try:
@@ -79,13 +99,12 @@ def cached(
         hit = None
     if hit is not None:
         return hit
-    payload = build()
-    if payload is None:
+    body = build()
+    if body is None:
         return None
-    body = orjson.dumps(payload)
     if entry:
         try:
-            client.set(entry, body, ex=TTL_S)
+            client.set(entry, body, ex=ttl)
         except redis.RedisError:
             logger.warning("xtream catalog cache unavailable; response not stored")
     return body

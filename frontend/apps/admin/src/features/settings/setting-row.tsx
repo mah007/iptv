@@ -148,7 +148,7 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
         <SelectContent>
           {entry.choices.map((choice) => (
             <SelectItem key={choice} value={choice}>
-              {choice}
+              {t(`settings.choices.${choice}`, { defaultValue: choice })}
             </SelectItem>
           ))}
         </SelectContent>
@@ -221,10 +221,9 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
         >
           {label}
           {entry.sensitive ? (
-            <Badge tone={entry.value === null || entry.value === "" ? "neutral" : "success"}>
-              {entry.value === null || entry.value === ""
-                ? t("settings.secretNotSet")
-                : t("settings.secretSet")}
+            // The API never sends a sensitive value; a stored one is "not the default".
+            <Badge tone={entry.is_default ? "neutral" : "success"}>
+              {entry.is_default ? t("settings.secretNotSet") : t("settings.secretSet")}
             </Badge>
           ) : null}
         </label>

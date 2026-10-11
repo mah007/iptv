@@ -12,6 +12,7 @@ from django.http.request import split_domain_port
 from django.utils.functional import SimpleLazyObject, empty
 
 from apps.core.ids import uuid7
+from apps.core.metrics import XTREAM_LATENCY, XTREAM_REQUESTS
 from apps.core.redaction import redact_text
 
 type GetResponse = Callable[[HttpRequest], HttpResponseBase | Awaitable[HttpResponseBase]]
@@ -21,6 +22,34 @@ REQUEST_ID_HEADER = "X-Request-ID"
 _VALID_REQUEST_ID = re.compile(r"[A-Za-z0-9._:-]{1,128}")
 # Healthchecks and scrapes would flood the log; they are logged only when they fail.
 _QUIET_PATHS = frozenset({"/internal/health/live", "/internal/health/ready", "/metrics"})
+
+# The Xtream host's URLconf (settings.HOST_URLCONFS) and the action labels of
+# iptv_xtream_requests_total: player_api.php actions from this set, else a fixed name.
+XTREAM_URLCONF = "config.urls_xtream"
+XTREAM_ACTIONS = frozenset(
+    {
+        "get_account_info",
+        "get_live_categories",
+        "get_live_streams",
+        "get_series",
+        "get_series_categories",
+        "get_series_info",
+        "get_short_epg",
+        "get_simple_data_table",
+        "get_vod_categories",
+        "get_vod_info",
+        "get_vod_streams",
+    }
+)
+_XTREAM_FIXED = {"/get.php": "m3u", "/xmltv.php": "xmltv"}
+_XTREAM_PLAY_KINDS = {
+    "movie": "play_movie",
+    "series": "play_series",
+    "live": "play_live",
+    "timeshift": "play_timeshift",
+}
+# Xtream's short live form: /<user>/<pass>/<stream id>[.ext]
+_XTREAM_SHORT_LIVE = re.compile(r"/[^/]+/[^/]+/[0-9]+(?:\.[A-Za-z0-9]{1,8})?")
 
 request_log = structlog.get_logger("apps.request")
 
@@ -74,6 +103,11 @@ class RequestLogMiddleware:
     ) -> None:
         response[REQUEST_ID_HEADER] = request_id
         status = response.status_code
+        elapsed = time.perf_counter() - start
+        if getattr(request, "urlconf", None) == XTREAM_URLCONF:
+            action = xtream_action(request)
+            XTREAM_REQUESTS.labels(action, str(status)).inc()
+            XTREAM_LATENCY.labels(action).observe(elapsed)
         if request.path in _QUIET_PATHS and status < 400:
             return
         fields: dict[str, Any] = {
@@ -81,13 +115,52 @@ class RequestLogMiddleware:
             "host": split_domain_port(request.META.get("HTTP_HOST", ""))[0][:255],
             "path": redact_text(request.path),
             "status": status,
-            "latency_ms": round((time.perf_counter() - start) * 1000, 1),
+            "latency_ms": round(elapsed * 1000, 1),
         }
+        route = _route_pattern(request)
+        if route:
+            fields["route"] = route
         user_id = _user_id(request)
         if user_id is not None:
             fields["user_id"] = user_id
         level = logging.ERROR if status >= 500 else logging.INFO
         request_log.log(level, "request", **fields)
+
+
+def xtream_action(request: HttpRequest) -> str:
+    """The bounded action label of an Xtream request (never a raw parameter value)."""
+    path = request.path
+    if path == "/player_api.php":
+        try:
+            action = request.GET.get("action") or (
+                request.POST.get("action") if request.method == "POST" else None
+            )
+        except Exception:  # an unreadable body is still a request to count
+            action = None
+        if not action:
+            return "login"
+        return action if action in XTREAM_ACTIONS else "other"
+    if path in _XTREAM_FIXED:
+        return _XTREAM_FIXED[path]
+    kind = path.split("/", 2)[1] if path.count("/") >= 2 else ""
+    if kind in _XTREAM_PLAY_KINDS:
+        return _XTREAM_PLAY_KINDS[kind]
+    return "play_live" if _XTREAM_SHORT_LIVE.fullmatch(path) else "other"
+
+
+def _route_pattern(request: HttpRequest) -> str:
+    """The matched URL pattern (`api/v1/titles/<uuid:pk>`), never the path itself.
+
+    Regex patterns (`re_path`) are long and unreadable in a log, so those give the
+    view name instead (`xtream-play-movie`).
+    """
+    match = getattr(request, "resolver_match", None)
+    if match is None:
+        return ""
+    route = str(getattr(match, "route", "") or "")
+    if not route or "(?P<" in route or route.startswith("^"):
+        route = str(getattr(match, "view_name", "") or "")
+    return route[:200]
 
 
 def _user_id(request: HttpRequest) -> str | None:

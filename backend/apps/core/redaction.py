@@ -32,11 +32,21 @@ _XTREAM_PATH = re.compile(
 _XTREAM_PLAY_PATH = re.compile(
     r"/(?P<kind>movie|series|live|timeshift)/[^\n]+?/"
     r"(?=\d+(?:\.[A-Za-z0-9]{1,5})?(?:[\s\"'?#]|$)"  # the id: `123.mp4`
-    r"|\d+/\d{4}-\d{2}-\d{2}:\d{2}-\d{2}/)",  # timeshift: duration/start/
+    r"|\d+/\d{4}-\d{2}-\d{2}:\d{2}-\d{2}(?:-\d{2})?/)",  # timeshift: duration/start/
     re.IGNORECASE,
+)
+# Xtream's short live URL, /<user>/<pass>/<stream id>[.ts|.m3u8] (M12), as a whole path,
+# after a space, quote, "(", "=" or ":", or after a URL's authority. Any such
+# three-segment path ending in a number is masked: hiding a harmless path is the
+# lesser evil.
+_XTREAM_SHORT_PATH = re.compile(
+    r"(?P<lead>^|[\s\"'(=:]|//[^/\s\"']+)/[^/?#\s]+/[^/?#\s]+/"
+    r"(?P<id>[0-9]{1,16})(?P<ext>\.(?:ts|m3u8))?(?=$|[\s\"'?#),;])"
 )
 # Signed media URLs from the edge: /v/<token>/...
 _EDGE_TOKEN = re.compile(r"/v/[^/?#\s]+/")
+# Telegram Bot API URLs carry the bot token: /bot<id>:<secret>/sendMessage (O1, alerts).
+_TELEGRAM_BOT = re.compile(r"/bot[0-9]{5,}:[A-Za-z0-9_-]{20,}")
 # Query-string and form parameters that carry credentials (names, not secrets).
 _SECRET_PARAMS = "password|pass|username|token|access_token|refresh_token|secret|api_key|key|code"  # noqa: S105
 _QUERY_PARAM = re.compile(rf"(?<!\w)(?P<name>{_SECRET_PARAMS})=[^&\s#;\"']+", re.IGNORECASE)
@@ -57,7 +67,7 @@ _QUOTED_PAIR = re.compile(
 # them); in free text they are masked as query/form parameters instead.
 _SENSITIVE_KEY = re.compile(
     r"password|passwd|secret|token|authorization|cookie|api_key|(?:^|[^a-z])otp|totp"
-    r"|credential|mfa_code|sessionid",
+    r"|credential|mfa_code|sessionid|source_url",
     re.IGNORECASE,
 )
 _SECRET_PARAM_NAME = re.compile(rf"(?:{_SECRET_PARAMS})", re.IGNORECASE)
@@ -84,7 +94,11 @@ def redact_text(text: str) -> str:
     """Mask credentials and tokens that appear inside free text such as paths or messages."""
     text = _XTREAM_PLAY_PATH.sub(lambda m: f"/{m['kind']}/{MASK}/{MASK}/", text)
     text = _XTREAM_PATH.sub(lambda m: f"/{m['kind']}/{MASK}/{MASK}", text)
+    text = _XTREAM_SHORT_PATH.sub(
+        lambda m: f"{m['lead']}/{MASK}/{MASK}/{m['id']}{m['ext'] or ''}", text
+    )
     text = _EDGE_TOKEN.sub(f"/v/{MASK}/", text)
+    text = _TELEGRAM_BOT.sub(f"/bot{MASK}", text)
     text = _URL_USERINFO.sub(lambda m: f"{m['scheme']}{MASK}:{MASK}@", text)
     text = _BEARER.sub(lambda m: f"{m['scheme']} {MASK}", text)
     text = _QUERY_PARAM.sub(lambda m: f"{m['name']}={MASK}", text)

@@ -58,6 +58,8 @@ EDGE_CORS_ORIGINS=${EDGE_CORS_ORIGINS:-}
 EDGE_REQUEST_ERROR_LOG_LEVEL=${EDGE_REQUEST_ERROR_LOG_LEVEL:-emerg}
 EDGE_ORIGIN_URL=${EDGE_ORIGIN_URL:-}
 EDGE_MEDIA_CACHE_SIZE=${EDGE_MEDIA_CACHE_SIZE:-10g}
+EDGE_LIVE_ROOT=${EDGE_LIVE_ROOT:-}
+EDGE_LIVE_RELAY=${EDGE_LIVE_RELAY:-}
 EDGE_ORIGIN_SCHEME=
 EDGE_ORIGIN_AUTHORITY=
 EDGE_ORIGIN_HOST=
@@ -83,8 +85,18 @@ for cidr in $(list "$EDGE_REAL_IP_FROM"); do
     check EDGE_REAL_IP_FROM "$cidr" '[0-9A-Fa-f.:]+(/[0-9]{1,3})?' 'IP addresses or CIDR blocks'
 done
 for origin in $(list "$EDGE_CORS_ORIGINS"); do
-    check EDGE_CORS_ORIGINS "$origin" "https?://$HOST(:$PORT)?" 'origins such as https://app.example.com'
+    check EDGE_CORS_ORIGINS "$origin" "\\*|https?://$HOST(:$PORT)?" 'origins such as https://app.example.com, or *'
 done
+
+# Live TV (ADR-0017): both or neither.
+if [ -n "$EDGE_LIVE_ROOT$EDGE_LIVE_RELAY" ]; then
+    [ -n "$EDGE_LIVE_ROOT" ] && [ -n "$EDGE_LIVE_RELAY" ] ||
+        die "EDGE_LIVE_ROOT and EDGE_LIVE_RELAY go together: set both for live TV, or neither"
+    check EDGE_LIVE_ROOT "$EDGE_LIVE_ROOT" '/[A-Za-z0-9_./-]*[A-Za-z0-9_-]' \
+        'an absolute path without a trailing slash'
+    [ -d "$EDGE_LIVE_ROOT" ] || die "EDGE_LIVE_ROOT ($EDGE_LIVE_ROOT) is not a directory"
+    check EDGE_LIVE_RELAY "$EDGE_LIVE_RELAY" "$HOST:$PORT" 'host:port'
+fi
 
 case $EDGE_MODE in
     local)
@@ -122,13 +134,14 @@ fi
 export EDGE_ID EDGE_AUTH_UPSTREAM EDGE_AUTH_HOST EDGE_AUTH_CACHE_TTL EDGE_KEYS_FILE \
     EDGE_MEDIA_ROOT EDGE_RESOLVER EDGE_RESOLVER_VALID EDGE_REQUEST_ERROR_LOG_LEVEL \
     EDGE_ORIGIN_SCHEME EDGE_ORIGIN_AUTHORITY EDGE_ORIGIN_HOST EDGE_ORIGIN_HOSTPORT \
-    EDGE_ORIGIN_PREFIX EDGE_MEDIA_CACHE_SIZE
+    EDGE_ORIGIN_PREFIX EDGE_MEDIA_CACHE_SIZE EDGE_LIVE_ROOT EDGE_LIVE_RELAY
 # Only these variables are substituted; nginx's own $variables pass through untouched.
 # shellcheck disable=SC2016 # envsubst's SHELL-FORMAT: literal ${NAME}s, not expansions
 VARS='${EDGE_ID} ${EDGE_AUTH_UPSTREAM} ${EDGE_AUTH_HOST} ${EDGE_AUTH_CACHE_TTL}
 ${EDGE_KEYS_FILE} ${EDGE_MEDIA_ROOT} ${EDGE_RESOLVER} ${EDGE_RESOLVER_VALID}
 ${EDGE_REQUEST_ERROR_LOG_LEVEL} ${EDGE_ORIGIN_SCHEME} ${EDGE_ORIGIN_AUTHORITY}
-${EDGE_ORIGIN_HOST} ${EDGE_ORIGIN_HOSTPORT} ${EDGE_ORIGIN_PREFIX} ${EDGE_MEDIA_CACHE_SIZE}'
+${EDGE_ORIGIN_HOST} ${EDGE_ORIGIN_HOSTPORT} ${EDGE_ORIGIN_PREFIX} ${EDGE_MEDIA_CACHE_SIZE}
+${EDGE_LIVE_ROOT} ${EDGE_LIVE_RELAY}'
 
 render() {
     envsubst "$VARS" < "$SRC/templates/$1.template" > "$OUT/$1"
@@ -137,6 +150,13 @@ render() {
 mkdir -p "$OUT"
 render http.conf
 render server.conf
+
+if [ -n "$EDGE_LIVE_ROOT" ]; then
+    envsubst "$VARS" < "$SRC/templates/live-http.conf.template" >> "$OUT/http.conf"
+    render live.conf
+else
+    echo "# Live TV is not configured on this edge (EDGE_LIVE_ROOT, EDGE_LIVE_RELAY)." > "$OUT/live.conf"
+fi
 
 if [ -n "$EDGE_REAL_IP_FROM" ]; then
     {
@@ -151,14 +171,25 @@ if [ -n "$EDGE_REAL_IP_FROM" ]; then
     } >> "$OUT/server.conf"
 fi
 
+# "*" lets any page read media responses: web IPTV players (an IPTVnator PWA) follow
+# the Xtream host's redirect, after which browsers send `Origin: null`. No cookies or
+# credential headers are involved: the signed URL is the only credential (ADR-0017).
+any_origin=
+for origin in $(list "$EDGE_CORS_ORIGINS"); do
+    if [ "$origin" = "*" ]; then any_origin=1; fi
+done
 {
     echo "# Rendered by $ME from EDGE_CORS_ORIGINS: the Origin is echoed when allowed."
     # shellcheck disable=SC2016 # nginx variables, written literally
     echo 'map $http_origin $edge_cors_origin {'
-    echo '    default "";'
-    for origin in $(list "$EDGE_CORS_ORIGINS"); do
-        echo "    \"$origin\" \$http_origin;"
-    done
+    if [ -n "$any_origin" ]; then
+        echo '    default "*";'
+    else
+        echo '    default "";'
+        for origin in $(list "$EDGE_CORS_ORIGINS"); do
+            echo "    \"$origin\" \$http_origin;"
+        done
+    fi
     echo '}'
 } > "$OUT/cors.conf"
 
@@ -173,4 +204,4 @@ case $EDGE_MODE in
 esac
 
 note "$keys"
-note "rendered $OUT for EDGE_MODE=$EDGE_MODE, edge $EDGE_ID"
+note "rendered $OUT for EDGE_MODE=$EDGE_MODE, edge $EDGE_ID${EDGE_LIVE_ROOT:+, live TV on}"

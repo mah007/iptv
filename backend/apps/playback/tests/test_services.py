@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+import structlog
 from django.utils import timezone
 
 from apps.accounts import services as accounts
@@ -104,13 +105,24 @@ def test_start_returns_a_signed_edge_url(
     claims = tokens.verify(
         media_keys, token, now=int(T0.timestamp()), client_ip="198.51.100.1", tail=tail
     )
-    key = services.session_key(customer.pk, device_of(customer).pk, title.ref)
+    network = services.client_network("203.0.113.7")
+    key = services.session_key(customer.pk, device_of(customer).pk, title.ref, network)
     assert claims.session == key == grant.session_key
     assert claims.title == title.renditions[0].storage_key
     assert claims.rendition == "compat"
     assert claims.exp == grant.expires_at == int(T0.timestamp()) + 6000 + 7200
     assert claims.net is None  # IP binding is off by default
     assert not grant.reused
+
+
+def test_a_start_tags_the_request_s_log_lines(customer: User, make_title: TitleFactory) -> None:
+    """The device and the session prefix join the request's log context (SPEC §14)."""
+    structlog.contextvars.clear_contextvars()
+    grant = start(customer, make_title())
+    context = structlog.contextvars.get_contextvars()
+    assert context["device_id"] == str(device_of(customer).pk)
+    assert context["session_id"] == grant.session_key[: tokens.SESSION_LOG_PREFIX]
+    structlog.contextvars.clear_contextvars()
 
 
 def test_start_opens_the_session_row_and_record(customer: User, make_title: TitleFactory) -> None:

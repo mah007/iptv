@@ -24,6 +24,8 @@ import { createPendingSignIn, type PendingSignIn } from "./features/auth/pending
 import { parseLoginSearch } from "./features/auth/search";
 import { parseCategoriesSearch } from "./features/categories/search";
 import { parseCustomerSearch, parseCustomersSearch } from "./features/customers/search";
+import { parseEpgSearch, parseLiveSearch } from "./features/live/search";
+import { parseMonitoringSearch } from "./features/monitoring/search";
 import { parseReviewSearch } from "./features/review/search";
 import { parseTitlesSearch } from "./features/titles/search";
 import { parseTranscodeSearch } from "./features/transcode/search";
@@ -131,6 +133,18 @@ const categoriesRoute = createRoute({
   validateSearch: parseCategoriesSearch,
   component: lazyRouteComponent(() => import("./pages/categories"), "CategoriesPage"),
 });
+const liveRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/live",
+  validateSearch: parseLiveSearch,
+  component: lazyRouteComponent(() => import("./pages/live-tv"), "LiveTvPage"),
+});
+const epgRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/epg",
+  validateSearch: parseEpgSearch,
+  component: lazyRouteComponent(() => import("./pages/epg"), "EpgPage"),
+});
 const transcodeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/transcode",
@@ -205,6 +219,13 @@ const healthRoute = createRoute({
   path: "/health",
   component: lazyRouteComponent(() => import("./pages/health"), "HealthPage"),
 });
+/** O1 (ADR-0018): opens Grafana, Prometheus and Alertmanager with a one-time link. */
+const monitoringRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/monitoring",
+  validateSearch: parseMonitoringSearch,
+  component: lazyRouteComponent(() => import("./pages/monitoring"), "MonitoringPage"),
+});
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
@@ -243,6 +264,8 @@ export const routeTree = rootRoute.addChildren([
     seriesRoute,
     reviewRoute,
     categoriesRoute,
+    liveRoute,
+    epgRoute,
     transcodeRoute,
     storageRoute,
     adminsRoute,
@@ -256,6 +279,7 @@ export const routeTree = rootRoute.addChildren([
     collectionsRoute,
     accessRulesRoute,
     healthRoute,
+    monitoringRoute,
     settingsRoute,
   ]),
   authRoute.addChildren([loginRoute, mfaRoute]),

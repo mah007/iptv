@@ -2,10 +2,9 @@
 
 **A self-hosted OTT/VOD subscription platform with an Xtream Codes-compatible API.** It brings library management like Plex/Jellyfin together with an IPTV panel. IPTV Smarters, TiviMate, XCIPTV, OTT Navigator and similar apps work with it out of the box.
 
-> 🚧 **Status: the VOD platform is built and runs in production at tv.mah007.net. Live TV and monitoring are being built; security hardening and scale-out come after.**
+> 🚧 **Status: the VOD platform is built and runs in production at tv.mah007.net, with optional monitoring. Live TV with EPG and catch-up is built (M12); security hardening and scale-out come next.**
 > - **Working end to end:** an admin signs in with MFA and creates a customer, typing the IPTV username and password or generating them. Media is scanned, matched on TMDB (English and Arabic), transcoded and served by the signed-URL edge, and IPTV apps log in and play over the Xtream API. The contract suite and an automated IPTVnator journey prove it.
-> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout).
-> - **Being built now:** live TV with EPG and catch-up (M12), and monitoring with dashboards and alerts (M13).
+> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout); and monitoring (M13): seven Grafana dashboards, logs in Loki with credentials redacted, and alerts by email and Telegram, opened from the admin and configured in its Settings; and live TV (M12): your own licensed channels with an XMLTV guide, catch-up and timeshift, played by IPTV apps over the Xtream live URLs and managed in the admin.
 > - **Still to come:** security hardening (M14), scale-out and CDN (M15), and testing on real TVs and phones (M10).
 >
 > See the [roadmap](#roadmap), [docs/PROGRESS.md](docs/PROGRESS.md) and the decisions in [docs/adr/](docs/adr/).
@@ -14,6 +13,8 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-11:** monitoring (M13): an opt-in overlay with Prometheus, Grafana, Loki and Alertmanager, 7 dashboards and 27 alerts. Alerts go to email and Telegram, set in the admin (Settings → Monitoring), with a "Send a test alert" button. Grafana opens only through the admin's MFA sign-in, and logs are scrubbed of credentials twice. `install.sh` asks whether to turn it on.
+- **2026-10-11:** live TV and EPG (M12): channels you own or license (with licence dates), XMLTV guide import, the Xtream live endpoints and `xmltv.php`, live playback as `.ts` or HLS, and catch-up within a disk budget set in the admin. Also: optional MediaMTX ingest for your own encoders and ErsatzTV sync, the admin Live TV and EPG pages, and two threat-model fixes (one login can't feed two households; no internal addresses as sources).
 - **2026-10-06:** one-command server installer, `scripts/install.sh`: it asks for the domain, admin email, sign-in and password, media folder, TMDB and SMTP, checks the server and DNS, installs Docker, and starts everything with HTTPS. `--update` and `--reconfigure` maintain it. See [Install on a server](#install-on-a-server).
 - **2026-10-04:** milestones M3, M4, M6, M7 and M9 tagged as accepted after a clean no-cache quality gate; movie playback also checked with FFmpeg through the signed edge.
 - **2026-10-04:** live TV and EPG (M12) and monitoring (M13) started.
@@ -79,8 +80,16 @@ From a file on disk to a TV screen:
 - ✅ Live session view, with kill, block-device and block-IP actions.
 
 **Xtream compatibility**
-- ✅ `player_api.php`, `get.php` (M3U) and `/movie` and `/series` play URLs, with field types that exactly match the PHP panels apps expect. 🔨 Live channels: `/live` and `/timeshift` URLs, `xmltv.php` and the EPG actions.
+- ✅ `player_api.php`, `get.php` (M3U) and `/movie` and `/series` play URLs, with field types that exactly match the PHP panels apps expect.
+- ✅ Live channels: the live and EPG actions (`get_live_streams`, `get_short_epg`, `get_simple_data_table`), `xmltv.php` (gzip), live entries with `url-tvg` in `get.php`, and the `/live`, short `/{user}/{pass}/{id}` and `/timeshift` play URLs.
 - ✅ Contract tests on every response, plus an automated end-to-end run with IPTVnator.
+
+**Live TV**
+- ✅ Channels you own or license, from your encoders, cameras, an ErsatzTV schedule or the optional MediaMTX ingest (RTMP, SRT, RTSP). Each channel records its rights holder and licence dates and is switched off when the licence ends. There is no playlist import.
+- ✅ Sources are encrypted and never shown again, and addresses inside the server are refused. Groups use the plans' category rules; channels have logos, ordering and a source test that probes codecs.
+- ✅ Each channel is packaged once (FFmpeg copy) and served by the edge as HLS or one continuous MPEG-TS stream. Channels start when someone watches. Catch-up recording has a disk budget set in the admin, and apps can timeshift.
+- ✅ XMLTV guide import from a URL on a schedule, or an upload, with channel mapping and an unmatched view. The guide table is partitioned monthly.
+- 🔜 Live TV in the customer portal; GPU real-time transcoding for live.
 
 **Admin and customer apps**
 - ✅ Admin SPA in Arabic (RTL) and English, with dark and light themes, a ⌘K command palette, keyboard shortcuts and live dashboards.
@@ -90,10 +99,11 @@ From a file on disk to a TV screen:
 - ✅ Plans, subscriptions, trials, a grace period and expiry reminders.
 - ✅ Payments: manual, Stripe and Moyasar (mada, Apple Pay, STC Pay); the card providers switch on with their keys. 🔜 PayPal, HyperPay and Tap.
 - ✅ Sequential invoices with VAT, as print-ready pages in Arabic and English (the browser saves them as PDF).
-- ✅ Notifications by email, with admin-editable Arabic and English templates. 🔜 Telegram and WhatsApp.
+- ✅ Notifications by email, with admin-editable Arabic and English templates; monitoring alerts by email and Telegram. 🔜 Telegram and WhatsApp for customer messages.
 
 **Operations**
-- ✅ Prometheus metrics and credential redaction in every log. 🔨 Grafana dashboards, Loki logs and alerts to email and Telegram.
+- ✅ Prometheus metrics and credential redaction in every log (Django, Nginx and Traefik at the source, Alloy again before Loki, with an automated test).
+- ✅ Optional monitoring overlay: seven Grafana dashboards (streaming, transcoding, library, business, platform, edges, hosts and GPU), 30 days of logs in Loki with one request id across Traefik, Django and the edge, and 27 alerts sent by email and Telegram. Admins open it from the admin with their own MFA sign-in; recipients, Telegram, severities and the edge capacity are admin settings; "Send a test alert" checks the whole path.
 - ✅ An audit log of every admin action; sign-in rate limits and lockouts. 🔜 Backups with a restore drill, and CrowdSec.
 
 ## Architecture
@@ -110,6 +120,7 @@ flowchart LR
     DJ["Django (ASGI)<br/>REST · Xtream · admin API"]
     WK["Celery workers<br/>scan · metadata · images · notify"]
     TX["Transcoder<br/>FFmpeg · QSV / VAAPI / NVENC / CPU"]
+    LV["Live packager<br/>FFmpeg copy · catch-up"]
   end
   subgraph ST["State"]
     PG[("PostgreSQL")]
@@ -127,10 +138,14 @@ flowchart LR
   APP & WEB -- "302 → signed URL" --> EDGE
   EDGE -- "auth check (Redis only)" --> DJ
   EDGE --> STO
+  SRC["Your encoders · ErsatzTV · MediaMTX"] --> LV --> LVOL[("Live volume<br/>HLS window · archive")]
+  EDGE --> LVOL
+  EDGE -- ".ts streams" --> RL["Live relay"] --> LVOL
 ```
 
 - **The control plane decides.** Django, PostgreSQL, Redis and Celery handle accounts, catalog, entitlements and billing.
 - **The streaming plane serves bytes.** Nginx edges verify an HMAC-signed token, check a 60-second-cached heartbeat in Redis, and stream from local disk or S3. Kicked or expired sessions get 403 on their next request.
+- **Live TV is packaged once.** One FFmpeg per watched channel copies the source into HLS on a local volume. The edge serves the segments, and a small relay serves the endless `.ts` stream apps expect. Neither touches the database.
 - **Hosts:** `app.` (portal), `api.` (REST), `tv.` (Xtream), `admin.` (admin SPA) and `media.` (edge, small tier).
 
 ## Tech stack
@@ -177,7 +192,7 @@ These are starting points, not benchmarks. The M15 load-test report will replace
 
 | Setup | CPU | RAM | Disk |
 |---|---|---|---|
-| Development laptop | 4+ cores | 8 GB (16 GB with the monitoring overlay) | 40 GB free, plus sample media |
+| Development laptop | 4+ cores | 8 GB (about 1 GB more with the monitoring overlay) | 40 GB free, plus sample media |
 | Small production (single host) | 8+ cores, iGPU or NVIDIA GPU recommended | 16–32 GB | NVMe for database and transcode scratch, plus library storage (below) |
 
 **Storage.** Plan for the source file plus about **7–9 GB per hour of 1080p content** for renditions. That is the HLS ladder at about 5.4 GB per hour plus the compatible MP4. The UHD variant adds about 7.5 GB per hour when enabled.
@@ -204,6 +219,7 @@ make smoke     # check routing, isolation and readiness through Traefik
 | http://media.localhost/healthz | Media edge: artwork and signed playback URLs |
 | http://mail.localhost | Mailpit: emails the stack sends in development |
 | http://traefik.localhost | Traefik dashboard (development only) |
+| http://grafana.localhost | Monitoring (with `make up MONITORING=1`): open it from the admin's Monitoring page |
 
 On port 8080, add `:8080` to each URL. Modern browsers and curl resolve `*.localhost` to your machine, so no hosts-file edits are needed.
 
@@ -217,6 +233,10 @@ On port 8080, add `:8080` to each URL. Modern browsers and curl resolve `*.local
 | `make build` · `make smoke-images` · `make scan` · `make licenses` | Production images · start and health-check them · Trivy CVE and secret scan · licence gate on their dependencies |
 | `make ci` | The full quality gate on the committed tree; run it before pushing (there's no hosted CI) |
 | `make down` | Stop the stack; data volumes are kept |
+| `make up MONITORING=1` | Add the monitoring overlay (Prometheus, Grafana, Loki, Alloy, Alertmanager, exporters; about 1 GB); `MONITORING=1` in `.env` keeps it on, and down/ps/logs need it too |
+| `make monitoring-test` | Monitoring configs, alert-rule unit tests, dashboard queries and the log-redaction pipeline test, in Docker without the stack (part of `make ci`) |
+| `make monitoring-smoke` · `make monitoring-firedrill` | With the overlay up: targets, rules, the admin-only Grafana and a request id traced in Loki · a test alert end to end, read back from Mailpit |
+| `make monitoring-dashboards` | Regenerate the Grafana dashboards from `monitoring/grafana/build_dashboards.py` |
 
 Demo data and media:
 
@@ -225,8 +245,9 @@ Demo data and media:
 | `make seed args=--reset-admin-password` | Roles, the owner admin `admin` (password printed once; MFA enrolment at first sign-in), demo customers, plans and subscriptions |
 | `make sample-media` | Legal synthetic sample files (FFmpeg test patterns named like real titles) in `./media` |
 | `make media-ready` | Adds the sample libraries if missing, then waits until a movie and a series are scanned, matched and transcoded |
+| `make live-ready` | The legal synthetic live channel: a test pattern looped by the dev MediaMTX, with a generated guide, waiting until 3 minutes of catch-up are recorded; about a second on reruns |
 | `make compat` · `make compat-live` · `make e2e-iptvnator` | Xtream contract suite: offline, against the running stack, and an IPTVnator journey that signs in and plays |
-| `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
+| `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session, add a live channel) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
 | `make e2e-portal` | Portal journey in Playwright (sign in, Arabic search, play The Matrix, continue watching, sign out) and axe on ten pages in Arabic/light and English/dark at 390 px. Report in `dist/portal-e2e` |
 
 ## Connecting an IPTV app
@@ -243,6 +264,7 @@ Demo data and media:
    - **Username / Password:** from step 1
 3. Apps that only accept a playlist can use the M3U URL:
    `https://tv.example.com/get.php?username=USER&password=PASS&type=m3u_plus&output=ts`
+   Live channels come first in it, and its `url-tvg` points at the guide (`https://tv.example.com/xmltv.php?username=USER&password=PASS`), which apps such as TiviMate load by themselves.
 
 Each TV or app should get its own device credential, so one can be revoked without affecting the others. Customers can add apps themselves from **Account → Devices & TV apps**.
 
@@ -252,7 +274,7 @@ Supported apps include IPTV Smarters, TiviMate, XCIPTV, OTT Navigator, IBO Playe
 
 ## Deployment (production)
 
-> **The small tier works today, with a one-command installer.** One host runs everything behind Traefik with Let's Encrypt TLS and HSTS. The live server at tv.mah007.net runs exactly this. Monitoring is being built (M13); backups, zero-downtime deploys and the medium/large tiers come in M14–M15.
+> **The small tier works today, with a one-command installer.** One host runs everything behind Traefik with Let's Encrypt TLS and HSTS, optionally with monitoring. The live server at tv.mah007.net runs exactly this. Backups, zero-downtime deploys and the medium/large tiers come in M14–M15.
 
 ### Install on a server
 **You need:**
@@ -270,7 +292,8 @@ sudo bash install.sh
 - the domain;
 - the owner admin's email (also the Let's Encrypt contact), sign-in name and password (or generates a strong one);
 - the media folder (`/srv/media`), and whether to add legal synthetic sample titles to try it out;
-- optionally a TMDB token for posters and Arabic/English metadata, SMTP settings for emails, and whether to enable the ufw firewall.
+- optionally a TMDB token for posters and Arabic/English metadata, SMTP settings for emails, and whether to enable the ufw firewall;
+- whether to enable monitoring (default yes with 8 GB of memory or more; about 1.5–2 GB), who gets alert emails (the admin email by default) and an optional Telegram bot and chat.
 
 **It checks** the OS, CPU, memory, disk, ports 80/443, internet access and the DNS records, and refuses to install over an existing installation.
 
@@ -284,7 +307,8 @@ sudo bash install.sh
 | Task | Command |
 |---|---|
 | Update to the latest code, keeping every setting | `sudo /opt/iptv/scripts/install.sh --update` |
-| Change the domain, email, media folder, TMDB or SMTP settings | `sudo /opt/iptv/scripts/install.sh --reconfigure` |
+| Change the domain, email, media folder, TMDB, SMTP or monitoring | `sudo /opt/iptv/scripts/install.sh --reconfigure` |
+| Turn monitoring on (or off) for an existing installation | `sudo /opt/iptv/scripts/install.sh --update --monitoring` (`--no-monitoring`) |
 | Unattended install (secrets in environment variables, never options) | `sudo ADMIN_PASSWORD=... TMDB_TOKEN=... bash install.sh --yes --domain tv.example.com --email ops@example.com` |
 | See what it would do, changing nothing | `bash install.sh --dry-run` |
 | Every option | `bash install.sh --help` |
@@ -298,7 +322,8 @@ The admin enrols an authenticator app (TOTP) at first sign-in. A generated passw
 | **Medium / Large** | Standalone edge servers (own TLS, or behind a CDN with token auth), an S3-compatible origin (SeaweedFS, Cloudflare R2, Backblaze B2) with sliced range caching, and a PostgreSQL replica. | 🔜 M15 |
 
 ### Beyond the installer
-- 🔨 **Monitoring (M13):** a `compose.monitoring.yml` overlay with Grafana behind the admin sign-in, and alerts to email and Telegram.
+- ✅ **Monitoring (M13):** the `compose.monitoring.yml` overlay (the installer's monitoring question) with Grafana, Prometheus and Alertmanager on `grafana.<domain>` behind the admin's sign-in, and alerts by email and Telegram; what each alert means and what to do is in [docs/runbooks/alerts.md](docs/runbooks/alerts.md).
+- ✅ **Live TV (M12):** included in every install and update (the `live` packager, the `live-relay` and the `live-data` volume). The catch-up disk budget and the other live settings are in the admin (**Settings → Live TV**). The optional MediaMTX ingest for your own encoders and OBS is `LIVE_INGEST=1` in `.env` plus `install.sh --update`. Channels, ingest, ErsatzTV, guides and disk sizing are in [docs/runbooks/live-tv.md](docs/runbooks/live-tv.md).
 - 🔜 **Backups (M14):** nightly `pg_dump` plus WAL archiving, encrypted to object storage; media with restic (renditions are excluded because they can be regenerated); `make restore-test` weekly.
 - 🔜 **Zero-downtime deploys (M15):** `make deploy` with prebuilt images and two health-gated `web` replicas. Today an update restarts the app for a few seconds.
 - **GPU transcoding:** a server with an NVIDIA or Intel GPU can add `docker/compose.gpu-nvidia.yml` or `docker/compose.gpu-intel.yml` (the NVIDIA Container Toolkit, or `/dev/dri`, must be available).
@@ -314,7 +339,7 @@ The admin enrols an authenticator app (TOTP) at first sign-in. A generated passw
 - [ ] TLS rated A+, HSTS on, admin MFA enforced, no default credentials.
 - [ ] Secrets only in Docker secrets or SOPS; an automated test proves none appear in images or logs.
 - [ ] Nightly DB backups with WAL, and a restore drill passed within the last 7 days.
-- [ ] Alerts verified with a fire drill.
+- [ ] Alerts verified with a fire drill (admin → Monitoring → Send a test alert, once SMTP or Telegram is set).
 - [ ] Load test meets targets, with at least 30% bandwidth headroom at peak.
 - [ ] Client app matrix passed on real devices.
 - [ ] Runbooks written for deploy, rollback, key rotation, DB restore, adding an edge, rebuilding the search index, a leaked credential, and incident response.
@@ -339,8 +364,8 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 | M10 | Client compatibility | Verified on Smarters, TiviMate, XCIPTV, OTT Navigator, UHF and a webOS/Tizen app; Arabic and English setup guides | Needs real devices |
 | M11 | Admin UI | Every admin page, both themes, Arabic RTL and English, shortcuts, live views, accessibility checks | ✅ Done |
 | M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, checkout (manual, Stripe, Moyasar) | ✅ Done (provider sandboxes need keys) |
-| M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up | 🔨 In progress |
-| M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | 🔨 In progress |
+| M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up and timeshift, ErsatzTV and MediaMTX integrations | ✅ Done (portal live TV later) |
+| M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | ✅ Done |
 | M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | Partly (rate limits, lockouts) |
 | M15 | Scale & CDN | Standalone edges, S3 origin, Bunny CDN token auth, Postgres replica, load-test report at 1,000+ virtual users | Planned |
 | Later | Beyond v1 | Native TV apps, pluggable ML recommender | Ideas |

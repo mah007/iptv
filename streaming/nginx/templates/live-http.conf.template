@@ -1,0 +1,12 @@
+
+# Live TV (ADR-0017), appended to http.conf when EDGE_LIVE_ROOT and EDGE_LIVE_RELAY
+# are set: the live relay (continuous .ts, the live playlist, catch-up windows).
+upstream edge_live_relay {
+    zone edge_live_relay_upstream 64k;
+    server ${EDGE_LIVE_RELAY} resolve;
+    keepalive 16;
+}
+
+map "" $edge_live_root {
+    default "${EDGE_LIVE_ROOT}";
+}

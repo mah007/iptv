@@ -8,16 +8,16 @@
 #   Update an installation:   sudo /opt/iptv/scripts/install.sh --update
 #   All options:              scripts/install.sh --help
 #
-# It asks for the domain, the admin's email and sign-in name, the media folder and the
-# optional TMDB and SMTP settings, and checks the server (OS, CPU, memory, disk, ports
+# It asks for the domain, the admin's email and sign-in name, the media folder, the
+# optional TMDB and SMTP settings and the monitoring overlay, and checks the server (OS, CPU, memory, disk, ports
 # 80/443, DNS). Then it installs Docker if needed, gets the code, writes .env with fresh
 # secrets, builds and starts the stack, creates the owner admin and the default
 # libraries, and checks HTTPS on every host. Run again on an installed server, it offers
 # to update or to change the settings.
 #
 # Secrets are never taken from the command line (other users can read it): pass them in
-# environment variables (ADMIN_PASSWORD, TMDB_TOKEN, SMTP_PASSWORD) or type them when
-# asked. Nothing secret is written to the log.
+# environment variables (ADMIN_PASSWORD, TMDB_TOKEN, SMTP_PASSWORD, TELEGRAM_BOT_TOKEN)
+# or type them when asked. Nothing secret is written to the log.
 set -Eeuo pipefail
 
 readonly DEFAULT_REPO="https://github.com/mah007/iptv.git"
@@ -51,6 +51,10 @@ SMTP_SECURITY="${SMTP_SECURITY:-}"        # starttls | ssl | none
 SMTP_FROM="${SMTP_FROM:-}"
 FIREWALL="${FIREWALL:-}"                  # yes | no
 INSTALL_DOCKER="${INSTALL_DOCKER:-}"      # yes | no
+MONITORING="${MONITORING:-}"              # yes | no: Grafana, Prometheus, Loki, alerts (ADR-0018)
+ALERT_EMAIL="${ALERT_EMAIL:-}"
+TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
 
 # --- Output -------------------------------------------------------------------------------
 if [[ -t 1 ]]; then
@@ -76,7 +80,7 @@ Usage: sudo scripts/install.sh [options]
 
 Modes (asked when there's already an installation):
   --update               pull the latest code and restart; keeps every setting
-  --reconfigure          change the domain, email, media folder, TMDB or SMTP settings
+  --reconfigure          change the domain, email, media folder, TMDB, SMTP or monitoring
 
 Answers (otherwise asked):
   --dir DIR              where the code lives (default $DEFAULT_DIR, or this checkout)
@@ -93,6 +97,10 @@ Answers (otherwise asked):
                          --smtp-user USER, --smtp-security starttls|ssl|none, --smtp-from ADDR
   --firewall | --no-firewall      allow SSH, 80 and 443 in ufw and enable it
   --install-docker | --no-install-docker
+  --monitoring | --no-monitoring  Grafana, Prometheus, Loki and alerts on grafana.<domain>
+                         (about 1.5-2 GB of memory; default on with 8 GB or more). With
+                         --update, --monitoring turns it on for an existing installation
+  --alert-email ADDRESS  where alerts are emailed (default: the admin email)
 
 Other:
   -y, --yes              unattended: no questions; defaults for whatever isn't given
@@ -104,6 +112,7 @@ Secrets come from environment variables, never options:
   ADMIN_PASSWORD   the owner admin's password (12+ characters); generated if empty
   TMDB_TOKEN       TMDB API read access token (v4) for metadata; optional
   SMTP_PASSWORD    the SMTP password; optional
+  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   a Telegram bot and chat for alerts; optional
 
 Example (unattended):
   sudo ADMIN_PASSWORD='...' TMDB_TOKEN='...' scripts/install.sh --yes \\
@@ -134,6 +143,9 @@ parse_args() {
       --no-firewall) FIREWALL=no ;;
       --install-docker) INSTALL_DOCKER=yes ;;
       --no-install-docker) INSTALL_DOCKER=no ;;
+      --monitoring) MONITORING=yes ;;
+      --no-monitoring) MONITORING=no ;;
+      --alert-email) ALERT_EMAIL="${2:?--alert-email needs a value}"; shift ;;
       -y | --yes) ASSUME_YES=1 ;;
       --skip-dns-check) SKIP_DNS_CHECK=1 ;;
       --dry-run) DRY_RUN=1 ;;
@@ -277,6 +289,14 @@ valid_security() {
   case "$1" in starttls | ssl | none) return 0 ;; esac
   warn "Answer starttls, ssl or none."; return 1
 }
+valid_telegram_token() {
+  [[ -z "$1" || "$1" =~ ^[0-9]{5,}:[A-Za-z0-9_-]{30,}$ ]] && return 0
+  warn "A bot token looks like 123456789:AA... (from @BotFather)."; return 1
+}
+valid_chat_id() {
+  [[ "$1" =~ ^-?[0-9]{1,20}$ ]] && return 0
+  warn "A chat id is a number, e.g. 123456789 or -1001234567890."; return 1
+}
 valid_env_value() {
   [[ "$1" != *"'"* && "$1" != *$'\n'* ]] && return 0
   warn "Single quotes and line breaks aren't allowed."; return 1
@@ -304,9 +324,34 @@ run() {
   printf '%sdone%s %s(%ss)%s\n' "$GREEN" "$R" "$DIM" "$(($(date +%s) - start))" "$R"
 }
 
+# The monitoring overlay (ADR-0018) is on when this run says so, else when .env says so.
+monitoring_enabled() {
+  case "$MONITORING" in yes) return 0 ;; no) return 1 ;; esac
+  case "$(get_env MONITORING)" in 1 | yes | true) return 0 ;; esac
+  return 1
+}
+
+# The compose files, relative to the installation (for messages) or absolute.
+compose_files() {
+  local prefix="${1-}"
+  printf -- '-f %sdocker/compose.yml -f %sdocker/compose.prod.yml' "$prefix" "$prefix"
+  if monitoring_enabled; then
+    printf -- ' -f %sdocker/compose.monitoring.yml -f %sdocker/compose.monitoring.prod.yml' "$prefix" "$prefix"
+  fi
+  if live_ingest_enabled; then printf -- ' -f %sdocker/compose.mediamtx.yml' "$prefix"; fi
+}
+
+# The optional MediaMTX ingest for the operator's own encoders (ADR-0017,
+# docs/runbooks/live-tv.md): LIVE_INGEST=1 in .env. scripts/secrets.sh generates its users.
+live_ingest_enabled() {
+  case "$(get_env LIVE_INGEST)" in 1 | yes | true) return 0 ;; esac
+  return 1
+}
+
 compose() {
-  docker compose --project-directory "$INSTALL_DIR" \
-    -f "$INSTALL_DIR/docker/compose.yml" -f "$INSTALL_DIR/docker/compose.prod.yml" "$@"
+  local files
+  read -r -a files <<<"$(compose_files "$INSTALL_DIR/")"
+  docker compose --project-directory "$INSTALL_DIR" "${files[@]}" "$@"
 }
 
 env_file() { printf '%s/.env' "$INSTALL_DIR"; }
@@ -338,7 +383,12 @@ set_env() {
   rm -f "$file.new"
 }
 
-hosts() { printf '%s\n' "$DOMAIN" "admin.$DOMAIN" "app.$DOMAIN" "api.$DOMAIN" "media.$DOMAIN"; }
+hosts() {
+  printf '%s\n' "$DOMAIN" "admin.$DOMAIN" "app.$DOMAIN" "api.$DOMAIN" "media.$DOMAIN"
+  if monitoring_enabled; then printf '%s\n' "grafana.$DOMAIN"; fi
+}
+
+ram_mb() { awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo; }
 
 public_ip() {
   curl -4 -fsS --max-time 6 https://api.ipify.org 2>/dev/null ||
@@ -379,7 +429,7 @@ check_os() {
 check_resources() {
   local cpus ram_mb disk_gb target
   cpus="$(nproc)"
-  ram_mb="$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)"
+  ram_mb="$(ram_mb)"
   target="$INSTALL_DIR"
   while [[ ! -d "$target" ]]; do target="$(dirname "$target")"; done
   disk_gb="$(df -Pk "$target" | awk 'NR == 2 {print int($4 / 1048576)}')"
@@ -529,6 +579,8 @@ gather_answers() {
     ask SMTP_FROM "Send emails from" "Smart IPTV <no-reply@$DOMAIN>" valid_env_value
   fi
 
+  ask_monitoring
+
   if ! docker_ready; then
     info ""
     info "${B}Docker.${R} The app runs in Docker containers; Docker isn't installed yet."
@@ -546,6 +598,42 @@ gather_answers() {
   fi
 }
 
+# Monitoring (ADR-0018): Grafana, Prometheus, Loki and Alertmanager on grafana.<domain>,
+# opened from the admin (MFA); alerts by email (the SMTP settings above) and Telegram.
+ask_monitoring() {
+  local current default=no
+  current="$(get_env MONITORING)"
+  case "$current" in
+    1 | yes | true) default=yes ;;
+    "") (($(ram_mb) >= GOOD_RAM_MB)) && default=yes ;;
+  esac
+  info ""
+  info "${B}Monitoring.${R} Dashboards, logs and alerts at grafana.<domain>, opened from the"
+  info "admin. Alerts go by email (through the SMTP server above) and, optionally, Telegram."
+  yes_no MONITORING "Enable monitoring (Grafana, Prometheus, Loki, alerts; about 1.5-2 GB RAM)?" "$default"
+  [[ "$MONITORING" == yes ]] || return 0
+  current="$(get_env ALERT_EMAIL_TO)"
+  ask ALERT_EMAIL "Email alerts to" "${current:-$ADMIN_EMAIL}" valid_email
+  [[ -n "$SMTP_HOST" ]] || warn "No SMTP server is set, so email alerts stay off until one is (--reconfigure)."
+  info "Telegram (optional): create a bot with @BotFather, add it to a chat, and get the"
+  info "chat's id (e.g. from @userinfobot). Press Enter to skip."
+  if [[ -n "$(get_env ALERT_TELEGRAM_BOT_TOKEN)" ]]; then info "A bot is already set; press Enter to keep it."; fi
+  while true; do
+    ask_secret TELEGRAM_BOT_TOKEN "Telegram bot token"
+    valid_telegram_token "$TELEGRAM_BOT_TOKEN" && break
+    ((ASSUME_YES)) && die "TELEGRAM_BOT_TOKEN doesn't look like a bot token."
+    TELEGRAM_BOT_TOKEN=""
+  done
+  if [[ -n "$TELEGRAM_BOT_TOKEN" ]]; then
+    while true; do
+      ask_secret TELEGRAM_CHAT_ID "Telegram chat id"
+      valid_chat_id "$TELEGRAM_CHAT_ID" && break
+      ((ASSUME_YES)) && die "TELEGRAM_CHAT_ID must be a number."
+      TELEGRAM_CHAT_ID=""
+    done
+  fi
+}
+
 show_plan() {
   step "Summary"
   info "Code:          $INSTALL_DIR ($REPO_URL, $BRANCH)"
@@ -555,6 +643,11 @@ show_plan() {
   info "TMDB:          $([[ -n "$TMDB_TOKEN" || -n "$(get_env TMDB_READ_ACCESS_TOKEN)" ]] && echo "token set" || echo "not set (file names only)")"
   info "Email:         $([[ -n "$SMTP_HOST" ]] && echo "$SMTP_HOST:$SMTP_PORT ($SMTP_SECURITY)" || echo "not set (outbox only)")"
   info "Firewall:      $([[ "$FIREWALL" == yes ]] && echo "ufw: SSH, 80, 443" || echo "unchanged")"
+  if monitoring_enabled; then
+    info "Monitoring:    grafana.$DOMAIN; alerts to $ALERT_EMAIL$([[ -n "$TELEGRAM_BOT_TOKEN" || -n "$(get_env ALERT_TELEGRAM_BOT_TOKEN)" ]] && echo " and Telegram")"
+  else
+    info "Monitoring:    off"
+  fi
   docker_ready || info "Docker:        will be installed from download.docker.com"
   local go=""
   yes_no go "Go ahead?" yes
@@ -647,9 +740,44 @@ write_config() {
     [[ -z "$SMTP_PASSWORD" ]] || set_env EMAIL_HOST_PASSWORD "$SMTP_PASSWORD"
     set_env DEFAULT_FROM_EMAIL "$SMTP_FROM"
   fi
+  write_monitoring_config
   ok "Settings written to $INSTALL_DIR/.env (mode 600; secrets generated on this server)"
   mkdir -p "$CONF_DIR"
   printf 'INSTALL_DIR=%s\n' "$INSTALL_DIR" > "$CONF_DIR/install.conf"
+}
+
+# The monitoring answers into .env, then its Docker secrets (secrets/monitoring/) from .env.
+write_monitoring_config() {
+  if [[ "$MONITORING" == yes ]]; then
+    set_env MONITORING 1
+    [[ -z "$ALERT_EMAIL" ]] || set_env ALERT_EMAIL_TO "$ALERT_EMAIL"
+    [[ -z "$TELEGRAM_BOT_TOKEN" ]] || set_env ALERT_TELEGRAM_BOT_TOKEN "$TELEGRAM_BOT_TOKEN"
+    [[ -z "$TELEGRAM_CHAT_ID" ]] || set_env ALERT_TELEGRAM_CHAT_ID "$TELEGRAM_CHAT_ID"
+  elif [[ "$MONITORING" == no ]]; then
+    set_env MONITORING 0
+  fi
+  ((DRY_RUN)) && return 0
+  (cd "$INSTALL_DIR" && umask 077 && scripts/secrets.sh >> "$LOG_FILE" 2>&1) || die "scripts/secrets.sh failed."
+}
+
+# store_setting KEY VALUE [--if-unset]: into the admin's settings (they stay editable
+# there); the value travels on stdin, never on a command line, and is never printed.
+store_setting() {
+  local key="$1" value="$2" extra=("${@:3}")
+  if ((DRY_RUN)); then info "${DIM}would set${R} $key in the admin's settings"; return 0; fi
+  printf '%s' "$value" | compose exec -T web python manage.py set_setting "$key" --stdin "${extra[@]}" \
+    >> "$LOG_FILE" 2>&1 || die "Storing the $key setting failed (see $LOG_FILE)."
+}
+
+# Alert recipients and Telegram go into the settings (Settings, Monitoring in the admin);
+# .env keeps a copy for Alertmanager's fallback route when the app itself is down.
+write_monitoring_settings() {
+  local extra=("$@")
+  monitoring_enabled || return 0
+  [[ -z "$ALERT_EMAIL" ]] || store_setting monitoring.alert_emails "$ALERT_EMAIL" "${extra[@]}"
+  [[ -z "$TELEGRAM_BOT_TOKEN" ]] || store_setting monitoring.telegram_bot_token "$TELEGRAM_BOT_TOKEN"
+  [[ -z "$TELEGRAM_CHAT_ID" ]] || store_setting monitoring.telegram_chat_id "$TELEGRAM_CHAT_ID"
+  ((DRY_RUN)) || ok "Alert recipients saved in the admin's settings (Settings, Monitoring)"
 }
 
 prepare_media() {
@@ -669,7 +797,8 @@ start_stack() {
   else
     info "Rebuilding the changed images takes a few minutes."
   fi
-  run "Building and starting the services" compose up -d --build --wait --wait-timeout 1800
+  # --remove-orphans: services that left the compose files (e.g. monitoring turned off) stop.
+  run "Building and starting the services" compose up -d --build --wait --wait-timeout 1800 --remove-orphans
   run "Applying database migrations" compose exec -T web python manage.py migrate --noinput
 }
 
@@ -704,20 +833,23 @@ finish_setup() {
 
 check_https() {
   ((DRY_RUN)) && return 0
-  local host path url code deadline all_ok=1
+  local host path url code expected deadline all_ok=1
   step "Checking the sites"
   for host in $(hosts); do
+    expected=200
     case "$host" in
       "$DOMAIN") path=/health ;;
       api.*) path=/api/v1/health ;;
       media.*) path=/healthz ;;
+      # Monitoring answers only admins signed in through the admin: 401 means it's up.
+      grafana.*) path=/api/health expected=401 ;;
       *) path=/ ;;
     esac
     code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$host:443:127.0.0.1" "https://$host$path" || true)"
-    [[ "$code" == 200 ]] || { warn "$host answers $code on this server"; all_ok=0; continue; }
+    [[ "$code" == "$expected" ]] || { warn "$host answers $code on this server"; all_ok=0; continue; }
     url="https://$host$path"
     deadline=$(($(date +%s) + 180))
-    until curl -fsS -o /dev/null --max-time 10 "$url" 2>/dev/null; do
+    until [[ "$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$url" 2>/dev/null)" == "$expected" ]]; do
       if (($(date +%s) > deadline)); then
         warn "$host works, but not yet with a trusted certificate over the internet (DNS or Let's Encrypt; it retries by itself)."
         all_ok=0
@@ -751,11 +883,20 @@ summary() {
   fi
   say "  Customer portal  https://app.$DOMAIN"
   say "  IPTV apps        server URL https://$DOMAIN (customer logins are made in the admin)"
+  if monitoring_enabled; then
+    say "  Monitoring       https://grafana.$DOMAIN (open it from the admin: Monitoring)"
+    say "  Alerts           recipients and Telegram: admin → Settings → Monitoring;"
+    say "                   test them: admin → Monitoring → Send a test alert"
+  fi
+  if live_ingest_enabled; then
+    say "  Live ingest      rtmp://$DOMAIN:1935/<path>, srt://$DOMAIN:8890 (users MEDIAMTX_* in .env;"
+    say "                   docs/runbooks/live-tv.md), then admin → Live TV → Integrations"
+  fi
   say "  Media            copy owned or licensed files into $MEDIA_ROOT/movies and $MEDIA_ROOT/series"
   say ""
   say "  Update later     sudo $INSTALL_DIR/scripts/install.sh --update"
   say "  Change settings  sudo $INSTALL_DIR/scripts/install.sh --reconfigure"
-  say "  Service status   cd $INSTALL_DIR && docker compose -f docker/compose.yml -f docker/compose.prod.yml ps"
+  say "  Service status   cd $INSTALL_DIR && docker compose $(compose_files) ps"
   say "  Install log      $LOG_FILE"
   say "  Back up          $INSTALL_DIR/.env and $INSTALL_DIR/secrets/ (the databases need them)"
   say ""
@@ -830,7 +971,18 @@ main() {
     if ((DRY_RUN)); then info "${DIM}would add new .env keys (scripts/secrets.sh)${R}"; else
       (cd "$INSTALL_DIR" && scripts/secrets.sh >> "$LOG_FILE" 2>&1) || die "scripts/secrets.sh failed."
     fi
+    # --monitoring / --no-monitoring switch the overlay; otherwise .env decides.
+    if [[ -n "$MONITORING" ]]; then
+      [[ "$MONITORING" == no ]] || ALERT_EMAIL="${ALERT_EMAIL:-$(get_env ALERT_EMAIL_TO)}"
+      [[ "$MONITORING" == no || -n "$ALERT_EMAIL" ]] || ALERT_EMAIL="$(get_env ACME_EMAIL)"
+      write_monitoring_config
+    elif ! monitoring_enabled && [[ -z "$(get_env MONITORING)" ]]; then
+      info "Monitoring (Grafana, Prometheus, Loki, alerts) is available: add --monitoring to turn it on."
+    fi
+    info "Monitoring: $(monitoring_enabled && echo "on (grafana.$DOMAIN)" || echo off)"
     start_stack
+    # A recipient the admin already chose in Settings wins over .env's.
+    [[ "$MONITORING" != yes ]] || write_monitoring_settings --if-unset
     run "Building the search index" compose exec -T web python manage.py search_reindex
     check_https
     summary
@@ -850,6 +1002,7 @@ main() {
   write_config
   prepare_media
   start_stack
+  write_monitoring_settings
   if [[ "$MODE" == install ]]; then
     create_owner
     finish_setup

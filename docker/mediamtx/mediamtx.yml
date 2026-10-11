@@ -1,0 +1,43 @@
+# MediaMTX for production ingest (ADR-0017, docs/runbooks/live-tv.md): the operator's own
+# encoders, cameras and OBS publish here; the live packager reads the streams over RTSP
+# inside the backend network. Users and passwords come from .env through MTX_* overrides
+# in docker/compose.mediamtx.yml (MEDIAMTX_PUBLISH_* and MEDIAMTX_READ_*).
+logLevel: warn
+logDestinations: [stdout]
+
+authMethod: internal
+authInternalUsers:
+  # 0: publishers (encoders, cameras, OBS), from any address.
+  - user: publisher
+    pass: change-me
+    ips: []
+    permissions:
+      - action: publish
+  # 1: the live packager and the admin's "Sync from MediaMTX", from the Docker networks.
+  - user: reader
+    pass: change-me
+    ips: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+    permissions:
+      - action: read
+      - action: api
+
+api: yes
+apiAddress: :9997
+rtsp: yes
+rtspTransports: [tcp]
+rtspAddress: :8554
+rtmp: yes
+rtmpAddress: :1935
+srt: yes
+srtAddress: :8890
+hls: no
+webrtc: no
+moq: no
+playback: no
+metrics: no
+# Recording stays off (the default): catch-up is recorded by the live packager.
+
+paths:
+  # Any path a publisher names (e.g. rtmp://host:1935/studio1) becomes a channel source
+  # rtsp://mediamtx:8554/studio1.
+  all_others:

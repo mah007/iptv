@@ -9,15 +9,16 @@ The small tier from SPEC §13: one server runs the whole stack behind Traefik, w
 curl -fsSL https://raw.githubusercontent.com/mah007/iptv/main/scripts/install.sh -o install.sh
 sudo bash install.sh                                  # new server: questions, checks, install
 sudo /opt/iptv/scripts/install.sh --update            # pull, add new .env keys, rebuild, migrate, check HTTPS
-sudo /opt/iptv/scripts/install.sh --reconfigure       # change domain, email, media folder, TMDB, SMTP
+sudo /opt/iptv/scripts/install.sh --reconfigure       # change domain, email, media folder, TMDB, SMTP, monitoring
+sudo /opt/iptv/scripts/install.sh --update --monitoring   # turn monitoring on for an existing server
 bash install.sh --help                                # every option, unattended use (--yes)
 ```
-- **Questions:** domain, owner admin (email, sign-in name, password or a generated one), media folder and sample titles, TMDB token, SMTP, ufw.
+- **Questions:** domain, owner admin (email, sign-in name, password or a generated one), media folder and sample titles, TMDB token, SMTP, monitoring (alert email and an optional Telegram bot and chat), ufw.
 - **Checks before it changes anything:** OS (Ubuntu 22.04/24.04, Debian 12/13), CPU, memory and disk, ports 80/443, internet access, DNS for every host, and no other installation's containers or volumes on the server.
 - **Then:**
   1. Docker from Docker's repository, and the code in `/opt/iptv`;
   2. `.env` from `scripts/secrets.sh` plus the answers (`DOMAIN`, `TV_HOST`, `ACME_EMAIL`, `MEDIA_ROOT`, `TMDB_READ_ACCESS_TOKEN`, `EMAIL_*`);
-  3. the stack and migrations;
+  3. the stack and migrations (with the monitoring overlay when chosen), then the alert recipients and Telegram into the admin's settings (`manage.py set_setting`);
   4. `create_owner --username --email` (password from `OWNER_PASSWORD`, or generated);
   5. `ensure_libraries` for `movies/` and `series/`, `search_reindex`, and an HTTPS check per host.
 - **Where things go:**
@@ -44,6 +45,7 @@ The sections below are the same steps by hand, for reference and troubleshooting
 | `app.tv.example.com` | Customer portal |
 | `api.tv.example.com` | REST API for external clients |
 | `media.tv.example.com` | Nginx media edge: artwork and signed playback URLs (ADR-0007, ADR-0010) |
+| `grafana.tv.example.com` | Monitoring, when enabled: Grafana, `/prometheus`, `/alertmanager`, admins only (ADR-0018) |
 
 ## Media folder
 The libraries live in a host folder, `MEDIA_ROOT` in `.env` (default `/srv/media`), mounted read-only at `/media` in every container that reads media. Each library is a folder under it, for example `/srv/media/movies` and `/srv/media/series`, created in the admin under Libraries as `/media/movies` and `/media/series`. Transcoded renditions and artwork live in the `media-data` volume.
@@ -84,7 +86,31 @@ docker compose --project-directory . -f docker/compose.yml -f docker/compose.pro
 ```
 `scripts/secrets.sh` only appends keys that are new in `.env.example` and creates `secrets/media_token_keys.json` if it's missing, so running it on every update is safe.
 
-There's a single web replica, so an update causes a few seconds of downtime. Zero-downtime rolling updates come with the production hardening in M13–M15.
+There's a single web replica, so an update causes a few seconds of downtime. Zero-downtime rolling updates come with the production hardening in M14–M15.
+
+## Monitoring (M13, ADR-0018)
+An opt-in overlay: Prometheus, Grafana, Loki, Grafana Alloy, Alertmanager and the exporters (node, cAdvisor, PostgreSQL, Valkey, nginx, blackbox). The installer asks for it (default yes with 8 GB of memory or more) and records the choice as `MONITORING=1` in `.env`; `--update` keeps it.
+
+**Turn it on for a server installed without it:**
+```bash
+sudo /opt/iptv/scripts/install.sh --update --monitoring   # or --reconfigure, which asks
+```
+By hand, add the two overlay files to every compose command and run `scripts/secrets.sh` first (it appends the new keys and writes the overlay's Docker secrets into `secrets/monitoring/`):
+```bash
+cd /opt/iptv && scripts/secrets.sh
+docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
+  -f docker/compose.monitoring.yml -f docker/compose.monitoring.prod.yml up -d --build --wait --remove-orphans
+```
+
+**Open it** from the admin: **Monitoring** in the sidebar (permission `monitoring.view`; owners, admins and viewers have it). Each button opens `grafana.<domain>` with a one-time link, signed in for `monitoring.session_hours` (8 by default). Nothing on that host answers without it: not Grafana, `/prometheus` or `/alertmanager`. Suspending an admin or removing the permission closes their access within a minute.
+
+**Alerts.** Every alert goes to Django, which sends it as the admin's **Settings → Monitoring** say: recipients, a Telegram bot and chat, which severities go where, on or off (SMTP is the server's email settings). For the few alerts that mean Django itself can't deliver (web, PostgreSQL or Valkey down, delivery failing), Alertmanager also sends them itself, to `ALERT_EMAIL_TO` and `ALERT_TELEGRAM_*` in `.env`, which the installer fills from the same answers. Edit those two places separately: the admin's settings don't change `.env`.
+
+**Prove it works (the fire drill, SPEC §17):** admin → **Monitoring** → **Send a test alert**, or `docker compose ... exec web python manage.py fire_drill`. The FireDrill alert arrives by email and Telegram within about 2 minutes and resolves 10 minutes later (or at once with **Stop the test alert** / `fire_drill --stop`). Record the date in the go-live checklist.
+
+**What it costs on a 16-core, 15 GB host:** about 1.5–2 GB of memory (limits add up to about 5 GB), under a third of a core on average, and up to about 16 GB of disk: Prometheus keeps 30 days and at most `PROMETHEUS_RETENTION_SIZE` (10 GB), Loki keeps 30 days (`LOKI_RETENTION_PERIOD`). Those, like the host names, are set at installation and need a restart; the admin's Monitoring page shows them.
+
+**When an alert fires:** [alerts.md](alerts.md) explains each one: what it means, what users notice, what to check and what to do.
 
 ## Verify
 ```bash
@@ -118,6 +144,5 @@ apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docke
 - **A host serves `TRAEFIK DEFAULT CERT`:** no router matches it. Check the router rules in `docker compose ... config` and the ACME lines in `docker compose ... logs traefik`.
 
 ## Not covered yet
-- Monitoring and alerting (M13).
 - Backups and the restore drill (M14). **Until then, nothing on this server is backed up.**
 - A firewall policy (M14). Today only 22, 80 and 443 are listening; the databases are on Docker's internal network and never published.

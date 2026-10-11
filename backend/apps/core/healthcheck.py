@@ -1,4 +1,7 @@
-"""Container healthchecks: `python -m apps.core.healthcheck web|beat|watcher`. Exit 0 = healthy."""
+"""Container healthchecks: `python -m apps.core.healthcheck web|beat|watcher|live|relay`.
+
+Exit 0 = healthy.
+"""
 
 import os
 import sys
@@ -9,6 +12,8 @@ from typing import cast
 WEB_LIVE_URL = "http://127.0.0.1:8000/internal/health/live"
 BEAT_MAX_AGE_S = 90
 WATCHER_MAX_AGE_S = 90
+LIVE_MAX_AGE_S = 60
+RELAY_URL = "http://127.0.0.1:8090/healthz"
 
 
 def check_web() -> bool:
@@ -49,7 +54,26 @@ def check_watcher() -> bool:
     return _fresh("hb:watcher", WATCHER_MAX_AGE_S)
 
 
-CHECKS = {"web": check_web, "beat": check_beat, "watcher": check_watcher}
+def check_live() -> bool:
+    """Healthy while the live packager's loop keeps publishing (every second)."""
+    return _fresh("hb:live", LIVE_MAX_AGE_S)
+
+
+def check_relay() -> bool:
+    try:
+        with urllib.request.urlopen(RELAY_URL, timeout=3) as resp:
+            return bool(resp.status == 200)
+    except OSError:
+        return False
+
+
+CHECKS = {
+    "web": check_web,
+    "beat": check_beat,
+    "watcher": check_watcher,
+    "live": check_live,
+    "relay": check_relay,
+}
 
 
 def main(argv: list[str]) -> int:

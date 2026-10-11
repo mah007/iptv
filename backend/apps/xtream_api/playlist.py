@@ -8,14 +8,16 @@ no credentials, so they can be cached per scope and locale like the payloads.
 Never log a playlist body or URL: every play URL carries the device credentials.
 """
 
+import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Literal
 from urllib.parse import quote, urlencode
-from xml.sax.saxutils import quoteattr
+from xml.sax.saxutils import escape, quoteattr
 
 from apps.xtream_api import payloads
-from apps.xtream_api.dto import EpisodeRef
+from apps.xtream_api.dto import ChannelGuide, EpisodeRef, Text
 
 type EntryKind = Literal["live", "movie", "series"]
 type LiveExtension = Literal["ts", "m3u8"]
@@ -60,22 +62,37 @@ def live_extension(output: str) -> LiveExtension:
     return LIVE_EXTENSIONS.get(output.strip().lower(), "ts")
 
 
-def entries(
+def entries(  # noqa: PLR0913, PLR0917 (one list and its categories per kind)
     movies: Sequence[payloads.Payload],
     movie_categories: Sequence[payloads.Payload],
     series: Sequence[payloads.Payload],
     series_categories: Sequence[payloads.Payload],
     episodes: Iterable[EpisodeRef],
+    live: Sequence[payloads.Payload] = (),
+    live_categories: Sequence[payloads.Payload] = (),
 ) -> list[Entry]:
-    """Movies, then episodes by series, season (S00 first) and episode number.
+    """Live channels, then movies, then episodes by series, season (S00 first) and
+    episode number (compat/m3u.md).
 
-    `movies` and `series` are get_vod_streams and get_series payloads, so the
-    playlist inherits their order, names and category visibility. Episodes of
-    series those lists don't show are left out.
+    `live`, `movies` and `series` are get_live_streams, get_vod_streams and get_series
+    payloads, so the playlist inherits their order, names and category visibility.
+    Episodes of series those lists don't show are left out.
     """
+    live_groups = _names(live_categories)
     movie_groups = _names(movie_categories)
     series_groups = _names(series_categories)
     result = [
+        Entry(
+            kind="live",
+            xc_id=_int(channel["stream_id"]),
+            name=str(channel["name"]),
+            logo=str(channel["stream_icon"]),
+            group=live_groups[_int(channel["category_id"])],
+            tvg_id=str(channel["epg_channel_id"]),
+        )
+        for channel in live
+    ]
+    result += [
         Entry(
             kind="movie",
             xc_id=_int(movie["stream_id"]),
@@ -121,6 +138,77 @@ def render(
         )
         extension = live_ext if entry.kind == "live" else payloads.CONTAINER_EXTENSION
         lines.append(f"{origin}/{entry.kind}/{user}/{secret}/{entry.xc_id}.{extension}")
+    return ("\n".join(lines) + "\n").encode()
+
+
+_INVALID_XML = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
+_ARABIC = re.compile(r"[\u0600-\u06ff]")
+_XMLTV_TIME = "%Y%m%d%H%M%S +0000"
+
+
+def _xml_text(value: str) -> str:
+    return escape(_INVALID_XML.sub("", value).strip())
+
+
+def _xml_attr(value: str) -> str:
+    return quoteattr(_INVALID_XML.sub("", value).strip())
+
+
+def _localised(tag: str, text: Text, english_lang: str) -> list[str]:
+    """`<tag lang=..>` for each language the text has (the English side first)."""
+    lines = []
+    other, arabic = text.only("en"), text.only("ar")
+    if other:
+        lang = english_lang or ("ar" if _ARABIC.search(other) else "en")
+        lines.append(f"    <{tag} lang={_xml_attr(lang)}>{_xml_text(other)}</{tag}>")
+    if arabic and arabic != other:
+        lines.append(f'    <{tag} lang="ar">{_xml_text(arabic)}</{tag}>')
+    return lines
+
+
+def _xmltv_time(moment: datetime) -> str:
+    return moment.astimezone(UTC).strftime(_XMLTV_TIME)
+
+
+def guide(guides: Iterable[ChannelGuide], generator: str) -> bytes:
+    """xmltv.php: the account's channels that have a guide, then their programmes
+    (grouped by channel, start order). Times are UTC (compat/xmltv.md)."""
+    channels: list[ChannelGuide] = []
+    seen: set[str] = set()
+    for item in guides:
+        channel_id = payloads.epg_channel_id(item.channel.epg_channel_id)
+        if channel_id and channel_id not in seen:
+            seen.add(channel_id)
+            channels.append(item)
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        f"<tv generator-info-name={_xml_attr(generator)}>",
+    ]
+    for item in channels:
+        channel_id = payloads.epg_channel_id(item.channel.epg_channel_id)
+        names = _localised("display-name", item.channel.name, "") or [
+            f"    <display-name>{_xml_text(channel_id)}</display-name>"
+        ]
+        lines.append(f"  <channel id={_xml_attr(channel_id)}>")
+        lines.extend(names)
+        logo = payloads.image(item.channel.logo)
+        if logo:
+            lines.append(f"    <icon src={_xml_attr(logo)}/>")
+        lines.append("  </channel>")
+    for item in channels:
+        channel_id = payloads.epg_channel_id(item.channel.epg_channel_id)
+        for programme in sorted(item.programmes, key=lambda entry: entry.start):
+            titles = _localised("title", programme.title, programme.lang)
+            if not titles or programme.stop <= programme.start:
+                continue
+            lines.append(
+                f"  <programme start={_xml_attr(_xmltv_time(programme.start))} "
+                f"stop={_xml_attr(_xmltv_time(programme.stop))} channel={_xml_attr(channel_id)}>"
+            )
+            lines.extend(titles)
+            lines.extend(_localised("desc", programme.description, programme.lang))
+            lines.append("  </programme>")
+    lines.append("</tv>")
     return ("\n".join(lines) + "\n").encode()
 
 

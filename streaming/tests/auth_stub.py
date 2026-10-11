@@ -12,12 +12,17 @@ mode: single byte ranges, an ETag, and the leaky extras a real bucket sends
 bodies that name the bucket and the key). Keys with a segment named `denied` answer
 403 and `broken` 500, as a private bucket and a failing one would.
 
+Requests carrying `X-Live-Object` play the live relay (ADR-0017): they answer 200
+with `relay <object>` and leaky headers (Cache-Control, Set-Cookie) the edge must
+drop, and are recorded.
+
 Test control (not part of any contract):
     POST /__control/kick?session=<id>     later checks for that session get 403
     POST /__control/unkick?session=<id>
     POST /__control/reset                 forget kicks and recorded requests
     GET  /__control/calls?session=<id>    {"count": n, "last": {header: value}}
     GET  /__control/origin                {"requests": [{"path", "headers"}, ...]}
+    GET  /__control/relay                 {"requests": [{"path", "headers"}, ...]}
     GET  /__control/health
 """
 
@@ -47,12 +52,14 @@ class State:
         self.kicked: set[str] = set()
         self.calls: dict[str, list[dict[str, str]]] = {}
         self.origin: list[dict[str, Any]] = []
+        self.relay: list[dict[str, Any]] = []
 
     def reset(self) -> None:
         with self.lock:
             self.kicked.clear()
             self.calls.clear()
             self.origin.clear()
+            self.relay.clear()
 
 
 STATE = State()
@@ -114,7 +121,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         url = urlsplit(self.path)
         query = parse_qs(url.query)
-        if url.path == "/internal/stream-auth":
+        if self.headers.get("X-Live-Object"):
+            self._relay()
+        elif url.path == "/internal/stream-auth":
             self._stream_auth()
         elif url.path.startswith("/origin/"):
             self._origin(url.path, head=False)
@@ -127,6 +136,10 @@ class Handler(BaseHTTPRequestHandler):
             with STATE.lock:
                 requests = list(STATE.origin)
             self._json({"requests": requests})
+        elif url.path == "/__control/relay":
+            with STATE.lock:
+                relayed = list(STATE.relay)
+            self._json({"requests": relayed})
         elif url.path == "/__control/health":
             self._reply(200, b"ok\n")
         else:
@@ -178,6 +191,24 @@ class Handler(BaseHTTPRequestHandler):
                     "Vary": "*",
                 },
             )
+
+    def _relay(self) -> None:
+        live_object = self.headers.get("X-Live-Object", "")
+        record = {
+            "path": self.path,
+            "headers": {name.lower(): value for name, value in self.headers.items()},
+        }
+        with STATE.lock:
+            STATE.relay.append(record)
+        self._reply(
+            200,
+            f"relay {live_object}".encode(),
+            {
+                "Content-Type": "video/mp2t",
+                "Cache-Control": "public, max-age=3600",
+                "Set-Cookie": "relay=stub",
+            },
+        )
 
     def _origin(self, path: str, *, head: bool) -> None:
         key = unquote(path[len("/origin/") :])

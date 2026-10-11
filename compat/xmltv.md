@@ -15,7 +15,8 @@ GET /xmltv.php?username=<u>&password=<p>
 ```
 
 - **Credentials** are in the query. Failed authentication follows the same rules as `get.php` ([m3u.md](m3u.md)).
-- **Before M12** the account has no channels. The response is then a valid, empty guide, not an error: `<tv generator-info-name="Smart IPTV"></tv>`. Apps fetch `url-tvg` on their own, and a 404 there shows as a guide error. **[recommended]**
+- **No channels.** An account whose plan has no live TV, or that sees no channel, gets a valid, empty guide, not an error: `<tv generator-info-name="Smart IPTV"></tv>`. Apps fetch `url-tvg` on their own, and a 404 there shows as a guide error. **[recommended]**
+- **Compression and caching (M12).** The guide is gzip-compressed when the client sends `Accept-Encoding: gzip`, and cached per plan and language for 10 minutes ([ADR-0017](../docs/adr/0017-live-tv-and-epg.md)).
 
 ## Response
 

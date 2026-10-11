@@ -1,0 +1,51 @@
+# Live TV (ADR-0017): rendered by docker-entrypoint.d/40-edge-config.sh when
+# EDGE_LIVE_ROOT and EDGE_LIVE_RELAY are set, and included by edge.conf and
+# edge-s3.conf ahead of their generic token location. Edit the template.
+#
+# A live token's rendition is `live` (the channel now) or `archive` (its catch-up);
+# its title is the channel key, a folder under EDGE_LIVE_ROOT:
+#   <key>/live/index.m3u8, <key>/live/<n>.ts                   the packager's HLS
+#   <key>/archive/YYYYMMDD/HH/<start ms>-<duration ms>.ts       catch-up segments
+# token.js's scope check keeps a VOD token out of these locations and a live token
+# out of the renditions: these locations map to the live root only.
+
+# The relay: the continuous MPEG-TS stream, the live playlist (waiting for a channel
+# that is starting) and catch-up windows. Streams are not buffered or cached; the
+# relay asks stream-auth itself every 30 s while a stream lasts.
+location ~ "^/v/(?<token>[A-Za-z0-9_.-]{1,256})/(?<tail>live\.ts|live/index\.m3u8|archive/[1-9][0-9]{9}-[1-9][0-9]{0,4}\.(?:ts|m3u8))$" {
+    include /etc/nginx/edge/snippets/media.conf;
+    js_header_filter token.mediaHeaders;
+
+    proxy_pass http://edge_live_relay;
+    proxy_http_version 1.1;
+    proxy_pass_request_headers off;
+    proxy_pass_request_body off;
+    proxy_set_header Host live-relay;
+    proxy_set_header Connection "";
+    proxy_set_header Content-Length "";
+    proxy_set_header X-Live-Object $edge_object;
+    proxy_set_header X-Original-URI $request_uri;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Request-ID $edge_request_id;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_cache off;
+    proxy_connect_timeout 2s;
+    proxy_read_timeout 30s;
+    proxy_send_timeout 60s;
+    proxy_ignore_headers Cache-Control Expires Set-Cookie Vary X-Accel-Expires
+                         X-Accel-Redirect X-Accel-Limit-Rate X-Accel-Buffering
+                         X-Accel-Charset;
+    proxy_hide_header Cache-Control;
+    proxy_hide_header Set-Cookie;
+}
+
+# Files: live segments and archived catch-up segments, from the live volume.
+# open_file_cache is off here: these files are short-lived and renamed into place.
+location ~ "^/v/(?<token>[A-Za-z0-9_.-]{1,256})/(?<tail>(?:live|archive)/[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}){0,6})$" {
+    include /etc/nginx/edge/snippets/media.conf;
+    js_header_filter token.mediaHeaders;
+    open_file_cache off;
+
+    alias $edge_live_root/$edge_object;
+}

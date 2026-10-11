@@ -38,6 +38,8 @@ from tenacity import (
 )
 from tenacity.stop import stop_base
 
+from apps.core.metrics import METADATA_API_REQUESTS
+
 from .cache import ResponseCache, cache_key
 from .errors import (
     TMDBAuthError,
@@ -289,12 +291,15 @@ class TMDBClient:
         try:
             response = self._http.get(path, params={**query, **self._auth_params})
         except httpx.TimeoutException as exc:
+            METADATA_API_REQUESTS.labels("tmdb", "timeout").inc()
             msg = f"TMDB timed out on {path}"
             raise TMDBUnavailableError(msg, path=path) from exc
         except httpx.TransportError as exc:
+            METADATA_API_REQUESTS.labels("tmdb", "unreachable").inc()
             msg = f"TMDB unreachable on {path} ({type(exc).__name__})"
             raise TMDBUnavailableError(msg, path=path) from exc
         status = response.status_code
+        METADATA_API_REQUESTS.labels("tmdb", str(status)).inc()
         if status == httpx.codes.OK:
             return response.content
         msg = f"TMDB answered {status} on {path}"

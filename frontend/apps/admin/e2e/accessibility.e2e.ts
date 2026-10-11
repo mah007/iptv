@@ -20,6 +20,10 @@ const PAGES = [
   "/review",
   "/categories",
   "/collections",
+  "/live",
+  "/live?tab=groups",
+  "/live?tab=integrations",
+  "/epg",
   "/transcode",
   "/storage",
   "/plans",
@@ -31,6 +35,7 @@ const PAGES = [
   "/access-rules",
   "/audit",
   "/health",
+  "/monitoring",
   "/settings",
 ] as const;
 

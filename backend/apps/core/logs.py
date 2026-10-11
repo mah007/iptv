@@ -94,7 +94,14 @@ def logging_config(*, level: str, log_format: LogFormat) -> dict[str, Any]:
         "loggers": {
             "django": {"level": level, "propagate": True},
             "django.server": {"level": level, "propagate": True},
-            # Off (--no-access-log), but if it is ever enabled its lines are redacted too.
-            "uvicorn.access": {"handlers": [], "level": level, "propagate": True},
+            # Uvicorn configures its own logging before Django loads, giving "uvicorn" a
+            # plain handler. Uvicorn logs access whenever "uvicorn.access" has handlers,
+            # its parents' included, so despite --no-access-log its lines reached that
+            # unredacted handler, raw Xtream paths and all (found in M13). Its loggers keep
+            # no handlers of their own here, so every line goes through the redacting root
+            # handler; access lines (INFO) are not needed at all, since
+            # RequestLogMiddleware logs every request redacted.
+            "uvicorn": {"handlers": [], "level": level, "propagate": True},
+            "uvicorn.access": {"handlers": [], "level": "WARNING", "propagate": True},
         },
     }

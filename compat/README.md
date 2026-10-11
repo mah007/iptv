@@ -79,6 +79,12 @@ A failure names the place, what was found there and the rule it breaks:
    7. `get.php` with `output=ts`, `m3u8` and `mp4`.
    8. `xmltv.php`.
    9. With `--play`, one movie and one episode play URL, each of which must answer 302 to an absolute edge URL (https stays https) without the credentials. This holds a stream slot until the session expires.
+      Then the first live channel (M12, [ADR-0017](../docs/adr/0017-live-tv-and-epg.md)), through to the media:
+      - `/live/<u>/<p>/<id>.m3u8`: the playlist, then a segment that starts with MPEG-TS sync bytes;
+      - `/live/<u>/<p>/<id>.ts`: a continuous MPEG-TS stream that keeps sending;
+      - the short `/<u>/<p>/<id>`, which must land on the channel's default entry (`live.ts` or `live/index.m3u8`);
+      - when the channel has `tv_archive` 1, a 2-minute `/timeshift/<u>/<p>/2/<now − 3 min>/<id>.ts` window, which must play.
+      `make live-ready` provides such a channel in dev (the synthetic test pattern, recorded).
    10. Last, because they trip rate limits: a wrong password, an unknown username and a wrong password on an action. All three bodies must be `{"user_info":{"auth":0}}` with HTTP 200 and byte-for-byte identical.
 
 ## Invalid cases
@@ -186,8 +192,9 @@ M9 must confirm these, or change the schemas and fixtures first. Anything alread
 8. **`youtube_trailer`** is the 11-character video id, never a URL.
 9. **EPG.** `get_short_epg` carries `now_playing` and `has_archive` too, because the spec gives both EPG actions one shape. It starts at the programme on air, and `has_archive` is 1 only for finished programmes.
 10. **M3U.** The four attributes, the `"<Series> SxxEyy"` episode names and `output=mp4` keeping `.ts` for live are all defined in [m3u.md](m3u.md). The media type is `audio/x-mpegurl`.
-11. **XMLTV.** Before M12, `xmltv.php` returns a valid empty `<tv>` ([xmltv.md](xmltv.md)).
-12. **Questions M9 answered** ([ADR-0008](../docs/adr/0008-xtream-api.md)):
+11. **XMLTV.** `xmltv.php` lists the account's visible channels and their programmes, gzip when the client accepts it. An account whose plan has no live TV gets a valid empty `<tv>` ([xmltv.md](xmltv.md)).
+12. **Live play URLs (M12).** `/live/<u>/<p>/<id>.ts|m3u8`, the short `/<u>/<p>/<id>` (the channel's default output) and `/timeshift/<u>/<p>/<minutes>/<YYYY-MM-DD:HH-MM>/<id>.ts|m3u8` (UTC, optional `-SS`) answer 302 like VOD. Their redirects carry `Access-Control-Allow-Origin: *`, because web players follow them across origins and no cookie is involved. There is no `timeshift.php` alias.
+13. **Questions M9 answered** ([ADR-0008](../docs/adr/0008-xtream-api.md)):
     - `get_vod_info` and `get_series_info` return `{}` with HTTP 404 for an unknown or hidden id.
     - A failed login on `get.php` or `xmltv.php` gets an empty HTTP 403.
     - `type=m3u` is accepted, and `output=hls` is an alias of `m3u8`.

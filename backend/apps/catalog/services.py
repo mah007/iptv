@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Final
 from uuid import UUID
 
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Q, QuerySet
@@ -353,6 +354,9 @@ def delete_category(category: Category, *, actor: User | None, ip: str | None) -
         raise ProblemError(
             ErrorCode.CONFLICT, "Move or delete this category's subcategories first."
         )
+    channels = django_apps.get_model("live", "LiveChannel").objects
+    if category.kind == CategoryKind.LIVE and channels.filter(group=category).exists():
+        raise ProblemError(ErrorCode.CONFLICT, "Move or delete this group's channels first.")
     with transaction.atomic():
         audit.record(
             "category.delete", actor=actor, target=category, before=_category_state(category), ip=ip

@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 import pytest
+from prometheus_client import REGISTRY
 
 from apps.metadata.tmdb import (
     IMAGE_LANGUAGES,
@@ -158,11 +159,23 @@ def test_find_rejects_unsafe_ids() -> None:
         client.find("../movie/603", "imdb_id")
 
 
+def requests_counted(status: str) -> float:
+    """iptv_metadata_api_requests_total{provider="tmdb",status} (SPEC §14)."""
+    labels = {"provider": "tmdb", "status": status}
+    return REGISTRY.get_sample_value("iptv_metadata_api_requests_total", labels) or 0.0
+
+
 def test_server_errors_are_retried_with_jittered_backoff() -> None:
     fake = FakeTMDB(status(500), status(502), ok())
     sleeps: list[float] = []
+    before = {code: requests_counted(code) for code in ("200", "500", "502")}
     with make_client(fake, sleeps, max_backoff_s=4.0) as client:
         assert client.movie_details(603) == {"id": 603}
+    assert {code: requests_counted(code) - before[code] for code in before} == {
+        "200": 1,
+        "500": 1,
+        "502": 1,
+    }
     assert len(fake.requests) == 3
     assert len(sleeps) == 2
     assert all(0 <= pause <= 4.0 for pause in sleeps)

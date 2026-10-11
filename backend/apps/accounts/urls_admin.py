@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from apps.accounts import api, api_customer
+from apps.accounts import api, api_customer, monitoring_views
 
 urlpatterns = [
     path("customers", api.CustomerListView.as_view(), name="admin-customers-list"),
@@ -57,4 +57,10 @@ urlpatterns = [
     path("roles/<uuid:pk>", api.RoleDetailView.as_view(), name="admin-roles-detail"),
     path("admins", api.AdminListView.as_view(), name="admin-admins-list"),
     path("admins/<uuid:pk>", api.AdminDetailView.as_view(), name="admin-admins-detail"),
+    # O1 (ADR-0018): a one-time link into Grafana, Prometheus and Alertmanager.
+    path(
+        "monitoring/ticket",
+        monitoring_views.MonitoringTicketView.as_view(),
+        name="admin-monitoring-ticket",
+    ),
 ]

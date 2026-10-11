@@ -1,0 +1,23 @@
+# Blackbox exporter modules (ADR-0018). Prometheus passes the target per probe.
+modules:
+  # Internal health endpoints over plain HTTP on the Docker networks.
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: []  # 2xx
+      preferred_ip_protocol: ip4
+      follow_redirects: false
+
+  # The public hosts as clients see them: HTTPS with a valid certificate, which also
+  # gives probe_ssl_earliest_cert_expiry for CertificateExpiringSoon.
+  https_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      valid_status_codes: []  # 2xx
+      fail_if_not_ssl: true
+      preferred_ip_protocol: ip4
+      follow_redirects: false

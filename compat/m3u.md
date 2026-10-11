@@ -24,7 +24,7 @@ GET /get.php?username=<u>&password=<p>&type=m3u_plus&output=ts|m3u8|mp4
   | `mp4` | `.ts` (live is never MP4) | `.mp4` |
 
   Movies and episodes always end in their `container_extension`, which is always `mp4`: the compatible rendition. **[checked]**
-- **Settings.** Live channels arrive in M12. VOD and episodes are included while the "include VOD in M3U" setting is on, which is the default. Before M12 the playlist holds only VOD and episodes.
+- **Settings.** Live channels are always listed, first (M12). VOD and episodes are included while the "include VOD in M3U" setting is on, which is the default.
 
 ## Response
 

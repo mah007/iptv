@@ -37,6 +37,8 @@ PERMISSIONS: Mapping[str, str] = MappingProxyType(
         "settings.view": "See settings.",
         "settings.edit": "Change settings.",
         "audit.view": "See the audit log.",
+        # Monitoring (O1, ADR-0018): Grafana, Prometheus and Alertmanager on grafana.<domain>.
+        "monitoring.view": "Open monitoring: dashboards, metrics, logs and alerts.",
         "roles.manage": "Create and change roles.",
         "admins.manage": "Create admin users and assign their roles.",
     }

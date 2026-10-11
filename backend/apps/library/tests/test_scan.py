@@ -11,6 +11,7 @@ from uuid import UUID
 
 import pytest
 from django.utils import timezone
+from prometheus_client import REGISTRY
 
 from apps.catalog.models import Episode, FileState, MediaFile, Movie, Season, Series, TitleStatus
 from apps.core.stores import state_redis
@@ -47,9 +48,12 @@ def test_new_files_are_recorded_and_queued(make_library: Callable[..., Library])
     write(root, "Inception (2010)/Inception.2010.mkv")
     write(root, "Inception (2010)/sample.mkv")  # a sample: ignored by the parser
     write(root, "Inception (2010)/poster.jpg")  # not a video
+    new_files = REGISTRY.get_sample_value("iptv_scan_files_total", {"result": "new"}) or 0.0
     job, queued = scan(library)
     assert job.status == ScanStatus.DONE
     assert counts(job) == (3, 2, 0, 0, 0, 0)
+    # iptv_scan_files_total{result} (SPEC §14); the ignored sample counts as unchanged.
+    assert REGISTRY.get_sample_value("iptv_scan_files_total", {"result": "new"}) == new_files + 2
     files = {f.storage_key: f for f in MediaFile.objects.all()}
     assert set(files) == {"The.Matrix.1999.mkv", "Inception (2010)/Inception.2010.mkv"}
     matrix = files["The.Matrix.1999.mkv"]

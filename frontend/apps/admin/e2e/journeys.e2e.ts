@@ -123,3 +123,25 @@ test("see a live session and stop it", async ({ page }) => {
   // The row fades while the edge lets go, then the live feed drops it.
   await expect(row).toHaveCount(0, { timeout: 60_000 });
 });
+
+test("add a live channel, test its source and remove it", async ({ page }) => {
+  // The dev stack's MediaMTX serves the synthetic test pattern (make live-ready).
+  const name = `E2E Channel ${stamp}`;
+  await page.goto("/live");
+  await page.getByRole("button", { name: "New channel" }).click();
+  const sheet = page.getByRole("dialog", { name: "New channel" });
+  await sheet.getByLabel("Name", { exact: true }).fill(name);
+  await sheet.getByLabel("Source URL").fill("rtsp://mediamtx:8554/test-pattern");
+  await sheet.getByRole("button", { name: "Test" }).click();
+  await expect(sheet.getByText("The source works")).toBeVisible({ timeout: 45_000 });
+  await expect(sheet.getByText("It can be copied as it is.")).toBeVisible();
+  await sheet.getByLabel("Rights holder").fill("Smart IPTV (synthetic test media)");
+  await sheet.getByRole("button", { name: "Create channel" }).click();
+  await expect(sheet).toBeHidden();
+  const row = page.getByRole("row").filter({ hasText: name });
+  await expect(row).toBeVisible();
+  await row.getByRole("button", { name: `Delete ${name}` }).click();
+  const confirm = page.getByRole("alertdialog", { name: `Delete ${name}?` });
+  await confirm.getByRole("button", { name: "Delete" }).click();
+  await expect(row).toBeHidden();
+});

@@ -33,6 +33,7 @@ from apps.catalog.models import FileState, MediaFile, Movie, Series
 from apps.catalog.services import refresh_status_of_files
 from apps.catalog.signals import notify_catalog_changed
 from apps.core.errors import ErrorCode, ProblemError
+from apps.core.metrics import SCAN_FILES
 from apps.core.stores import state_redis
 from apps.library import storage
 from apps.library.fingerprint import fingerprint_path
@@ -303,6 +304,22 @@ def _finish(job: ScanJob, status: str, message: str = "") -> None:
         _log(job, message)
     job.save()
     publish(job)
+    _count_files(job)
+
+
+def _count_files(job: ScanJob) -> None:
+    """iptv_scan_files_total{result} (SPEC §14): this scan's outcome per file."""
+    outcomes = {
+        "new": job.new,
+        "changed": job.changed,
+        "moved": job.moved,
+        "removed": job.removed,
+        "error": job.errors,
+        "unchanged": max(0, job.found - job.new - job.changed - job.moved - job.errors),
+    }
+    for result, count in outcomes.items():
+        if count:
+            SCAN_FILES.labels(result=result).inc(count)
 
 
 def _log(job: ScanJob, message: str) -> None:

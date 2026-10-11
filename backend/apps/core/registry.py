@@ -128,6 +128,25 @@ optional_http_url = _optional(URLValidator(schemes=["http", "https"]))
 invoice_prefix = _pattern(re.compile(r"[A-Z0-9]{1,10}"), "Use 1 to 10 capital letters or digits.")
 vat_number = _optional(_pattern(re.compile(r"[0-9A-Z]{5,20}"), "Use 5 to 20 letters or digits."))
 # --- end B1 ---
+# --- Monitoring validators (O1, ADR-0018) ---
+ALERT_SEVERITY_CHOICES: tuple[str, ...] = ("all", "critical", "none")
+_TELEGRAM_TOKEN = re.compile(r"[0-9]{5,20}:[A-Za-z0-9_-]{30,100}")
+telegram_bot_token = _optional(
+    _pattern(_TELEGRAM_TOKEN, "Enter the bot token @BotFather gave, e.g. 123456789:AA...")
+)
+telegram_chat_id = _optional(
+    _pattern(re.compile(r"-?[0-9]{1,20}"), "Enter the chat id, a number such as -1001234567890.")
+)
+
+
+def alert_email_list(value: Any) -> None:
+    """Email addresses separated by commas (spaces allowed); empty: none."""
+    for address in (part.strip() for part in str(value).split(",")):
+        if address:
+            EmailValidator(message=f"{address} is not an email address.")(address)
+
+
+# --- end O1 ---
 
 
 # --- The registry -------------------------------------------------------------------
@@ -142,6 +161,8 @@ GROUPS: tuple[str, ...] = (
     "trials",
     "security",
     "features",
+    "live",
+    "monitoring",
 )
 
 _K = SettingKind
@@ -322,6 +343,58 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "Include movies and series in the M3U playlist.", "features"),
     SettingDef("features.approve_new_devices", _K.BOOL, False,
                "New devices need approval before they can play.", "features"),
+    # --- Live TV and EPG (M12, ADR-0017) ---
+    SettingDef("live.idle_stop_s", _K.INT, 150,
+               "Seconds a channel keeps packaging after its last viewer (on-demand channels).",
+               "live", min_value=60, max_value=3600),
+    SettingDef("live.max_running_channels", _K.INT, 20,
+               "Most channels packaged at once; more viewers of other channels wait.", "live",
+               min_value=1, max_value=500),
+    SettingDef("live.realtime_transcode_max", _K.INT, 1,
+               "Most channels re-encoded in real time at once (the capped fallback).", "live",
+               min_value=0, max_value=16),
+    SettingDef("live.catchup_max_days", _K.INT, 7,
+               "Longest catch-up window a channel may keep, in days.", "live",
+               min_value=1, max_value=30),
+    SettingDef("live.timeshift_max_minutes", _K.INT, 480,
+               "Longest catch-up window one request may play, in minutes.", "live",
+               min_value=10, max_value=1440),
+    SettingDef("live.epg_past_days", _K.INT, 7,
+               "Days of past programmes the guide keeps.", "live", min_value=1, max_value=30),
+    SettingDef("live.epg_future_days", _K.INT, 14,
+               "Days of future programmes an import keeps.", "live", min_value=1, max_value=60),
+    SettingDef("live.archive_max_gb", _K.INT, 20,
+               "Disk budget of the catch-up archive across channels, in GB; the oldest "
+               "recorded hours go first beyond it.", "live", min_value=1, max_value=100000),
+    SettingDef("live.epg_max_document_mb", _K.INT, 200,
+               "Largest XMLTV document an import reads, in megabytes (uncompressed).", "live",
+               min_value=1, max_value=2000),
+    # --- end M12 ---
+    # --- Monitoring and alerts (O1, ADR-0018) ---
+    SettingDef("monitoring.alerts_enabled", _K.BOOL, True,
+               "Send the monitoring alerts by email and Telegram.", "monitoring"),
+    SettingDef("monitoring.alert_emails", _K.STR, "",
+               "Who receives alert emails, separated by commas; empty: no alert email.",
+               "monitoring", alert_email_list),
+    SettingDef("monitoring.alert_email_severities", _K.STR, "all",
+               "Which alerts are emailed: all, critical only, or none.", "monitoring",
+               choices=ALERT_SEVERITY_CHOICES),
+    SettingDef("monitoring.telegram_bot_token", _K.STR, "",
+               "The Telegram bot that sends alerts (from @BotFather); empty: no Telegram.",
+               "monitoring", telegram_bot_token, sensitive=True),
+    SettingDef("monitoring.telegram_chat_id", _K.STR, "",
+               "The Telegram chat (or group, or channel) the bot sends alerts to.",
+               "monitoring", telegram_chat_id),
+    SettingDef("monitoring.telegram_severities", _K.STR, "all",
+               "Which alerts go to Telegram: all, critical only, or none.", "monitoring",
+               choices=ALERT_SEVERITY_CHOICES),
+    SettingDef("monitoring.edge_capacity_mbps", _K.INT, 1000,
+               "The media edge's uplink in Mbit/s; an alert fires above 80% of it.",
+               "monitoring", min_value=10, max_value=1_000_000),
+    SettingDef("monitoring.session_hours", _K.INT, 8,
+               "A monitoring sign-in (Grafana, Prometheus, Alertmanager) lasts this many hours.",
+               "monitoring", min_value=1, max_value=24),
+    # --- end O1 ---
 )  # fmt: skip
 
 

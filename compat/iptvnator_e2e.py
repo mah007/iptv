@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from playwright.sync_api import Locator, Page, Response
 
 PLAYWRIGHT_VERSION = "1.63.0"
-_PLAY_PATH = re.compile(r"/(movie|series)/[^/]+/[^/]+/[0-9]+\.[a-z0-9]+")
+_PLAY_PATH = re.compile(r"/(movie|series|live)/[^/]+/[^/]+/[0-9]+\.[a-z0-9]+")
 _MEDIA_ERRORS = {1: "aborted", 2: "network error", 3: "decode error", 4: "source not supported"}
 _VIDEO_STATE = """(video) => ({
     readyState: video.readyState,
@@ -62,6 +62,9 @@ _CATEGORY = ".context-panel .category-item"
 _CARD = "app-grid-list mat-card"
 _DETAIL = "app-portal-detail-shell"
 _PLAYER_VIDEO = "app-portal-inline-player app-web-player-view video"
+# Live TV (M12), as IPTVnator's xtream-live-format suite selects it (v0.24.0).
+_LIVE_CHANNEL = 'app-live-stream-layout [data-test-id="channel-item"]'
+_LIVE_VIDEO = "app-web-player-view video"
 
 
 class StepFailed(Exception):
@@ -82,7 +85,7 @@ def _wait(locator: Locator, timeout_ms: float, failure: Callable[[], str]) -> No
 class Pick:
     """A title to open, and the category it is listed under."""
 
-    kind: str  # movie | series
+    kind: str  # movie | series | live
     name: str
     category: str
     categories: tuple[str, ...]  # every category of this kind, in the API's order
@@ -126,11 +129,11 @@ def _api(client: HttpClient, credentials: tuple[str, str], action: str) -> Any:
 
 def pick(client: HttpClient, credentials: tuple[str, str], kind: str, wanted: str | None) -> Pick:
     """The title to open: the first listed one (or the one named), with its category."""
-    category_action, list_action = (
-        ("get_vod_categories", "get_vod_streams")
-        if kind == "movie"
-        else ("get_series_categories", "get_series")
-    )
+    category_action, list_action = {
+        "movie": ("get_vod_categories", "get_vod_streams"),
+        "series": ("get_series_categories", "get_series"),
+        "live": ("get_live_categories", "get_live_streams"),
+    }[kind]
     categories = _api(client, credentials, category_action)
     names = {category["category_id"]: category["category_name"] for category in categories}
     for item in _api(client, credentials, list_action):
@@ -255,6 +258,32 @@ class Journey:
             f"{state['width']}x{state['height']} at {state['currentTime']:.1f}s"
         )
 
+    def open_live(self, target: Pick) -> str:
+        page = self.page
+        page.goto(self.vod_url.removesuffix("/vod") + "/live")
+        category = page.locator(_CATEGORY).filter(has_text=target.category).first
+        _wait(category, self.timeout_ms, lambda: f"live category {target.category!r} never appeared")
+        category.click()
+        channel = page.locator(_LIVE_CHANNEL).filter(has_text=target.name).first
+        _wait(channel, self.timeout_ms, lambda: f"the channel {target.name!r} is not listed")
+        return f"{target.name!r} listed under {target.category!r}"
+
+    def play_live(self, target: Pick) -> str:
+        before = len(self.plays.seen)
+        self.page.locator(_LIVE_CHANNEL).filter(has_text=target.name).first.click()
+        state = self._wait_playing(self.page.locator(_LIVE_VIDEO).first)
+        responses = [entry for entry in self.plays.seen[before:] if entry[0] == "live"]
+        if not responses:
+            raise StepFailed("the video played, but not from a /live/ URL on the Xtream host")
+        _, status, location = responses[0]
+        if status != 302:
+            raise StepFailed(f"/live/ answered {status}; play URLs redirect (302) to the edge")
+        edge = urlsplit(location)
+        return (
+            f"/live/ 302 to {edge.scheme}://{edge.netloc}, "
+            f"{state['width']}x{state['height']} at {state['currentTime']:.1f}s"
+        )
+
     def _wait_playing(self, video: Locator) -> dict[str, Any]:
         video.wait_for(state="attached", timeout=self.timeout_ms)
         deadline = time.monotonic() + self.timeout_ms / 1000
@@ -287,6 +316,7 @@ def run_journey(
     client: HttpClient,
     credentials: tuple[str, str],
     targets: tuple[Pick, Pick],
+    channel: Pick | None = None,
 ) -> None:
     try:
         from playwright.sync_api import Error as PlaywrightError  # noqa: PLC0415
@@ -326,7 +356,7 @@ def run_journey(
             except PlaywrightError as exc:
                 first_line = str(exc).strip().splitlines()[0]
                 raise SuiteError(f"IPTVnator does not load at {args.app}: {first_line}") from exc
-            _walk(journey, args.server, credentials, *targets)
+            _walk(journey, args.server, credentials, *targets, channel)
         finally:
             if args.artifacts is not None:
                 context.tracing.stop(path=args.artifacts / "trace.zip")
@@ -334,8 +364,13 @@ def run_journey(
             browser.close()
 
 
-def _walk(
-    journey: Journey, server: str, credentials: tuple[str, str], movie: Pick, series: Pick
+def _walk(  # noqa: PLR0913 (the account and one target of each kind)
+    journey: Journey,
+    server: str,
+    credentials: tuple[str, str],
+    movie: Pick,
+    series: Pick,
+    channel: Pick | None,
 ) -> None:
     page = journey.page
     if not journey.step(
@@ -357,6 +392,10 @@ def _walk(
             "play the first episode",
             lambda: journey.play("series", page.locator(".episode-card").first.click),
         )
+    if channel is not None and journey.step(
+        f"open live TV and find {channel.name!r}", lambda: journey.open_live(channel)
+    ):
+        journey.step("play the live channel", lambda: journey.play_live(channel))
 
 
 # --------------------------------------------------------------------------- main
@@ -378,6 +417,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--movie", help="the name of the movie to open (default: the first)")
     parser.add_argument("--series", help="the name of the series to open (default: the first)")
+    parser.add_argument("--live", help="the name of the live channel to play (default: the first)")
     parser.add_argument(
         "--channel",
         default="chrome",
@@ -407,9 +447,22 @@ def main(argv: list[str] | None = None) -> int:
         client = HttpClient(args.server, args.timeout)
         movie = pick(client, credentials, "movie", args.movie)
         series = pick(client, credentials, "series", args.series)
+        try:
+            channel: Pick | None = pick(client, credentials, "live", args.live)
+        except SuiteError:
+            channel = None  # an account without live TV: the live steps are skipped
         reporter.write(f"IPTVnator end-to-end check: {args.app} against {client.origin}")
         reporter.section(f"Journey (movie {movie.name!r}, series {series.name!r})")
-        run_journey(args, reporter, client=client, credentials=credentials, targets=(movie, series))
+        if channel is None:
+            reporter.write("  The account lists no live channel: the live TV steps are skipped.")
+        run_journey(
+            args,
+            reporter,
+            client=client,
+            credentials=credentials,
+            targets=(movie, series),
+            channel=channel,
+        )
     except SuiteError as exc:
         sys.stderr.write(redact(f"iptvnator_e2e.py: {exc}") + "\n")
         return 2

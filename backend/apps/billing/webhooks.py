@@ -22,6 +22,7 @@ from apps.billing.models import WebhookEvent
 from apps.billing.providers import get_provider
 from apps.billing.providers.base import WebhookError
 from apps.core.errors import ErrorCode, ProblemError
+from apps.core.metrics import PAYMENT_WEBHOOKS
 from apps.core.redaction import redact_text, redact_value
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ def receive(provider_code: str, request: HttpRequest) -> WebhookOutcome:
         event = provider.verify_webhook(request)
     except WebhookError as exc:
         logger.warning("%s webhook refused: %s", provider_code, exc)
+        PAYMENT_WEBHOOKS.labels(provider.code, "invalid").inc()
         raise ProblemError(ErrorCode.WEBHOOK_INVALID, str(exc)) from None
     with transaction.atomic():
         row, _created = WebhookEvent.objects.select_for_update().get_or_create(
@@ -50,6 +52,7 @@ def receive(provider_code: str, request: HttpRequest) -> WebhookOutcome:
             defaults={"type": event.type[:100], "payload": redact_value(event.payload)},
         )
         if row.processed_at is not None:
+            PAYMENT_WEBHOOKS.labels(provider.code, "duplicate").inc()
             return WebhookOutcome(event=row, duplicate=True)
         row.attempts += 1
         error = ""
@@ -77,4 +80,5 @@ def receive(provider_code: str, request: HttpRequest) -> WebhookOutcome:
             error = redact_text(f"{type(exc).__name__}: {exc}")[:1000]
             row.error = error
         row.save()
+    PAYMENT_WEBHOOKS.labels(provider.code, "failed" if error else "processed").inc()
     return WebhookOutcome(event=row, duplicate=False, error=error)

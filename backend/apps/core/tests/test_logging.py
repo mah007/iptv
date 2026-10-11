@@ -3,6 +3,7 @@
 import io
 import json
 import logging
+import logging.config
 from collections.abc import Iterator
 from typing import Any
 from unittest import mock
@@ -131,6 +132,25 @@ def test_django_loggers_lose_their_unredacted_default_handlers() -> None:
     assert "handlers" not in config["loggers"]["django"]
     assert logging.getLogger("django").handlers == []
     assert logging.getLogger("django.server").handlers == []
+
+
+def test_uvicorn_access_logging_stays_off() -> None:
+    """Uvicorn configures its own logging first: "uvicorn" gets a plain, unredacted handler,
+    and it logs access whenever "uvicorn.access" has handlers, its parents' included.
+
+    Django's config takes those handlers away, so anything uvicorn logs goes through the
+    redacting root handler, and access lines (INFO) are not emitted at all.
+    """
+    parent = logging.getLogger("uvicorn")
+    raw = logging.StreamHandler(io.StringIO())
+    parent.addHandler(raw)  # what uvicorn's own dictConfig leaves behind
+    logging.config.dictConfig(settings.LOGGING)  # what Django does next, at start-up
+    assert parent.handlers == []
+    access = logging.getLogger("uvicorn.access")
+    assert access.handlers == []
+    assert access.isEnabledFor(logging.INFO) is False
+    access.info('%s - "%s %s HTTP/%s" %d', "203.0.113.9:1", "GET", "/movie/u/p/1.mp4", "1.1", 302)
+    assert raw.stream.getvalue() == ""
 
 
 def test_production_renders_json_and_development_renders_console() -> None:

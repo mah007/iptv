@@ -4,3 +4,5 @@ pnpm-lock.yaml
 # Orval output is regenerated, never hand-edited.
 packages/api/src/generated/**
 packages/api-portal/src/generated/**
+# pnpm on the host may put its store here; never checked.
+.pnpm-store/

@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from django.conf import settings
+from prometheus_client import REGISTRY
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
@@ -32,6 +33,14 @@ type Capture = Callable[..., Any]
 API = {"host": settings.API_HOST}
 STRIPE_URL = "/api/v1/webhooks/stripe"
 MOYASAR_URL = "/api/v1/webhooks/moyasar"
+
+
+def webhooks(result: str, provider: str = "stripe") -> float:
+    """iptv_payment_webhooks_total{provider,result} (ADR-0018)."""
+    value = REGISTRY.get_sample_value(
+        "iptv_payment_webhooks_total", {"provider": provider, "result": result}
+    )
+    return value or 0.0
 
 
 @pytest.fixture
@@ -86,9 +95,11 @@ def test_a_signed_stripe_event_pays_the_checkout_once(
 ) -> None:
     payment = stripe_checkout(customer, plan, recorded)
     body = completed_event(payment)
+    processed, duplicates = webhooks("processed"), webhooks("duplicate")
     response = stripe_post(body)
     assert response.status_code == 200
     assert response.json() == {"received": True, "duplicate": False}
+    assert webhooks("processed") == processed + 1
     payment.refresh_from_db()
     assert payment.status == PaymentStatus.SUCCEEDED
     assert payment.provider_ref == "pi_3QfixturePaymentIntent"
@@ -107,6 +118,7 @@ def test_a_signed_stripe_event_pays_the_checkout_once(
     # Stripe delivers again: acknowledged, nothing applied twice.
     again = stripe_post(body)
     assert again.json() == {"received": True, "duplicate": True}
+    assert webhooks("duplicate") == duplicates + 1
     assert Subscription.objects.get(user=customer).ends_at == payment.subscription.ends_at  # type: ignore[union-attr]
     assert WebhookEvent.objects.count() == 1
 
@@ -150,9 +162,11 @@ def test_unsigned_or_stale_stripe_events_are_refused(  # noqa: PLR0917 (fixtures
 
 
 def test_bodies_must_be_json_events(provider_keys: Any) -> None:
+    invalid = webhooks("invalid")
     assert stripe_post(b"not json").json()["code"] == "WEBHOOK_INVALID"
     assert stripe_post(b"[1]").json()["code"] == "WEBHOOK_INVALID"
     assert stripe_post(b'{"type": "x"}').json()["code"] == "WEBHOOK_INVALID"
+    assert webhooks("invalid") == invalid + 3
 
 
 def test_unknown_or_unconfigured_providers_are_not_found(db: None) -> None:
@@ -192,8 +206,10 @@ def test_a_failure_is_kept_and_the_retry_applies_it(
 
     original = services.apply_result
     monkeypatch.setattr(services, "apply_result", broken)
+    failed = webhooks("failed")
     response = stripe_post(body)
     assert response.status_code == 500
+    assert webhooks("failed") == failed + 1
     event = WebhookEvent.objects.get()
     assert event.processed_at is None
     assert "hiccup" in event.error

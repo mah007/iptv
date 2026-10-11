@@ -424,6 +424,25 @@ function logRendition(r) {
  * 206 that, unlike its 200, carries no Accept-Ranges of its own. */
 const SINGLE_RANGE = /^bytes=(?:[0-9]+-[0-9]*|-[0-9]+)$/;
 const PLAYLIST = /\.m3u8$/;
+/* Live TV (ADR-0017): what the relay streams, and the playlists that change. */
+const LIVE_STREAM = /^(?:live\.ts|archive\/[0-9]+-[0-9]+\.ts)$/;
+const LIVE_PLAYLIST = /\.m3u8$/;
+
+/* Cache-Control for a live or catch-up token's response; null for every other token. */
+function liveCaching(r) {
+    var t = parsed(r.variables.token);
+    var tail = r.variables.tail || '';
+    if (t === null || (t.rendition !== 'live' && t.rendition !== 'archive')) {
+        return null;
+    }
+    if (LIVE_STREAM.test(tail)) {
+        return 'no-store';
+    }
+    if (LIVE_PLAYLIST.test(tail)) {
+        return 'no-cache';
+    }
+    return t.rendition === 'live' ? 'public, max-age=120' : 'public, max-age=86400';
+}
 
 /* js_header_filter for the token locations (edge.conf; edge-s3.conf through
  * originHeaders). This filter runs first in nginx's header filter chain, ahead of
@@ -438,15 +457,24 @@ const PLAYLIST = /\.m3u8$/;
  *   everything else         public, max-age=31536000, immutable (renditions never change)
  *   any other status        no-store
  *
+ * Live and catch-up tokens (rendition `live` or `archive`, ADR-0017):
+ *   live.ts, archive/<w>.ts no-store (one continuous stream from the relay)
+ *   playlists               no-cache (they change every segment)
+ *   live segments           public, max-age=120 (gone from disk a minute later)
+ *   archive segments        public, max-age=86400
+ *
  * Accept-Ranges: nginx adds it to full 200 answers only; a single-range request
  * (answered 206) gets it here.
  */
 function mediaHeaders(r) {
     var status = r.status;
     if (status === 200 || status === 206 || status === 304) {
-        r.headersOut['Cache-Control'] = PLAYLIST.test(r.uri)
-            ? 'max-age=60'
-            : 'public, max-age=31536000, immutable';
+        var live = liveCaching(r);
+        r.headersOut['Cache-Control'] = live !== null
+            ? live
+            : PLAYLIST.test(r.uri)
+                ? 'max-age=60'
+                : 'public, max-age=31536000, immutable';
         if (status !== 304 && SINGLE_RANGE.test(r.headersIn.Range || '')) {
             r.headersOut['Accept-Ranges'] = 'bytes';
         }

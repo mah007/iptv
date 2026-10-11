@@ -20,6 +20,7 @@ export default defineConfig([
     "**/dist",
     "**/coverage",
     "**/node_modules",
+    ".pnpm-store",
     "packages/api/src/generated/**",
     "packages/api-portal/src/generated/**",
   ]),

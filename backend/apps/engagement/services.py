@@ -116,6 +116,8 @@ def record_progress(
     """Save where the customer is in the session's title (throttled unless `force`)."""
     if session.user_id != user.pk:
         raise ProblemError(ErrorCode.NOT_FOUND, "No such playback session.")
+    if session.title_kind not in (TitleKind.MOVIE, TitleKind.EPISODE):
+        return ProgressResult(saved=False, progress=None)  # live TV has no position to resume
     if not force and _throttled(session.pk):
         return ProgressResult(saved=False, progress=None)
     lookup: dict[str, Any]

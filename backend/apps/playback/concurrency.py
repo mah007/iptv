@@ -51,6 +51,8 @@ class KickReason(StrEnum):
     ACCESS_EXPIRED = "access_expired"
     ACCESS_SUSPENDED = "access_suspended"
     DEVICE_DISABLED = "device_disabled"
+    LICENSE_EXPIRED = "license_expired"  # the live channel's licence ran out (M12)
+    STOPPED = "stopped"  # the player asked to stop (portal playback/{id}/stop)
 
 
 class SlotStatus(StrEnum):

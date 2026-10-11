@@ -1,0 +1,35 @@
+# Admin-only access to the monitoring UIs on grafana.<DOMAIN> (ADR-0018), used by the
+# routers of docker/compose.monitoring.yml. Keep docker/traefik/prod/dynamic/monitoring.yml
+# identical.
+#
+# Every request first loses any identity headers the client sent, then Traefik asks
+# Django (web:8000/internal/monitoring-auth, Redis only) whether the monitoring cookie
+# belongs to an active admin who holds monitoring.view. A yes comes back as the
+# X-WEBAUTH-* headers that Grafana's auth proxy trusts (from Traefik's address only);
+# a no is a redirect to the admin, which signs the admin in (MFA) and hands back a
+# one-time ticket.
+http:
+  middlewares:
+    monitoring-strip-identity:
+      headers:
+        customRequestHeaders:
+          X-WEBAUTH-USER: ""
+          X-WEBAUTH-NAME: ""
+          X-WEBAUTH-ROLE: ""
+    monitoring-auth:
+      forwardAuth:
+        address: http://web:8000/internal/monitoring-auth
+        trustForwardHeader: false
+        authRequestHeaders:
+          - Cookie
+          - Accept
+        authResponseHeaders:
+          - X-WEBAUTH-USER
+          - X-WEBAUTH-NAME
+          - X-WEBAUTH-ROLE
+    monitoring:
+      chain:
+        middlewares:
+          - monitoring-strip-identity
+          - monitoring-auth
+          - secure-headers

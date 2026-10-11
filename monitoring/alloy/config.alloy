@@ -71,8 +71,9 @@ redaction.redact "lines" {
 }
 
 // Correlate a request across Traefik, Django and the Nginx edge (SPEC §14):
-// Django and the edge log `request_id`; Traefik logs the X-Request-Id header that
-// Django returns (downstream_X-Request-Id) when its access log keeps that header.
+// Django and the edge log `request_id` (JSON, or key=value in development's console
+// format); Traefik's access log keeps the X-Request-Id header, as sent by the client
+// (request_X-Request-Id) and as returned by Django or the edge (downstream_...).
 loki.process "enrich" {
 	forward_to = [loki.write.loki.receiver]
 
@@ -84,9 +85,14 @@ loki.process "enrich" {
 		}
 	}
 
+	// Development's console log format (structlog's key=value, coloured).
+	stage.regex {
+		expression = `request_id(?:\x1b\[[0-9;]*m)?=(?:\x1b\[[0-9;]*m)?(?P<request_id_kv>[A-Za-z0-9._:-]{8,128})`
+	}
+
 	stage.template {
 		source   = "request_id"
-		template = `{{ or .request_id .traefik_response_request_id .traefik_request_request_id "" }}`
+		template = `{{ or .request_id .traefik_response_request_id .traefik_request_request_id .request_id_kv "" }}`
 	}
 
 	stage.structured_metadata {
@@ -96,9 +102,11 @@ loki.process "enrich" {
 	}
 }
 
-// Edge metrics from the Nginx edge's JSON access log (M7 writes it; SPEC §12 fields:
-// edge_id, status, bytes_sent, request_time, upstream_cache_status, upstream_header_time).
-// Nginx's stub_status has no bytes, statuses or cache results, so these come from logs.
+// Edge metrics from the Nginx edge's JSON access log (streaming/nginx/nginx.conf,
+// log_format edge_json: edge, status, bytes_sent, request_time, upstream_cache_status,
+// auth_cache, reason, path). Nginx's stub_status has no statuses, bytes or cache
+// results, so these come from the log. A line is written when its request ends, so
+// for egress in real time the dashboards and alerts use cAdvisor's network counters.
 // Nothing is forwarded: Loki gets the same lines through loki.process.enrich.
 loki.process "edge_metrics" {
 	forward_to = []
@@ -108,13 +116,21 @@ loki.process "edge_metrics" {
 
 		stage.json {
 			expressions = {
-				edge_id               = "edge_id",
+				edge                  = "edge",
 				status                = "status",
 				bytes_sent            = "bytes_sent",
 				request_time          = "request_time",
 				upstream_cache_status = "upstream_cache_status",
-				upstream_header_time  = "upstream_header_time",
+				auth_cache            = "auth_cache",
+				reason                = "reason",
+				path                  = "path",
 			}
+		}
+
+		// Only access-log lines (nginx's own start-up messages have no status).
+		stage.drop {
+			source     = "status"
+			expression = `^$`
 		}
 
 		stage.regex {
@@ -127,20 +143,31 @@ loki.process "edge_metrics" {
 			template = `{{ if .status_digit }}{{ .status_digit }}xx{{ else }}unknown{{ end }}`
 		}
 
-		// Nginx writes "-" when the request bypassed the cache.
+		// Nginx writes "" or "-" when the request did not go through a cache.
 		stage.template {
 			source   = "cache_status"
 			template = `{{ if and .upstream_cache_status (ne .upstream_cache_status "-") }}{{ ToUpper .upstream_cache_status }}{{ else }}NONE{{ end }}`
 		}
 
 		stage.template {
-			source   = "edge"
-			template = `{{ or .edge_id "unknown" }}`
+			source   = "edge_name"
+			template = `{{ or .edge "unknown" }}`
+		}
+
+		// What was asked for, from the path's extension (the path itself is never a label).
+		stage.regex {
+			source     = "path"
+			expression = `\.(?P<extension>[A-Za-z0-9]{1,5})$`
+		}
+
+		stage.template {
+			source   = "kind"
+			template = `{{ $e := ToLower (or .extension "") }}{{ if eq $e "m3u8" }}playlist{{ else if or (eq $e "m4s") (eq $e "ts") (eq $e "aac") (eq $e "vtt") (eq $e "jpg") (eq $e "webp") }}segment{{ else if or (eq $e "mp4") (eq $e "m4v") (eq $e "mkv") }}progressive{{ else }}other{{ end }}`
 		}
 
 		stage.labels {
 			values = {
-				edge         = "",
+				edge         = "edge_name",
 				status_class = "",
 				cache_status = "",
 			}
@@ -174,24 +201,88 @@ loki.process "edge_metrics" {
 			values = ["status_class", "cache_status"]
 		}
 
+		stage.labels {
+			values = {
+				kind = "",
+			}
+		}
+
 		stage.metrics {
 			metric.histogram {
 				name              = "request_duration_seconds"
 				prefix            = "iptv_edge_"
-				description       = "Edge request time (nginx $request_time), by edge."
+				description       = "Edge request time (nginx $request_time) by edge and kind of object."
 				source            = "request_time"
-				buckets           = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]
+				buckets           = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 300, 1800]
 				max_idle_duration = "24h"
 			}
+		}
 
-			// Time to the origin's first byte on cache misses (nginx $upstream_header_time).
-			metric.histogram {
-				name              = "upstream_header_seconds"
-				prefix            = "iptv_edge_"
-				description       = "Origin time to first byte on cache misses (nginx $upstream_header_time), by edge."
-				source            = "upstream_header_time"
-				buckets           = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
-				max_idle_duration = "24h"
+		stage.label_drop {
+			values = ["kind"]
+		}
+
+		// stream-auth's verdict per request: HIT when the edge answered from its 60 s
+		// cache, MISS when it asked Django. Empty or "-" when no check ran.
+		stage.match {
+			selector = `{edge=~".+"}`
+
+			stage.template {
+				source   = "auth_result"
+				template = `{{ if and .auth_cache (ne .auth_cache "-") }}{{ ToUpper .auth_cache }}{{ end }}`
+			}
+
+			stage.labels {
+				values = {
+					auth_cache = "auth_result",
+				}
+			}
+
+			stage.match {
+				selector = `{auth_cache=~".+"}`
+
+				stage.metrics {
+					metric.counter {
+						name              = "auth_total"
+						prefix            = "iptv_edge_"
+						description       = "Edge requests by stream-auth cache result."
+						match_all         = true
+						action            = "inc"
+						max_idle_duration = "24h"
+					}
+				}
+			}
+		}
+
+		stage.label_drop {
+			values = ["auth_cache"]
+		}
+
+		// Why a request was refused (expired, invalid, ip_mismatch, kicked, ...): the
+		// edge's X-Reason, a short [a-z_] word, so the label set stays small.
+		stage.regex {
+			source     = "reason"
+			expression = `^(?P<reason_word>[a-z_]{1,32})$`
+		}
+
+		stage.labels {
+			values = {
+				reason = "reason_word",
+			}
+		}
+
+		stage.match {
+			selector = `{reason=~".+"}`
+
+			stage.metrics {
+				metric.counter {
+					name              = "denied_total"
+					prefix            = "iptv_edge_"
+					description       = "Edge requests refused or failed, by reason."
+					match_all         = true
+					action            = "inc"
+					max_idle_duration = "24h"
+				}
 			}
 		}
 	}

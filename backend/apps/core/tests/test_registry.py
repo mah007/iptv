@@ -80,7 +80,27 @@ EXPECTED_DEFAULTS = {
     "features.machine_translation": False,
     "features.include_vod_in_m3u": True,
     "features.approve_new_devices": False,
+    "live.idle_stop_s": 150,
+    "live.max_running_channels": 20,
+    "live.realtime_transcode_max": 1,
+    "live.catchup_max_days": 7,
+    "live.timeshift_max_minutes": 480,
+    "live.epg_past_days": 7,
+    "live.epg_future_days": 14,
+    "live.archive_max_gb": 20,
+    "live.epg_max_document_mb": 200,
+    "monitoring.alerts_enabled": True,
+    "monitoring.alert_emails": "",
+    "monitoring.alert_email_severities": "all",
+    "monitoring.telegram_bot_token": "",
+    "monitoring.telegram_chat_id": "",
+    "monitoring.telegram_severities": "all",
+    "monitoring.edge_capacity_mbps": 1000,
+    "monitoring.session_hours": 8,
 }
+
+
+SENSITIVE_KEYS = {"monitoring.telegram_bot_token"}
 
 
 def test_registry_declares_the_planned_keys_and_defaults() -> None:
@@ -95,7 +115,8 @@ def test_every_definition_is_consistent() -> None:
         assert definition.key.startswith(f"{definition.group}.")
         assert definition.description
         assert definition.clean(definition.default) == definition.default
-        assert not definition.sensitive
+        # Secrets are the exception (masked in the API and the audit log).
+        assert not definition.sensitive or definition.key in SENSITIVE_KEYS
 
 
 def test_unknown_keys_raise() -> None:

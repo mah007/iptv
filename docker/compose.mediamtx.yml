@@ -1,0 +1,29 @@
+# Optional live ingest (ADR-0017, docs/runbooks/live-tv.md): MediaMTX receives the
+# operator's own encoders, cameras and OBS (RTMP 1935/tcp, SRT 8890/udp, RTSP 8554/tcp),
+# and the live packager reads the streams over RTSP on the backend network. Add it on
+# top of the base and production files:
+#   docker compose --project-directory . -f docker/compose.yml -f docker/compose.prod.yml \
+#     -f docker/compose.mediamtx.yml up -d mediamtx
+# Set MEDIAMTX_PUBLISH_PASS and MEDIAMTX_READ_PASS in .env first. Open the ingest ports in
+# the firewall only to the networks your encoders publish from.
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.1@sha256:5ce2a948eb68df06ce2e13870db8df8e30d516ac4dc40e04bfe8aee3bdf7be40
+    restart: unless-stopped
+    environment:
+      MTX_AUTHINTERNALUSERS_0_USER: ${MEDIAMTX_PUBLISH_USER:-publisher}
+      MTX_AUTHINTERNALUSERS_0_PASS: ${MEDIAMTX_PUBLISH_PASS:?set MEDIAMTX_PUBLISH_PASS in .env}
+      MTX_AUTHINTERNALUSERS_1_USER: ${MEDIAMTX_READ_USER:-reader}
+      MTX_AUTHINTERNALUSERS_1_PASS: ${MEDIAMTX_READ_PASS:?set MEDIAMTX_READ_PASS in .env}
+    volumes:
+      - ./docker/mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "${LIVE_INGEST_BIND:-0.0.0.0}:1935:1935/tcp"
+      - "${LIVE_INGEST_BIND:-0.0.0.0}:8890:8890/udp"
+      - "${LIVE_INGEST_BIND:-0.0.0.0}:8554:8554/tcp"
+    networks: [backend, edge]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

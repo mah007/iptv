@@ -236,7 +236,10 @@ def popular_refs(*, days: int = POPULAR_DAYS, now: datetime | None = None) -> li
     """Titles by decayed plays over the last `days` (episodes count for their series)."""
     moment = now or timezone.now()
     rows = (
-        PlaybackSession.objects.filter(started_at__gte=moment - timedelta(days=days))
+        PlaybackSession.objects.filter(
+            started_at__gte=moment - timedelta(days=days),
+            title_kind__in=(TitleKind.MOVIE, TitleKind.EPISODE),  # not live TV (M12)
+        )
         .annotate(day=TruncDate("started_at"))
         .values("title_kind", "title_id", "day")
         .annotate(plays=Count("id"))

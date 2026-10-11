@@ -14,7 +14,7 @@ SPEC §7.5 asks for a Playwright job that runs IPTVnator against the dev stack. 
 | Headless Playwright | Yes. IPTVnator's own `apps/web-e2e` suite drives this PWA with Playwright, including Xtream specs (`xtream.e2e.ts`, `xtream-series-playback.e2e.ts`) against its mock server. The selectors in `iptvnator_e2e.py` are the ones that suite uses at v0.24.0. |
 | Playwright | 1.63.0 (npm and PyPI, Apache-2.0), driven from Python with `uvx --with playwright==1.63.0`. Nothing is added to the project's dependencies. |
 | Codecs | Playwright's bundled Chromium lacks H.264 and AAC (Playwright docs, "Browsers"; IPTVnator's suite plays a VP8 clip for that reason). Our `compat_mp4` is H.264/AAC, so the job uses the installed **Google Chrome** (`channel="chrome"`; verified with Chrome 154.0.8037.97, headless). |
-| PWA limits | No EPG or XMLTV in the PWA (`docker/README.md`). The job therefore covers VOD and series. Live TV and the guide (M12) are covered by `validate.py --live` and the client matrix ([clients.md](clients.md)). |
+| PWA limits | No EPG or XMLTV in the PWA (`docker/README.md`). The job covers VOD, series and, from M12, playing one live channel. The guide and catch-up are covered by `validate.py --live` and the client matrix ([clients.md](clients.md)). |
 
 How IPTVnator 0.24.0 uses our API, as observed against the fixture server:
 
@@ -116,6 +116,22 @@ Host: Linux x86_64 with Docker 29.8.2, Google Chrome 154.0.8037.97 and Playwrigh
 | Journey with no media (play URLs answer 404) | Exit 1: "play the movie" and "play the first episode" each failed with `MediaError 4 (source not supported)`, with a screenshot of each step and `trace.zip` written. |
 | Credentials in logs | The fixture-server logs held only `username=***` and `password=***`, and the journey output showed `/movie/***/***/`. |
 
+## The live TV step (M12)
+When the account lists a live channel (`make live-ready` gives the dev stack one), the journey adds two steps. `--live <name>` picks a channel; the default is the first.
+1. **Open live TV and find the channel.** The PWA's live page, the channel's category, then the channel.
+2. **Play the live channel.** IPTVnator prefers `.m3u8` when `allowed_output_formats` lists it. The step passes when:
+   - the video element plays;
+   - the request was a `/live/` URL on the tv host;
+   - that URL answered 302 to the media edge.
+
+**Cross-origin.** hls.js inside the PWA follows the 302 with `fetch`, from the PWA's origin. After the cross-origin redirect, the edge sees `Origin: null`. So:
+- the tv host's play redirects carry `Access-Control-Allow-Origin: *`;
+- the dev edge allows any origin (`EDGE_CORS_ORIGINS="*"` in `docker/compose.dev.yml`).
+
+No cookie or credential header is involved: the token is in the URL. Without these headers the step fails with `MediaError 4`. In production `EDGE_CORS_ORIGINS` lists the web players' origins.
+
+Result on 2026-10-11 against the dev stack: 9 passed, 0 failed (the 7 VOD steps plus the 2 live steps).
+
 ## Keeping it current
 
 - **Bumping IPTVnator.** Change the tag and digest only on purpose:
@@ -125,5 +141,6 @@ Host: Linux x86_64 with Docker 29.8.2, Google Chrome 154.0.8037.97 and Playwrigh
 - **Coverage limits.** A pass shows that an independent, maintained Xtream client can log in with our credentials, read our categories and lists with our types, open details, and play our 302-to-edge MP4 in a real browser media pipeline. It does not cover:
   - TV-app parsers and remote-control user interfaces ([clients.md](clients.md));
   - `get.php` and `xmltv.php` (`validate.py` covers them);
-  - live, guide and catch-up (M12);
-  - HLS playback.
+  - the guide and catch-up (M12; `validate.py --live --play` plays a timeshift window).
+
+  It covers live TV since M12: the live step plays one channel's HLS in the browser.

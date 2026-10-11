@@ -73,44 +73,45 @@ declare "redact" {
 		}
 
 		// JSON pairs whose key names a secret, string values: "password": "..." -> "password": "***".
-		// Same key list as Django's redaction (apps/core/redaction.py); `otp` must start a
-		// word segment so "footprint" is spared.
+		// Same key list as Django's redaction (apps/core/redaction.py, including live
+		// channels' source_url); `otp` must start a word segment so "footprint" is spared.
 		stage.replace {
-			expression = `(?i)"(?:[^"\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf)[^"\\]*|(?:[^"\\]*[^"\\a-z])?otp[^"\\]*)"\s*:\s*"((?:[^"\\]|\\.)*)"`
+			expression = `(?i)"(?:[^"\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf|source_url)[^"\\]*|(?:[^"\\]*[^"\\a-z])?otp[^"\\]*)"\s*:\s*"((?:[^"\\]|\\.)*)"`
 			replace    = "***"
 		}
 
 		// The same keys with numeric values ("otp": 123456); the number becomes a string
 		// so the line stays valid JSON.
 		stage.replace {
-			expression = `(?i)"(?:[^"\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf)[^"\\]*|(?:[^"\\]*[^"\\a-z])?otp[^"\\]*)"\s*:\s*(-?[0-9][0-9.eE+-]*)`
+			expression = `(?i)"(?:[^"\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf|source_url)[^"\\]*|(?:[^"\\]*[^"\\a-z])?otp[^"\\]*)"\s*:\s*(-?[0-9][0-9.eE+-]*)`
 			replace    = "\"***\""
 		}
 
 		// The same keys inside an escaped JSON string (a JSON body logged as a string).
 		stage.replace {
-			expression = `(?i)\\"(?:[^"\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf)[^"\\]*|(?:[^"\\]*[^"\\a-z])?otp[^"\\]*)\\"\s*:\s*\\"((?:[^"\\]|\\[^"])*)\\"`
+			expression = `(?i)\\"(?:[^"\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf|source_url)[^"\\]*|(?:[^"\\]*[^"\\a-z])?otp[^"\\]*)\\"\s*:\s*\\"((?:[^"\\]|\\[^"])*)\\"`
 			replace    = "***"
 		}
 
 		// Python reprs: {'password': '...'}
 		stage.replace {
-			expression = `(?i)'(?:[^'\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf)[^'\\]*|(?:[^'\\]*[^'\\a-z])?otp[^'\\]*)'\s*:\s*'((?:[^'\\]|\\.)*)'`
+			expression = `(?i)'(?:[^'\\]*(?:password|passwd|secret|token|authorization|cookie|api_key|apikey|api-key|private_key|credential|mfa_code|totp|sessionid|csrf|source_url)[^'\\]*|(?:[^'\\]*[^'\\a-z])?otp[^'\\]*)'\s*:\s*'((?:[^'\\]|\\.)*)'`
 			replace    = "***"
 		}
 
 		// Query-string, form and key=value parameters (Django's list plus common
-		// aliases): ?username=...&password=... -> ?username=***&password=***.
+		// aliases, and the monitoring sign-in's one-time ticket):
+		// ?username=...&password=... -> ?username=***&password=***.
 		// Go's JSON encoder writes & as \u0026 (Traefik's access log), so that also
 		// starts a parameter and ends a value.
 		stage.replace {
-			expression = `(?i)(?:^|[^A-Za-z0-9_]|\\u0026)(?:password|passwd|pass|pwd|username|token|access_token|refresh_token|id_token|secret|client_secret|api_key|apikey|key|code|sig|signature)=((?:[^&\s#;"'\\]|\\[^u]|\\u(?:[^0]|0[^0]|00[^2]|002[^6]))+)`
+			expression = `(?i)(?:^|[^A-Za-z0-9_]|\\u0026)(?:password|passwd|pass|pwd|username|token|access_token|refresh_token|id_token|secret|client_secret|api_key|apikey|key|code|sig|signature|ticket)=((?:[^&\s#;"'\\]|\\[^u]|\\u(?:[^0]|0[^0]|00[^2]|002[^6]))+)`
 			replace    = "***"
 		}
 
 		// The same parameters percent-encoded inside another URL: next=%2Fget.php%3Fpassword%3D...
 		stage.replace {
-			expression = `(?i)(?:^|[^A-Za-z0-9_]|%26|%3F)(?:password|passwd|pass|pwd|username|token|access_token|refresh_token|secret|api_key|apikey|key|code)%3D((?:[^%&\s"'\\]|%(?:[013-9a-fA-F][0-9a-fA-F]|2[0-57-9a-fA-F]))+)`
+			expression = `(?i)(?:^|[^A-Za-z0-9_]|%26|%3F)(?:password|passwd|pass|pwd|username|token|access_token|refresh_token|secret|api_key|apikey|key|code|ticket)%3D((?:[^%&\s"'\\]|%(?:[013-9a-fA-F][0-9a-fA-F]|2[0-57-9a-fA-F]))+)`
 			replace    = "***"
 		}
 
