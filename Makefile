@@ -13,6 +13,9 @@ export HOST_GID := $(shell id -g)
 # One image tag for compose and the image targets: APP_VERSION from .env, else "dev".
 APP_VERSION ?= $(or $(shell sed -n 's/^APP_VERSION=//p' .env 2>/dev/null),dev)
 export APP_VERSION
+# The commit the admin's System page shows (ADR-0019); the installer writes it to .env.
+APP_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null)
+export APP_COMMIT
 
 # Optional transcoder GPU overlays (ADR-0010): GPU=nvidia, GPU=intel or GPU=nvidia,intel,
 # on the command line or in .env. Without them the transcoder encodes on the CPU.
@@ -25,7 +28,11 @@ GPU_FILES := $(foreach g,$(subst $(comma), ,$(GPU)),-f docker/compose.gpu-$(g).y
 MONITORING ?= $(shell sed -n 's/^MONITORING=//p' .env 2>/dev/null)
 MONITORING_ON := $(filter 1 true yes,$(MONITORING))
 MONITORING_FILES := $(if $(MONITORING_ON),-f docker/compose.monitoring.yml -f docker/compose.monitoring.dev.yml $(if $(findstring nvidia,$(GPU)),--profile gpu-nvidia))
-COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml $(GPU_FILES) $(MONITORING_FILES)
+# Opt-in CrowdSec (ADR-0020): CROWDSEC=1 on the command line or in .env adds the engine
+# and Traefik's bouncer (docker/compose.crowdsec.yml). Pass it to down/ps/logs too.
+CROWDSEC ?= $(shell sed -n 's/^CROWDSEC=//p' .env 2>/dev/null)
+CROWDSEC_FILES := $(if $(filter 1 true yes,$(CROWDSEC)),-f docker/compose.crowdsec.yml)
+COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml $(GPU_FILES) $(MONITORING_FILES) $(CROWDSEC_FILES)
 # Every backend container bind-mounts ./media (the libraries, git-ignored). Create it as
 # the host user, or Docker would create it owned by root.
 $(shell mkdir -p media)
@@ -34,11 +41,12 @@ RUN_FRONTEND := $(COMPOSE) run --rm --no-deps -T frontend
 
 # Trivy pinned by digest: a moved or compromised tag can't change what runs.
 TRIVY_IMAGE := aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
-IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/media:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION)
+IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/media:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION) \
+	smart-iptv/postgres:$(APP_VERSION) smart-iptv/postgres-backup:$(APP_VERSION)
 # Extra docker build flags; before tagging a milestone use BUILD_FLAGS="--pull --no-cache".
 BUILD_FLAGS ?= --pull
 
-.PHONY: help secrets up down ps logs migrate seed sample-media shell smoke test test-backend test-frontend \
+.PHONY: help secrets up down ps logs migrate backup restore-test crowdsec-test seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
 	api-client api-client-check build smoke-images scan licenses ci ci-steps \
 	media-ready compat compat-live e2e-iptvnator e2e-admin e2e-portal \
@@ -58,10 +66,12 @@ secrets/media_token_keys.json:
 	@scripts/secrets.sh
 
 up: .env secrets/media_token_keys.json ## Build and start the dev stack, wait for healthchecks, apply migrations (MONITORING=1 adds the monitoring overlay)
-	@# The overlay's secrets come from .env: append any key it is missing (never changes one).
-	$(if $(MONITORING_ON),@scripts/secrets.sh > /dev/null)
+	@# Append any key .env is missing (never changes one) and refresh the Docker secrets
+	@# copied from it (monitoring, the backup service's token, ADR-0020).
+	@scripts/secrets.sh > /dev/null
 	$(COMPOSE) up --build --detach --wait --wait-timeout 300
-	$(COMPOSE) exec -T web python manage.py migrate --noinput
+	@# The app services use the restricted database role; migrations run as the owner.
+	$(COMPOSE) exec -T -e DB_ROLE=owner web python manage.py migrate --noinput
 	@port=$$(grep -E '^HTTP_PORT=' .env | cut -d= -f2); domain=$$(grep -E '^DOMAIN=' .env | cut -d= -f2); \
 	  suffix=$$([ "$$port" = "80" ] || echo ":$$port"); \
 	  echo ""; echo "Smart IPTV is up:"; \
@@ -76,8 +86,17 @@ ps: ## Show service status and health
 logs: ## Follow logs; one service with s=<name>, e.g. make logs s=web
 	$(COMPOSE) logs --follow --tail=200 $(s)
 
-migrate: ## Apply database migrations
-	$(COMPOSE) exec -T web python manage.py migrate --noinput
+migrate: ## Apply database migrations (as the database owner; the app services use a restricted role)
+	$(COMPOSE) exec -T -e DB_ROLE=owner web python manage.py migrate --noinput
+
+crowdsec-test: ## With CROWDSEC=1 up: a probe bans its own address and gets 403 from Traefik, the admin switch lets it pass, unban restores 200
+	@scripts/crowdsec_test.sh
+
+backup: ## Back up now: database (pgBackRest), configuration, artwork and pg_dump (restic), offsite when set; waits for the results
+	$(COMPOSE) exec -T web python manage.py backup_now --wait
+
+restore-test: ## Restore drill: the latest backup into a throwaway PostgreSQL, migrations and row counts checked, restore time reported
+	$(COMPOSE) exec -T web python manage.py restore_drill --wait
 
 seed: ## Load demo data (idempotent); prints a new admin's password once. args=--reset-admin-password
 	$(COMPOSE) exec -T web python manage.py seed_demo $(args)
@@ -225,7 +244,7 @@ e2e-admin: ## Admin journeys (MFA sign-in, customer, device, scan, review, kill)
 	@export E2E_ADMIN_USER=e2e-admin E2E_ADMIN_PASS="$$(openssl rand -hex 16)"; \
 	$(COMPOSE) exec -T -e E2E_ADMIN_USER -e E2E_ADMIN_PASS web python manage.py e2e_admin_account --open-review; \
 	export ADMIN_URL="$(ADMIN_URL)" TV_URL="$(TV_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/admin-e2e" \
-	  E2E_TOTP_COMMAND='$(E2E_TOTP_COMMAND)' E2E_MONITORING="$(MONITORING_ON)"; \
+	  E2E_TOTP_COMMAND='$(E2E_TOTP_COMMAND)' E2E_MONITORING="$(MONITORING_ON)" E2E_MAIL_URL="$(MAIL_URL)"; \
 	cd frontend/apps/admin && node_modules/.bin/playwright test --config e2e/playwright.config.ts
 
 # --- Portal end-to-end journey (frontend/apps/portal/e2e, ADR-0016) -----------------------
@@ -269,10 +288,12 @@ monitoring-firedrill: ## With MONITORING=1 up: fire the FireDrill alert and wait
 	$(COMPOSE) exec -T web python manage.py fire_drill --stop; trap - EXIT; \
 	python3 monitoring/tests/fire_drill.py --mailpit "$(MAIL_URL)" --since "$$since" --resolved --timeout 420
 
-build: ## Build the production images (app, media, frontend), pulling fresh base images
+build: ## Build the production images (app, media, frontend, postgres, postgres-backup), pulling fresh base images
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target media -t smart-iptv/media:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/frontend.Dockerfile --target runtime -t smart-iptv/frontend:$(APP_VERSION) .
+	docker build $(BUILD_FLAGS) -f docker/postgres.Dockerfile --target postgres -t smart-iptv/postgres:$(APP_VERSION) .
+	docker build $(BUILD_FLAGS) -f docker/postgres.Dockerfile --target backup -t smart-iptv/postgres-backup:$(APP_VERSION) .
 
 smoke-images: ## Start the production images (env from .env.example), check --deploy, wait for health
 	@scripts/smoke_images.sh
@@ -314,6 +335,7 @@ ci-steps:
 	$(MAKE) typecheck
 	$(MAKE) api-client-check
 	$(MAKE) test
+	$(MAKE) restore-test
 	$(MAKE) media-ready
 	$(MAKE) live-ready
 	$(MAKE) compat-live

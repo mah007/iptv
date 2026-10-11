@@ -231,6 +231,17 @@ const settingsRoute = createRoute({
   path: "/settings",
   component: lazyRouteComponent(() => import("./pages/settings"), "SettingsPage"),
 });
+/** CFG (ADR-0019): integrations with a Test each, and read-only facts about the server. */
+const integrationsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/settings/integrations",
+  component: lazyRouteComponent(() => import("./pages/integrations"), "IntegrationsPage"),
+});
+const systemRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/settings/system",
+  component: lazyRouteComponent(() => import("./pages/system"), "SystemPage"),
+});
 
 /** Sign-in screens, outside the shell. */
 const authRoute = createRoute({
@@ -281,6 +292,8 @@ export const routeTree = rootRoute.addChildren([
     healthRoute,
     monitoringRoute,
     settingsRoute,
+    integrationsRoute,
+    systemRoute,
   ]),
   authRoute.addChildren([loginRoute, mfaRoute]),
 ]);

@@ -29,10 +29,11 @@ class MonitoringDeploymentSerializer(serializers.Serializer[Any]):
     prometheus_retention_size = serializers.CharField(help_text="Most disk metrics may use.")
     loki_retention = serializers.CharField(help_text="How long logs are kept.")
     fallback_email = serializers.BooleanField(
-        help_text="Alertmanager emails the alerts about web being down itself (.env)."
+        help_text="Alertmanager emails the alerts about web being down itself (the settings' "
+        "SMTP and recipients, fetched from Django)."
     )
     fallback_telegram = serializers.BooleanField(
-        help_text="Alertmanager sends those alerts to Telegram itself (.env)."
+        help_text="Alertmanager sends those alerts to Telegram itself (the settings' bot)."
     )
 
 
@@ -72,26 +73,24 @@ class MonitoringStatusView(APIView):
         responses={200: MonitoringStatusSerializer, **problems(401, 403)},
     )
     def get(self, request: Request) -> Response:
-        from apps.notifications import alerts  # noqa: PLC0415 - notifications imports the registry
+        # Local: notifications imports the registry.
+        from apps.notifications import alerts, telegram  # noqa: PLC0415
         from apps.notifications.services import email_configured  # noqa: PLC0415
 
         deployment = dict(settings.MONITORING_DEPLOYMENT)
-        fallback = settings.ALERT_FALLBACK
+        fallback = alerts.fallback_status()
         status = {
             "enabled": monitoring.monitoring_enabled(),
             "grafana_url": str(settings.GRAFANA_URL),
             "alerts_enabled": bool(get_setting("monitoring.alerts_enabled")),
             "email_recipients": len(alerts.recipients()),
             "email_configured": email_configured(),
-            "telegram_configured": bool(
-                get_setting("monitoring.telegram_bot_token")
-                and get_setting("monitoring.telegram_chat_id")
-            ),
+            "telegram_configured": telegram.configured(),
             "fire_drill_active": metrics.fire_drill_active(),
             "deployment": {
                 **deployment,
-                "fallback_email": bool(fallback["email"]) and email_configured(),
-                "fallback_telegram": bool(fallback["telegram"]),
+                "fallback_email": fallback["email"],
+                "fallback_telegram": fallback["telegram"],
             },
         }
         return Response(MonitoringStatusSerializer(status).data)

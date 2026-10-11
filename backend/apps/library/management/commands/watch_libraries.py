@@ -5,7 +5,6 @@ import time
 from types import FrameType
 from typing import Any
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from apps.core.services import get_setting
@@ -30,10 +29,14 @@ class Command(BaseCommand):
         def heartbeat() -> None:
             state_redis().set(HEARTBEAT_KEY, int(time.time()), ex=HEARTBEAT_TTL_S)
 
+        def polling() -> bool:
+            return get_setting("library.watcher_polling") is True
+
         watcher = LibraryWatcher(
             tasks.scan_path.delay,
             stable_s=lambda: float(get_setting("library.watcher_stable_s")),
-            observer=make_observer(polling=settings.LIBRARY_WATCHER_POLLING),
+            observer=make_observer(polling=polling()),
+            polling=polling,
         )
         self.stdout.write("Watching libraries.")
         watcher.run(heartbeat=heartbeat, stop=lambda: stopping)

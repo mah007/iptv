@@ -2,10 +2,14 @@
 
 Each value is read from the Django settings module when it defines the name, else
 from the environment, else the default below (the pattern of `apps.playback.conf`).
+The attempts, retry delay and job timeout are admin settings (`library.transcode_*`,
+read per job, so a change applies without a restart); their old environment variables
+are only fallbacks (ADR-0019).
 """
 
 import os
 from pathlib import Path
+from typing import cast
 
 from django.conf import settings
 
@@ -23,19 +27,25 @@ def renditions_root() -> Path:
     return Path(settings.DATA_ROOT) / "renditions"
 
 
+def _setting(key: str) -> int:
+    from apps.core.services import get_setting  # noqa: PLC0415 (settings need the app registry)
+
+    return int(cast("int", get_setting(key)))
+
+
 def max_attempts() -> int:
     """Attempts per job before it fails for good (SPEC §7.3: retry up to 3 times)."""
-    return max(1, _int("TRANSCODE_MAX_ATTEMPTS", 3))
+    return max(1, _setting("library.transcode_max_attempts"))
 
 
 def retry_backoff_s() -> int:
     """Delay before the first retry; doubled for each further attempt."""
-    return max(0, _int("TRANSCODE_RETRY_BACKOFF_S", 60))
+    return max(0, _setting("library.transcode_retry_backoff_s"))
 
 
 def job_timeout_s() -> int:
     """An ffmpeg run longer than this is killed (a hung encoder must not hold a slot)."""
-    return max(60, _int("TRANSCODE_JOB_TIMEOUT_S", 12 * 60 * 60))
+    return max(60, _setting("library.transcode_job_timeout_h") * 3600)
 
 
 def lease_ttl_s() -> int:

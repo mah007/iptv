@@ -14,6 +14,8 @@ x-app-dev: &app-dev
   mem_limit: 2g
   environment:
     DJANGO_SETTINGS_MODULE: config.settings.dev
+    # The commit the admin's System page shows (the Makefile exports it; ADR-0019).
+    APP_COMMIT: ${APP_COMMIT:-}
   volumes:
     - ./backend:/app
     # The streaming plane: transcoding profiles (apps/media/profiles.py finds them under
@@ -65,6 +67,12 @@ services:
       # HLS after the Xtream host's redirect, so browsers send `Origin: null`; no cookies
       # are involved. Production keeps its explicit portal and admin origins.
       EDGE_CORS_ORIGINS: "*"
+
+  # The backup service runs the agent from the source tree (ADR-0020); restart it after
+  # editing: docker compose ... restart backup.
+  backup:
+    volumes:
+      - ./backend/apps/ops/agent.py:/usr/local/lib/smart-iptv/agent.py:ro
 
   migrate:
     <<: *app-dev

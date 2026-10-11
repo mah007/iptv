@@ -63,6 +63,9 @@ class Command(BaseCommand):
                 msg = f"{username} is a customer account, not an admin."
                 raise CommandError(msg)
             user.status = UserStatus.ACTIVE
+            # Somewhere for the Integrations journey's test email (Mailpit catches it).
+            if not user.email:
+                user.email = f"{username}@example.test"
             user.set_password(password)
             user.save()
             user.roles.add(Role.objects.get(name=OWNER_ROLE))

@@ -48,7 +48,8 @@ def test_operations_have_stable_ids(schema: dict[str, Any]) -> None:
 
 # The sign-in steps before a session exists need no authentication; signing out
 # works with or without a session (it also clears a half-finished sign-in).
-PUBLIC_OPERATIONS = frozenset({"auth_csrf", "auth_login", "auth_mfa_verify"})
+# The branding is public too: the sign-in page shows the logo (ADR-0019).
+PUBLIC_OPERATIONS = frozenset({"auth_csrf", "auth_login", "auth_mfa_verify", "branding_retrieve"})
 OPTIONAL_AUTH_OPERATIONS = frozenset({"auth_logout"})
 
 
@@ -86,7 +87,11 @@ def test_problem_and_error_codes_are_components(schema: dict[str, Any]) -> None:
 
 
 def test_admin_schema_holds_only_the_admin_api(schema: dict[str, Any]) -> None:
-    assert all(path.startswith(("/api/v1/admin/", "/api/v1/auth/")) for path in schema["paths"])
+    # Plus the public branding the sign-in page shows (ADR-0019).
+    assert all(
+        path.startswith(("/api/v1/admin/", "/api/v1/auth/")) or path == "/api/v1/branding"
+        for path in schema["paths"]
+    )
 
 
 def test_pagination_envelope_is_openapi_3_1() -> None:

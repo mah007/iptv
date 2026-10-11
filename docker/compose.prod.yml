@@ -10,17 +10,29 @@ x-prod-app: &prod-app
   environment:
     DJANGO_SETTINGS_MODULE: config.settings.prod
     WEB_CONCURRENCY: ${WEB_CONCURRENCY:-4}
+    # The app services sign in with the restricted database role and Valkey user
+    # (docker/app.env, ADR-0020): the owner's and the operator's passwords are not
+    # handed to them at all.
+    POSTGRES_PASSWORD: ""
+    REDIS_STATE_PASSWORD: ""
+    REDIS_CACHE_PASSWORD: ""
+  # Read-only root file system; scratch space in memory (G-39). Renditions and their
+  # work folders live on the media volume, not in /tmp.
+  read_only: true
+  tmpfs: ["/tmp:size=256m"]
 
 services:
   traefik:
-    # Adds ACME_EMAIL (the Let's Encrypt contact, optional) to the static config.
-    entrypoint: ["/bin/sh", "/etc/traefik/entrypoint.sh"]
+    # The image's entrypoint adds ACME_EMAIL (the Let's Encrypt contact, optional) to the
+    # static config (docker/traefik/entrypoint.sh).
     environment:
       ACME_EMAIL: ${ACME_EMAIL:-}
+      CROWDSEC_ENTRYPOINT: websecure
+      # HSTS preload, the operator's explicit choice, with Django's (G-43).
+      HSTS_PRELOAD: ${DJANGO_HSTS_PRELOAD:-0}
     ports:
       - "443:443"
     volumes:
-      - ./docker/traefik/prod/entrypoint.sh:/etc/traefik/entrypoint.sh:ro
       - ./docker/traefik/prod/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./docker/traefik/prod/dynamic:/etc/traefik/dynamic:ro
       - traefik-acme:/letsencrypt
@@ -70,6 +82,18 @@ services:
 
   migrate:
     <<: *prod-app
+    # The migrator signs in as the database owner (G-37).
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      DB_ROLE: owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_STATE_PASSWORD: ""
+      REDIS_CACHE_PASSWORD: ""
+
+  # The media libraries, for the opt-in media backup (Settings → Backups, ADR-0020).
+  backup:
+    volumes:
+      - ${MEDIA_ROOT:-/srv/media}:/sources/media:ro
 
   nginx-stream:
     volumes:
@@ -80,6 +104,9 @@ services:
       traefik.http.routers.media.tls.certresolver: letsencrypt
 
   frontend:
+    # nginx (unprivileged, uid 101) keeps its pid and temp files in /tmp (G-39).
+    read_only: true
+    tmpfs: ["/tmp/nginx:uid=101,gid=101,mode=0755"]
     labels:
       traefik.http.routers.admin.entrypoints: websecure
       traefik.http.routers.admin.tls.certresolver: letsencrypt

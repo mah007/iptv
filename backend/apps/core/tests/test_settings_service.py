@@ -2,7 +2,6 @@
 
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from types import MappingProxyType
 from typing import Any
 from unittest import mock
 
@@ -15,9 +14,10 @@ from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.core import registry, services
 from apps.core.models import Setting
-from apps.core.registry import SettingDef, SettingKind, UnknownSettingError
+from apps.core.registry import UnknownSettingError
 from apps.core.services import (
     SETTINGS_VERSION_KEY,
+    get_secret,
     get_setting,
     is_enabled,
     list_settings,
@@ -30,17 +30,8 @@ pytestmark = pytest.mark.django_db
 type CaptureOnCommit = Callable[..., AbstractContextManager[list[Callable[[], None]]]]
 
 SENSITIVE_KEY = "metadata.tmdb_api_key"
-
-
-@pytest.fixture
-def with_sensitive_setting(monkeypatch: pytest.MonkeyPatch) -> SettingDef:
-    definition = SettingDef(
-        SENSITIVE_KEY, SettingKind.STR, "", "TMDB API key.", "metadata", sensitive=True
-    )
-    monkeypatch.setattr(
-        registry, "REGISTRY", MappingProxyType({**registry.REGISTRY, SENSITIVE_KEY: definition})
-    )
-    return definition
+FIRST_KEY = "0123456789abcdef0123456789abcdef"
+SECOND_KEY = "fedcba9876543210fedcba9876543210"
 
 
 def test_defaults_apply_until_an_admin_changes_them() -> None:
@@ -117,16 +108,15 @@ def test_invalid_values_are_rejected_before_anything_is_stored(staff_user: User)
     assert not AuditLog.objects.exists()
 
 
-def test_sensitive_values_are_never_audited(
-    staff_user: User, with_sensitive_setting: SettingDef
-) -> None:
-    set_setting(SENSITIVE_KEY, "tmdb-secret-123", actor=staff_user)
-    set_setting(SENSITIVE_KEY, "tmdb-secret-456", actor=staff_user)
+def test_sensitive_values_are_never_audited(staff_user: User, no_server_config: None) -> None:
+    set_setting(SENSITIVE_KEY, FIRST_KEY, actor=staff_user)
+    set_setting(SENSITIVE_KEY, SECOND_KEY, actor=staff_user)
     first, second = AuditLog.objects.order_by("at", "id")
-    assert first.before == {"value": "***"}
-    assert first.after == {"value": "***"}
-    assert second.before == {"value": "***"}
-    assert get_setting(SENSITIVE_KEY) == "tmdb-secret-456"
+    assert first.before == {"configured": False, "source": "default"}
+    assert first.after == {"configured": True, "source": "database"}
+    assert second.before == {"configured": True, "source": "database"}
+    assert FIRST_KEY not in str(first.after) + str(second.before) + str(second.after)
+    assert get_secret(SENSITIVE_KEY) == SECOND_KEY
 
 
 def test_a_stored_value_that_no_longer_validates_falls_back_to_the_default() -> None:
@@ -151,7 +141,7 @@ def test_a_failed_bump_is_logged_not_raised(caplog: pytest.LogCaptureFixture) ->
 def test_values_are_cached_per_version() -> None:
     get_setting("billing.grace_days")
     version = cache.get(SETTINGS_VERSION_KEY)
-    assert cache.get(f"settings:values:{version}") == {}
+    assert cache.get(f"settings:values:v2:{version}") == {}
     # The memo answers without touching the values key again.
     with mock.patch.object(cache, "get", wraps=cache.get) as spy:
         get_setting("billing.grace_days")

@@ -20,6 +20,7 @@ Usage: python3 monitoring/tests/check_configs.py   (Docker; nothing is left behi
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import secrets
@@ -147,6 +148,20 @@ def alertmanager_checks(image: str) -> list[bool]:
     with tempfile.TemporaryDirectory(prefix="iptv-am-") as tmp:
         root = Path(tmp)
         root.chmod(0o755)
+        # Django's fallback settings as /internal/alert-fallback sends them (ADR-0019).
+        django_copy = "".join(
+            f"{name}\t{base64.b64encode(value.encode()).decode()}\n"
+            for name, value in (
+                ("email_to", "ops@example.com, oncall@example.com"),
+                ("smarthost", "smtp.example.com:465"),
+                ("from", "Smart IPTV <alerts@example.com>"),
+                ("username", "mailer"),
+                ("require_tls", "false"),
+                ("smtp_password", "smtp-password"),
+                ("telegram_bot_token", "123456789:" + "B" * 35),
+                ("telegram_chat_id", "-1001234567890"),
+            )
+        )
         variants = {
             "fallback email only": {},
             "Django webhook, fallback email and Telegram, watchdog": {
@@ -155,6 +170,10 @@ def alertmanager_checks(image: str) -> list[bool]:
                 "alert_telegram_bot_token": "123456789:" + "A" * 35,
                 "alert_telegram_chat_id": "-1001234567890",
                 "alert_watchdog_url": "https://push.example.com/api/push/abc",
+            },
+            "fallback from Django's settings": {
+                "alert_webhook_token": "webhook-token",
+                "fallback": django_copy,
             },
         }
         for label, files in variants.items():
@@ -185,6 +204,13 @@ def alertmanager_checks(image: str) -> list[bool]:
                     "ALERT_SMTP_USERNAME=mailer",
                     "-e",
                     "ALERTMANAGER_RENDER_ONLY=1",
+                    "--tmpfs",
+                    "/alertmanager:mode=1777",
+                    *(
+                        ("-e", "ALERT_FALLBACK_FILE=/run/secrets/fallback")
+                        if "fallback" in files
+                        else ()
+                    ),
                     image,
                     "-c",
                     "/etc/alertmanager/entrypoint.sh > /dev/null"

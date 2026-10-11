@@ -92,15 +92,56 @@ EXPECTED_DEFAULTS = {
     "monitoring.alerts_enabled": True,
     "monitoring.alert_emails": "",
     "monitoring.alert_email_severities": "all",
-    "monitoring.telegram_bot_token": "",
-    "monitoring.telegram_chat_id": "",
     "monitoring.telegram_severities": "all",
     "monitoring.edge_capacity_mbps": 1000,
     "monitoring.session_hours": 8,
+    # CFG (ADR-0019): integrations, email, branding and former environment variables.
+    "monitoring.runbook_base_url": "https://github.com/mah007/iptv/blob/main/",
+    "branding.support_phone": "",
+    "branding.support_whatsapp": "",
+    "branding.logo_light": "",
+    "branding.logo_dark": "",
+    "branding.default_language": "ar",
+    "branding.time_zone": "Asia/Riyadh",
+    "library.watcher_polling": False,
+    "library.transcode_max_attempts": 3,
+    "library.transcode_retry_backoff_s": 60,
+    "library.transcode_job_timeout_h": 12,
+    "metadata.tmdb_read_access_token": "",
+    "metadata.tmdb_api_key": "",
+    "metadata.tmdb_language": "en-US",
+    "metadata.tmdb_rate_limit_per_s": 35,
+    "metadata.tmdb_cache_ttl_s": 86400,
+    "metadata.tvdb_api_key": "",
+    "metadata.tvdb_pin": "",
+    "billing.stripe_secret_key": "",
+    "billing.stripe_webhook_secret": "",
+    "billing.moyasar_secret_key": "",
+    "billing.moyasar_webhook_secret": "",
+    "email.smtp_host": "",
+    "email.smtp_port": 587,
+    "email.smtp_security": "starttls",
+    "email.smtp_username": "",
+    "email.smtp_password": "",
+    "email.from_address": "",
+    "email.timeout_s": 20,
+    "notifications.telegram_bot_token": "",
+    "notifications.telegram_chat_id": "",
 }
 
 
-SENSITIVE_KEYS = {"monitoring.telegram_bot_token"}
+SENSITIVE_KEYS = {
+    "metadata.tmdb_read_access_token",
+    "metadata.tmdb_api_key",
+    "metadata.tvdb_api_key",
+    "metadata.tvdb_pin",
+    "billing.stripe_secret_key",
+    "billing.stripe_webhook_secret",
+    "billing.moyasar_secret_key",
+    "billing.moyasar_webhook_secret",
+    "email.smtp_password",
+    "notifications.telegram_bot_token",
+}
 
 
 def test_registry_declares_the_planned_keys_and_defaults() -> None:
@@ -170,6 +211,27 @@ def test_float_settings_store_floats() -> None:
         ("library.watcher_stable_s", 1, "at least 5"),
         ("billing.invoice_prefix", "inv-", "capital letters"),
         ("billing.vat_number", "12", "5 to 20"),
+        # CFG (ADR-0019).
+        ("email.smtp_host", "smtp example.com", "host name"),
+        ("email.smtp_port", 0, "at least 1"),
+        ("email.smtp_security", "tls", "one of"),
+        ("email.from_address", "Smart IPTV <not an address>", "address"),
+        ("email.from_address", "a@example.com\nBcc: x@example.com", "address"),
+        ("metadata.tmdb_read_access_token", "abc", "eyJ"),
+        ("metadata.tmdb_api_key", "XYZ", "32 letters"),
+        ("metadata.tmdb_language", "english", "en-US"),
+        ("billing.stripe_secret_key", "pk_test_0123456789abcdef", "sk_test_"),
+        ("billing.stripe_webhook_secret", "secret", "whsec_"),
+        ("billing.moyasar_secret_key", "pk_live_0123456789", "sk_test_"),
+        ("billing.moyasar_webhook_secret", "has space here", "without spaces"),
+        ("notifications.telegram_bot_token", "12345", "BotFather"),
+        ("notifications.telegram_chat_id", "@channel", "chat id"),
+        ("branding.support_phone", "0501234567", "country code"),
+        ("branding.time_zone", "Mars/Olympus", "IANA"),
+        ("branding.default_language", "fr", "one of"),
+        ("branding.logo_light", "../../etc/passwd", "Upload"),
+        ("monitoring.runbook_base_url", "ftp://example.com/", "valid URL"),
+        ("library.transcode_max_attempts", 0, "at least 1"),
     ],
 )
 def test_constraints_and_validators(key: str, value: object, message: str) -> None:
@@ -187,6 +249,17 @@ def test_constraints_and_validators(key: str, value: object, message: str) -> No
         ("branding.accent_color", "#a1b2c3"),
         ("metadata.genre_category_map", '{"28": "action", "10765": "sci-fi"}'),
         ("metadata.genre_category_map", "{}"),
+        ("email.smtp_host", "smtp.example.com"),
+        ("email.smtp_host", "192.0.2.10"),
+        ("email.from_address", "Smart IPTV <no-reply@example.com>"),
+        ("email.from_address", "no-reply@example.com"),
+        ("metadata.tmdb_api_key", "0123456789abcdef0123456789abcdef"),
+        ("billing.stripe_secret_key", "sk_test_51ABCDEFGHIJKLMNOP"),
+        ("billing.stripe_webhook_secret", "whsec_ABCDEFGHIJKLMNOP"),
+        ("billing.moyasar_secret_key", "sk_live_ABCDEFGHIJKL"),
+        ("branding.support_whatsapp", "+966501234567"),
+        ("branding.time_zone", "Europe/London"),
+        ("branding.logo_dark", "images/branding/logo-dark-0123456789ab.png"),
     ],
 )
 def test_valid_values_pass(key: str, value: object) -> None:
@@ -212,3 +285,53 @@ def test_build_registry_refuses_mistakes() -> None:
         build_registry([SettingDef("nope.x", SettingKind.BOOL, False, "X.", "nope")])
     with pytest.raises(ImproperlyConfigured, match="invalid default"):
         build_registry([SettingDef("xtream.port", SettingKind.INT, 0, "P.", "xtream", min_value=1)])
+
+
+def test_build_registry_refuses_bad_secrets_env_names_and_widgets() -> None:
+    with pytest.raises(ImproperlyConfigured, match="sensitive but not a string"):
+        build_registry(
+            [SettingDef("features.x", SettingKind.BOOL, False, "X.", "features", sensitive=True)]
+        )
+    with pytest.raises(ImproperlyConfigured, match="invalid environment variable"):
+        build_registry(
+            [SettingDef("features.x", SettingKind.STR, "", "X.", "features", env=("bad-name",))]
+        )
+    with pytest.raises(ImproperlyConfigured, match="env_resolve without env"):
+        build_registry(
+            [
+                SettingDef(
+                    "features.x", SettingKind.STR, "", "X.", "features", env_resolve=lambda _: None
+                )
+            ]
+        )
+    with pytest.raises(ImproperlyConfigured, match="unknown widget"):
+        build_registry(
+            [SettingDef("features.x", SettingKind.STR, "", "X.", "features", widget="colour")]
+        )
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ({"EMAIL_USE_SSL": None, "EMAIL_USE_TLS": None}, None),
+        ({"EMAIL_USE_SSL": True, "EMAIL_USE_TLS": True}, "ssl"),
+        ({"EMAIL_USE_SSL": "false", "EMAIL_USE_TLS": "true"}, "starttls"),
+        ({"EMAIL_USE_SSL": None, "EMAIL_USE_TLS": False}, "none"),
+        ({"EMAIL_USE_SSL": "maybe", "EMAIL_USE_TLS": None}, None),
+    ],
+)
+def test_smtp_security_comes_from_django_s_pair(raw: dict[str, object], expected: object) -> None:
+    assert get_definition("email.smtp_security").from_server_config(raw) == expected
+
+
+def test_server_config_values_are_typed_and_ranged_but_not_format_checked() -> None:
+    port = get_definition("email.smtp_port")
+    assert port.from_server_config({"EMAIL_PORT": "2525"}) == 2525
+    with pytest.raises(ValidationError):
+        port.from_server_config({"EMAIL_PORT": "0"})
+    # A key set in .env before the format check existed keeps working.
+    stripe = get_definition("billing.stripe_secret_key")
+    assert stripe.from_server_config({"STRIPE_SECRET_KEY": "sk_test_fixture"}) == "sk_test_fixture"
+    timeout = get_definition("library.transcode_job_timeout_h")
+    assert timeout.from_server_config({"TRANSCODE_JOB_TIMEOUT_S": "5400"}) == 2
+    assert timeout.from_server_config({"TRANSCODE_JOB_TIMEOUT_S": None}) is None

@@ -2,7 +2,7 @@
 
 What each alert of the monitoring overlay means and what to do (ADR-0018). Every alert's email and Telegram message links here, to the heading with its name. Rules: `monitoring/prometheus/rules/alerts.yml`.
 
-**Severity.** **Critical**: customers are affected, or will be soon; act now. **Warning**: act today. Delivery (who, which severities, Telegram) is set in the admin under **Settings → Monitoring**; a critical alert repeats every 4 hours while it fires, a warning every 12.
+**Severity.** **Critical**: customers are affected, or will be soon; act now. **Warning**: act today. Delivery (who, which severities) is set in the admin under **Settings → Monitoring**, the SMTP server and the Telegram bot and chat under **Settings → Integrations** (each with a Test); a critical alert repeats every 4 hours while it fires, a warning every 12.
 
 ## First steps for any alert
 1. **Look before you act.** Open the admin → **Monitoring** → **Dashboards and logs**. The **Platform** dashboard shows every service at once; each other dashboard covers one area. **Explore → Loki** finds logs: `{project="smart-iptv", service="web"} |= "error"`. A request id in any line links to every line of that request (Traefik, Django and the media edge).
@@ -43,6 +43,12 @@ What each alert of the monitoring overlay means and what to do (ADR-0018). Every
 **Users notice:** streams stopped or refused at random, people signed out, queued jobs lost.
 **Check:** the **Platform** dashboard → Valkey memory; `dc exec redis-state valkey-cli info memory` (password in `.env`).
 **Do:** this is a configuration fault: redis-state must run without a `maxmemory` eviction policy and with enough memory. Give the host memory, find what grew (key counts by prefix), and restore the setting from `docker/compose.yml`. Active sessions recover by themselves as players reconnect.
+
+### RedisStateMemoryHigh
+**Means:** redis-state has used over 80% of its memory ceiling (`REDIS_STATE_MAXMEMORY` in `.env`, 1 GB by default) for 10 minutes. It never evicts: at the ceiling it refuses writes (G-35).
+**Users notice:** nothing yet; at the ceiling, sign-ins, playback starts and queued jobs fail.
+**Check:** the **Platform** dashboard → Valkey memory; what grew: `dc exec redis-state valkey-cli --scan --count 1000 | cut -d: -f1 | sort | uniq -c | sort -rn | head` (as the default user, password in `.env`); a Celery queue that nobody consumes (`CeleryQueueBacklog`)?
+**Do:** fix what grows (start the stopped worker, end a runaway job). If the load is real, raise `REDIS_STATE_MAXMEMORY` in `.env`, keeping it well under the host's free memory, and `sudo scripts/install.sh --update`.
 
 ### RedisDown
 **Means:** the exporter can't reach redis-state or redis-cache.
@@ -162,8 +168,42 @@ What each alert of the monitoring overlay means and what to do (ADR-0018). Every
 
 ### AlertDeliveryFailing
 **Means:** alerts failed to go out: through Django (channel `email` or `telegram`) or through Alertmanager (integration `webhook`: Django didn't answer; `email` or `telegram`: the fallback).
-**Check:** admin → **Settings → Monitoring** (recipients, bot token, chat id); the server's SMTP settings; `{service="web"} |= "alert delivery failed"` and `dc logs alertmanager` in Loki. A Telegram bot must have been added to the chat, and a group's id starts with `-100`.
+**Check:** admin → **Settings → Monitoring** (recipients) and **Settings → Integrations** (SMTP, Telegram bot and chat: press **Test**); `{service="web"} |= "alert delivery failed"` and `dc logs alertmanager` in Loki. A Telegram bot must have been added to the chat, and a group's id starts with `-100`.
 **Do:** correct the setting, then **Send a test alert** from the admin's Monitoring page. This alert also goes to Alertmanager's own fallback channels.
+
+## Backups and the restore drill
+Procedures: [backups.md](backups.md). Without the monitoring overlay, Django sends these same alerts itself.
+
+### BackupFailed
+**Means:** a backup job (database, files or offsite copy) failed.
+**Users notice:** nothing; the risk is losing data if the server fails before the next good backup.
+**Check:** the admin's **Backups** page: the failed run and its error. `dc logs --tail 100 backup`. Disk space where backups are kept (`df -h /var/backups`). For the offsite copy: the bucket's address, keys and quota (**Test destination** on the Backups page).
+**Do:** fix the cause, then **Back up now**. A full disk: lower the retention (Settings → Backups) or move `BACKUP_DIR` to a larger disk ([backups.md](backups.md#moving-the-backups)).
+
+### RestoreDrillFailed
+**Means:** the latest backup could not be restored into the throwaway database, or the restored copy failed a check (missing migrations or tables, empty tables, old data, repository errors).
+**Users notice:** nothing. Assume the backups might not restore until a drill passes.
+**Check:** the Backups page → the drill's checks and error; `dc logs --tail 200 backup`.
+**Do:** take a full backup (`dc exec web python manage.py backup_now --full --wait`), then run the drill again (**Run the restore drill**). If it still fails, follow [backups.md](backups.md#when-the-drill-fails).
+
+### BackupStale
+**Means:** no database backup has succeeded for 26 hours (or ever, on a server with backups switched on).
+**Check:** is the backup service running (`dc ps backup`; BackupAgentDown)? Did last night's run fail (BackupFailed)? Is the schedule right (Settings → Backups)?
+**Do:** fix that, then **Back up now** and watch it finish.
+
+### RestoreDrillStale
+**Means:** no restore drill has passed for 8 days; the production checklist (SPEC §17) needs one within 7.
+**Do:** check that the drill is switched on (Settings → Backups), then **Run the restore drill**.
+
+### BackupAgentDown
+**Means:** the backup service has not asked Django for work for over 10 minutes. Nothing is backed up and no drill runs; WAL archiving still works (PostgreSQL does it itself).
+**Check:** `dc ps backup`, `dc logs --tail 100 backup` (a missing `secrets/backup_passphrase` stops it).
+**Do:** `dc up -d backup`. If web itself is down, fix that first: the service needs it.
+
+### WalArchiveFailing
+**Means:** PostgreSQL failed to archive its last WAL segment and keeps retrying. Point-in-time recovery has stopped, and unarchived WAL piles up on the database's disk until it fills.
+**Check:** `dc logs --tail 100 postgres | grep -i archive`; space where backups are kept (`df -h`); is `/var/backups/smart-iptv` (BACKUP_DIR) mounted and writable?
+**Do:** free or add space, then confirm the alert clears within minutes. If archiving cannot be fixed quickly, switch backups off in Settings → Backups: PostgreSQL then releases WAL instead of keeping it (point-in-time recovery stops until you switch them on again and a new full backup runs).
 
 ## Meta
 

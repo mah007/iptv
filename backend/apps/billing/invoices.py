@@ -12,6 +12,7 @@ from django.template.loader import render_to_string
 
 from apps.billing import money
 from apps.billing.models import Invoice, InvoiceStatus, Payment, PaymentMethod
+from apps.core.branding import logo_url
 from apps.core.services import get_setting
 from apps.notifications.services import local_time
 
@@ -108,6 +109,7 @@ def render(invoice: Invoice, *, locale: str | None = None) -> str:
         "t": _TEXT[lang],
         "invoice": invoice,
         "accent": str(get_setting("branding.accent_color")),
+        "logo_url": logo_url(),
         "seller_name": seller.get(f"name_{lang}") or seller.get("name_en") or "",
         "issued": local_time(invoice.issued_at or invoice.created_at, invoice.user),
         "status_label": _STATUS[lang].get(invoice.status, invoice.status),

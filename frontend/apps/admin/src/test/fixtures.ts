@@ -155,8 +155,14 @@ export function setting(
     description: "A setting.",
     default: false,
     value: false,
-    is_default: true,
+    is_default: overrides.source === undefined ? true : overrides.source !== "database",
+    source: "default",
+    is_set: true,
+    undecryptable: false,
     sensitive: false,
+    env: [],
+    widget: null,
+    image_url: null,
     min_value: null,
     max_value: null,
     choices: null,
@@ -200,9 +206,20 @@ export function role(overrides: Partial<Role> & Pick<Role, "id" | "name">): Role
 }
 
 /** A signed-in owner with an empty-but-working dashboard. */
+/** The public branding (ADR-0019): the built-in name, no logo. */
+export const BRANDING = {
+  service_name: { en: "Smart IPTV", ar: "سمارت IPTV" },
+  accent_color: "#0F766E",
+  logo_light_url: null,
+  logo_dark_url: null,
+  support: { email: "", phone: "", whatsapp: "" },
+  default_language: "ar",
+} as const;
+
 export function signedIn(routes: Routes = {}, admin: Me = me()): Routes {
   return {
     "GET /api/v1/auth/me": { body: admin },
+    "GET /api/v1/branding": { body: BRANDING },
     "GET /api/v1/admin/dashboard/kpis": { body: KPIS },
     "GET /api/v1/admin/customers": { body: page([customerSummary()]) },
     ...routes,

@@ -1,0 +1,11 @@
+# CrowdSec reads Traefik's access log from its container output, through the read-only
+# Docker API proxy (ADR-0020). The access log is JSON without request paths or query
+# strings (ADR-0018): Xtream paths carry credentials. See docs/runbooks/security.md for
+# what CrowdSec can and cannot detect from it.
+source: docker
+container_name_regexp:
+  # Docker names carry a leading slash, and the regex sees it.
+  - ^/?smart-iptv-traefik-[0-9]+$
+docker_host: tcp://docker-logs-proxy:2375
+labels:
+  type: traefik

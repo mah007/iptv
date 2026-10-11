@@ -381,6 +381,166 @@ export interface AuditLog {
   readonly after: unknown | null;
 }
 
+/**
+ * A base backup in the local pgBackRest repository, as the agent last reported.
+ */
+export interface DbBackup {
+  /** pgBackRest's label. */
+  backup_label: string;
+  type: string;
+  /**
+   * Unix time.
+   * @nullable
+   */
+  start: number | null;
+  /**
+   * Unix time.
+   * @nullable
+   */
+  stop: number | null;
+  /**
+   * Database size, bytes.
+   * @nullable
+   */
+  size: number | null;
+  /**
+   * Stored, bytes.
+   * @nullable
+   */
+  repo_size: number | null;
+  error: boolean;
+}
+
+export interface Snapshots {
+  ok: boolean;
+  snapshots: number;
+  /** @nullable */
+  latest: string | null;
+}
+
+export interface BackupAgent {
+  /** @nullable */
+  seen_at: string | null;
+  /** The backup service asked for work recently. */
+  healthy: boolean;
+  /** WAL archiving is on (point-in-time recovery). */
+  archiving: boolean;
+  /** The backup passphrase file is in place. */
+  passphrase: boolean;
+  /** @nullable */
+  disk_total_bytes: number | null;
+  /** @nullable */
+  disk_free_bytes: number | null;
+  db_backups: DbBackup[];
+  local_snapshots: Snapshots | null;
+  offsite_snapshots: Snapshots | null;
+}
+
+/**
+ * * `db_full` - Database (full)
+ * * `db_diff` - Database (differential)
+ * * `files` - Configuration, artwork and database dump
+ * * `offsite` - Offsite copy
+ * * `drill` - Restore drill
+ * * `check` - Check the destinations
+ */
+export type BackupRunKindEnum = (typeof BackupRunKindEnum)[keyof typeof BackupRunKindEnum];
+
+export const BackupRunKindEnum = {
+  db_full: "db_full",
+  db_diff: "db_diff",
+  files: "files",
+  offsite: "offsite",
+  drill: "drill",
+  check: "check",
+} as const;
+
+/**
+ * * `queued` - Queued
+ * * `running` - Running
+ * * `succeeded` - Succeeded
+ * * `failed` - Failed
+ */
+export type BackupRunStatusEnum = (typeof BackupRunStatusEnum)[keyof typeof BackupRunStatusEnum];
+
+export const BackupRunStatusEnum = {
+  queued: "queued",
+  running: "running",
+  succeeded: "succeeded",
+  failed: "failed",
+} as const;
+
+/**
+ * * `schedule` - Schedule
+ * * `manual` - Admin
+ * * `initial` - First backup
+ * * `command` - Command line
+ */
+export type BackupRunTriggerEnum = (typeof BackupRunTriggerEnum)[keyof typeof BackupRunTriggerEnum];
+
+export const BackupRunTriggerEnum = {
+  schedule: "schedule",
+  manual: "manual",
+  initial: "initial",
+  command: "command",
+} as const;
+
+export interface BackupRun {
+  readonly id: string;
+  readonly kind: BackupRunKindEnum;
+  readonly status: BackupRunStatusEnum;
+  readonly trigger: BackupRunTriggerEnum;
+  /** @nullable */
+  readonly requested_by: string | null;
+  readonly created_at: string;
+  /** @nullable */
+  readonly started_at: string | null;
+  /** @nullable */
+  readonly finished_at: string | null;
+  /** @nullable */
+  readonly duration_s: number | null;
+  /** @nullable */
+  readonly size_bytes: number | null;
+  readonly detail: unknown;
+  readonly error: string;
+}
+
+export interface Offsite {
+  enabled: boolean;
+  /** Switched on, with address, bucket and keys. */
+  configured: boolean;
+  endpoint: string;
+  bucket: string;
+  prefix: string;
+}
+
+export interface LatestRuns {
+  db: BackupRun | null;
+  files: BackupRun | null;
+  offsite: BackupRun | null;
+  drill: BackupRun | null;
+  check: BackupRun | null;
+}
+
+export interface BackupSummary {
+  enabled: boolean;
+  agent: BackupAgent;
+  /** Where the server keeps backups (set at install). */
+  local_dir: string;
+  s3: Offsite;
+  /** @nullable */
+  next_backup_at: string | null;
+  /** @nullable */
+  next_drill_at: string | null;
+  /** @nullable */
+  last_success_db_at: string | null;
+  /** @nullable */
+  last_success_drill_at: string | null;
+  /** Jobs queued or running. */
+  pending: number;
+  latest: LatestRuns;
+}
+
 export interface PlanCount {
   code: string;
   name_en: string;
@@ -403,6 +563,78 @@ export interface BillingKpis {
   revenue_last_month: Amount[];
   by_plan: PlanCount[];
   as_of: string;
+}
+
+/**
+ * * `signing` - SIGNING
+ * * `encryption` - ENCRYPTION
+ * * `datastore` - DATASTORE
+ * * `edge` - EDGE
+ * * `monitoring` - MONITORING
+ * * `ingest` - INGEST
+ */
+export type SecretReason = (typeof SecretReason)[keyof typeof SecretReason];
+
+export const SecretReason = {
+  signing: "signing",
+  encryption: "encryption",
+  datastore: "datastore",
+  edge: "edge",
+  monitoring: "monitoring",
+  ingest: "ingest",
+} as const;
+
+/**
+ * * `environment` - ENVIRONMENT
+ * * `file` - FILE
+ * * `missing` - MISSING
+ */
+export type SecretLocation = (typeof SecretLocation)[keyof typeof SecretLocation];
+
+export const SecretLocation = {
+  environment: "environment",
+  file: "file",
+  missing: "missing",
+} as const;
+
+export interface BootstrapSecret {
+  name: string;
+  reason: SecretReason;
+  location: SecretLocation;
+  required: boolean;
+}
+
+export interface BrandingNames {
+  en: string;
+  ar: string;
+}
+
+export interface BrandingSupport {
+  email: string;
+  phone: string;
+  whatsapp: string;
+}
+
+/**
+ * * `ar` - ar
+ * * `en` - en
+ */
+export type DefaultLanguageEnum = (typeof DefaultLanguageEnum)[keyof typeof DefaultLanguageEnum];
+
+export const DefaultLanguageEnum = {
+  ar: "ar",
+  en: "en",
+} as const;
+
+export interface Branding {
+  service_name: BrandingNames;
+  accent_color: string;
+  /** @nullable */
+  logo_light_url: string | null;
+  /** @nullable */
+  logo_dark_url: string | null;
+  support: BrandingSupport;
+  default_language: DefaultLanguageEnum;
 }
 
 /**
@@ -1412,6 +1644,180 @@ export interface ImageAlternative {
 }
 
 /**
+ * * `tmdb` - TMDB
+ * * `tvdb` - TVDB
+ * * `email` - EMAIL
+ * * `stripe` - STRIPE
+ * * `moyasar` - MOYASAR
+ * * `telegram` - TELEGRAM
+ */
+export type IntegrationName = (typeof IntegrationName)[keyof typeof IntegrationName];
+
+export const IntegrationName = {
+  tmdb: "tmdb",
+  tvdb: "tvdb",
+  email: "email",
+  stripe: "stripe",
+  moyasar: "moyasar",
+  telegram: "telegram",
+} as const;
+
+/**
+ * * `configured` - CONFIGURED
+ * * `server_config` - SERVER_CONFIG
+ * * `partial` - PARTIAL
+ * * `not_set` - NOT_SET
+ */
+export type IntegrationStatus = (typeof IntegrationStatus)[keyof typeof IntegrationStatus];
+
+export const IntegrationStatus = {
+  configured: "configured",
+  server_config: "server_config",
+  partial: "partial",
+  not_set: "not_set",
+} as const;
+
+/**
+ * * `bool` - BOOL
+ * * `int` - INT
+ * * `float` - FLOAT
+ * * `str` - STR
+ */
+export type SettingKind = (typeof SettingKind)[keyof typeof SettingKind];
+
+export const SettingKind = {
+  bool: "bool",
+  int: "int",
+  float: "float",
+  str: "str",
+} as const;
+
+/**
+ * * `database` - DATABASE
+ * * `environment` - ENVIRONMENT
+ * * `default` - DEFAULT
+ */
+export type SettingSource = (typeof SettingSource)[keyof typeof SettingSource];
+
+export const SettingSource = {
+  database: "database",
+  environment: "environment",
+  default: "default",
+} as const;
+
+/**
+ * A registered setting with its effective value. Sensitive values are never sent.
+ */
+export interface SettingEntry {
+  readonly key: string;
+  readonly group: string;
+  readonly kind: SettingKind;
+  readonly description: string;
+  /** @nullable */
+  readonly default: boolean | number | string | null;
+  /** @nullable */
+  readonly value: boolean | number | string | null;
+  /** Nothing is stored: the server config or the default applies. */
+  readonly is_default: boolean;
+  /**
+   * database: stored by an admin; environment: from the server config (.env); default: the built-in default.
+   *
+   * * `database` - DATABASE
+   * * `environment` - ENVIRONMENT
+   * * `default` - DEFAULT
+   */
+  readonly source: SettingSource;
+  /** The effective value is not empty (secrets included). */
+  readonly is_set: boolean;
+  /** A stored secret FIELD_ENCRYPTION_KEY can't decrypt; it reads as empty. */
+  readonly undecryptable: boolean;
+  readonly sensitive: boolean;
+  /** The server-config variables used when nothing is stored (names only). */
+  readonly env: readonly string[];
+  /** @nullable */
+  readonly widget: string | null;
+  /** @nullable */
+  readonly image_url: string | null;
+  /** @nullable */
+  readonly min_value: number | null;
+  /** @nullable */
+  readonly max_value: number | null;
+  /** @nullable */
+  readonly choices: readonly string[] | null;
+  /** @nullable */
+  readonly updated_at: string | null;
+  /** @nullable */
+  readonly updated_by: string | null;
+}
+
+export interface Integration {
+  name: IntegrationName;
+  /**
+   * configured: stored in the settings; server_config: complete, partly from .env; partial: something it needs is missing; not_set: nothing is set.
+   *
+   * * `configured` - CONFIGURED
+   * * `server_config` - SERVER_CONFIG
+   * * `partial` - PARTIAL
+   * * `not_set` - NOT_SET
+   */
+  status: IntegrationStatus;
+  /**
+   * Offered to customers (payment providers); null otherwise.
+   * @nullable
+   */
+  enabled: boolean | null;
+  /**
+   * Where the provider must send its webhooks.
+   * @nullable
+   */
+  webhook_url: string | null;
+  settings: SettingEntry[];
+}
+
+/**
+ * * `ok` - OK
+ * * `not_configured` - NOT_CONFIGURED
+ * * `auth_failed` - AUTH_FAILED
+ * * `forbidden` - FORBIDDEN
+ * * `unreachable` - UNREACHABLE
+ * * `timeout` - TIMEOUT
+ * * `tls_failed` - TLS_FAILED
+ * * `rejected` - REJECTED
+ * * `no_recipient` - NO_RECIPIENT
+ * * `chat_not_found` - CHAT_NOT_FOUND
+ * * `unexpected` - UNEXPECTED
+ */
+export type IntegrationTestCode = (typeof IntegrationTestCode)[keyof typeof IntegrationTestCode];
+
+export const IntegrationTestCode = {
+  ok: "ok",
+  not_configured: "not_configured",
+  auth_failed: "auth_failed",
+  forbidden: "forbidden",
+  unreachable: "unreachable",
+  timeout: "timeout",
+  tls_failed: "tls_failed",
+  rejected: "rejected",
+  no_recipient: "no_recipient",
+  chat_not_found: "chat_not_found",
+  unexpected: "unexpected",
+} as const;
+
+/**
+ * Harmless facts: the bot's name, test or live mode, the email's reference.
+ */
+export type IntegrationTestResultDetails = { [key: string]: unknown };
+
+export interface IntegrationTestResult {
+  ok: boolean;
+  code: IntegrationTestCode;
+  /** A short English explanation, without secrets. */
+  message: string;
+  /** Harmless facts: the bot's name, test or live mode, the email's reference. */
+  details: IntegrationTestResultDetails;
+}
+
+/**
  * * `pending` - Awaiting payment
  * * `paid` - Paid
  * * `void` - Void
@@ -1486,6 +1892,13 @@ export interface JobTitle {
   kind: JobTitleKindEnum;
   id: string;
   name: string;
+}
+
+export interface KeyRotation {
+  kind: string;
+  at: string;
+  /** @nullable */
+  actor: string | null;
 }
 
 export interface Kpis {
@@ -2039,9 +2452,9 @@ export interface MonitoringDeployment {
   prometheus_retention_size: string;
   /** How long logs are kept. */
   loki_retention: string;
-  /** Alertmanager emails the alerts about web being down itself (.env). */
+  /** Alertmanager emails the alerts about web being down itself (the settings' SMTP and recipients, fetched from Django). */
   fallback_email: boolean;
-  /** Alertmanager sends those alerts to Telegram itself (.env). */
+  /** Alertmanager sends those alerts to Telegram itself (the settings' bot). */
   fallback_telegram: boolean;
 }
 
@@ -2261,6 +2674,15 @@ export interface PaginatedAuditLogList {
   /** @nullable */
   previous: string | null;
   results: AuditLog[];
+}
+
+export interface PaginatedBackupRunList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: BackupRun[];
 }
 
 export interface PaginatedCategoryList {
@@ -3256,7 +3678,7 @@ export interface PatchedRoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 23
+   * @maxItems 25
    * @items.minLength 1
    * @items.maxLength 64
    */
@@ -3329,6 +3751,19 @@ export interface PatchedSeriesUpdateRequest {
  */
 export interface PatchedSettingRequest {
   value?: boolean | number | string;
+}
+
+/**
+ * Setting key to its new value; null forgets the stored value.
+ */
+export type PatchedSettingsBulkRequestValues = { [key: string]: boolean | number | string | null };
+
+/**
+ * Several settings at once, all or nothing: a value stores it, null resets it.
+ */
+export interface PatchedSettingsBulkRequest {
+  /** Setting key to its new value; null forgets the stored value. */
+  values?: PatchedSettingsBulkRequestValues;
 }
 
 export interface PatchedTrackUpdateRequest {
@@ -3704,7 +4139,7 @@ export interface Role {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 23
+   * @maxItems 25
    * @items.maxLength 64
    */
   permissions?: string[];
@@ -3726,11 +4161,35 @@ export interface RoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 23
+   * @maxItems 25
    * @items.minLength 1
    * @items.maxLength 64
    */
   permissions?: string[];
+}
+
+/**
+ * * `backup` - backup
+ * * `drill` - drill
+ * * `check` - check
+ */
+export type WhatEnum = (typeof WhatEnum)[keyof typeof WhatEnum];
+
+export const WhatEnum = {
+  backup: "backup",
+  drill: "drill",
+  check: "check",
+} as const;
+
+export interface RunRequestRequest {
+  /**
+   * backup: database, files and offsite now; drill: the restore drill; check: test the destinations.
+   *
+   * * `backup` - backup
+   * * `drill` - drill
+   * * `check` - check
+   */
+  what: WhatEnum;
 }
 
 export interface ScanStarted {
@@ -3810,45 +4269,14 @@ export interface SeriesDetail {
   readonly seasons: readonly Season[];
 }
 
-/**
- * * `bool` - BOOL
- * * `int` - INT
- * * `float` - FLOAT
- * * `str` - STR
- */
-export type SettingKind = (typeof SettingKind)[keyof typeof SettingKind];
+export interface ServerConfigSetting {
+  key: string;
+  env: string[];
+}
 
-export const SettingKind = {
-  bool: "bool",
-  int: "int",
-  float: "float",
-  str: "str",
-} as const;
-
-/**
- * A registered setting with its effective value. Sensitive values are never sent.
- */
-export interface SettingEntry {
-  readonly key: string;
-  readonly group: string;
-  readonly kind: SettingKind;
-  readonly description: string;
-  /** @nullable */
-  readonly default: boolean | number | string | null;
-  /** @nullable */
-  readonly value: boolean | number | string | null;
-  readonly is_default: boolean;
-  readonly sensitive: boolean;
-  /** @nullable */
-  readonly min_value: number | null;
-  /** @nullable */
-  readonly max_value: number | null;
-  /** @nullable */
-  readonly choices: readonly string[] | null;
-  /** @nullable */
-  readonly updated_at: string | null;
-  /** @nullable */
-  readonly updated_by: string | null;
+export interface SettingImageRequest {
+  /** PNG, JPEG or WebP, at most 2 MB. */
+  file: Blob | File;
 }
 
 export interface SourceTestQueued {
@@ -3967,6 +4395,46 @@ export interface SuspendRequest {
 
 export interface SyncResult {
   queued: boolean;
+}
+
+/**
+ * * `development` - DEVELOPMENT
+ * * `production` - PRODUCTION
+ */
+export type SystemEnvironment = (typeof SystemEnvironment)[keyof typeof SystemEnvironment];
+
+export const SystemEnvironment = {
+  development: "development",
+  production: "production",
+} as const;
+
+export interface SystemHost {
+  role: string;
+  host: string;
+  url: string;
+}
+
+export interface SystemInfo {
+  environment: SystemEnvironment;
+  version: string;
+  /** The git commit this installation runs; may be empty. */
+  commit: string;
+  domain: string;
+  public_scheme: string;
+  hosts: SystemHost[];
+  /** The host folder holding the libraries. */
+  media_root: string;
+  library_root: string;
+  data_root: string;
+  monitoring_enabled: boolean;
+  live_ingest_enabled: boolean;
+  server_time: string;
+  time_zone: string;
+  /** Settings whose value still comes from .env. */
+  from_server_config: ServerConfigSetting[];
+  /** What stays in .env or secrets/ and why; never a value. */
+  secrets: BootstrapSecret[];
+  key_rotations: KeyRotation[];
 }
 
 /**
@@ -4321,6 +4789,39 @@ export type AuditListParams = {
   target_id?: string;
   target_type?: string;
 };
+
+export type BackupsRunsParams = {
+  kind?: BackupsRunsKind;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  status?: BackupsRunsStatus;
+};
+
+export type BackupsRunsKind = (typeof BackupsRunsKind)[keyof typeof BackupsRunsKind];
+
+export const BackupsRunsKind = {
+  check: "check",
+  db_diff: "db_diff",
+  db_full: "db_full",
+  drill: "drill",
+  files: "files",
+  offsite: "offsite",
+} as const;
+
+export type BackupsRunsStatus = (typeof BackupsRunsStatus)[keyof typeof BackupsRunsStatus];
+
+export const BackupsRunsStatus = {
+  failed: "failed",
+  queued: "queued",
+  running: "running",
+  succeeded: "succeeded",
+} as const;
 
 export type CategoriesListParams = {
   /**

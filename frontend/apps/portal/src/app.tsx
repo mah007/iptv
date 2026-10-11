@@ -1,4 +1,4 @@
-import { isApiError } from "@smart-iptv/api-portal";
+import { brandingRetrieve, getBrandingRetrieveQueryKey, isApiError } from "@smart-iptv/api-portal";
 import {
   createI18n,
   ErrorBoundary,
@@ -35,10 +35,20 @@ function shouldRetry(failureCount: number, error: unknown): boolean {
   return failureCount < 1;
 }
 
+/** True when this browser has chosen a language before (the toggle remembers it). */
+function hasLanguagePreference(): boolean {
+  try {
+    return window.localStorage.getItem("smart-iptv.language") !== null;
+  } catch {
+    return false;
+  }
+}
+
 /** Build everything the portal needs, applying theme and language before the first paint. */
 export function createAppDependencies(history?: RouterHistory): AppDependencies {
   // Dark by default, like most streaming services (SPEC §9); the toggle is remembered.
   initTheme("dark");
+  const firstVisit = !hasLanguagePreference();
   const i18n = createI18n({ en, ar });
 
   // The session ended (idle expiry, a password change, signed out elsewhere): any
@@ -65,6 +75,22 @@ export function createAppDependencies(history?: RouterHistory): AppDependencies 
     },
   });
   const router = createAppRouter({ queryClient, ...(history ? { history } : {}) });
+  // A first visit speaks the service's default language (Settings → Branding, ADR-0019);
+  // the language toggle overrides it from then on.
+  if (firstVisit) {
+    queryClient
+      .query({
+        queryKey: getBrandingRetrieveQueryKey(),
+        queryFn: ({ signal }) => brandingRetrieve({ signal }),
+        staleTime: 5 * 60_000,
+      })
+      .then((branding) => {
+        if (!hasLanguagePreference() && branding.default_language !== i18n.language) {
+          void i18n.changeLanguage(branding.default_language);
+        }
+      })
+      .catch(() => undefined);
+  }
   return { i18n, queryClient, router };
 }
 

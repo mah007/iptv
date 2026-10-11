@@ -21,7 +21,7 @@ import.file "redaction" {
 
 // Containers of this compose project only (a laptop may run unrelated containers).
 discovery.docker "containers" {
-	host             = "unix:///var/run/docker.sock"
+	host             = coalesce(sys.env("DOCKER_HOST"), "unix:///var/run/docker.sock")
 	refresh_interval = "15s"
 
 	filter {
@@ -57,7 +57,7 @@ discovery.relabel "containers" {
 }
 
 loki.source.docker "containers" {
-	host          = "unix:///var/run/docker.sock"
+	host          = coalesce(sys.env("DOCKER_HOST"), "unix:///var/run/docker.sock")
 	targets       = discovery.docker.containers.targets
 	relabel_rules = discovery.relabel.containers.rules
 	forward_to    = [redaction.redact.lines.receiver]

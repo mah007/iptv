@@ -47,6 +47,12 @@ _XTREAM_SHORT_PATH = re.compile(
 _EDGE_TOKEN = re.compile(r"/v/[^/?#\s]+/")
 # Telegram Bot API URLs carry the bot token: /bot<id>:<secret>/sendMessage (O1, alerts).
 _TELEGRAM_BOT = re.compile(r"/bot[0-9]{5,}:[A-Za-z0-9_-]{20,}")
+# Integration secrets in free text, wherever they come from (CFG, ADR-0019): Stripe and
+# Moyasar keys and webhook secrets, Telegram bot tokens, and JWTs such as TMDB's read
+# access token. The recognisable prefix stays, so a line still says what was there.
+_PROVIDER_KEY = re.compile(r"\b(?P<prefix>(?:sk|rk|pk)_(?:test|live)_|whsec_)[A-Za-z0-9+/=]{6,}")
+_TELEGRAM_TOKEN = re.compile(r"\b[0-9]{5,20}:[A-Za-z0-9_-]{30,}")
+_JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")
 # Query-string and form parameters that carry credentials (names, not secrets).
 _SECRET_PARAMS = "password|pass|username|token|access_token|refresh_token|secret|api_key|key|code"  # noqa: S105
 _QUERY_PARAM = re.compile(rf"(?<!\w)(?P<name>{_SECRET_PARAMS})=[^&\s#;\"']+", re.IGNORECASE)
@@ -99,6 +105,9 @@ def redact_text(text: str) -> str:
     )
     text = _EDGE_TOKEN.sub(f"/v/{MASK}/", text)
     text = _TELEGRAM_BOT.sub(f"/bot{MASK}", text)
+    text = _PROVIDER_KEY.sub(lambda m: f"{m['prefix']}{MASK}", text)
+    text = _TELEGRAM_TOKEN.sub(MASK, text)
+    text = _JWT.sub(MASK, text)
     text = _URL_USERINFO.sub(lambda m: f"{m['scheme']}{MASK}:{MASK}@", text)
     text = _BEARER.sub(lambda m: f"{m['scheme']} {MASK}", text)
     text = _QUERY_PARAM.sub(lambda m: f"{m['name']}={MASK}", text)

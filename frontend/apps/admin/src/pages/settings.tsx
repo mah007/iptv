@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 
 import { QueryError, RequirePermission } from "../components/states";
 import { SettingRow } from "../features/settings/setting-row";
+import { SettingsTabs } from "../features/settings/settings-tabs";
 import { useCan } from "../lib/auth";
 import { usePageTitle } from "../lib/page-title";
 
@@ -23,6 +24,8 @@ const GROUP_ORDER = [
   "playback",
   "library",
   "metadata",
+  "email",
+  "notifications",
   "security",
   "features",
   "billing",
@@ -77,6 +80,7 @@ function Settings() {
         title={t("settings.title")}
         description={canEdit ? t("settings.description") : t("settings.readOnly")}
       />
+      <SettingsTabs className="lg:col-span-2" />
       {query.isPending ? (
         <SettingsSkeleton />
       ) : query.isError ? (

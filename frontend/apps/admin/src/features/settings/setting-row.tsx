@@ -1,9 +1,4 @@
-import {
-  getSettingsListQueryKey,
-  isApiError,
-  useSettingsUpdate,
-  type SettingEntry,
-} from "@smart-iptv/api";
+import { isApiError, type SettingEntry } from "@smart-iptv/api";
 import {
   Badge,
   Button,
@@ -19,12 +14,20 @@ import {
   cn,
   toast,
 } from "@smart-iptv/ui";
-import { useQueryClient } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { notifyError, translatedFieldErrors } from "../../lib/problems";
+import { LogoControl } from "./logo-control";
+import {
+  ReplaceButton,
+  SecretActions,
+  SecretInput,
+  SecretStatus,
+  useSecretDraft,
+} from "./secret-control";
+import { useSettingActions } from "./use-setting-actions";
 
 type Value = boolean | number | string;
 
@@ -41,14 +44,14 @@ function isLong(entry: SettingEntry): boolean {
   return sample.length > 60 || sample.startsWith("{") || sample.startsWith("[");
 }
 
-function displayValue(value: SettingEntry["value"]): string {
+export function displayValue(value: SettingEntry["value"]): string {
   if (value === null) return "";
   if (typeof value === "boolean") return value ? "true" : "false";
   return String(value);
 }
 
 /** Parse the typed text for the setting's kind; null when it is not a valid value. */
-function parseDraft(entry: SettingEntry, draft: string): Value | null {
+export function parseDraft(entry: SettingEntry, draft: string): Value | null {
   if (entry.kind === "str") return draft;
   const trimmed = draft.trim();
   if (trimmed === "") return null;
@@ -58,7 +61,7 @@ function parseDraft(entry: SettingEntry, draft: string): Value | null {
   return number;
 }
 
-function outOfRange(entry: SettingEntry, value: Value | null): boolean {
+export function outOfRange(entry: SettingEntry, value: Value | null): boolean {
   if (typeof value !== "number") return false;
   return (
     (entry.min_value !== null && value < entry.min_value) ||
@@ -66,15 +69,30 @@ function outOfRange(entry: SettingEntry, value: Value | null): boolean {
   );
 }
 
-/** One setting: label, description, a typed control, its default and who changed it last. */
-export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: boolean }) {
+/** The translated label of a setting, and whether a translation exists. */
+export function useSettingLabel(entry: SettingEntry): {
+  label: string;
+  description: string;
+  untranslated: boolean;
+} {
   const { t, i18n } = useTranslation();
+  return {
+    untranslated: !i18n.exists(`settings.keys.${entry.key}.label`),
+    label: t(`settings.keys.${entry.key}.label`, { defaultValue: humanize(entry.key) }),
+    description: t(`settings.keys.${entry.key}.description`, { defaultValue: entry.description }),
+  };
+}
+
+/** One setting: label, description, a typed control, where its value comes from. */
+export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: boolean }) {
+  const { t } = useTranslation();
   const id = useId();
-  const queryClient = useQueryClient();
+  const actions = useSettingActions();
+  const secret = useSecretDraft();
   const [draft, setDraft] = useState(() => (entry.sensitive ? "" : displayValue(entry.value)));
   const [savedValue, setSavedValue] = useState(entry.value);
   const [error, setError] = useState<string | null>(null);
-  const update = useSettingsUpdate();
+  const { label, description, untranslated } = useSettingLabel(entry);
 
   // Adopt a newer server value (another admin, a reset) unless the admin is typing.
   if (entry.value !== savedValue) {
@@ -82,46 +100,100 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
     if (!entry.sensitive) setDraft(displayValue(entry.value));
   }
 
-  // A key the registry gained before the locale files did: shown humanised, and
-  // flagged for the end-to-end check that every setting is translated.
-  const untranslated = !i18n.exists(`settings.keys.${entry.key}.label`);
-  const label = t(`settings.keys.${entry.key}.label`, { defaultValue: humanize(entry.key) });
-  const description = t(`settings.keys.${entry.key}.description`, {
-    defaultValue: entry.description,
-  });
   const descriptionId = `${id}-description`;
   const errorId = `${id}-error`;
 
+  function failed(failure: unknown): void {
+    if (isApiError(failure) && failure.code === "VALIDATION_ERROR") {
+      setError(translatedFieldErrors(t, failure)[0] ?? failure.detail);
+    } else {
+      notifyError(t, failure);
+    }
+  }
+
   function save(value: Value): void {
     setError(null);
-    update.mutate(
-      { key: entry.key, data: { value } },
-      {
-        onSuccess: (saved) => {
-          queryClient.setQueryData(getSettingsListQueryKey(), (list: SettingEntry[] | undefined) =>
-            list?.map((item) => (item.key === saved.key ? saved : item)),
-          );
-          if (entry.sensitive) setDraft("");
-          toast.success(t("settings.saved", { name: label }));
-        },
-        onError: (failure) => {
-          if (isApiError(failure) && failure.code === "VALIDATION_ERROR") {
-            setError(translatedFieldErrors(t, failure)[0] ?? failure.detail);
-          } else {
-            notifyError(t, failure);
-          }
-        },
-      },
-    );
+    actions.set(entry.key, value).then(() => {
+      secret.close();
+      toast.success(t("settings.saved", { name: label }));
+    }, failed);
+  }
+
+  function run(action: Promise<unknown>, message: string): void {
+    setError(null);
+    action.then(() => toast.success(message), failed);
   }
 
   const parsed = parseDraft(entry, draft);
-  const dirty = entry.sensitive ? draft !== "" : draft !== displayValue(entry.value);
+  const dirty = draft !== displayValue(entry.value);
   const invalid = dirty && (parsed === null || outOfRange(entry, parsed));
-  const disabled = !canEdit || update.isPending;
+  const disabled = !canEdit || actions.pending;
 
   let control;
-  if (entry.kind === "bool") {
+  if (entry.sensitive) {
+    control = (
+      <div className="grid gap-2">
+        <SecretStatus entry={entry} id={descriptionId} />
+        {secret.editing ? (
+          <form
+            noValidate
+            className="flex flex-wrap items-start gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (secret.value !== "") save(secret.value);
+            }}
+          >
+            <div className="min-w-0 flex-1">
+              <SecretInput
+                id={id}
+                value={secret.value}
+                describedBy={error ? `${descriptionId} ${errorId}` : descriptionId}
+                invalid={error !== null}
+                onChange={(value) => {
+                  secret.setValue(value);
+                  setError(null);
+                }}
+              />
+            </div>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={secret.value === ""}
+              pending={actions.pending}
+            >
+              {t("common.save")}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={secret.close}>
+              {t("common.cancel")}
+            </Button>
+          </form>
+        ) : canEdit ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <ReplaceButton entry={entry} disabled={disabled} onClick={secret.open} />
+            <SecretActions
+              entry={entry}
+              label={label}
+              canEdit={canEdit}
+              pending={actions.pending}
+              onClear={() => {
+                run(actions.reset(entry.key), t("settings.secret.cleared", { name: label }));
+              }}
+              onAdopt={() => {
+                run(actions.adopt(entry.key), t("settings.secret.adopted", { name: label }));
+              }}
+              onTurnOff={() => {
+                run(actions.set(entry.key, ""), t("settings.secret.turnedOff", { name: label }));
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
+    );
+  } else if (entry.widget === "image") {
+    control = (
+      <LogoControl entry={entry} label={label} canEdit={canEdit} describedBy={descriptionId} />
+    );
+  } else if (entry.kind === "bool") {
     control = (
       <Switch
         id={id}
@@ -171,13 +243,12 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
     ) : (
       <Input
         {...common}
-        type={entry.sensitive ? "password" : entry.kind === "str" ? "text" : "number"}
+        type={entry.kind === "str" ? "text" : "number"}
         dir="ltr"
         autoComplete="off"
         {...(entry.kind === "float" ? { step: "any" } : {})}
         {...(entry.min_value === null ? {} : { min: entry.min_value })}
         {...(entry.max_value === null ? {} : { max: entry.max_value })}
-        {...(entry.sensitive ? { placeholder: t("settings.newSecret") } : {})}
         className="sm:w-64"
       />
     );
@@ -197,7 +268,7 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
             size="sm"
             className="mt-0.5"
             disabled={invalid}
-            pending={update.isPending}
+            pending={actions.pending}
           >
             {t("common.save")}
           </Button>
@@ -215,19 +286,18 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
       className="grid gap-x-8 gap-y-3 border-b border-border py-4 last:border-b-0 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
     >
       <div className="grid content-start gap-1">
-        <label
-          htmlFor={id}
-          className="flex flex-wrap items-center gap-2 text-ui font-medium text-foreground"
-        >
-          {label}
-          {entry.sensitive ? (
-            // The API never sends a sensitive value; a stored one is "not the default".
-            <Badge tone={entry.is_default ? "neutral" : "success"}>
-              {entry.is_default ? t("settings.secretNotSet") : t("settings.secretSet")}
-            </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor={id} className="text-ui font-medium text-foreground">
+            {label}
+          </label>
+          {!entry.sensitive && entry.source === "environment" ? (
+            <Badge tone="info">{t("settings.source.environment")}</Badge>
           ) : null}
-        </label>
-        <p id={descriptionId} className="text-xs text-muted-foreground">
+        </div>
+        <p
+          id={entry.sensitive ? undefined : descriptionId}
+          className="text-xs text-muted-foreground"
+        >
           {description}
         </p>
         <code className="w-fit font-mono text-[11px] text-muted-foreground" dir="ltr">
@@ -257,43 +327,99 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
             {error}
           </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {entry.is_default || entry.value === entry.default ? (
-            <span>{t("settings.isDefault")}</span>
-          ) : (
-            <>
-              {entry.sensitive ? null : (
-                <span className={cn("min-w-0 truncate")}>
-                  {t("settings.default", { value: displayValue(entry.default) || "—" })}
-                </span>
-              )}
-              {entry.updated_at ? (
-                <span>
-                  {entry.updated_by
-                    ? t("settings.changedBy", { name: entry.updated_by })
-                    : t("settings.changed")}{" "}
-                  <RelativeTime value={entry.updated_at} />
-                </span>
-              ) : null}
-              {canEdit && !entry.sensitive && entry.default !== null ? (
-                <Button
-                  type="button"
-                  variant="link"
-                  size="xs"
-                  className="h-auto px-0 text-xs"
-                  disabled={update.isPending}
-                  onClick={() => {
-                    if (entry.default !== null) save(entry.default);
-                  }}
-                >
-                  <RotateCcw aria-hidden="true" />
-                  {t("settings.reset")}
-                </Button>
-              ) : null}
-            </>
-          )}
-        </div>
+        <SettingFooter
+          entry={entry}
+          canEdit={canEdit}
+          pending={actions.pending}
+          onReset={() => {
+            run(actions.reset(entry.key), t("settings.resetDone", { name: label }));
+          }}
+          onAdopt={() => {
+            run(actions.adopt(entry.key), t("settings.secret.adopted", { name: label }));
+          }}
+        />
       </div>
+    </div>
+  );
+}
+
+/** Where the value comes from and who changed it; reset and move-in actions. */
+function SettingFooter({
+  entry,
+  canEdit,
+  pending,
+  onReset,
+  onAdopt,
+}: {
+  entry: SettingEntry;
+  canEdit: boolean;
+  pending: boolean;
+  onReset: () => void;
+  onAdopt: () => void;
+}) {
+  const { t } = useTranslation();
+  if (entry.sensitive) {
+    return entry.updated_at && entry.source === "database" ? (
+      <p className="text-xs text-muted-foreground">
+        {entry.updated_by
+          ? t("settings.changedBy", { name: entry.updated_by })
+          : t("settings.changed")}{" "}
+        <RelativeTime value={entry.updated_at} />
+      </p>
+    ) : null;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      {entry.source === "default" ? <span>{t("settings.isDefault")}</span> : null}
+      {entry.source === "environment" ? (
+        <>
+          <span dir="auto">
+            {t("settings.source.fromVariable", { variable: entry.env.join(", ") })}
+          </span>
+          {canEdit && entry.widget === null ? (
+            <Button
+              type="button"
+              variant="link"
+              size="xs"
+              className="h-auto px-0 text-xs"
+              disabled={pending}
+              onClick={onAdopt}
+            >
+              {t("settings.secret.adopt")}
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+      {entry.source === "database" ? (
+        <>
+          {entry.widget === null ? (
+            <span className={cn("min-w-0 truncate")}>
+              {t("settings.default", { value: displayValue(entry.default) || "—" })}
+            </span>
+          ) : null}
+          {entry.updated_at ? (
+            <span>
+              {entry.updated_by
+                ? t("settings.changedBy", { name: entry.updated_by })
+                : t("settings.changed")}{" "}
+              <RelativeTime value={entry.updated_at} />
+            </span>
+          ) : null}
+          {canEdit && entry.widget === null ? (
+            <Button
+              type="button"
+              variant="link"
+              size="xs"
+              className="h-auto px-0 text-xs"
+              disabled={pending}
+              onClick={onReset}
+            >
+              <RotateCcw aria-hidden="true" />
+              {entry.env.length > 0 ? t("settings.resetToServer") : t("settings.reset")}
+            </Button>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }

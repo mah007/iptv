@@ -31,6 +31,19 @@ def _isolated_settings_cache() -> Iterator[None]:
     reset_settings_cache()
 
 
+@pytest.fixture
+def no_server_config(settings: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No setting falls back to `.env` (the dev stack's environment reaches the tests):
+    every registry `env` name is unset in Django's settings and the environment."""
+    from apps.core import registry  # noqa: PLC0415
+
+    for definition in registry.definitions():
+        for name in definition.env:
+            monkeypatch.delenv(name, raising=False)
+            if hasattr(settings, name):
+                setattr(settings, name, None)
+
+
 @pytest.fixture(autouse=True)
 def _clean_log_context() -> Iterator[None]:
     structlog.contextvars.clear_contextvars()

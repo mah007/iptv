@@ -20,7 +20,6 @@ from datetime import timedelta
 from typing import Any, Final
 
 import httpx
-from django.conf import settings
 from django.http import HttpRequest
 from django.utils import timezone
 
@@ -39,7 +38,8 @@ from apps.billing.providers.base import (
     provider_error,
     with_query,
 )
-from apps.core.services import get_setting
+from apps.core.integration import TestCode, TestResult, from_http_error, from_status
+from apps.core.services import get_secret, get_setting
 
 API_BASE: Final = "https://api.stripe.com/v1"
 SIGNATURE_TOLERANCE_S: Final = 300
@@ -60,6 +60,19 @@ def _flatten(prefix: str, value: Any, into: dict[str, str]) -> None:
         into[prefix] = str(value).lower() if isinstance(value, bool) else str(value)
 
 
+def _json(response: httpx.Response) -> dict[str, Any]:
+    try:
+        body = response.json()
+    except ValueError:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _error_message(response: httpx.Response) -> str:
+    error = _json(response).get("error")
+    return str(error.get("message") or "")[:200] if isinstance(error, dict) else ""
+
+
 def form(data: dict[str, Any]) -> dict[str, str]:
     flat: dict[str, str] = {}
     _flatten("", data, flat)
@@ -71,19 +84,62 @@ def sign(payload: bytes, secret: str, timestamp: int) -> str:
     return hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
 
 
+def _secret_key() -> str:
+    return get_secret("billing.stripe_secret_key")
+
+
 class StripeProvider(PaymentProvider):
     code = PaymentProviderCode.STRIPE
     name = "Stripe"
 
     def is_configured(self) -> bool:
-        return bool(settings.STRIPE_SECRET_KEY and settings.STRIPE_WEBHOOK_SECRET)
+        return bool(_secret_key() and get_secret("billing.stripe_webhook_secret"))
 
     def is_enabled(self) -> bool:
         return self.is_configured() and get_setting("billing.stripe_enabled") is True
 
+    def check(self, webhook_url: str) -> TestResult:
+        """The admin's Test: is the key accepted, which mode, is our webhook registered?"""
+        key = _secret_key()
+        if not key:
+            return TestResult.failed(TestCode.NOT_CONFIGURED, "No Stripe secret key is set.")
+        headers = {"Authorization": f"Bearer {key}"}
+        try:
+            with http_client() as client:
+                balance = client.get(f"{API_BASE}/balance", headers=headers)
+                if balance.status_code >= 400:
+                    reason = "" if balance.status_code == 401 else _error_message(balance)
+                    return from_status("Stripe", balance, reason)
+                hooks = client.get(
+                    f"{API_BASE}/webhook_endpoints", params={"limit": 100}, headers=headers
+                )
+        except httpx.HTTPError as exc:
+            return from_http_error("Stripe", exc)
+        mode = "live" if _json(balance).get("livemode") else "test"
+        registered = "unknown"
+        if hooks.status_code == httpx.codes.OK:
+            endpoints = _json(hooks).get("data") or []
+            registered = (
+                "yes"
+                if any(
+                    isinstance(e, dict)
+                    and e.get("url") == webhook_url
+                    and e.get("status") == "enabled"
+                    for e in endpoints
+                )
+                else "no"
+            )
+        return TestResult.passed(
+            f"Stripe accepted the key ({mode} mode).",
+            mode=mode,
+            webhook_url=webhook_url,
+            webhook_registered=registered,
+            webhook_secret_set=bool(get_secret("billing.stripe_webhook_secret")),
+        )
+
     def _post(self, path: str, data: dict[str, Any], *, idempotency_key: str) -> dict[str, Any]:
         headers = {
-            "Authorization": f"Bearer {settings.STRIPE_SECRET_KEY}",
+            "Authorization": f"Bearer {_secret_key()}",
             "Idempotency-Key": idempotency_key,
         }
         try:
@@ -148,7 +204,7 @@ class StripeProvider(PaymentProvider):
         if abs(time.time() - timestamp) > SIGNATURE_TOLERANCE_S:
             msg = "The webhook timestamp is outside the tolerance."
             raise WebhookError(msg)
-        expected = sign(request.body, settings.STRIPE_WEBHOOK_SECRET, timestamp)
+        expected = sign(request.body, get_secret("billing.stripe_webhook_secret"), timestamp)
         if not any(hmac.compare_digest(expected, given) for given in parts.get("v1", [])):
             msg = "The webhook signature does not match."
             raise WebhookError(msg)

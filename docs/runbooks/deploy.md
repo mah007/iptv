@@ -9,16 +9,16 @@ The small tier from SPEC §13: one server runs the whole stack behind Traefik, w
 curl -fsSL https://raw.githubusercontent.com/mah007/iptv/main/scripts/install.sh -o install.sh
 sudo bash install.sh                                  # new server: questions, checks, install
 sudo /opt/iptv/scripts/install.sh --update            # pull, add new .env keys, rebuild, migrate, check HTTPS
-sudo /opt/iptv/scripts/install.sh --reconfigure       # change domain, email, media folder, TMDB, SMTP, monitoring
+sudo /opt/iptv/scripts/install.sh --reconfigure       # change domain, admin email, media folder, monitoring
 sudo /opt/iptv/scripts/install.sh --update --monitoring   # turn monitoring on for an existing server
 bash install.sh --help                                # every option, unattended use (--yes)
 ```
-- **Questions:** domain, owner admin (email, sign-in name, password or a generated one), media folder and sample titles, TMDB token, SMTP, monitoring (alert email and an optional Telegram bot and chat), ufw.
+- **Questions:** domain, owner admin (email, sign-in name, password or a generated one), media folder and sample titles, TMDB token, SMTP, monitoring (alert email and an optional Telegram bot and chat), ufw. TMDB, SMTP and the alert answers go into the admin's settings, where they are edited afterwards (**Settings → Integrations**); `--reconfigure` asks only for the domain, the admin email, the media folder and monitoring on or off.
 - **Checks before it changes anything:** OS (Ubuntu 22.04/24.04, Debian 12/13), CPU, memory and disk, ports 80/443, internet access, DNS for every host, and no other installation's containers or volumes on the server.
 - **Then:**
   1. Docker from Docker's repository, and the code in `/opt/iptv`;
-  2. `.env` from `scripts/secrets.sh` plus the answers (`DOMAIN`, `TV_HOST`, `ACME_EMAIL`, `MEDIA_ROOT`, `TMDB_READ_ACCESS_TOKEN`, `EMAIL_*`);
-  3. the stack and migrations (with the monitoring overlay when chosen), then the alert recipients and Telegram into the admin's settings (`manage.py set_setting`);
+  2. `.env` from `scripts/secrets.sh` plus the bootstrap answers (`DOMAIN`, `TV_HOST`, `ACME_EMAIL`, `MEDIA_ROOT`, `APP_COMMIT`, `MONITORING`);
+  3. the stack and migrations (with the monitoring overlay when chosen), then TMDB, SMTP, the alert recipients and Telegram into the admin's settings (`manage.py set_setting KEY --stdin`; secrets encrypted, values never on a command line);
   4. `create_owner --username --email` (password from `OWNER_PASSWORD`, or generated);
   5. `ensure_libraries` for `movies/` and `series/`, `search_reindex`, and an HTTPS check per host.
 - **Where things go:**
@@ -28,6 +28,19 @@ bash install.sh --help                                # every option, unattended
 - **The public-IP check** (for DNS) asks api.ipify.org, falling back to ifconfig.co; skip it with `--skip-dns-check`.
 
 The sections below are the same steps by hand, for reference and troubleshooting.
+
+## Configuration: the admin, not `.env`
+Everything an operator changes lives in the admin (ADR-0019):
+- **Settings → Integrations:** TMDB, TheTVDB, email (SMTP), Stripe, Moyasar and Telegram, one card each with its status and a **Test** (send a test email to yourself, check a key, send a test Telegram message). Save, then Test.
+- **Settings:** every other setting (branding and logos, playback, library, live TV, billing, monitoring...).
+- **Settings → System:** read-only facts: version and commit, hosts, folders, which settings still come from `.env`, the bootstrap secrets and why they stay out of the settings.
+
+`.env` keeps only bootstrap values: the domain and hosts, folders, data-store passwords, `DJANGO_SECRET_KEY` and `FIELD_ENCRYPTION_KEY` (which encrypts the secrets stored in the settings: back it up with `.env`; without it they must be entered again).
+
+**Servers installed before ADR-0019** keep working: a TMDB token or SMTP settings in `.env` are the settings' fallback, shown as **From server config**. After `--update` the installer prints how many settings still come from `.env`. Press **Move into settings** on each (the value is copied on the server, encrypted, never sent to the browser), then remove the variable from `.env`:
+```bash
+docker compose ... exec web python manage.py settings_report   # names and variables, never values
+```
 
 ## Prerequisites
 - **DNS:** an A record for the base name **and** a wildcard, both pointing at the server. For example `tv.example.com` and `*.tv.example.com` → the server's IP.
@@ -104,7 +117,7 @@ docker compose --project-directory . -f docker/compose.yml -f docker/compose.pro
 
 **Open it** from the admin: **Monitoring** in the sidebar (permission `monitoring.view`; owners, admins and viewers have it). Each button opens `grafana.<domain>` with a one-time link, signed in for `monitoring.session_hours` (8 by default). Nothing on that host answers without it: not Grafana, `/prometheus` or `/alertmanager`. Suspending an admin or removing the permission closes their access within a minute.
 
-**Alerts.** Every alert goes to Django, which sends it as the admin's **Settings → Monitoring** say: recipients, a Telegram bot and chat, which severities go where, on or off (SMTP is the server's email settings). For the few alerts that mean Django itself can't deliver (web, PostgreSQL or Valkey down, delivery failing), Alertmanager also sends them itself, to `ALERT_EMAIL_TO` and `ALERT_TELEGRAM_*` in `.env`, which the installer fills from the same answers. Edit those two places separately: the admin's settings don't change `.env`.
+**Alerts.** Every alert goes to Django, which sends it as the admin's **Settings → Monitoring** say: recipients, which severities go where, on or off; the SMTP server and the Telegram bot and chat are under **Settings → Integrations**. For the few alerts that mean Django itself can't deliver (web, PostgreSQL or Valkey down, delivery failing), Alertmanager also sends them itself, with the same settings: it fetches them from Django every minute (`/internal/alert-fallback`), keeps the last copy while web is down, and reloads when they change (ADR-0019). Older installations' `ALERT_EMAIL_TO` and `ALERT_TELEGRAM_*` in `.env` apply only until that first fetch.
 
 **Prove it works (the fire drill, SPEC §17):** admin → **Monitoring** → **Send a test alert**, or `docker compose ... exec web python manage.py fire_drill`. The FireDrill alert arrives by email and Telegram within about 2 minutes and resolves 10 minutes later (or at once with **Stop the test alert** / `fire_drill --stop`). Record the date in the go-live checklist.
 

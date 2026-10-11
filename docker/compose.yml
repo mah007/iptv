@@ -9,13 +9,21 @@ x-logging: &logging
     max-size: "10m"
     max-file: "3"
 
+# Every container drops all capabilities and may not gain privileges (G-39, ADR-0020);
+# the few that need one add it back where they are defined.
+x-hardened: &hardened
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
 x-app: &app
+  <<: *hardened
   image: smart-iptv/app:${APP_VERSION:-dev}
   build:
     context: .
     dockerfile: docker/app.Dockerfile
     target: runtime
-  env_file: .env
+  # docker/app.env: the restricted database role and Valkey user (ADR-0020).
+  env_file: [.env, docker/app.env]
   restart: unless-stopped
   logging: *logging
   networks: [backend]
@@ -28,22 +36,70 @@ x-app: &app
 
 services:
   traefik:
-    image: traefik:v3.7.13
+    <<: *hardened
+    # traefik:v3.7.13 plus the vendored CrowdSec bouncer plugin and the entrypoint that
+    # renders the static configuration and syncs the dynamic folder (ADR-0020).
+    image: smart-iptv/traefik:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/traefik.Dockerfile
+      args:
+        TRAEFIK_IMAGE: traefik:v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0
     restart: unless-stopped
     logging: *logging
+    # Binds :80 (and :443 in production) as root without other capabilities; no Docker
+    # socket: containers are discovered through docker-proxy (G-36, ADR-0020).
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      # The entry point CrowdSec's bouncer guards when CrowdSec is installed.
+      CROWDSEC_ENTRYPOINT: web
     ports:
       - "${HTTP_PORT:-80}:80"
     volumes:
       - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./docker/traefik/dynamic:/etc/traefik/dynamic:ro
-      # Read-only socket for service discovery; a socket proxy replaces it in M14.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
       timeout: 3s
       retries: 3
-    networks: [edge]
+    networks: [edge, docker-api]
+    depends_on:
+      docker-proxy: { condition: service_healthy }
+
+  # Traefik's read-only view of the Docker API (G-36, ADR-0020): only the version, the
+  # container list, one container's details and the event stream, and only for Traefik.
+  # No socket in Traefik itself, and no way to start, stop, exec into or copy files out
+  # of a container through it.
+  docker-proxy:
+    <<: *hardened
+    # Root without capabilities: the socket is root's (0660 root:docker on the host).
+    user: "0:0"
+    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+    restart: unless-stopped
+    logging: *logging
+    read_only: true
+    mem_limit: 64m
+    command:
+      - -loglevel=warn
+      - -listenip=0.0.0.0
+      - -allowfrom=traefik
+      - -allowGET=/(v[0-9.]+/)?(version|_ping|containers/json|containers/[a-zA-Z0-9_.-]+/json|events)
+      - -allowHEAD=/(v[0-9.]+/)?_ping
+      - -allowhealthcheck
+      - -watchdoginterval=600
+      - -stoponwatchdog
+      - -shutdowngracetime=5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [docker-api]
+    healthcheck:
+      test: ["CMD", "./healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   web:
     <<: *app
@@ -192,19 +248,51 @@ services:
     <<: *app
     command: ["python", "manage.py", "migrate", "--noinput"]
     restart: "no"
+    # The migrator is the database owner (G-37, ADR-0020); after migrating, it grants the
+    # restricted role what it needs (apps/ops/grants.py).
+    environment:
+      DB_ROLE: owner
+    depends_on:
+      postgres: { condition: service_healthy }
+      db-roles: { condition: service_completed_successfully }
+
+  # Creates or updates the restricted database roles before `migrate`, over PostgreSQL's
+  # local socket (no network, no owner password); idempotent (docker/postgres/db-roles.sh).
+  db-roles:
+    <<: *hardened
+    image: smart-iptv/postgres-backup:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+      target: backup
+    command: ["db-roles"]
+    restart: "no"
+    logging: *logging
+    read_only: true
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-}
+      POSTGRES_REPORTING_PASSWORD: ${POSTGRES_REPORTING_PASSWORD:-}
+    volumes:
+      - postgres-run:/var/run/postgresql
+    network_mode: none
     depends_on:
       postgres: { condition: service_healthy }
 
   # Gives the media volume's folders to the user the app runs as, once per start.
   media-init:
+    <<: *hardened
     image: smart-iptv/app:${APP_VERSION:-dev}
     build:
       context: .
       dockerfile: docker/app.Dockerfile
       target: runtime
     user: "0:0"
+    cap_add: [CHOWN]
     entrypoint: ["sh", "-c"]
-    command: ["mkdir -p /data/images /data/renditions && chown \"$$DATA_OWNER\" /data /data/images /data/renditions /live"]
+    # The CrowdSec overlay mounts /crowdsec-traefik too: the worker writes Traefik's file there.
+    command: ["mkdir -p /data/images /data/renditions && chown \"$$DATA_OWNER\" /data /data/images /data/renditions /live && if [ -d /crowdsec-traefik ]; then chown \"$$DATA_OWNER\" /crowdsec-traefik; fi"]
     environment:
       DATA_OWNER: "10001:10001"
     volumes:
@@ -219,7 +307,7 @@ services:
   # symlinks into /media, which the overlays mount read-only at the same path.
   # Plain HTTP behind Traefik.
   nginx-stream:
-    image: nginx:1.30.5-alpine
+    image: nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
     restart: unless-stopped
     logging: *logging
     read_only: true
@@ -305,6 +393,7 @@ services:
       dockerfile: docker/app.Dockerfile
       target: runtime
     command: ["uvicorn", "apps.live.relay:app", "--host", "0.0.0.0", "--port", "8090", "--no-access-log", "--timeout-graceful-shutdown", "5"]
+    <<: *hardened
     restart: unless-stopped
     logging: *logging
     read_only: true
@@ -324,10 +413,30 @@ services:
       start_period: 10s
       retries: 3
 
+  # PostgreSQL 18 with pgBackRest (docker/postgres.Dockerfile, ADR-0020). Finished WAL
+  # segments go to the backup repository (point-in-time recovery) once the backup
+  # service has set it up; until then they are released (pgbackrest-iptv-archive).
   postgres:
-    image: postgres:18.6-alpine
+    <<: *hardened
+    image: smart-iptv/postgres:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+      target: postgres
     restart: unless-stopped
     logging: *logging
+    # The entrypoint fixes ownership as root, then runs PostgreSQL as `postgres` (gosu).
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    read_only: true
+    tmpfs: [/tmp]
+    command:
+      - postgres
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=/usr/local/bin/pgbackrest-iptv-archive %p
+      - -c
+      - archive_timeout=${PG_ARCHIVE_TIMEOUT:-300}
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -335,6 +444,12 @@ services:
     volumes:
       # PostgreSQL 18 images keep data in /var/lib/postgresql/<major>/docker.
       - postgres-data:/var/lib/postgresql
+      # The local socket, shared with db-roles and the backup service (trusted there).
+      - postgres-run:/var/run/postgresql
+      # pgbackrest.conf, the archiving switch and pgBackRest's locks (the backup service).
+      - backup-config:/backup-config
+      # The backup repository: archive-push writes WAL to backups/pgbackrest.
+      - ${BACKUP_DIR:-backup-repo}:/backups
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -342,16 +457,31 @@ services:
       retries: 10
     networks: [backend]
 
+  # Valkey users per kind of client (G-38, ADR-0020): `default` (operator, tests), `app`
+  # (the app services; administrative and destructive commands refused), `exporter`.
   redis-state:
-    image: valkey/valkey:9.1.2-alpine
+    <<: *hardened
+    image: valkey/valkey:9.1.2-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
     restart: unless-stopped
     logging: *logging
+    # The entrypoint fixes ownership of /data as root (DAC_READ_SEARCH: into root's
+    # 0700 folders), then runs Valkey as `valkey`.
+    cap_add: [CHOWN, DAC_READ_SEARCH, SETUID, SETGID]
+    read_only: true
+    tmpfs: [/tmp]
     environment:
       VALKEYCLI_AUTH: ${REDIS_STATE_PASSWORD}
-    # Sessions, slots and the broker must never be evicted or lost (SPEC §4).
-    command: ["sh", "-c", "exec valkey-server --requirepass \"$$VALKEYCLI_AUTH\" --appendonly yes --appendfsync everysec --maxmemory-policy noeviction"]
+      VALKEY_DEFAULT_PASSWORD: ${REDIS_STATE_PASSWORD}
+      VALKEY_APP_PASSWORD: ${REDIS_STATE_APP_PASSWORD:-}
+      VALKEY_EXPORTER_PASSWORD: ${REDIS_STATE_EXPORTER_PASSWORD:-}
+    entrypoint: ["sh", "/usr/local/bin/iptv-valkey-entrypoint"]
+    # Sessions, slots and the broker must never be evicted or lost (SPEC §4); a memory
+    # ceiling with headroom makes a full instance refuse writes instead of the host
+    # running out of memory (G-35; the RedisStateMemoryHigh alert warns at 80%).
+    command: ["--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "${REDIS_STATE_MAXMEMORY:-1gb}", "--maxmemory-policy", "noeviction"]
     volumes:
       - redis-state-data:/data
+      - ./docker/valkey/entrypoint.sh:/usr/local/bin/iptv-valkey-entrypoint:ro
     healthcheck:
       test: ["CMD-SHELL", "valkey-cli ping | grep -q PONG"]
       interval: 5s
@@ -360,13 +490,25 @@ services:
     networks: [backend]
 
   redis-cache:
-    image: valkey/valkey:9.1.2-alpine
+    <<: *hardened
+    image: valkey/valkey:9.1.2-alpine@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11
     restart: unless-stopped
     logging: *logging
+    # The entrypoint fixes ownership of /data as root (DAC_READ_SEARCH: into root's
+    # 0700 folders), then runs Valkey as `valkey`.
+    cap_add: [CHOWN, DAC_READ_SEARCH, SETUID, SETGID]
+    read_only: true
+    tmpfs: [/tmp, /data]
     environment:
       VALKEYCLI_AUTH: ${REDIS_CACHE_PASSWORD}
+      VALKEY_DEFAULT_PASSWORD: ${REDIS_CACHE_PASSWORD}
+      VALKEY_APP_PASSWORD: ${REDIS_CACHE_APP_PASSWORD:-}
+      VALKEY_EXPORTER_PASSWORD: ${REDIS_CACHE_EXPORTER_PASSWORD:-}
+    entrypoint: ["sh", "/usr/local/bin/iptv-valkey-entrypoint"]
     # Recomputable data only: evict least-recently-used keys, no persistence.
-    command: ["sh", "-c", "exec valkey-server --requirepass \"$$VALKEYCLI_AUTH\" --maxmemory ${REDIS_CACHE_MAXMEMORY:-256mb} --maxmemory-policy allkeys-lru --save '' --appendonly no"]
+    command: ["--maxmemory", "${REDIS_CACHE_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no"]
+    volumes:
+      - ./docker/valkey/entrypoint.sh:/usr/local/bin/iptv-valkey-entrypoint:ro
     healthcheck:
       test: ["CMD-SHELL", "valkey-cli ping | grep -q PONG"]
       interval: 5s
@@ -375,9 +517,12 @@ services:
     networks: [backend]
 
   meilisearch:
-    image: getmeili/meilisearch:v1.54.3
+    <<: *hardened
+    image: getmeili/meilisearch:v1.54.3@sha256:e68913ab7d6f5b159529e472cfd362ce3c741fafd3c127961b2142abbe41b3c9
     restart: unless-stopped
     logging: *logging
+    read_only: true
+    tmpfs: [/tmp]
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
       MEILI_ENV: ${MEILI_ENV:-production}
@@ -391,7 +536,93 @@ services:
       retries: 10
     networks: [backend]
 
+  # The backup service (apps/ops/agent.py, ADR-0020): asks Django what to do (Settings →
+  # Backups), backs PostgreSQL up with pgBackRest (point-in-time recovery), snapshots
+  # .env, secrets/, the artwork and a pg_dump with restic, copies everything to an
+  # S3-compatible bucket when one is configured, and runs the weekly restore drill.
+  # Root with only the capabilities it uses: reading the 0600 .env (DAC_READ_SEARCH),
+  # running pgBackRest as `postgres` (SETUID, SETGID), owning its folders (CHOWN).
+  backup:
+    <<: *hardened
+    image: smart-iptv/postgres-backup:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+      target: backup
+    restart: unless-stopped
+    logging: *logging
+    cap_add: [DAC_READ_SEARCH, SETUID, SETGID, CHOWN]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 1g
+    environment:
+      PGUSER: ${POSTGRES_USER}
+      PGDATABASE: ${POSTGRES_DB}
+      PGHOST: /var/run/postgresql
+      PGDATA: /var/lib/postgresql/18/docker
+      AGENT_URL: http://web:8000/internal/backups/agent
+      # For an operator's own restic and pgbackrest commands (docs/runbooks/backups.md).
+      RESTIC_REPOSITORY: /backups/restic
+      RESTIC_PASSWORD_FILE: /run/secrets/backup_passphrase
+      RESTIC_CACHE_DIR: /backup-config/restic-cache
+      PGBACKREST_CONFIG: /backup-config/pgbackrest.conf
+      PGBACKREST_STANZA: main
+    secrets: [backup_passphrase, backup_agent_token]
+    volumes:
+      - postgres-data:/var/lib/postgresql:ro
+      - postgres-run:/var/run/postgresql
+      - backup-config:/backup-config
+      - ${BACKUP_DIR:-backup-repo}:/backups
+      - backup-drill:/drill
+      # What the files snapshot holds (the media libraries come from the overlays).
+      - ./.env:/sources/config/.env:ro
+      - ./secrets:/sources/config/secrets:ro
+      - media-data:/sources/media-data:ro
+    # backend: Django and PostgreSQL; egress: the S3-compatible bucket, when configured.
+    networks: [backend, egress]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python3", "/usr/local/lib/smart-iptv/agent.py", "health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  # Restores the database in place, with PostgreSQL stopped (docs/runbooks/backups.md):
+  #   docker compose ... stop <app services> postgres
+  #   docker compose ... --profile restore run --rm restore --target latest --yes
+  #   docker compose ... up -d
+  # --target: latest, a time ('2026-10-11 12:00:00+00') or name:<restore point>.
+  restore:
+    <<: *hardened
+    profiles: [restore]
+    image: smart-iptv/postgres-backup:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+      target: backup
+    entrypoint: ["python3", "/usr/local/lib/smart-iptv/agent.py", "restore-db"]
+    restart: "no"
+    logging: *logging
+    cap_add: [DAC_READ_SEARCH, SETUID, SETGID, CHOWN]
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      PGUSER: ${POSTGRES_USER}
+      PGDATABASE: ${POSTGRES_DB}
+      PGHOST: /var/run/postgresql
+      PGDATA: /var/lib/postgresql/18/docker
+    secrets: [backup_passphrase]
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - postgres-run:/var/run/postgresql
+      - backup-config:/backup-config
+      - ${BACKUP_DIR:-backup-repo}:/backups
+    network_mode: none
+
   frontend:
+    <<: *hardened
     image: smart-iptv/frontend:${APP_VERSION:-dev}
     build:
       context: .
@@ -424,6 +655,10 @@ networks:
   # Outbound internet for the worker (TMDB). Nothing listens on it.
   egress:
     name: smart-iptv-egress
+  # Traefik and its Docker API proxy only (G-36). No internet, no other members.
+  docker-api:
+    name: smart-iptv-docker-api
+    internal: true
 
 volumes:
   postgres-data:
@@ -433,8 +668,24 @@ volumes:
   media-data:
   # Live channels' rolling HLS and catch-up archive (ADR-0017). Written by the packager.
   live-data:
+  # PostgreSQL's local socket, shared with db-roles and the backup service (ADR-0020).
+  postgres-run:
+  # pgbackrest.conf, the WAL archiving switch and pgBackRest's locks (the backup service).
+  backup-config:
+  # The backup repository when BACKUP_DIR is not a host folder (development). Production
+  # sets BACKUP_DIR (the installer asks; default /var/backups/smart-iptv).
+  backup-repo:
+  # The restore drill's throwaway database, emptied after every drill.
+  backup-drill:
 
 secrets:
   # Media token keys (ADR-0007), generated by `make secrets` (scripts/secrets.sh).
   media_token_keys:
     file: ./secrets/media_token_keys.json
+  # The backup passphrase (ADR-0020): encrypts every backup; generated once by
+  # scripts/secrets.sh and never changed. Keep a copy away from this server.
+  backup_passphrase:
+    file: ./secrets/backup_passphrase
+  # The backup service's token for Django's internal API (copied from .env).
+  backup_agent_token:
+    file: ./secrets/runtime/backup_agent_token

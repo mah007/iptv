@@ -19,12 +19,13 @@ from apps.audit.models import AuditLog
 from apps.conftest import CustomerFactory
 from apps.core.errors import ProblemError
 from apps.notifications import services, tasks
+from apps.notifications.mail import SETTINGS_BACKEND
 from apps.notifications.models import NotificationOutbox, NotificationTemplate, OutboxStatus
 
 pytestmark = pytest.mark.django_db
 type Capture = Callable[..., Any]
 
-SMTP = "django.core.mail.backends.smtp.EmailBackend"
+SMTP = SETTINGS_BACKEND
 
 
 @pytest.fixture

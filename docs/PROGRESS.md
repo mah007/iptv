@@ -14,7 +14,60 @@
 | M11b Customer portal | Done: portal UI with the Shaka player, progress and resume, account, devices and TV apps, checkout; `make e2e-portal` with axe ([ADR-0016](adr/0016-customer-portal.md)); provider sandboxes pending keys | — |
 | M12 Live TV & EPG | Done: licensed channels and groups, XMLTV import (partitioned guide), live and EPG Xtream actions, `xmltv.php`, live M3U, `/live`, short and `/timeshift` URLs, packager and relay behind the edge, catch-up with an admin-set disk budget, ErsatzTV and MediaMTX sync, optional MediaMTX ingest, admin Live TV and EPG pages; G-11 and G-13 closed ([ADR-0017](adr/0017-live-tv-and-epg.md)); portal live TV is a follow-up | — |
 | M13 Monitoring & logging | Done: opt-in overlay (Prometheus 3.13 LTS, Grafana, Loki, Alloy, Alertmanager, exporters), 7 dashboards, 27 alerts delivered by Django per the admin's settings with an Alertmanager fallback, admin-only Grafana through the admin's sign-in, Loki redaction tested in `make ci`, dev fire drill passed ([ADR-0018](adr/0018-observability.md)); production fire drill waits for SMTP or Telegram | — |
+| CFG Dynamic configuration | Done: secret settings encrypted at rest with the `.env` fallback and its source shown, Integrations page (TMDB, TheTVDB, SMTP, Stripe, Moyasar, Telegram) with server-side Tests, System page, branding (logos, contacts, language, time zone) in both apps, emails and invoices, Alertmanager's fallback fetched from Django, installer writes settings instead of `.env` ([ADR-0019](adr/0019-dynamic-configuration.md)) | — |
 | M10 client matrix (needs the owner's devices), M14, M15 | Planned | — |
+
+## CFG: dynamic configuration (2026-10-11)
+
+### Done ([ADR-0019](adr/0019-dynamic-configuration.md))
+- **Registry:**
+  - `SettingDef` gains `env` (the server-config fallback, with `env_resolve` for derived values) and `widget` (image uploads);
+  - effective value: stored, else `.env`, else default, with the source (`database`, `environment`, `default`) in the API;
+  - an explicitly empty value turns a `.env` value off.
+- **Secrets:**
+  - Fernet ciphertext in a new column (`core/0003`); the settings cache holds ciphertext only;
+  - `get_secret` is the one accessor (`get_setting` refuses secrets);
+  - audited as `{"configured", "source"}`, never a value;
+  - `core/0004` encrypts stored rows and moves `monitoring.telegram_*` to `notifications.telegram_*`;
+  - `reencrypt_secret_settings()` for M14b's key rotation.
+- **API:** bulk PATCH, DELETE (reset), `adopt` (move a `.env` value in), logo upload; integrations list and Test; system facts; the public `GET /api/v1/branding`.
+- **Moved into the admin, with the old variables as fallback:** SMTP (a settings-driven email backend), TMDB (the client follows a credential change without a restart), TheTVDB key and PIN, Stripe and Moyasar keys, the Telegram bot and admins' chat, the runbook URL, watcher polling, transcode attempts, retry delay and time limit.
+- **New branding settings:** support phone and WhatsApp, logos, default language and time zone, used in both apps, emails, invoices and new accounts.
+- **Admin:**
+  - an **Integrations** page: one card each, with status, write-only secrets (Set, Replace, Clear, Move into settings, Turn off), webhook URLs and a Test per card (a test email to the signed-in admin, TMDB authentication, a TheTVDB login, the Stripe balance and webhook registration, Moyasar payments and webhooks, a Telegram getMe plus a message);
+  - a **System** page (version and commit, hosts, folders, overlays, settings still in `.env`, bootstrap secrets and why, key rotations);
+  - the generic Settings page shows sources, write-only secrets and logo uploads;
+  - en/ar, both themes.
+- **Portal:** the admin's name and logo in the header, support contacts in the footer, the service's default language on a first visit.
+- **Alertmanager:** the fallback receiver fetches its settings from Django (`/internal/alert-fallback`, bearer token) every minute, keeps the last copy while web is down, and reloads when they change; M13's config checks render that case too.
+- **Installer:** TMDB, SMTP, alert recipients and Telegram go into the settings with `set_setting --stdin` (nothing into `.env`). `--reconfigure` covers the domain, admin email, media folder and monitoring. `--update` writes `APP_COMMIT` and prints how many settings still come from `.env` (`manage.py settings_report`).
+- **Defence in depth:** provider keys, `whsec_` secrets, bot tokens and JWTs are masked in log text; httpx's request lines are off (WARNING).
+
+### Evidence (dev stack, 2026-10-11)
+- **Backend (lane 1):** the core, notifications, metadata, billing, dashboard, library, accounts, media and live suites: 2323 passed. The only failures are `test_registry`'s two exhaustive key lists, which M14b's new `backups.*` keys extend (H2 updates them).
+  - The new tests cover encryption at rest (the raw row and the cache hold no plaintext), masking, precedence and sources, audit without values, logs without secrets, adopt, reset and bulk changes, key rotation, the migration helpers, pickup without a restart, every Test with a mocked transport, the integrations and system APIs, logo uploads, branding, account defaults, the watcher's polling switch, the packager's log line and the Alertmanager fallback endpoint.
+- **Vitest:** admin 157 (Integrations, System, secret controls), portal 48 (branding, support contacts, first-visit language).
+- **`make e2e-admin`:**
+  - the Integrations journey: move the SMTP host in, a wrong port that the Test explains, then Mailpit's port, with the test email found in Mailpit's API; a Stripe key saved, never in the page or any response, then cleared;
+  - axe on `/settings/integrations` and `/settings/system` in English/light and Arabic/dark, and no sideways scroll at 390 px;
+  - six other pages failed once with blank renders while services were restarted (as in M12's notes) and passed on a rerun.
+- **Runtime pickup on the running stack, no restarts:**
+  - the **worker** sent a queued email to the port set in the admin (refused), then delivered it once the port was fixed;
+  - the **packager** logged `live.limits_changed` 1 s after a change;
+  - the **watcher** swapped to polling 31 s after a change;
+  - **Alertmanager** fetched the settings and reloaded 49 s after the alert recipients changed.
+- **Monitoring config checks:** 17/17, including the new "fallback from Django's settings".
+- **Installer:** ShellCheck clean; `--dry-run` in `ubuntu:24.04` for a new installation, `--update` and `--reconfigure`.
+
+### For the production server
+`sudo /opt/iptv/scripts/install.sh --update` is all it needs:
+- migrations `core/0003`, `core/0004` and `accounts/0006` run on their own;
+- the TMDB token in `.env` keeps working as the fallback.
+
+Then:
+1. open **Settings → Integrations**. TMDB shows **From server config**: press **Move into settings** (then remove `TMDB_READ_ACCESS_TOKEN` from `.env`), and **Check the token**;
+2. set SMTP and press **Send a test email to me**; optionally set Telegram and press **Send a test message**;
+3. with monitoring on, recreate Alertmanager once (`--update` does) so it starts fetching its fallback from Django.
 
 ## M12: live TV and EPG (2026-10-11)
 

@@ -103,5 +103,10 @@ def logging_config(*, level: str, log_format: LogFormat) -> dict[str, Any]:
             # RequestLogMiddleware logs every request redacted.
             "uvicorn": {"handlers": [], "level": level, "propagate": True},
             "uvicorn.access": {"handlers": [], "level": "WARNING", "propagate": True},
+            # httpx logs every request URL at INFO, and some URLs carry a secret (the
+            # Telegram bot token is part of the path). The root handler would redact them,
+            # but a URL full of secrets has no business in a record at all (ADR-0019).
+            "httpx": {"level": "WARNING", "propagate": True},
+            "httpcore": {"level": "WARNING", "propagate": True},
         },
     }

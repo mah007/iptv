@@ -63,13 +63,29 @@ def load_specs() -> Mapping[str, ChannelSpec]:
     return specs
 
 
+_last_limits: Limits | None = None
+
+
 def load_limits() -> Limits:
-    return Limits(
+    """The admin's live settings, read on every loop: a change applies within a second,
+    without a restart (and is logged, so it can be seen to apply)."""
+    global _last_limits  # noqa: PLW0603 (one packager per process)
+    limits = Limits(
         idle_stop_s=float(cast("int", get_setting("live.idle_stop_s"))),
         max_running=int(cast("int", get_setting("live.max_running_channels"))),
         max_transcode=int(cast("int", get_setting("live.realtime_transcode_max"))),
         archive_max_bytes=conf.archive_max_bytes(),
     )
+    if _last_limits is not None and limits != _last_limits:
+        logger.info(
+            "live.limits_changed",
+            idle_stop_s=limits.idle_stop_s,
+            max_running=limits.max_running,
+            max_transcode=limits.max_transcode,
+            archive_max_gb=limits.archive_max_bytes // 1024**3,
+        )
+    _last_limits = limits
+    return limits
 
 
 class Command(BaseCommand):

@@ -31,7 +31,11 @@ import type {
   AdminCreated,
   AdminsListParams,
   AuditListParams,
+  BackupRun,
+  BackupSummary,
+  BackupsRunsParams,
   BillingKpis,
+  Branding,
   BulkEnableRequest,
   Candidate,
   CategoriesListParams,
@@ -62,6 +66,8 @@ import type {
   ExtendRequest,
   Health,
   ImageAddRequest,
+  Integration,
+  IntegrationTestResult,
   Invoice,
   InvoicesDocumentParams,
   InvoicesListParams,
@@ -102,6 +108,7 @@ import type {
   PaginatedActivityList,
   PaginatedAdminList,
   PaginatedAuditLogList,
+  PaginatedBackupRunList,
   PaginatedCategoryList,
   PaginatedCollectionList,
   PaginatedCustomerSummaryList,
@@ -134,6 +141,7 @@ import type {
   PatchedRoleRequest,
   PatchedSeriesUpdateRequest,
   PatchedSettingRequest,
+  PatchedSettingsBulkRequest,
   PatchedTrackUpdateRequest,
   PaymentDetail,
   PaymentsListParams,
@@ -159,6 +167,7 @@ import type {
   ReviewQueueListParams,
   Role,
   RoleRequest,
+  RunRequestRequest,
   ScanJob,
   ScanStarted,
   ScansListParams,
@@ -168,6 +177,7 @@ import type {
   SessionsListParams,
   SessionsStreamParams,
   SettingEntry,
+  SettingImageRequest,
   SourceTestQueued,
   SourceTestRequestRequest,
   SourceTestResult,
@@ -178,6 +188,7 @@ import type {
   SubtitleUploadRequest,
   SuspendRequest,
   SyncResult,
+  SystemInfo,
   Template,
   TemplateWriteRequest,
   TestAlertRequest,
@@ -1129,6 +1140,356 @@ export function useAuditList<
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getAuditListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getBackupsSummaryUrl = () => {
+  return `/api/v1/admin/backups`;
+};
+
+/**
+ * @summary Backups: the backup service, destinations, schedule, latest runs and drill
+ */
+export const backupsSummary = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<BackupSummary> => {
+  return apiFetch<BackupSummary>(getBackupsSummaryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getBackupsSummaryQueryKey = () => {
+  return [`/api/v1/admin/backups`] as const;
+};
+
+export const getBackupsSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof backupsSummary>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsSummary>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getBackupsSummaryQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof backupsSummary>>> = ({ signal }) =>
+    backupsSummary({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof backupsSummary>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type BackupsSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof backupsSummary>>>;
+export type BackupsSummaryQueryError = ErrorType<Problem>;
+
+export function useBackupsSummary<
+  TData = Awaited<ReturnType<typeof backupsSummary>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsSummary>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof backupsSummary>>,
+          TError,
+          Awaited<ReturnType<typeof backupsSummary>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useBackupsSummary<
+  TData = Awaited<ReturnType<typeof backupsSummary>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsSummary>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof backupsSummary>>,
+          TError,
+          Awaited<ReturnType<typeof backupsSummary>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useBackupsSummary<
+  TData = Awaited<ReturnType<typeof backupsSummary>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsSummary>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Backups: the backup service, destinations, schedule, latest runs and drill
+ */
+
+export function useBackupsSummary<
+  TData = Awaited<ReturnType<typeof backupsSummary>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsSummary>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getBackupsSummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getBackupsRunUrl = () => {
+  return `/api/v1/admin/backups/run`;
+};
+
+/**
+ * @summary Back up now, run the restore drill, or test the destinations
+ */
+export const backupsRun = async (
+  runRequestRequest: RunRequestRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<BackupRun[]> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<BackupRun[]>(getBackupsRunUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(runRequestRequest),
+  });
+};
+
+export const getBackupsRunMutationKey = () => ["backupsRun"] as const;
+
+export const getBackupsRunMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof backupsRun>>,
+    TError,
+    BackupsRunMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof backupsRun>>,
+  TError,
+  BackupsRunMutationVariables,
+  TContext
+> => {
+  const mutationKey = getBackupsRunMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof backupsRun>>,
+    BackupsRunMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return backupsRun(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BackupsRunMutationResult = NonNullable<Awaited<ReturnType<typeof backupsRun>>>;
+export type BackupsRunMutationBody = RunRequestRequest;
+export type BackupsRunMutationError = ErrorType<Problem>;
+export type BackupsRunMutationVariables = { data: RunRequestRequest };
+
+/**
+ * @summary Back up now, run the restore drill, or test the destinations
+ */
+export const useBackupsRun = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof backupsRun>>,
+      TError,
+      BackupsRunMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof backupsRun>>,
+  TError,
+  BackupsRunMutationVariables,
+  TContext
+> => {
+  return useMutation(getBackupsRunMutationOptions(options), queryClient);
+};
+
+export const getBackupsRunsUrl = (params?: BackupsRunsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/backups/runs?${stringifiedParams}`
+    : `/api/v1/admin/backups/runs`;
+};
+
+/**
+ * @summary Backup runs, newest first
+ */
+export const backupsRuns = async (
+  params?: BackupsRunsParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedBackupRunList> => {
+  return apiFetch<PaginatedBackupRunList>(getBackupsRunsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getBackupsRunsQueryKey = (params?: BackupsRunsParams) => {
+  return [`/api/v1/admin/backups/runs`, ...(params ? [params] : [])] as const;
+};
+
+export const getBackupsRunsQueryOptions = <
+  TData = Awaited<ReturnType<typeof backupsRuns>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: BackupsRunsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsRuns>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getBackupsRunsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof backupsRuns>>> = ({ signal }) =>
+    backupsRuns(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof backupsRuns>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type BackupsRunsQueryResult = NonNullable<Awaited<ReturnType<typeof backupsRuns>>>;
+export type BackupsRunsQueryError = ErrorType<Problem>;
+
+export function useBackupsRuns<
+  TData = Awaited<ReturnType<typeof backupsRuns>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | BackupsRunsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsRuns>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof backupsRuns>>,
+          TError,
+          Awaited<ReturnType<typeof backupsRuns>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useBackupsRuns<
+  TData = Awaited<ReturnType<typeof backupsRuns>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: BackupsRunsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsRuns>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof backupsRuns>>,
+          TError,
+          Awaited<ReturnType<typeof backupsRuns>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useBackupsRuns<
+  TData = Awaited<ReturnType<typeof backupsRuns>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: BackupsRunsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsRuns>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Backup runs, newest first
+ */
+
+export function useBackupsRuns<
+  TData = Awaited<ReturnType<typeof backupsRuns>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: BackupsRunsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof backupsRuns>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getBackupsRunsQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -4848,6 +5209,205 @@ export function useSystemHealth<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export const getIntegrationsListUrl = () => {
+  return `/api/v1/admin/integrations`;
+};
+
+/**
+ * @summary Every integration with its status and settings (secrets never sent)
+ */
+export const integrationsList = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Integration[]> => {
+  return apiFetch<Integration[]>(getIntegrationsListUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getIntegrationsListQueryKey = () => {
+  return [`/api/v1/admin/integrations`] as const;
+};
+
+export const getIntegrationsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof integrationsList>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof integrationsList>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getIntegrationsListQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof integrationsList>>> = ({ signal }) =>
+    integrationsList({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof integrationsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type IntegrationsListQueryResult = NonNullable<Awaited<ReturnType<typeof integrationsList>>>;
+export type IntegrationsListQueryError = ErrorType<Problem>;
+
+export function useIntegrationsList<
+  TData = Awaited<ReturnType<typeof integrationsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof integrationsList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof integrationsList>>,
+          TError,
+          Awaited<ReturnType<typeof integrationsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useIntegrationsList<
+  TData = Awaited<ReturnType<typeof integrationsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof integrationsList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof integrationsList>>,
+          TError,
+          Awaited<ReturnType<typeof integrationsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useIntegrationsList<
+  TData = Awaited<ReturnType<typeof integrationsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof integrationsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Every integration with its status and settings (secrets never sent)
+ */
+
+export function useIntegrationsList<
+  TData = Awaited<ReturnType<typeof integrationsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof integrationsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getIntegrationsListQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getIntegrationsTestUrl = (name: string) => {
+  return `/api/v1/admin/integrations/${encodeURIComponent(String(name))}/test`;
+};
+
+/**
+ * Email sends a test message to the signed-in admin; Telegram sends one to the admins' chat. A failed test still answers 200, with ok false and a code.
+ * @summary Test an integration with its saved settings
+ */
+export const integrationsTest = async (
+  name: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<IntegrationTestResult> => {
+  return apiFetch<IntegrationTestResult>(getIntegrationsTestUrl(name), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getIntegrationsTestMutationKey = () => ["integrationsTest"] as const;
+
+export const getIntegrationsTestMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof integrationsTest>>,
+    TError,
+    IntegrationsTestMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof integrationsTest>>,
+  TError,
+  IntegrationsTestMutationVariables,
+  TContext
+> => {
+  const mutationKey = getIntegrationsTestMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof integrationsTest>>,
+    IntegrationsTestMutationVariables
+  > = (props) => {
+    const { name } = props ?? {};
+
+    return integrationsTest(name, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type IntegrationsTestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof integrationsTest>>
+>;
+
+export type IntegrationsTestMutationError = ErrorType<Problem>;
+export type IntegrationsTestMutationVariables = { name: string };
+
+/**
+ * @summary Test an integration with its saved settings
+ */
+export const useIntegrationsTest = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof integrationsTest>>,
+      TError,
+      IntegrationsTestMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof integrationsTest>>,
+  TError,
+  IntegrationsTestMutationVariables,
+  TContext
+> => {
+  return useMutation(getIntegrationsTestMutationOptions(options), queryClient);
+};
 
 export const getInvoicesListUrl = (params?: InvoicesListParams) => {
   const normalizedParams = new URLSearchParams();
@@ -13956,6 +14516,113 @@ export function useSettingsList<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+export const getSettingsBulkUpdateUrl = () => {
+  return `/api/v1/admin/settings`;
+};
+
+/**
+ * A value stores the setting; null forgets the stored value. Field errors are keyed `values.<setting key>`. Answers the changed settings.
+ * @summary Change several settings at once, all or nothing
+ */
+export const settingsBulkUpdate = async (
+  patchedSettingsBulkRequest?: PatchedSettingsBulkRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<SettingEntry[]> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<SettingEntry[]>(getSettingsBulkUpdateUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedSettingsBulkRequest),
+  });
+};
+
+export const getSettingsBulkUpdateMutationKey = () => ["settingsBulkUpdate"] as const;
+
+export const getSettingsBulkUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof settingsBulkUpdate>>,
+    TError,
+    SettingsBulkUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof settingsBulkUpdate>>,
+  TError,
+  SettingsBulkUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSettingsBulkUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof settingsBulkUpdate>>,
+    SettingsBulkUpdateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return settingsBulkUpdate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SettingsBulkUpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof settingsBulkUpdate>>
+>;
+export type SettingsBulkUpdateMutationBody = PatchedSettingsBulkRequest | undefined;
+export type SettingsBulkUpdateMutationError = ErrorType<Problem>;
+export type SettingsBulkUpdateMutationVariables = { data?: PatchedSettingsBulkRequest };
+
+/**
+ * @summary Change several settings at once, all or nothing
+ */
+export const useSettingsBulkUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof settingsBulkUpdate>>,
+      TError,
+      SettingsBulkUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof settingsBulkUpdate>>,
+  TError,
+  SettingsBulkUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getSettingsBulkUpdateMutationOptions(options), queryClient);
+};
+
 export const getSettingsUpdateUrl = (key: string) => {
   return `/api/v1/admin/settings/${encodeURIComponent(String(key))}`;
 };
@@ -14059,6 +14726,264 @@ export const useSettingsUpdate = <TError = ErrorType<Problem>, TContext = unknow
   TContext
 > => {
   return useMutation(getSettingsUpdateMutationOptions(options), queryClient);
+};
+
+export const getSettingsResetUrl = (key: string) => {
+  return `/api/v1/admin/settings/${encodeURIComponent(String(key))}`;
+};
+
+/**
+ * @summary Forget the stored value: the server config's or the default applies again
+ */
+export const settingsReset = async (
+  key: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<SettingEntry> => {
+  return apiFetch<SettingEntry>(getSettingsResetUrl(key), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getSettingsResetMutationKey = () => ["settingsReset"] as const;
+
+export const getSettingsResetMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof settingsReset>>,
+    TError,
+    SettingsResetMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof settingsReset>>,
+  TError,
+  SettingsResetMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSettingsResetMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof settingsReset>>,
+    SettingsResetMutationVariables
+  > = (props) => {
+    const { key } = props ?? {};
+
+    return settingsReset(key, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SettingsResetMutationResult = NonNullable<Awaited<ReturnType<typeof settingsReset>>>;
+
+export type SettingsResetMutationError = ErrorType<Problem>;
+export type SettingsResetMutationVariables = { key: string };
+
+/**
+ * @summary Forget the stored value: the server config's or the default applies again
+ */
+export const useSettingsReset = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof settingsReset>>,
+      TError,
+      SettingsResetMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof settingsReset>>,
+  TError,
+  SettingsResetMutationVariables,
+  TContext
+> => {
+  return useMutation(getSettingsResetMutationOptions(options), queryClient);
+};
+
+export const getSettingsAdoptUrl = (key: string) => {
+  return `/api/v1/admin/settings/${encodeURIComponent(String(key))}/adopt`;
+};
+
+/**
+ * The value is copied on the server (encrypted for a secret) and never sent; afterwards the variable can be removed from .env.
+ * @summary Move the server config's value (.env) into the settings
+ */
+export const settingsAdopt = async (
+  key: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<SettingEntry> => {
+  return apiFetch<SettingEntry>(getSettingsAdoptUrl(key), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSettingsAdoptMutationKey = () => ["settingsAdopt"] as const;
+
+export const getSettingsAdoptMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof settingsAdopt>>,
+    TError,
+    SettingsAdoptMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof settingsAdopt>>,
+  TError,
+  SettingsAdoptMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSettingsAdoptMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof settingsAdopt>>,
+    SettingsAdoptMutationVariables
+  > = (props) => {
+    const { key } = props ?? {};
+
+    return settingsAdopt(key, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SettingsAdoptMutationResult = NonNullable<Awaited<ReturnType<typeof settingsAdopt>>>;
+
+export type SettingsAdoptMutationError = ErrorType<Problem>;
+export type SettingsAdoptMutationVariables = { key: string };
+
+/**
+ * @summary Move the server config's value (.env) into the settings
+ */
+export const useSettingsAdopt = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof settingsAdopt>>,
+      TError,
+      SettingsAdoptMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof settingsAdopt>>,
+  TError,
+  SettingsAdoptMutationVariables,
+  TContext
+> => {
+  return useMutation(getSettingsAdoptMutationOptions(options), queryClient);
+};
+
+export const getSettingsImageUploadUrl = (key: string) => {
+  return `/api/v1/admin/settings/${encodeURIComponent(String(key))}/image`;
+};
+
+/**
+ * Checked here and stored by a worker (a PNG of at most 512 px); the setting changes when it is stored, a few seconds later.
+ * @summary Upload a logo for an image setting
+ */
+export const settingsImageUpload = async (
+  key: string,
+  settingImageRequest: SettingImageRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  const formData = new FormData();
+  formData.append(`file`, settingImageRequest.file);
+
+  return apiFetch<void>(getSettingsImageUploadUrl(key), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getSettingsImageUploadMutationKey = () => ["settingsImageUpload"] as const;
+
+export const getSettingsImageUploadMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof settingsImageUpload>>,
+    TError,
+    SettingsImageUploadMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof settingsImageUpload>>,
+  TError,
+  SettingsImageUploadMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSettingsImageUploadMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof settingsImageUpload>>,
+    SettingsImageUploadMutationVariables
+  > = (props) => {
+    const { key, data } = props ?? {};
+
+    return settingsImageUpload(key, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SettingsImageUploadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof settingsImageUpload>>
+>;
+export type SettingsImageUploadMutationBody = SettingImageRequest;
+export type SettingsImageUploadMutationError = ErrorType<Problem>;
+export type SettingsImageUploadMutationVariables = { key: string; data: SettingImageRequest };
+
+/**
+ * @summary Upload a logo for an image setting
+ */
+export const useSettingsImageUpload = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof settingsImageUpload>>,
+      TError,
+      SettingsImageUploadMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof settingsImageUpload>>,
+  TError,
+  SettingsImageUploadMutationVariables,
+  TContext
+> => {
+  return useMutation(getSettingsImageUploadMutationOptions(options), queryClient);
 };
 
 export const getStorageUsageUrl = () => {
@@ -15265,6 +16190,117 @@ export const useSubscriptionsStartTrial = <TError = ErrorType<Problem>, TContext
 > => {
   return useMutation(getSubscriptionsStartTrialMutationOptions(options), queryClient);
 };
+
+export const getSystemInfoUrl = () => {
+  return `/api/v1/admin/system`;
+};
+
+/**
+ * @summary Read-only facts about this installation (hosts, version, bootstrap secrets)
+ */
+export const systemInfo = async (options?: Parameters<typeof apiFetch>[1]): Promise<SystemInfo> => {
+  return apiFetch<SystemInfo>(getSystemInfoUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSystemInfoQueryKey = () => {
+  return [`/api/v1/admin/system`] as const;
+};
+
+export const getSystemInfoQueryOptions = <
+  TData = Awaited<ReturnType<typeof systemInfo>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof systemInfo>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSystemInfoQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof systemInfo>>> = ({ signal }) =>
+    systemInfo({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof systemInfo>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SystemInfoQueryResult = NonNullable<Awaited<ReturnType<typeof systemInfo>>>;
+export type SystemInfoQueryError = ErrorType<Problem>;
+
+export function useSystemInfo<
+  TData = Awaited<ReturnType<typeof systemInfo>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof systemInfo>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof systemInfo>>,
+          TError,
+          Awaited<ReturnType<typeof systemInfo>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSystemInfo<
+  TData = Awaited<ReturnType<typeof systemInfo>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof systemInfo>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof systemInfo>>,
+          TError,
+          Awaited<ReturnType<typeof systemInfo>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSystemInfo<
+  TData = Awaited<ReturnType<typeof systemInfo>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof systemInfo>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Read-only facts about this installation (hosts, version, bootstrap secrets)
+ */
+
+export function useSystemInfo<
+  TData = Awaited<ReturnType<typeof systemInfo>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof systemInfo>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSystemInfoQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export const getTemplatesListUrl = () => {
   return `/api/v1/admin/templates`;
@@ -18229,3 +19265,117 @@ export const useAuthMfaVerify = <TError = ErrorType<Problem>, TContext = unknown
 > => {
   return useMutation(getAuthMfaVerifyMutationOptions(options), queryClient);
 };
+
+export const getBrandingRetrieveUrl = () => {
+  return `/api/v1/branding`;
+};
+
+/**
+ * Public: every app shows the admin's branding, sign-in pages included.
+ * @summary The service's name, logos, colour and support contacts
+ */
+export const brandingRetrieve = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Branding> => {
+  return apiFetch<Branding>(getBrandingRetrieveUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getBrandingRetrieveQueryKey = () => {
+  return [`/api/v1/branding`] as const;
+};
+
+export const getBrandingRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getBrandingRetrieveQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof brandingRetrieve>>> = ({ signal }) =>
+    brandingRetrieve({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof brandingRetrieve>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type BrandingRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof brandingRetrieve>>>;
+export type BrandingRetrieveQueryError = ErrorType<Problem>;
+
+export function useBrandingRetrieve<
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof brandingRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof brandingRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useBrandingRetrieve<
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof brandingRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof brandingRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useBrandingRetrieve<
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The service's name, logos, colour and support contacts
+ */
+
+export function useBrandingRetrieve<
+  TData = Awaited<ReturnType<typeof brandingRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof brandingRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getBrandingRetrieveQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}

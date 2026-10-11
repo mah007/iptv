@@ -9,7 +9,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 from apps.audit.models import AuditLog
-from apps.core.services import get_setting, set_setting, setting_state
+from apps.core.services import get_secret, get_setting, set_setting, setting_state
 
 pytestmark = pytest.mark.django_db
 
@@ -39,8 +39,8 @@ def test_a_sensitive_value_from_the_environment_is_never_printed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("BOT_TOKEN", BOT)
-    output = run("monitoring.telegram_bot_token", "--env", "BOT_TOKEN")
-    assert get_setting("monitoring.telegram_bot_token") == BOT
+    output = run("notifications.telegram_bot_token", "--env", "BOT_TOKEN")
+    assert get_secret("notifications.telegram_bot_token") == BOT
     assert BOT not in output
     assert "(hidden)" in output
     assert BOT not in str(AuditLog.objects.get(action="setting.update").after)
@@ -92,3 +92,19 @@ def test_if_unset_leaves_an_admin_s_change_alone() -> None:
 def test_the_value_is_never_an_argument() -> None:
     with pytest.raises(CommandError):
         call_command("set_setting", "monitoring.alert_emails", "ops@example.com")
+
+
+def test_the_report_names_the_settings_still_in_env(no_server_config: None, settings: Any) -> None:
+    """`settings_report` (ADR-0019): names and variables, never values."""
+    out = io.StringIO()
+    call_command("settings_report", "--count", stdout=out)
+    assert out.getvalue().strip() == "0"
+    settings.EMAIL_HOST_PASSWORD = "never-printed-1"  # noqa: S105 (a fake secret)
+    settings.EMAIL_HOST = "smtp.example.com"
+    out = io.StringIO()
+    call_command("settings_report", stdout=out)
+    assert out.getvalue().splitlines() == [
+        "email.smtp_host (EMAIL_HOST)",
+        "email.smtp_password (EMAIL_HOST_PASSWORD)",
+    ]
+    assert "never-printed-1" not in out.getvalue()

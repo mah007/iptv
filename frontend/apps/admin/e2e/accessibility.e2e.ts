@@ -37,6 +37,8 @@ const PAGES = [
   "/health",
   "/monitoring",
   "/settings",
+  "/settings/integrations",
+  "/settings/system",
 ] as const;
 
 const VARIANTS: readonly { language: Language; theme: Theme }[] = [

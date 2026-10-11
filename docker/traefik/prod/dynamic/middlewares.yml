@@ -10,4 +10,6 @@ http:
         permissionsPolicy: "camera=(), microphone=(), geolocation=()"
         stsSeconds: 31536000
         stsIncludeSubdomains: true
-        # Preload stays the operator's explicit choice (see backend/config/settings/prod.py).
+        # Preload stays the operator's explicit choice (see backend/config/settings/prod.py):
+        # DJANGO_HSTS_PRELOAD=1 in .env uncomments the next line (docker/traefik/entrypoint.sh).
+        # hsts-preload: stsPreload: true

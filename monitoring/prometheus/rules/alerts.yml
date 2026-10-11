@@ -50,6 +50,19 @@ groups:
           description: "redis-state must never evict: sessions, stream slots, kicks, entitlements or queued tasks were lost."
           runbook: docs/runbooks/alerts.md#redisstateevictions
 
+      # G-35 (ADR-0020): redis-state never evicts; at its memory ceiling it refuses writes.
+      - alert: RedisStateMemoryHigh
+        expr: |
+          redis_memory_used_bytes{instance="redis-state"}
+            / (redis_memory_max_bytes{instance="redis-state"} > 0) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "redis-state uses {{ $value | humanizePercentage }} of its memory ceiling"
+          description: "At the ceiling (REDIS_STATE_MAXMEMORY) redis-state refuses writes: sign-ins, playback and queued jobs start failing."
+          runbook: docs/runbooks/alerts.md#redisstatememoryhigh
+
       - alert: RedisDown
         expr: redis_up == 0
         for: 1m
@@ -267,6 +280,72 @@ groups:
           summary: "Alerts failed to go out through {{ $labels.integration }}{{ $labels.channel }}"
           description: "Alerts may not be reaching email or Telegram. The other channels, and Alertmanager's own fallback, still get this one."
           runbook: docs/runbooks/alerts.md#alertdeliveryfailing
+
+  # --- Backups and the restore drill (M14b, ADR-0020) -----------------------------------
+  # Without this overlay Django sends the same alerts itself (apps/ops/alerting.py).
+  - name: iptv-backups
+    rules:
+      - alert: BackupFailed
+        expr: sum by (kind) (increase(iptv_backup_runs_total{result="failed",kind!="drill"}[2h])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "A backup job ({{ $labels.kind }}) failed"
+          description: "The backup service reported a failure. The admin's Backups page shows the error."
+          runbook: docs/runbooks/alerts.md#backupfailed
+
+      - alert: RestoreDrillFailed
+        expr: sum(increase(iptv_backup_runs_total{result="failed",kind="drill"}[8h])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "The restore drill failed"
+          description: "The latest backup could not be restored and checked. Until a drill passes, assume the backups may not restore."
+          runbook: docs/runbooks/alerts.md#restoredrillfailed
+
+      - alert: BackupStale
+        expr: |
+          max(iptv_backups_enabled) == 1
+            unless on() (time() - max(iptv_backup_last_success_timestamp_seconds{kind="db"}) < 93600)
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No database backup in over 26 hours"
+          description: "The nightly backup did not succeed (or never has)."
+          runbook: docs/runbooks/alerts.md#backupstale
+
+      - alert: RestoreDrillStale
+        expr: |
+          max(iptv_backups_enabled) == 1
+            unless on() (time() - max(iptv_backup_last_success_timestamp_seconds{kind="drill"}) < 691200)
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "No restore drill passed in 8 days"
+          description: "The production checklist needs a passed drill within 7 days."
+          runbook: docs/runbooks/alerts.md#restoredrillstale
+
+      - alert: BackupAgentDown
+        expr: max(iptv_backups_enabled) == 1 and on() (time() - max(iptv_backup_agent_last_seen_timestamp_seconds) > 600)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The backup service is not running"
+          description: "It has not asked Django for work for over 10 minutes: no backups or drills run."
+          runbook: docs/runbooks/alerts.md#backupagentdown
+
+      - alert: WalArchiveFailing
+        expr: max(iptv_wal_archive_failing) == 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL cannot archive WAL"
+          description: "Point-in-time recovery has stopped and WAL is piling up on the database disk."
+          runbook: docs/runbooks/alerts.md#walarchivefailing
 
   # --- Meta ----------------------------------------------------------------------------
   - name: iptv-meta

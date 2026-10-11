@@ -451,6 +451,165 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/backups:
+    get:
+      operationId: backups_summary
+      summary: "Backups: the backup service, destinations, schedule, latest runs and
+        drill"
+      tags:
+        - backups
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupSummary"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/backups/run:
+    post:
+      operationId: backups_run
+      summary: Back up now, run the restore drill, or test the destinations
+      tags:
+        - backups
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunRequestRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BackupRun"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/backups/runs:
+    get:
+      operationId: backups_runs
+      summary: Backup runs, newest first
+      parameters:
+        - in: query
+          name: kind
+          schema:
+            type: string
+            enum:
+              - check
+              - db_diff
+              - db_full
+              - drill
+              - files
+              - offsite
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum:
+              - failed
+              - queued
+              - running
+              - succeeded
+      tags:
+        - backups
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedBackupRunList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/categories:
     get:
       operationId: categories_list
@@ -2221,6 +2380,95 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/integrations:
+    get:
+      operationId: integrations_list
+      summary: Every integration with its status and settings (secrets never sent)
+      tags:
+        - integrations
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Integration"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/integrations/{name}/test:
+    post:
+      operationId: integrations_test
+      description: Email sends a test message to the signed-in admin; Telegram sends
+        one to the admins' chat. A failed test still answers 200, with ok false and
+        a code.
+      summary: Test an integration with its saved settings
+      parameters:
+        - in: path
+          name: name
+          schema:
+            type: string
+          required: true
+      tags:
+        - integrations
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationTestResult"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
         default:
           description: Error (RFC 9457 problem details).
           content:
@@ -6607,6 +6855,59 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: settings_bulk_update
+      description: A value stores the setting; null forgets the stored value. Field
+        errors are keyed `values.<setting key>`. Answers the changed settings.
+      summary: Change several settings at once, all or nothing
+      tags:
+        - settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedSettingsBulkRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SettingEntry"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/settings/{key}:
     patch:
       operationId: settings_update
@@ -6633,6 +6934,159 @@ paths:
               schema:
                 $ref: "#/components/schemas/SettingEntry"
           description: ""
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: settings_reset
+      summary: "Forget the stored value: the server config's or the default applies
+        again"
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      tags:
+        - settings
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingEntry"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/settings/{key}/adopt:
+    post:
+      operationId: settings_adopt
+      description: The value is copied on the server (encrypted for a secret) and
+        never sent; afterwards the variable can be removed from .env.
+      summary: Move the server config's value (.env) into the settings
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      tags:
+        - settings
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingEntry"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/settings/{key}/image:
+    post:
+      operationId: settings_image_upload
+      description: Checked here and stored by a worker (a PNG of at most 512 px);
+        the setting changes when it is stored, a few seconds later.
+      summary: Upload a logo for an image setting
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      tags:
+        - settings
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/SettingImageRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "202":
+          description: No response body
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
         default:
           description: Error (RFC 9457 problem details).
           content:
@@ -7323,6 +7777,40 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/system:
+    get:
+      operationId: system_info
+      summary: Read-only facts about this installation (hosts, version, bootstrap
+        secrets)
+      tags:
+        - system
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemInfo"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
         default:
           description: Error (RFC 9457 problem details).
           content:
@@ -8846,6 +9334,26 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/branding:
+    get:
+      operationId: branding_retrieve
+      description: "Public: every app shows the admin's branding, sign-in pages included."
+      summary: The service's name, logos, colour and support contacts
+      tags:
+        - branding
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branding"
+          description: ""
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   schemas:
     AccessProfile:
@@ -9381,6 +9889,210 @@ components:
         * `qsv` - Intel QSV
         * `vaapi` - VA-API
         * `nvenc` - NVIDIA NVENC
+    BackupAgent:
+      type: object
+      properties:
+        seen_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        healthy:
+          type: boolean
+          description: The backup service asked for work recently.
+        archiving:
+          type: boolean
+          description: WAL archiving is on (point-in-time recovery).
+        passphrase:
+          type: boolean
+          description: The backup passphrase file is in place.
+        disk_total_bytes:
+          type:
+            - integer
+            - "null"
+        disk_free_bytes:
+          type:
+            - integer
+            - "null"
+        db_backups:
+          type: array
+          items:
+            $ref: "#/components/schemas/DbBackup"
+        local_snapshots:
+          oneOf:
+            - $ref: "#/components/schemas/Snapshots"
+            - type: "null"
+        offsite_snapshots:
+          oneOf:
+            - $ref: "#/components/schemas/Snapshots"
+            - type: "null"
+      required:
+        - archiving
+        - db_backups
+        - disk_free_bytes
+        - disk_total_bytes
+        - healthy
+        - local_snapshots
+        - offsite_snapshots
+        - passphrase
+        - seen_at
+    BackupRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/BackupRunKindEnum"
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/BackupRunStatusEnum"
+          readOnly: true
+        trigger:
+          allOf:
+            - $ref: "#/components/schemas/BackupRunTriggerEnum"
+          readOnly: true
+        requested_by:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        finished_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        duration_s:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        size_bytes:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        detail:
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+      required:
+        - created_at
+        - detail
+        - duration_s
+        - error
+        - finished_at
+        - id
+        - kind
+        - requested_by
+        - size_bytes
+        - started_at
+        - status
+        - trigger
+    BackupRunKindEnum:
+      enum:
+        - db_full
+        - db_diff
+        - files
+        - offsite
+        - drill
+        - check
+      type: string
+      description: |-
+        * `db_full` - Database (full)
+        * `db_diff` - Database (differential)
+        * `files` - Configuration, artwork and database dump
+        * `offsite` - Offsite copy
+        * `drill` - Restore drill
+        * `check` - Check the destinations
+    BackupRunStatusEnum:
+      enum:
+        - queued
+        - running
+        - succeeded
+        - failed
+      type: string
+      description: |-
+        * `queued` - Queued
+        * `running` - Running
+        * `succeeded` - Succeeded
+        * `failed` - Failed
+    BackupRunTriggerEnum:
+      enum:
+        - schedule
+        - manual
+        - initial
+        - command
+      type: string
+      description: |-
+        * `schedule` - Schedule
+        * `manual` - Admin
+        * `initial` - First backup
+        * `command` - Command line
+    BackupSummary:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        agent:
+          $ref: "#/components/schemas/BackupAgent"
+        local_dir:
+          type: string
+          description: Where the server keeps backups (set at install).
+        s3:
+          $ref: "#/components/schemas/Offsite"
+        next_backup_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        next_drill_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        last_success_db_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        last_success_drill_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        pending:
+          type: integer
+          description: Jobs queued or running.
+        latest:
+          $ref: "#/components/schemas/LatestRuns"
+      required:
+        - agent
+        - enabled
+        - last_success_db_at
+        - last_success_drill_at
+        - latest
+        - local_dir
+        - next_backup_at
+        - next_drill_at
+        - pending
+        - s3
     BillingKpis:
       type: object
       properties:
@@ -9438,6 +10150,71 @@ components:
         - suspended
         - trial_requests
         - trials_active
+    BootstrapSecret:
+      type: object
+      properties:
+        name:
+          type: string
+        reason:
+          $ref: "#/components/schemas/SecretReason"
+        location:
+          $ref: "#/components/schemas/SecretLocation"
+        required:
+          type: boolean
+      required:
+        - location
+        - name
+        - reason
+        - required
+    Branding:
+      type: object
+      properties:
+        service_name:
+          $ref: "#/components/schemas/BrandingNames"
+        accent_color:
+          type: string
+        logo_light_url:
+          type:
+            - string
+            - "null"
+        logo_dark_url:
+          type:
+            - string
+            - "null"
+        support:
+          $ref: "#/components/schemas/BrandingSupport"
+        default_language:
+          $ref: "#/components/schemas/DefaultLanguageEnum"
+      required:
+        - accent_color
+        - default_language
+        - logo_dark_url
+        - logo_light_url
+        - service_name
+        - support
+    BrandingNames:
+      type: object
+      properties:
+        en:
+          type: string
+        ar:
+          type: string
+      required:
+        - ar
+        - en
+    BrandingSupport:
+      type: object
+      properties:
+        email:
+          type: string
+        phone:
+          type: string
+        whatsapp:
+          type: string
+      required:
+        - email
+        - phone
+        - whatsapp
     Breakdown:
       type: object
       description: "Each signal's score from 0 to 1 (null: not measurable); SPEC
@@ -10374,6 +11151,54 @@ components:
         - plays
         - signups
         - watch_hours
+    DbBackup:
+      type: object
+      description: A base backup in the local pgBackRest repository, as the agent
+        last reported.
+      properties:
+        backup_label:
+          type: string
+          description: pgBackRest's label.
+        type:
+          type: string
+        start:
+          type:
+            - integer
+            - "null"
+          description: Unix time.
+        stop:
+          type:
+            - integer
+            - "null"
+          description: Unix time.
+        size:
+          type:
+            - integer
+            - "null"
+          description: Database size, bytes.
+        repo_size:
+          type:
+            - integer
+            - "null"
+          description: Stored, bytes.
+        error:
+          type: boolean
+      required:
+        - backup_label
+        - error
+        - repo_size
+        - size
+        - start
+        - stop
+        - type
+    DefaultLanguageEnum:
+      enum:
+        - ar
+        - en
+      type: string
+      description: |-
+        * `ar` - ar
+        * `en` - en
     Device:
       type: object
       properties:
@@ -11004,6 +11829,115 @@ components:
         * `logo` - Logo
         * `still` - Still
         * `profile` - Profile
+    Integration:
+      type: object
+      properties:
+        name:
+          $ref: "#/components/schemas/IntegrationName"
+        status:
+          allOf:
+            - $ref: "#/components/schemas/IntegrationStatus"
+          description: |-
+            configured: stored in the settings; server_config: complete, partly from .env; partial: something it needs is missing; not_set: nothing is set.
+
+            * `configured` - CONFIGURED
+            * `server_config` - SERVER_CONFIG
+            * `partial` - PARTIAL
+            * `not_set` - NOT_SET
+        enabled:
+          type:
+            - boolean
+            - "null"
+          description: Offered to customers (payment providers); null otherwise.
+        webhook_url:
+          type:
+            - string
+            - "null"
+          description: Where the provider must send its webhooks.
+        settings:
+          type: array
+          items:
+            $ref: "#/components/schemas/SettingEntry"
+      required:
+        - enabled
+        - name
+        - settings
+        - status
+        - webhook_url
+    IntegrationName:
+      enum:
+        - tmdb
+        - tvdb
+        - email
+        - stripe
+        - moyasar
+        - telegram
+      type: string
+      description: |-
+        * `tmdb` - TMDB
+        * `tvdb` - TVDB
+        * `email` - EMAIL
+        * `stripe` - STRIPE
+        * `moyasar` - MOYASAR
+        * `telegram` - TELEGRAM
+    IntegrationStatus:
+      enum:
+        - configured
+        - server_config
+        - partial
+        - not_set
+      type: string
+      description: |-
+        * `configured` - CONFIGURED
+        * `server_config` - SERVER_CONFIG
+        * `partial` - PARTIAL
+        * `not_set` - NOT_SET
+    IntegrationTestCode:
+      enum:
+        - ok
+        - not_configured
+        - auth_failed
+        - forbidden
+        - unreachable
+        - timeout
+        - tls_failed
+        - rejected
+        - no_recipient
+        - chat_not_found
+        - unexpected
+      type: string
+      description: |-
+        * `ok` - OK
+        * `not_configured` - NOT_CONFIGURED
+        * `auth_failed` - AUTH_FAILED
+        * `forbidden` - FORBIDDEN
+        * `unreachable` - UNREACHABLE
+        * `timeout` - TIMEOUT
+        * `tls_failed` - TLS_FAILED
+        * `rejected` - REJECTED
+        * `no_recipient` - NO_RECIPIENT
+        * `chat_not_found` - CHAT_NOT_FOUND
+        * `unexpected` - UNEXPECTED
+    IntegrationTestResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        code:
+          $ref: "#/components/schemas/IntegrationTestCode"
+        message:
+          type: string
+          description: A short English explanation, without secrets.
+        details:
+          type: object
+          additionalProperties: {}
+          description: "Harmless facts: the bot's name, test or live mode, the email's
+            reference."
+      required:
+        - code
+        - details
+        - message
+        - ok
     Invoice:
       type: object
       properties:
@@ -11175,6 +12109,22 @@ components:
       description: |-
         * `movie` - movie
         * `episode` - episode
+    KeyRotation:
+      type: object
+      properties:
+        kind:
+          type: string
+        at:
+          type: string
+          format: date-time
+        actor:
+          type:
+            - string
+            - "null"
+      required:
+        - actor
+        - at
+        - kind
     Kpis:
       type: object
       properties:
@@ -11236,6 +12186,35 @@ components:
         - transcode_failed_24h
         - transcode_queued
         - transcode_running
+    LatestRuns:
+      type: object
+      properties:
+        db:
+          oneOf:
+            - $ref: "#/components/schemas/BackupRun"
+            - type: "null"
+        files:
+          oneOf:
+            - $ref: "#/components/schemas/BackupRun"
+            - type: "null"
+        offsite:
+          oneOf:
+            - $ref: "#/components/schemas/BackupRun"
+            - type: "null"
+        drill:
+          oneOf:
+            - $ref: "#/components/schemas/BackupRun"
+            - type: "null"
+        check:
+          oneOf:
+            - $ref: "#/components/schemas/BackupRun"
+            - type: "null"
+      required:
+        - check
+        - db
+        - drill
+        - files
+        - offsite
     Library:
       type: object
       properties:
@@ -12242,10 +13221,11 @@ components:
         fallback_email:
           type: boolean
           description: Alertmanager emails the alerts about web being down itself
-            (.env).
+            (the settings' SMTP and recipients, fetched from Django).
         fallback_telegram:
           type: boolean
-          description: Alertmanager sends those alerts to Telegram itself (.env).
+          description: Alertmanager sends those alerts to Telegram itself (the settings'
+            bot).
       required:
         - fallback_email
         - fallback_telegram
@@ -12610,6 +13590,26 @@ components:
         - email
       type: string
       description: "* `email` - Email"
+    Offsite:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        configured:
+          type: boolean
+          description: Switched on, with address, bucket and keys.
+        endpoint:
+          type: string
+        bucket:
+          type: string
+        prefix:
+          type: string
+      required:
+        - bucket
+        - configured
+        - enabled
+        - endpoint
+        - prefix
     Outbox:
       type: object
       properties:
@@ -12863,6 +13863,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AuditLog"
+    PaginatedBackupRunList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackupRun"
     PaginatedCategoryList:
       type: object
       required:
@@ -13917,7 +14942,7 @@ components:
             type: string
             minLength: 1
             maxLength: 64
-          maxItems: 23
+          maxItems: 25
     PatchedSeriesUpdateRequest:
       type: object
       description: |-
@@ -14010,6 +15035,21 @@ components:
             - boolean
             - number
             - string
+    PatchedSettingsBulkRequest:
+      type: object
+      description: "Several settings at once, all or nothing: a value stores it, null
+        resets it."
+      properties:
+        values:
+          type: object
+          additionalProperties:
+            type:
+              - boolean
+              - number
+              - string
+              - "null"
+              - "null"
+          description: Setting key to its new value; null forgets the stored value.
     PatchedTrackUpdateRequest:
       type: object
       properties:
@@ -15233,7 +16273,7 @@ components:
           items:
             type: string
             maxLength: 64
-          maxItems: 23
+          maxItems: 25
         is_system:
           type: boolean
           readOnly: true
@@ -15287,9 +16327,23 @@ components:
             type: string
             minLength: 1
             maxLength: 64
-          maxItems: 23
+          maxItems: 25
       required:
         - name
+    RunRequestRequest:
+      type: object
+      properties:
+        what:
+          allOf:
+            - $ref: "#/components/schemas/WhatEnum"
+          description: |-
+            backup: database, files and offsite now; drill: the restore drill; check: test the destinations.
+
+            * `backup` - backup
+            * `drill` - drill
+            * `check` - check
+      required:
+        - what
     ScanJob:
       type: object
       properties:
@@ -15450,6 +16504,32 @@ components:
         - overview
         - overview_ar
         - poster
+    SecretLocation:
+      enum:
+        - environment
+        - file
+        - missing
+      type: string
+      description: |-
+        * `environment` - ENVIRONMENT
+        * `file` - FILE
+        * `missing` - MISSING
+    SecretReason:
+      enum:
+        - signing
+        - encryption
+        - datastore
+        - edge
+        - monitoring
+        - ingest
+      type: string
+      description: |-
+        * `signing` - SIGNING
+        * `encryption` - ENCRYPTION
+        * `datastore` - DATASTORE
+        * `edge` - EDGE
+        * `monitoring` - MONITORING
+        * `ingest` - INGEST
     SeriesDetail:
       type: object
       properties:
@@ -15771,6 +16851,18 @@ components:
         - updated_at
         - xc_id
         - year
+    ServerConfigSetting:
+      type: object
+      properties:
+        key:
+          type: string
+        env:
+          type: array
+          items:
+            type: string
+      required:
+        - env
+        - key
     ServiceHealth:
       type: object
       properties:
@@ -15984,8 +17076,45 @@ components:
         is_default:
           type: boolean
           readOnly: true
+          description: "Nothing is stored: the server config or the default applies."
+        source:
+          allOf:
+            - $ref: "#/components/schemas/SettingSource"
+          readOnly: true
+          description: |-
+            database: stored by an admin; environment: from the server config (.env); default: the built-in default.
+
+            * `database` - DATABASE
+            * `environment` - ENVIRONMENT
+            * `default` - DEFAULT
+        is_set:
+          type: boolean
+          readOnly: true
+          description: The effective value is not empty (secrets included).
+        undecryptable:
+          type: boolean
+          readOnly: true
+          description: A stored secret FIELD_ENCRYPTION_KEY can't decrypt; it reads
+            as empty.
         sensitive:
           type: boolean
+          readOnly: true
+        env:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: The server-config variables used when nothing is stored (names
+            only).
+        widget:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        image_url:
+          type:
+            - string
+            - "null"
           readOnly: true
         min_value:
           type:
@@ -16021,16 +17150,31 @@ components:
         - choices
         - default
         - description
+        - env
         - group
+        - image_url
         - is_default
+        - is_set
         - key
         - kind
         - max_value
         - min_value
         - sensitive
+        - source
+        - undecryptable
         - updated_at
         - updated_by
         - value
+        - widget
+    SettingImageRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+          description: PNG, JPEG or WebP, at most 2 MB.
+      required:
+        - file
     SettingKind:
       enum:
         - bool
@@ -16043,6 +17187,31 @@ components:
         * `int` - INT
         * `float` - FLOAT
         * `str` - STR
+    SettingSource:
+      enum:
+        - database
+        - environment
+        - default
+      type: string
+      description: |-
+        * `database` - DATABASE
+        * `environment` - ENVIRONMENT
+        * `default` - DEFAULT
+    Snapshots:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        snapshots:
+          type: integer
+        latest:
+          type:
+            - string
+            - "null"
+      required:
+        - latest
+        - ok
+        - snapshots
     SourceInfo:
       type: object
       properties:
@@ -16440,6 +17609,92 @@ components:
           type: boolean
       required:
         - queued
+    SystemEnvironment:
+      enum:
+        - development
+        - production
+      type: string
+      description: |-
+        * `development` - DEVELOPMENT
+        * `production` - PRODUCTION
+    SystemHost:
+      type: object
+      properties:
+        role:
+          type: string
+        host:
+          type: string
+        url:
+          type: string
+      required:
+        - host
+        - role
+        - url
+    SystemInfo:
+      type: object
+      properties:
+        environment:
+          $ref: "#/components/schemas/SystemEnvironment"
+        version:
+          type: string
+        commit:
+          type: string
+          description: The git commit this installation runs; may be empty.
+        domain:
+          type: string
+        public_scheme:
+          type: string
+        hosts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SystemHost"
+        media_root:
+          type: string
+          description: The host folder holding the libraries.
+        library_root:
+          type: string
+        data_root:
+          type: string
+        monitoring_enabled:
+          type: boolean
+        live_ingest_enabled:
+          type: boolean
+        server_time:
+          type: string
+          format: date-time
+        time_zone:
+          type: string
+        from_server_config:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServerConfigSetting"
+          description: Settings whose value still comes from .env.
+        secrets:
+          type: array
+          items:
+            $ref: "#/components/schemas/BootstrapSecret"
+          description: What stays in .env or secrets/ and why; never a value.
+        key_rotations:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyRotation"
+      required:
+        - commit
+        - data_root
+        - domain
+        - environment
+        - from_server_config
+        - hosts
+        - key_rotations
+        - library_root
+        - live_ingest_enabled
+        - media_root
+        - monitoring_enabled
+        - public_scheme
+        - secrets
+        - server_time
+        - time_zone
+        - version
     Template:
       type: object
       description: The template in effect for one event, channel and language.
@@ -17205,6 +18460,16 @@ components:
         - processed_at
         - provider
         - type
+    WhatEnum:
+      enum:
+        - backup
+        - drill
+        - check
+      type: string
+      description: |-
+        * `backup` - backup
+        * `drill` - drill
+        * `check` - check
     ErrorCode:
       type: string
       enum:

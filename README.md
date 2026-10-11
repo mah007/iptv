@@ -4,7 +4,7 @@
 
 > 🚧 **Status: the VOD platform is built and runs in production at tv.mah007.net, with optional monitoring. Live TV with EPG and catch-up is built (M12); security hardening and scale-out come next.**
 > - **Working end to end:** an admin signs in with MFA and creates a customer, typing the IPTV username and password or generating them. Media is scanned, matched on TMDB (English and Arabic), transcoded and served by the signed-URL edge, and IPTV apps log in and play over the Xtream API. The contract suite and an automated IPTVnator journey prove it.
-> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout); and monitoring (M13): seven Grafana dashboards, logs in Loki with credentials redacted, and alerts by email and Telegram, opened from the admin and configured in its Settings; and live TV (M12): your own licensed channels with an XMLTV guide, catch-up and timeshift, played by IPTV apps over the Xtream live URLs and managed in the admin.
+> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout); and monitoring (M13): seven Grafana dashboards, logs in Loki with credentials redacted, and alerts by email and Telegram, opened from the admin and configured in its Settings; and live TV (M12): your own licensed channels with an XMLTV guide, catch-up and timeshift, played by IPTV apps over the Xtream live URLs and managed in the admin; and dynamic configuration: TMDB, email, payments, Telegram, branding and every other setting are edited in the admin (secrets encrypted, each integration with a Test), with `.env` kept for bootstrap only.
 > - **Still to come:** security hardening (M14), scale-out and CDN (M15), and testing on real TVs and phones (M10).
 >
 > See the [roadmap](#roadmap), [docs/PROGRESS.md](docs/PROGRESS.md) and the decisions in [docs/adr/](docs/adr/).
@@ -39,6 +39,7 @@ Newest first; each step that lands on `main` adds a line here. Details in [docs/
 - [Quick start (development)](#quick-start-development)
 - [Connecting an IPTV app](#connecting-an-iptv-app)
 - [Deployment (production)](#deployment-production)
+- [Configuration](#configuration)
 - [Roadmap](#roadmap)
 - [Repository layout](#repository-layout)
 - [Development workflow](#development-workflow)
@@ -101,11 +102,13 @@ From a file on disk to a TV screen:
 - ✅ Payments: manual, Stripe and Moyasar (mada, Apple Pay, STC Pay); the card providers switch on with their keys. 🔜 PayPal, HyperPay and Tap.
 - ✅ Sequential invoices with VAT, as print-ready pages in Arabic and English (the browser saves them as PDF).
 - ✅ Notifications by email, with admin-editable Arabic and English templates; monitoring alerts by email and Telegram. 🔜 Telegram and WhatsApp for customer messages.
+- ✅ Branding from the admin: the service name, logos (light and dark), support phone, email and WhatsApp, default language and time zone, shown in both apps, emails and invoices.
 
 **Operations**
 - ✅ Prometheus metrics and credential redaction in every log (Django, Nginx and Traefik at the source, Alloy again before Loki, with an automated test).
 - ✅ Optional monitoring overlay: seven Grafana dashboards (streaming, transcoding, library, business, platform, edges, hosts and GPU), 30 days of logs in Loki with one request id across Traefik, Django and the edge, and 27 alerts sent by email and Telegram. Admins open it from the admin with their own MFA sign-in; recipients, Telegram, severities and the edge capacity are admin settings; "Send a test alert" checks the whole path.
 - ✅ An audit log of every admin action; sign-in rate limits and lockouts. 🔜 Backups with a restore drill, and CrowdSec.
+- ✅ **Configuration in the admin, not in files.** Integrations (TMDB, TheTVDB, SMTP, Stripe, Moyasar, Telegram) each have a card with its status and a server-side **Test**; secrets are encrypted at rest, never shown again and audited without values; changes apply in every process within seconds, Alertmanager's fallback included. A System page shows the installation's facts and why the few bootstrap secrets stay in `.env`. Older `.env` values keep working and can be moved in with one click.
 
 ## Architecture
 
@@ -186,7 +189,7 @@ Every dependency imported into our code is permissively licensed (MIT, BSD, Apac
 ### Accounts and keys
 - **TMDB API key.** Commercial use needs a TMDB commercial licence. Without a key, development runs on recorded fixtures.
 - **TheTVDB** (optional, for TV ordering). Its paid tier is required above $50k revenue.
-- Payment provider, SMTP, Telegram bot and WhatsApp Business accounts, as needed.
+- Payment provider, SMTP, Telegram bot and WhatsApp Business accounts, as needed. Keys are entered in the admin (**Settings → Integrations**), not in files.
 
 ### Hardware sizing
 These are starting points, not benchmarks. The M15 load-test report will replace them with measured figures.
@@ -248,7 +251,7 @@ Demo data and media:
 | `make media-ready` | Adds the sample libraries if missing, then waits until a movie and a series are scanned, matched and transcoded |
 | `make live-ready` | The legal synthetic live channel: a test pattern looped by the dev MediaMTX, with a generated guide, waiting until 3 minutes of catch-up are recorded; about a second on reruns |
 | `make compat` · `make compat-live` · `make e2e-iptvnator` | Xtream contract suite: offline, against the running stack, and an IPTVnator journey that signs in and plays |
-| `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session, add a live channel) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
+| `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session, add a live channel, set SMTP to Mailpit and send a test email from Integrations) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
 | `make e2e-portal` | Portal journey in Playwright (sign in, Arabic search, play The Matrix, continue watching, sign out) and axe on ten pages in Arabic/light and English/dark at 390 px. Report in `dist/portal-e2e` |
 
 ## Connecting an IPTV app
@@ -293,7 +296,7 @@ sudo bash install.sh
 - the domain;
 - the owner admin's email (also the Let's Encrypt contact), sign-in name and password (or generates a strong one);
 - the media folder (`/srv/media`), and whether to add legal synthetic sample titles to try it out;
-- optionally a TMDB token for posters and Arabic/English metadata, SMTP settings for emails, and whether to enable the ufw firewall;
+- optionally a TMDB token for posters and Arabic/English metadata, SMTP settings for emails (both saved in the admin's settings, where you edit them later), and whether to enable the ufw firewall;
 - whether to enable monitoring (default yes with 8 GB of memory or more; about 1.5–2 GB), who gets alert emails (the admin email by default) and an optional Telegram bot and chat.
 
 **It checks** the OS, CPU, memory, disk, ports 80/443, internet access and the DNS records, and refuses to install over an existing installation.
@@ -308,13 +311,13 @@ sudo bash install.sh
 | Task | Command |
 |---|---|
 | Update to the latest code, keeping every setting | `sudo /opt/iptv/scripts/install.sh --update` |
-| Change the domain, email, media folder, TMDB, SMTP or monitoring | `sudo /opt/iptv/scripts/install.sh --reconfigure` |
+| Change the domain, admin email, media folder or monitoring (everything else: admin → Settings) | `sudo /opt/iptv/scripts/install.sh --reconfigure` |
 | Turn monitoring on (or off) for an existing installation | `sudo /opt/iptv/scripts/install.sh --update --monitoring` (`--no-monitoring`) |
 | Unattended install (secrets in environment variables, never options) | `sudo ADMIN_PASSWORD=... TMDB_TOKEN=... bash install.sh --yes --domain tv.example.com --email ops@example.com` |
 | See what it would do, changing nothing | `bash install.sh --dry-run` |
 | Every option | `bash install.sh --help` |
 
-The admin enrols an authenticator app (TOTP) at first sign-in. A generated password is shown once and saved to `/root/smart-iptv-admin.txt` (root only): move it to a password manager. Back up `/opt/iptv/.env` and `/opt/iptv/secrets/`, because the databases and playback URLs depend on them. The manual steps the installer runs are in [docs/runbooks/deploy.md](docs/runbooks/deploy.md).
+The admin enrols an authenticator app (TOTP) at first sign-in. A generated password is shown once and saved to `/root/smart-iptv-admin.txt` (root only): move it to a password manager. Back up `/opt/iptv/.env` and `/opt/iptv/secrets/`, because the databases, playback URLs and the secrets stored in the settings depend on them. The manual steps the installer runs are in [docs/runbooks/deploy.md](docs/runbooks/deploy.md).
 
 ### Tiers
 | Tier | Layout | Status |
@@ -347,6 +350,22 @@ The admin enrols an authenticator app (TOTP) at first sign-in. A generated passw
 - [ ] Privacy policy and terms published in Arabic and English, with data-retention jobs active.
 - [ ] Rate limits and CrowdSec active, OWASP ZAP baseline clean, dependency scans clean.
 
+## Configuration
+
+Everything you change while running the service lives in the admin, like any end-user product ([ADR-0019](docs/adr/0019-dynamic-configuration.md)):
+
+| Where | What |
+|---|---|
+| **Settings → Integrations** | TMDB, TheTVDB, email (SMTP), Stripe, Moyasar and Telegram: one card each with its status (configured, from server config, incomplete, not set) and a **Test**: a test email to yourself, a key check against the provider, a test Telegram message. Save, then Test. |
+| **Settings** | Every setting, grouped: branding (names, logos, support contacts, language, time zone), Xtream, playback, library and transcoding, metadata, email, notifications, billing, trials, security, feature flags, live TV, monitoring. Each shows where its value comes from. |
+| **Settings → System** | Read-only: version and commit, hosts, folders, monitoring and live ingest, the settings still read from `.env`, the bootstrap secrets (where each lives and why) and key rotations. |
+
+**Secrets** (SMTP password, TMDB token, payment keys, the Telegram bot token) are encrypted in the database with `FIELD_ENCRYPTION_KEY`, never sent back to the browser, never logged, and audited as "changed" without values. Inputs are never prefilled: **Replace**, **Clear**, and for a value from `.env`, **Move into settings** or **Turn off**.
+
+**Changes apply without a restart**, in every process: web, the workers, the transcoder, the live packager, the watcher, and Alertmanager's fallback (which fetches its settings from Django every minute).
+
+**What stays in `.env`, and why:** only what is needed before the database is reachable, or would break the stack if changed live: the domain and hosts, folders, the data stores' passwords, `DJANGO_SECRET_KEY`, `FIELD_ENCRYPTION_KEY` (it decrypts the stored secrets), the media token keys, and the monitoring and MediaMTX containers' own credentials. `install.sh --reconfigure` changes the domain, admin email, media folder and monitoring. Servers installed earlier keep their `.env` TMDB and SMTP values working as a fallback ("from server config") until you move them in; `manage.py settings_report` lists them (names only), and `manage.py set_setting KEY --stdin` sets a value from a script.
+
 ## Roadmap
 
 Each milestone ends with a checkpoint: what was built, how to verify it, and an acceptance checklist. A milestone is tagged `m{N}-done` once every criterion passes.
@@ -367,6 +386,7 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 | M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, checkout (manual, Stripe, Moyasar) | ✅ Done (provider sandboxes need keys) |
 | M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up and timeshift, ErsatzTV and MediaMTX integrations | ✅ Done (portal live TV later) |
 | M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | ✅ Done |
+| CFG | Dynamic configuration | Encrypted secret settings with the `.env` fallback, Integrations page with Tests, System page, branding, Alertmanager's fallback from Django, installer writes settings | ✅ Done |
 | M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | Partly (rate limits, lockouts) |
 | M15 | Scale & CDN | Standalone edges, S3 origin, Bunny CDN token auth, Postgres replica, load-test report at 1,000+ virtual users | Planned |
 | Later | Beyond v1 | Native TV apps, pluggable ML recommender | Ideas |

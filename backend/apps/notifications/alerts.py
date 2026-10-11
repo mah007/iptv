@@ -3,7 +3,8 @@
 Alertmanager posts every alert group to /internal/alerts (a webhook with a shared
 secret). This module sends it to the people the admin chose in Settings, group
 "monitoring": by email through the platform's SMTP settings, and by Telegram through
-the configured bot, each filtered by severity (all, critical only, none).
+the bot and admins' chat of Settings → Integrations, each filtered by severity (all,
+critical only, none).
 
 Delivery is synchronous in the web process, not a Celery task, so the alerts that say
 the workers are down still go out. A channel that fails is logged and counted
@@ -19,20 +20,17 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Final
 
-import httpx
-from django.conf import settings
 from django.core.mail import EmailMessage
 
 from apps.core.metrics import ALERT_DELIVERIES
 from apps.core.redaction import redact_text
 from apps.core.services import get_setting
+from apps.notifications import mail, telegram
 from apps.notifications.services import email_configured
 
 logger = logging.getLogger(__name__)
 
-TELEGRAM_API: Final = "https://api.telegram.org"
-TELEGRAM_LIMIT: Final = 4000  # characters; Telegram's own limit is 4096
-TIMEOUT_S: Final = 10.0
+TELEGRAM_LIMIT: Final = telegram.TEXT_LIMIT
 MAX_ALERTS: Final = 50
 
 
@@ -134,7 +132,10 @@ def runbook_link(path: str) -> str:
     """The rules name the runbook by its path in the repository; messages link it."""
     if not path or "://" in path:
         return path
-    return f"{str(settings.RUNBOOK_BASE_URL).rstrip('/')}/{path.lstrip('/')}"
+    base = str(get_setting("monitoring.runbook_base_url"))
+    if not base:
+        return path
+    return f"{base.rstrip('/')}/{path.lstrip('/')}"
 
 
 def subject(notice: Notice, alerts: Sequence[Alert]) -> str:
@@ -192,30 +193,9 @@ def _send_email(notice: Notice, alerts: Sequence[Alert], to: list[str]) -> None:
     EmailMessage(
         subject=subject(notice, alerts),
         body=email_body(notice, alerts),
-        from_email=settings.DEFAULT_FROM_EMAIL,
+        from_email=mail.from_address(),
         to=to,
     ).send(fail_silently=False)
-
-
-def _send_telegram(text: str, token: str, chat_id: str) -> None:
-    response = httpx.post(
-        f"{TELEGRAM_API}/bot{token}/sendMessage",
-        json={
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": True,
-        },
-        timeout=TIMEOUT_S,
-    )
-    if response.status_code != httpx.codes.OK:
-        # Telegram's description names the problem ("chat not found"); never the token.
-        try:
-            reason = str(response.json().get("description", ""))[:200]
-        except ValueError:
-            reason = ""
-        msg = f"Telegram answered {response.status_code}: {reason}"
-        raise RuntimeError(msg)
 
 
 def _record(outcome: Outcome, channel: str, result: str, error: Exception | None = None) -> None:
@@ -253,8 +233,7 @@ def deliver(payload: Mapping[str, Any]) -> Outcome:
     else:
         _record(outcome, "email", "skipped")
 
-    token = str(get_setting("monitoring.telegram_bot_token"))
-    chat_id = str(get_setting("monitoring.telegram_chat_id"))
+    token, chat_id = telegram.bot_token(), telegram.admin_chat_id()
     texted = [
         a
         for a in notice.alerts
@@ -262,7 +241,7 @@ def deliver(payload: Mapping[str, Any]) -> Outcome:
     ]
     if texted and token and chat_id:
         try:
-            _send_telegram(telegram_text(notice, texted), token, chat_id)
+            telegram.send_message(telegram_text(notice, texted), chat_id=chat_id, token=token)
         except Exception as error:
             _record(outcome, "telegram", "failed", error)
         else:
@@ -270,3 +249,62 @@ def deliver(payload: Mapping[str, Any]) -> Outcome:
     else:
         _record(outcome, "telegram", "skipped")
     return outcome
+
+
+# --- Alertmanager's own fallback channels (CFG, ADR-0019) -----------------------------------
+
+#: What Alertmanager's fallback receiver needs, in the order the entrypoint reads it.
+FALLBACK_FIELDS: Final = (
+    "email_to",
+    "smarthost",
+    "from",
+    "username",
+    "require_tls",
+    "smtp_password",
+    "telegram_bot_token",
+    "telegram_chat_id",
+)
+
+
+def fallback_config() -> dict[str, str]:
+    """The settings Alertmanager's fallback receiver uses for the alerts that mean
+    Django can't deliver (web, PostgreSQL or Valkey down). Alertmanager fetches them
+    from /internal/alert-fallback, keeps the last copy, and re-renders its
+    configuration when they change, so they are edited in the admin like everything
+    else; a channel the admin switched off (or set to "none") is empty here."""
+    from apps.notifications import mail  # noqa: PLC0415
+
+    values = dict.fromkeys(FALLBACK_FIELDS, "")
+    values["require_tls"] = "true"
+    if not get_setting("monitoring.alerts_enabled"):
+        return values
+    smtp = mail.smtp_config()
+    if (
+        smtp.host
+        and recipients()
+        and str(get_setting("monitoring.alert_email_severities")) != "none"
+    ):
+        values.update(
+            email_to=", ".join(recipients()),
+            smarthost=f"{smtp.host}:{smtp.port}",
+            # Alertmanager wants a plain sender; "Name <address>" is fine too.
+            **{"from": mail.from_address()},
+            username=smtp.username,
+            # Port 465 is implicit TLS for Alertmanager; require_tls is about STARTTLS.
+            require_tls="true" if smtp.security == "starttls" else "false",
+            smtp_password=smtp.password if smtp.username else "",
+        )
+    if telegram.configured() and str(get_setting("monitoring.telegram_severities")) != "none":
+        values.update(
+            telegram_bot_token=telegram.bot_token(), telegram_chat_id=telegram.admin_chat_id()
+        )
+    return values
+
+
+def fallback_status() -> dict[str, bool]:
+    """Whether Alertmanager's fallback has an email and a Telegram channel."""
+    values = fallback_config()
+    return {
+        "email": bool(values["email_to"] and values["smarthost"]),
+        "telegram": bool(values["telegram_bot_token"] and values["telegram_chat_id"]),
+    }

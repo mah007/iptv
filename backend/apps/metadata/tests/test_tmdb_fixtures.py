@@ -206,7 +206,7 @@ def test_recording_writes_what_fixture_mode_serves(tmp_path: Path) -> None:
     assert set(queries["queries"]) == {"matrix", "inception", "blade runner 2049", "وجده"}
 
 
-def test_factory_uses_fixture_mode_without_credentials(settings: Settings) -> None:
+def test_factory_uses_fixture_mode_without_credentials(settings: Settings, db: None) -> None:
     settings.TMDB_API_KEY = ""
     settings.TMDB_READ_ACCESS_TOKEN = ""
     with client_from_settings() as client:
@@ -214,7 +214,7 @@ def test_factory_uses_fixture_mode_without_credentials(settings: Settings) -> No
         assert ids(client.search_movie("The Matrix", year=1999)) == [603]
 
 
-def test_factory_builds_a_live_client_from_a_credential(settings: Settings) -> None:
+def test_factory_builds_a_live_client_from_a_credential(settings: Settings, db: None) -> None:
     settings.TMDB_READ_ACCESS_TOKEN = "token"  # noqa: S105
     settings.TMDB_RATE_LIMIT_PER_S = 10
     with client_from_settings() as client:
