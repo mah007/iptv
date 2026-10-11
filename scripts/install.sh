@@ -865,13 +865,37 @@ get_code() {
     if [[ -n "$(git -C "$INSTALL_DIR" status --porcelain --untracked-files=no)" ]]; then
       die "$INSTALL_DIR has local changes to tracked files; commit or discard them first."
     fi
-    run "Updating the code ($BRANCH)" git -C "$INSTALL_DIR" pull --ff-only -q
+    # umask 022: git writes files with the caller's umask, and the images copy them as
+    # they are; a stricter umask (077) would leave files the app user can't read.
+    # shellcheck disable=SC2016 # $1 expands in the inner shell
+    run "Updating the code ($BRANCH)" sh -c 'umask 022 && git -C "$1" pull --ff-only -q' _ "$INSTALL_DIR"
   elif [[ -e "$INSTALL_DIR" && -n "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]]; then
     die "$INSTALL_DIR exists and isn't a Smart IPTV checkout; choose another --dir."
   else
-    run "Downloading the code to $INSTALL_DIR" git clone -q --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+    # shellcheck disable=SC2016 # $1..$3 expand in the inner shell
+    run "Downloading the code to $INSTALL_DIR" sh -c 'umask 022 && git clone -q --branch "$1" "$2" "$3"' \
+      _ "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
   fi
-  ((DRY_RUN)) || ok "Code at $(git -C "$INSTALL_DIR" log -1 --format='%h %s' 2>/dev/null)"
+  ((DRY_RUN)) || { fix_code_permissions; ok "Code at $(git -C "$INSTALL_DIR" log -1 --format='%h %s' 2>/dev/null)"; }
+}
+
+# Tracked files must be world-readable (and their folders traversable): the images copy
+# them as they are and run as an unprivileged user. A checkout made or pulled under a
+# strict umask breaks that, so repair it here. Only git-tracked paths are touched; .env
+# and secrets/ are untracked and keep their modes.
+fix_code_permissions() {
+  local unreadable
+  unreadable="$(git -C "$INSTALL_DIR" ls-files -z | (cd "$INSTALL_DIR" && xargs -0 -r find 2>/dev/null) |
+    (cd "$INSTALL_DIR" && xargs -r -d '\n' stat -c '%a %n' 2>/dev/null) | awk '$1 !~ /[4-7]$/' | wc -l)"
+  ((unreadable > 0)) || return 0
+  warn "$unreadable tracked files weren't readable by the app's user (a strict umask?); fixing their modes."
+  (
+    cd "$INSTALL_DIR"
+    git ls-files -z | xargs -0 -r chmod go+r
+    git ls-files -z | xargs -0 -r stat -c '%a %n' | awk '$1 ~ /^7/ {sub(/^[0-7]+ /, ""); print}' |
+      xargs -r -d '\n' chmod go+x
+    git ls-files | xargs -r -d '\n' -n1 dirname | sort -u | xargs -r -d '\n' chmod go+rx
+  )
 }
 
 write_config() {
