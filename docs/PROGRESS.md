@@ -133,6 +133,27 @@ Then:
 
 **Owner decision (2026-10-03): proof of concept first.** An admin creates a customer with device credentials, media is scanned, matched and transcoded, and an IPTV app logs in and plays. Everything commercial (plans, subscriptions, billing, payments, invoices, trials, notifications) is the last slice.
 
+## M12 and M13 deployed (2026-10-11)
+
+- **Gate:** `make ci ALLOW_DIRTY=1 BUILD_FLAGS="--pull --no-cache"` passed for the tree committed as `35b857f` (only the owner's `.claude/settings.json` was left out). It covered:
+  - the backend: 2734 tests at 94.6% coverage;
+  - Vitest: ui 155, admin 149, portal 45;
+  - the Xtream contract: offline 161, `compat-live` 210, IPTVnator 9;
+  - the browser suites: `e2e-admin` 104 passed with the monitoring journey skipped (overlay off in the gate), `e2e-portal` 3;
+  - `monitoring-test`;
+  - images, Trivy and the licence gate.
+- **Tags:** `m12-done` and `m13-done` at `35b857f`.
+- **Production:** `scripts/install.sh --update --monitoring --yes` on tv.mah007.net rebuilt and started everything in 177 s, migrated, and checked HTTPS on all six hosts.
+- **External checks:**
+  - unsigned media gives 403, and `/internal` and `/metrics` give 404 on the tv host;
+  - Grafana answers 401 without an admin session, including with a forged `X-WEBAUTH-USER`;
+  - failed Xtream sign-in returns `{"user_info":{"auth":0}}`;
+  - HSTS is present.
+- **Live contract suite on the server:** 195 passed, 4 skipped (no live channels configured yet).
+- **Still to do on production:**
+  - set SMTP and alert recipients (and Telegram if wanted) in the admin, then run *Send a test alert*;
+  - add licensed live channels.
+
 ## Acceptance and tags (2026-10-04)
 
 `make ci ALLOW_DIRTY=1 BUILD_FLAGS="--pull --no-cache"` passed for `81b1158` in 647 s (the only uncommitted file was the owner's `.claude/settings.json`). It covered:
