@@ -14,6 +14,10 @@
   `metadata.certification_country`, else the US. Fields an admin locked are kept.
 - Fixture mode (no TMDB credential): the same code path over P2's synthetic fixtures;
   titles are marked `metadata_source=synthetic`.
+- TheTVDB (ADR-0023, `apps.metadata.tvdb_series`): when TMDB has no confident series
+  match and a TheTVDB key is set, TheTVDB is searched too. A confident TheTVDB match is
+  handed back to TMDB when TheTVDB knows the TMDB id; otherwise the series is built from
+  TheTVDB. Undecided candidates of both providers share one review.
 - Artwork: primary poster (plus an Arabic poster when TMDB has one), backdrop and logo
   per title, season posters and episode stills for what has files, converted by P2
   `images` into `DATA_ROOT/images` and recorded as `MediaImage` rows.
@@ -29,6 +33,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any, Final, cast
 
+import httpx
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -43,6 +48,7 @@ from apps.catalog.models import (
     FileState,
     Genre,
     ImageKind,
+    ImageSource,
     MatchReview,
     MediaFile,
     MediaImage,
@@ -62,7 +68,7 @@ from apps.catalog.services import (
     refresh_status_of_files,
 )
 from apps.catalog.signals import notify_catalog_changed
-from apps.core.errors import ErrorCode, ProblemError
+from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.metrics import MATCH_CONFIDENCE
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
@@ -80,6 +86,7 @@ from apps.metadata.scoring import (
 )
 from apps.metadata.tmdb import JSONObject, TMDBClient, TMDBError, TMDBNotFoundError, image_url
 from apps.metadata.tmdb.factory import client_for, tmdb_config
+from apps.metadata.tvdb import is_artwork_url
 
 logger = logging.getLogger(__name__)
 
@@ -287,10 +294,14 @@ def _match_movie(file: MediaFile, parsed: ParseResult, client: TMDBClient) -> No
 
 
 def _match_episode(file: MediaFile, parsed: ParseResult, client: TMDBClient) -> None:
+    from apps.metadata import tvdb_series  # noqa: PLC0415 (it builds on this module)
+
     provider_id = _provider_series_id(parsed, client)
     candidates: Sequence[ScoredCandidate] = ()
     confidence = 1.0
     if provider_id is None:
+        if parsed.provider_ids.tvdb and tvdb_series.match_by_id(file, parsed, client):
+            return
         if not parsed.title:
             _open_review(file, ReviewKind.TV, "no_candidates", ())
             return
@@ -300,6 +311,12 @@ def _match_episode(file: MediaFile, parsed: ParseResult, client: TMDBClient) -> 
         accepted = decision.accepted
         if accepted is None or parsed.ambiguous:
             reason = "classification" if parsed.ambiguous else decision.reason
+            if not parsed.ambiguous and decision.reason in tvdb_series.FALLBACK_REASONS:
+                fallback = tvdb_series.fallback(file, parsed, query, decision, client)
+                if fallback.handled:
+                    return
+                reason, candidates = fallback.reason, fallback.candidates
+                confidence = candidates[0].score if candidates else 0.0
             _open_review(file, ReviewKind.TV, reason, candidates, confidence)
             return
         provider_id = accepted.candidate.provider_id
@@ -343,9 +360,12 @@ def _open_review(
     return review
 
 
-def _close_reviews(file: MediaFile, provider_id: int, actor: User | None) -> None:
+def _close_reviews(
+    file: MediaFile, provider_id: int, actor: User | None, provider: str = "tmdb"
+) -> None:
     MatchReview.objects.filter(media_file=file, status=ReviewStatus.OPEN).update(
         status=ReviewStatus.RESOLVED,
+        chosen_provider=provider,
         chosen_provider_id=provider_id,
         decided_by=actor,
         decided_at=timezone.now(),
@@ -399,15 +419,43 @@ def accept_episode(  # noqa: PLR0913 (the actor is keyword-only)
         )
     series = upsert_series(tmdb_id, client)
     season = ensure_season(series, parsed.season, client)
+    link_episode_file(
+        file,
+        series,
+        episodes_of(season, parsed),
+        confidence,
+        actor=actor,
+        provider="tmdb",
+        provider_id=tmdb_id,
+    )
+    return series
+
+
+def episodes_of(season: Season, parsed: ParseResult) -> list[Episode]:
+    """The season's episodes the file holds; PlacementError when one is unknown."""
     episodes = list(season.episodes.filter(number__in=parsed.episodes))
     missing = sorted(set(parsed.episodes) - {episode.number for episode in episodes})
     if missing:
         raise PlacementError(
             "episode_not_found",
-            f"Season {parsed.season} of {series.title} has no episode "
+            f"Season {parsed.season} of {season.series.title} has no episode "
             + ", ".join(str(n) for n in missing)
             + ".",
         )
+    return episodes
+
+
+def link_episode_file(  # noqa: PLR0913 (everything after confidence is keyword-only)
+    file: MediaFile,
+    series: Series,
+    episodes: Sequence[Episode],
+    confidence: float,
+    *,
+    actor: User | None,
+    provider: str,
+    provider_id: int,
+) -> None:
+    """Make `file` the file of `episodes`, close its reviews and refresh the statuses."""
     previous = _owners(file)
     with transaction.atomic():
         file.movie = None
@@ -417,12 +465,11 @@ def accept_episode(  # noqa: PLR0913 (the actor is keyword-only)
         file.episodes.set(episodes)
         if "categories" not in series.metadata_locked_fields:
             series.categories.add(*file.library.default_categories.all())
-        _close_reviews(file, tmdb_id, actor)
+        _close_reviews(file, provider_id, actor, provider)
         refresh_series_status(series)
         _refresh_previous(previous, keep=series)
         notify_catalog_changed("series", [series.pk])
     transaction.on_commit(lambda: _queue_images("series", series.pk))
-    return series
 
 
 def _owners(file: MediaFile) -> list[Title]:
@@ -940,17 +987,38 @@ def image_store() -> LocalImageStore:
 def store_images(
     owner: Mapping[str, Any], owner_key: str, picks: Sequence[ImagePick], client: TMDBClient
 ) -> int:
-    """Download, convert and record the picks that are not stored yet; returns how many
-    were added. A failed image is logged and skipped."""
+    """Download, convert and record the TMDB picks that are not stored yet; returns how
+    many were added. A failed image is logged and skipped."""
+    return store_picks(
+        owner,
+        owner_key,
+        picks,
+        open_http=client.open_image_client,
+        url_for=lambda path: image_url(path, tmdb_source_size(path)),
+        source=ImageSource.TMDB,
+    )
+
+
+def store_picks(  # noqa: PLR0913 (everything after picks is keyword-only)
+    owner: Mapping[str, Any],
+    owner_key: str,
+    picks: Sequence[ImagePick],
+    *,
+    open_http: Callable[[], httpx.Client],
+    url_for: Callable[[str], str],
+    source: str,
+) -> int:
+    """Download, convert and record the picks that are not stored yet, from the provider
+    whose HTTP client `open_http` gives (it allows that provider's image host only)."""
     existing = set(MediaImage.objects.filter(**owner).values_list("kind", "source_path"))
     wanted = [pick for pick in picks if (pick.kind, pick.path) not in existing]
     if not wanted:
         return 0
     store = image_store()
     added = 0
-    with client.open_image_client() as http:
+    with open_http() as http:
         for pick in wanted:
-            url = image_url(pick.path, tmdb_source_size(pick.path))
+            url = url_for(pick.path)
             try:
                 stored = fetch_and_store(
                     url,
@@ -973,6 +1041,7 @@ def store_images(
                     width=stored.width,
                     height=stored.height,
                     blurhash=stored.blurhash,
+                    source=source,
                     source_path=pick.path,
                     is_primary=pick.primary,
                 )
@@ -993,9 +1062,11 @@ def fetch_movie_images(movie: Movie, client: TMDBClient | None = None) -> int:
 
 def fetch_series_images(series: Series, client: TMDBClient | None = None) -> int:
     """Series artwork, plus posters of seasons and stills of episodes that have files."""
-    client = client or tmdb()
     if series.tmdb_id is None:
-        return 0
+        from apps.metadata import tvdb_series  # noqa: PLC0415
+
+        return tvdb_series.fetch_series_images(series)
+    client = client or tmdb()
     details = client.tv_details(series.tmdb_id)
     added = store_images({"series": series}, f"series/{series.pk}", image_picks(details), client)
     season_posters = {
@@ -1044,6 +1115,10 @@ def refresh_movie(movie: Movie, client: TMDBClient | None = None) -> Movie:
 
 def refresh_series(series: Series, client: TMDBClient | None = None) -> Series:
     """Fetch the series and the seasons that have episodes again; locks are respected."""
+    if series.tmdb_id is None and series.metadata_source == MetadataSource.TVDB:
+        from apps.metadata import tvdb_series  # noqa: PLC0415
+
+        return tvdb_series.refresh_series(series)
     client = client or tmdb()
     if series.tmdb_id is None:
         raise ProblemError(ErrorCode.CONFLICT, "This series has no TMDB id to refresh from.")
@@ -1060,48 +1135,79 @@ def refresh_series(series: Series, client: TMDBClient | None = None) -> Series:
 # --- The review queue (SPEC §8.3) -----------------------------------------------------------------
 
 
-def _provider_problem(exc: TMDBError) -> ProblemError:
+def _provider_problem(exc: TMDBError, provider: str = "tmdb") -> ProblemError:
+    name, field = ("TheTVDB", "tvdb_id") if provider == "tvdb" else ("TMDB", "tmdb_id")
     if isinstance(exc, TMDBNotFoundError):
         return ProblemError(
             ErrorCode.VALIDATION_ERROR,
-            "TMDB has no title with this id.",
-            field_errors={"tmdb_id": ["Not found on TMDB."]},
+            f"{name} has no title with this id.",
+            field_errors={field: [field_error(f"Not found on {name}.", code="provider_not_found")]},
         )
-    return ProblemError(ErrorCode.PROVIDER_UNAVAILABLE, "TMDB is unavailable; try again shortly.")
+    return ProblemError(
+        ErrorCode.PROVIDER_UNAVAILABLE, f"{name} is unavailable; try again shortly."
+    )
 
 
-def resolve_review(  # noqa: PLR0913 (everything after tmdb_id is keyword-only)
+def resolve_review(  # noqa: PLR0913 (everything after provider_id is keyword-only)
     review: MatchReview,
-    tmdb_id: int,
+    provider_id: int,
     *,
+    provider: str = "tmdb",
     kind: str | None = None,
     actor: User | None,
     ip: str | None,
     client: TMDBClient | None = None,
 ) -> MatchReview:
-    """Match the review's file to the TMDB movie or series the admin chose."""
+    """Match the review's file to the TMDB movie or series (or, for a series, the
+    TheTVDB series, ADR-0023) the admin chose."""
     if review.status != ReviewStatus.OPEN:
         raise ProblemError(ErrorCode.CONFLICT, "This review was already decided.")
     client = client or tmdb()
     kind = kind or review.kind
     file = review.media_file
     parsed = ParseResult.from_json(review.parse_result or file.parse_result)
+    field = "tvdb_id" if provider == "tvdb" else "tmdb_id"
     try:
-        if kind == ReviewKind.MOVIE:
-            accept_movie(file, tmdb_id, 1.0, client, actor=actor)
+        if provider == "tvdb":
+            from apps.metadata import tvdb_series  # noqa: PLC0415
+
+            if kind == ReviewKind.MOVIE:
+                raise ProblemError(
+                    ErrorCode.VALIDATION_ERROR,
+                    "TheTVDB is the fallback for series only.",
+                    field_errors={
+                        "kind": [
+                            field_error("TheTVDB matches series only.", code="tvdb_series_only")
+                        ]
+                    },
+                )
+            tvdb_series.accept_episode(
+                file,
+                provider_id,
+                parsed,
+                1.0,
+                tvdb_series.require_client(),
+                tmdb_client=client,
+                actor=actor,
+            )
+        elif kind == ReviewKind.MOVIE:
+            accept_movie(file, provider_id, 1.0, client, actor=actor)
         else:
-            accept_episode(file, tmdb_id, parsed, 1.0, client, actor=actor)
+            accept_episode(file, provider_id, parsed, 1.0, client, actor=actor)
     except PlacementError as exc:
         raise ProblemError(
-            ErrorCode.VALIDATION_ERROR, str(exc), field_errors={"tmdb_id": [str(exc)]}
+            ErrorCode.VALIDATION_ERROR,
+            str(exc),
+            field_errors={field: [field_error(str(exc), code=f"placement_{exc.reason}")]},
         ) from None
     except TMDBError as exc:
-        raise _provider_problem(exc) from None
+        raise _provider_problem(exc, provider) from None
     review.refresh_from_db()
     with transaction.atomic():
         review.kind = kind
         review.status = ReviewStatus.RESOLVED
-        review.chosen_provider_id = tmdb_id
+        review.chosen_provider = provider
+        review.chosen_provider_id = provider_id
         review.decided_by = actor
         review.decided_at = timezone.now()
         review.save()
@@ -1109,7 +1215,7 @@ def resolve_review(  # noqa: PLR0913 (everything after tmdb_id is keyword-only)
             "review.resolve",
             actor=actor,
             target=review,
-            after={"kind": kind, "tmdb_id": tmdb_id, "file": str(file.pk)},
+            after={"kind": kind, field: provider_id, "file": str(file.pk)},
             ip=ip,
         )
     return review
@@ -1129,9 +1235,19 @@ def skip_review(review: MatchReview, *, actor: User | None, ip: str | None) -> M
 
 
 def search(
-    kind: str, query: str, year: int | None = None, client: TMDBClient | None = None
+    kind: str,
+    query: str,
+    year: int | None = None,
+    client: TMDBClient | None = None,
+    *,
+    provider: str = "tmdb",
 ) -> list[dict[str, Any]]:
-    """TMDB search for manual matching: candidates as the review queue shows them."""
+    """TMDB (or, for series, TheTVDB) search for manual matching: candidates as the
+    review queue shows them."""
+    if provider == "tvdb":
+        from apps.metadata import tvdb_series  # noqa: PLC0415
+
+        return tvdb_series.search(kind, query, year)
     client = client or tmdb()
     try:
         if kind == ReviewKind.MOVIE:
@@ -1162,9 +1278,12 @@ def search(
 
 
 def poster_preview_url(poster_path: str | None, client: TMDBClient | None = None) -> str | None:
-    """A TMDB thumbnail URL for a candidate; None in fixture mode (synthetic paths)."""
+    """A TMDB thumbnail URL for a candidate (None in fixture mode: synthetic paths), or a
+    TheTVDB candidate's artwork URL as TheTVDB gave it."""
     if not poster_path:
         return None
+    if is_artwork_url(poster_path):
+        return poster_path
     client = client or tmdb()
     return None if client.fixture_mode else image_url(poster_path, "w185")
 

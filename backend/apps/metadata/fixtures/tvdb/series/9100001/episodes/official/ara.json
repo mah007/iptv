@@ -1,0 +1,100 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-written TheTVDB v4 response for tests (ADR-0023); not TheTVDB data."
+  },
+  "status": "success",
+  "data": {
+    "series": {
+      "id": 9100001,
+      "name": "حراس الفانوس"
+    },
+    "episodes": [
+      {
+        "id": 9500101,
+        "seriesId": 9100001,
+        "name": "المتجر",
+        "aired": "2021-04-13",
+        "runtime": 42,
+        "overview": "يعود الإخوة إلى جدة.",
+        "image": "https://artworks.thetvdb.com/banners/v4/episodes/9100001/9500101-640x360.jpg",
+        "number": 1,
+        "absoluteNumber": 1,
+        "seasonNumber": 1,
+        "year": "2021"
+      },
+      {
+        "id": 9500102,
+        "seriesId": 9100001,
+        "name": "الزيت والفتيل",
+        "aired": "2021-04-20",
+        "runtime": 42,
+        "overview": "يفتح منافس متجرًا مجاورًا.",
+        "image": "https://artworks.thetvdb.com/banners/v4/episodes/9100001/9500102-640x360.jpg",
+        "number": 2,
+        "absoluteNumber": 2,
+        "seasonNumber": 1,
+        "year": "2021"
+      },
+      {
+        "id": 9500103,
+        "seriesId": 9100001,
+        "name": "ليالي رمضان",
+        "aired": "2021-04-27",
+        "runtime": 42,
+        "overview": "يبدأ أكثر الشهور ازدحامًا.",
+        "image": "https://artworks.thetvdb.com/banners/v4/episodes/9100001/9500103-640x360.jpg",
+        "number": 3,
+        "absoluteNumber": 3,
+        "seasonNumber": 1,
+        "year": "2021"
+      },
+      {
+        "id": 9500201,
+        "seriesId": 9100001,
+        "name": "New Glass",
+        "aired": "2022-04-05",
+        "runtime": 42,
+        "overview": "A shipment goes missing.",
+        "image": "",
+        "number": 1,
+        "absoluteNumber": 4,
+        "seasonNumber": 2,
+        "year": "2022"
+      },
+      {
+        "id": 9500202,
+        "seriesId": 9100001,
+        "name": "The Last Lantern",
+        "aired": "2022-04-12",
+        "runtime": 42,
+        "overview": "The shop's future is decided.",
+        "image": "https://artworks.thetvdb.com/banners/v4/episodes/9100001/9500202-640x360.jpg",
+        "number": 2,
+        "absoluteNumber": 5,
+        "seasonNumber": 2,
+        "year": "2022"
+      },
+      {
+        "id": 9500001,
+        "seriesId": 9100001,
+        "name": "Behind the Lanterns",
+        "aired": "2021-12-01",
+        "runtime": 20,
+        "overview": "A special about the making of the series.",
+        "image": "https://artworks.thetvdb.com/banners/v4/episodes/9100001/9500001-640x360.jpg",
+        "number": 1,
+        "absoluteNumber": null,
+        "seasonNumber": 0,
+        "year": "2021"
+      }
+    ]
+  },
+  "links": {
+    "prev": null,
+    "self": "page=0",
+    "next": null,
+    "total_items": 6,
+    "page_size": 500
+  }
+}

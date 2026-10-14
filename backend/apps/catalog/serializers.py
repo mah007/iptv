@@ -6,6 +6,7 @@ from typing import Any, ClassVar
 
 from drf_spectacular.utils import extend_schema_field, extend_schema_serializer
 from rest_framework import serializers
+from rest_framework.exceptions import ErrorDetail
 
 from apps.accounts.models import User
 from apps.catalog.models import (
@@ -560,9 +561,12 @@ class BreakdownSerializer(serializers.Serializer[Any]):
 
 
 class CandidateSerializer(serializers.Serializer[Any]):
-    provider = serializers.CharField()
+    provider = serializers.ChoiceField(
+        choices=(("tmdb", "TMDB"), ("tvdb", "TheTVDB")),
+        help_text="Whose id `id` is: TMDB, or TheTVDB for the TV fallback (ADR-0023).",
+    )
     kind = serializers.ChoiceField(choices=(("movie", "Movie"), ("tv", "Series")))
-    id = serializers.IntegerField(help_text="The TMDB id.")
+    id = serializers.IntegerField(help_text="The provider's id.")
     title = serializers.CharField()
     original_title = serializers.CharField(allow_null=True)
     year = serializers.IntegerField(allow_null=True)
@@ -570,7 +574,8 @@ class CandidateSerializer(serializers.Serializer[Any]):
     popularity = serializers.FloatField()
     overview = serializers.CharField(allow_blank=True)
     poster_url = serializers.URLField(
-        allow_null=True, help_text="A TMDB thumbnail; null in fixture mode."
+        allow_null=True,
+        help_text="A TMDB thumbnail or TheTVDB artwork; null in TMDB fixture mode.",
     )
     score = serializers.FloatField(required=False)
     breakdown = BreakdownSerializer(required=False)
@@ -616,6 +621,7 @@ class ReviewSerializer(serializers.ModelSerializer[MatchReview]):
             "media_file",
             "parse_result",
             "candidates",
+            "chosen_provider",
             "chosen_provider_id",
             "decided_by",
             "decided_at",
@@ -642,18 +648,36 @@ class ReviewSerializer(serializers.ModelSerializer[MatchReview]):
 
 
 class ResolveSerializer(serializers.Serializer[Any]):
-    tmdb_id = serializers.IntegerField(min_value=1)
+    tmdb_id = serializers.IntegerField(min_value=1, required=False)
+    tvdb_id = serializers.IntegerField(
+        min_value=1,
+        required=False,
+        help_text="A TheTVDB series instead of a TMDB title (series only; ADR-0023).",
+    )
     kind = serializers.ChoiceField(
         choices=ReviewKind.choices,
         required=False,
         help_text="Override the review's kind (a file that is a movie, not an episode).",
     )
 
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        given = [name for name in ("tmdb_id", "tvdb_id") if attrs.get(name)]
+        if len(given) != 1:
+            raise serializers.ValidationError(
+                {"tmdb_id": [ErrorDetail("Choose a TMDB or a TheTVDB title.", code="one_provider")]}
+            )
+        return attrs
+
 
 class SearchQuerySerializer(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(choices=ReviewKind.choices)
     query = serializers.CharField(max_length=200)
     year = serializers.IntegerField(min_value=1870, max_value=2200, required=False)
+    provider = serializers.ChoiceField(
+        choices=(("tmdb", "TMDB"), ("tvdb", "TheTVDB")),
+        default="tmdb",
+        help_text="TheTVDB searches series only, when its key is set (ADR-0023).",
+    )
 
 
 # --- Collections (C1, ADR-0013) -------------------------------------------------------------------

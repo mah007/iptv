@@ -1,0 +1,206 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-written TheTVDB v4 response for tests (ADR-0023); not TheTVDB data."
+  },
+  "status": "success",
+  "data": {
+    "id": 9100001,
+    "name": "The Lantern Keepers",
+    "slug": "the-lantern-keepers",
+    "image": "https://artworks.thetvdb.com/banners/v4/series/9100001/posters/lantern-680x1000.jpg",
+    "firstAired": "2021-04-13",
+    "lastAired": "2022-05-03",
+    "year": "2021",
+    "averageRuntime": 42,
+    "score": 1250,
+    "status": {
+      "id": 2,
+      "name": "Ended"
+    },
+    "originalCountry": "sau",
+    "originalLanguage": "ara",
+    "defaultSeasonType": 1,
+    "overview": "Three siblings keep their grandfather's lantern shop open in old Jeddah.",
+    "nameTranslations": [
+      "eng",
+      "ara"
+    ],
+    "overviewTranslations": [
+      "eng",
+      "ara"
+    ],
+    "aliases": [
+      {
+        "language": "eng",
+        "name": "Lantern Keepers"
+      }
+    ],
+    "genres": [
+      {
+        "id": 3,
+        "name": "Drama",
+        "slug": "drama"
+      },
+      {
+        "id": 2,
+        "name": "Comedy",
+        "slug": "comedy"
+      }
+    ],
+    "remoteIds": [
+      {
+        "id": "tt99100001",
+        "type": 2,
+        "sourceName": "IMDB"
+      }
+    ],
+    "contentRatings": [
+      {
+        "id": 1,
+        "name": "PG",
+        "country": "sau"
+      },
+      {
+        "id": 2,
+        "name": "TV-PG",
+        "country": "usa"
+      }
+    ],
+    "trailers": [
+      {
+        "id": 1,
+        "name": "Trailer",
+        "url": "https://www.youtube.com/watch?v=lAnTeRn0001",
+        "language": "eng"
+      }
+    ],
+    "seasons": [
+      {
+        "id": 9200101,
+        "seriesId": 9100001,
+        "number": 1,
+        "type": {
+          "id": 1,
+          "name": "Aired Order",
+          "type": "official"
+        },
+        "image": "https://artworks.thetvdb.com/banners/v4/seasons/9100001/s1-680x1000.jpg"
+      },
+      {
+        "id": 9200102,
+        "seriesId": 9100001,
+        "number": 2,
+        "type": {
+          "id": 1,
+          "name": "Aired Order",
+          "type": "official"
+        },
+        "image": ""
+      },
+      {
+        "id": 9200201,
+        "seriesId": 9100001,
+        "number": 1,
+        "type": {
+          "id": 2,
+          "name": "DVD Order",
+          "type": "dvd"
+        },
+        "image": ""
+      }
+    ],
+    "characters": [
+      {
+        "id": 9300001,
+        "name": "Salma",
+        "peopleId": 9400001,
+        "personName": "Noura Haddad",
+        "personImgURL": "https://artworks.thetvdb.com/banners/v4/people/9400001-300x450.jpg",
+        "peopleType": "Actor",
+        "sort": 1,
+        "isFeatured": true
+      },
+      {
+        "id": 9300002,
+        "name": "Fahad",
+        "peopleId": 9400002,
+        "personName": "Omar Saleh",
+        "personImgURL": "",
+        "peopleType": "Actor",
+        "sort": 2,
+        "isFeatured": true
+      },
+      {
+        "id": 9300003,
+        "name": "",
+        "peopleId": 9400003,
+        "personName": "Rania Fares",
+        "personImgURL": "",
+        "peopleType": "Director",
+        "sort": 0,
+        "isFeatured": false
+      }
+    ],
+    "artworks": [
+      {
+        "id": 1,
+        "image": "https://artworks.thetvdb.com/banners/v4/series/9100001/posters/lantern-680x1000.jpg",
+        "language": "eng",
+        "type": 2,
+        "score": 10,
+        "width": 680,
+        "height": 1000
+      },
+      {
+        "id": 2,
+        "image": "https://artworks.thetvdb.com/banners/v4/series/9100001/posters/lantern-ar-680x1000.jpg",
+        "language": "ara",
+        "type": 2,
+        "score": 8,
+        "width": 680,
+        "height": 1000
+      },
+      {
+        "id": 3,
+        "image": "https://artworks.thetvdb.com/banners/v4/series/9100001/backgrounds/lantern-1920x1080.jpg",
+        "language": null,
+        "type": 3,
+        "score": 9,
+        "width": 1920,
+        "height": 1080
+      },
+      {
+        "id": 4,
+        "image": "https://artworks.thetvdb.com/banners/v4/series/9100001/clearlogo/lantern-800x310.png",
+        "language": "eng",
+        "type": 23,
+        "score": 5,
+        "width": 800,
+        "height": 310
+      }
+    ],
+    "translations": {
+      "nameTranslations": [
+        {
+          "name": "The Lantern Keepers",
+          "language": "eng"
+        },
+        {
+          "name": "حراس الفانوس",
+          "language": "ara"
+        }
+      ],
+      "overviewTranslations": [
+        {
+          "overview": "Three siblings keep their grandfather's lantern shop open in old Jeddah.",
+          "language": "eng"
+        },
+        {
+          "overview": "ثلاثة إخوة يحافظون على متجر فوانيس جدهم في جدة القديمة.",
+          "language": "ara"
+        }
+      ]
+    }
+  }
+}

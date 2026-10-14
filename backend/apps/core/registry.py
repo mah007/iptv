@@ -588,6 +588,10 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "TheTVDB subscriber PIN, needed only with a user-supported key.", "metadata",
                tvdb_pin, sensitive=True),
     # --- end CFG ---
+    # TheTVDB fallback (Q1, ADR-0023)
+    SettingDef("metadata.tvdb_rate_limit_per_s", _K.INT, 10,
+               "TheTVDB requests per second, shared by every worker.", "metadata",
+               min_value=1, max_value=50),
     # Billing (SPEC §7.6)
     SettingDef("billing.vat_rate", _K.FLOAT, 0.15, "VAT rate applied to invoices.", "billing",
                min_value=0.0, max_value=1.0),

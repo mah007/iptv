@@ -5,6 +5,7 @@ from typing import Any
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework.exceptions import ErrorDetail
 
 from apps.catalog.serializers import ImageSerializer
 from apps.core.text import strip_bidi
@@ -299,7 +300,23 @@ class RematchSerializer(serializers.Serializer[Any]):
     tmdb_id = serializers.IntegerField(
         required=False, min_value=1, help_text="Omit to match the files again automatically."
     )
+    tvdb_id = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        help_text="A TheTVDB series instead of a TMDB id (series only; ADR-0023).",
+    )
     kind = serializers.ChoiceField(choices=("movie", "tv"), required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs.get("tmdb_id") and attrs.get("tvdb_id"):
+            raise serializers.ValidationError(
+                {
+                    "tvdb_id": [
+                        ErrorDetail("Give a TMDB or a TheTVDB id, not both.", code="one_provider")
+                    ]
+                }
+            )
+        return attrs
 
 
 class RematchResultSerializer(serializers.Serializer[Any]):

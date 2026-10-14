@@ -114,6 +114,7 @@ EXPECTED_DEFAULTS = {
     "metadata.tmdb_cache_ttl_s": 86400,
     "metadata.tvdb_api_key": "",
     "metadata.tvdb_pin": "",
+    "metadata.tvdb_rate_limit_per_s": 10,
     "billing.stripe_secret_key": "",
     "billing.stripe_webhook_secret": "",
     "billing.moyasar_secret_key": "",

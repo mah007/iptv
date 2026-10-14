@@ -40,7 +40,7 @@ from apps.catalog.models import (
 )
 from apps.catalog.services import refresh_status_of_files
 from apps.catalog.signals import notify_catalog_changed
-from apps.core.errors import ErrorCode, ProblemError
+from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.media import layout, subtitles
 from apps.media.models import (
     ACTIVE_JOB_STATUSES,
@@ -81,9 +81,12 @@ def _conflict(detail: str) -> ProblemError:
     return ProblemError(ErrorCode.CONFLICT, detail, status=409)
 
 
-def _invalid(field: str, message: str) -> ProblemError:
+def _invalid(field: str, message: str, *, code: str = "invalid") -> ProblemError:
     return ProblemError(
-        ErrorCode.VALIDATION_ERROR, message, status=400, field_errors={field: [message]}
+        ErrorCode.VALIDATION_ERROR,
+        message,
+        status=400,
+        field_errors={field: [field_error(message, code=code)]},
     )
 
 
@@ -545,17 +548,19 @@ def _announce(title: Title) -> None:
 # --- Rematch --------------------------------------------------------------------------------
 
 
-def rematch(
+def rematch(  # noqa: PLR0913 (everything is keyword-only)
     title: Title,
     *,
     tmdb_id: int | None,
     kind: str | None,
     actor: User | None,
     ip: str | None,
+    tvdb_id: int | None = None,
 ) -> dict[str, Any]:
-    """Link every file of the title to the TMDB movie or series `tmdb_id` (episodes are
-    placed by their season and episode numbers), or, without an id, match them again
-    automatically (they may land in the review queue)."""
+    """Link every file of the title to the TMDB movie or series `tmdb_id`, or to the
+    TheTVDB series `tvdb_id` (ADR-0023; episodes are placed by their season and episode
+    numbers), or, without an id, match them again automatically (they may land in the
+    review queue)."""
     from apps.library.parsing import ParseResult  # noqa: PLC0415
     from apps.metadata import services as metadata  # noqa: PLC0415
     from apps.metadata.tmdb import TMDBError  # noqa: PLC0415
@@ -566,6 +571,8 @@ def rematch(
     target_kind = kind or ("movie" if title.kind == "movie" else "tv")
     if target_kind not in ("movie", "tv"):
         raise _invalid("kind", "Choose movie or tv.")
+    if tvdb_id is not None:
+        return _rematch_tvdb(title, files, tvdb_id, target_kind, actor=actor, ip=ip)
     if tmdb_id is None:
         with transaction.atomic():
             for file in files:
@@ -602,6 +609,49 @@ def rematch(
         actor=actor,
         target=title.obj,
         after={"kind": target_kind, "tmdb_id": tmdb_id, "files": len(files)},
+        ip=ip,
+    )
+    return {"files": len(files), "automatic": False, "title_ids": sorted(titles)}
+
+
+def _rematch_tvdb(  # noqa: PLR0913
+    title: Title,
+    files: list[MediaFile],
+    tvdb_id: int,
+    target_kind: str,
+    *,
+    actor: User | None,
+    ip: str | None,
+) -> dict[str, Any]:
+    from apps.library.parsing import ParseResult  # noqa: PLC0415
+    from apps.metadata import services as metadata  # noqa: PLC0415
+    from apps.metadata import tvdb_series  # noqa: PLC0415
+    from apps.metadata.tmdb import TMDBError, TMDBNotFoundError  # noqa: PLC0415
+
+    if target_kind != "tv":
+        raise _invalid("kind", "TheTVDB matches series only.", code="tvdb_series_only")
+    client = tvdb_series.require_client()
+    titles: set[UUID] = set()
+    try:
+        for file in files:
+            parsed = ParseResult.from_json(file.parse_result)
+            series = tvdb_series.accept_episode(
+                file, tvdb_id, parsed, 1.0, client, tmdb_client=metadata.tmdb(), actor=actor
+            )
+            titles.add(series.pk)
+    except metadata.PlacementError as exc:
+        raise _invalid("tvdb_id", str(exc), code=f"placement_{exc.reason}") from None
+    except TMDBNotFoundError:
+        raise _invalid("tvdb_id", "Not found on TheTVDB.", code="provider_not_found") from None
+    except TMDBError:
+        raise ProblemError(
+            ErrorCode.PROVIDER_UNAVAILABLE, "TheTVDB is unavailable; try again shortly."
+        ) from None
+    audit.record(
+        "title.rematch",
+        actor=actor,
+        target=title.obj,
+        after={"kind": target_kind, "tvdb_id": tvdb_id, "files": len(files)},
         ip=ip,
     )
     return {"files": len(files), "automatic": False, "title_ids": sorted(titles)}

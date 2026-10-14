@@ -235,9 +235,26 @@ def offline_tmdb(monkeypatch: pytest.MonkeyPatch) -> Iterator[TMDBClient]:
     """Fixture mode for the metadata services, whatever TMDB credential the env holds."""
     from apps.metadata import services as metadata  # noqa: PLC0415
 
+    from apps.metadata import tvdb_series  # noqa: PLC0415
+
     client = TMDBClient.offline()
     metadata.reset_caches()
     monkeypatch.setattr(metadata, "tmdb", lambda: client)
+    # No TheTVDB fallback unless a test asks for it (`offline_tvdb`), whatever key the
+    # env holds: tests never reach the network.
+    monkeypatch.setattr(tvdb_series, "tvdb", lambda: None)
     yield client
     monkeypatch.undo()
     metadata.reset_caches()
+
+
+@pytest.fixture
+def offline_tvdb(offline_tmdb: TMDBClient, monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:
+    """TheTVDB's fallback over its synthetic fixtures (ADR-0023), with TMDB offline too."""
+    from apps.metadata import tvdb_series  # noqa: PLC0415
+    from apps.metadata.tvdb import TVDBClient  # noqa: PLC0415
+
+    client = TVDBClient.offline()
+    monkeypatch.setattr(tvdb_series, "tvdb", lambda: client)
+    yield client
+    client.close()

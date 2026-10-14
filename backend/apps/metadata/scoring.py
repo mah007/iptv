@@ -115,6 +115,8 @@ class Candidate:
     popularity: float = 0.0
     poster_path: str | None = None
     overview: str = ""
+    #: Whose id `provider_id` is: "tmdb", or "tvdb" for the TV fallback (ADR-0023).
+    provider: str = "tmdb"
 
     @classmethod
     def from_tmdb(cls, data: Mapping[str, Any], kind: CandidateKind) -> "Candidate":
@@ -156,6 +158,43 @@ class Candidate:
             overview=_str(data.get("overview")),
         )
 
+    @classmethod
+    def from_tvdb(cls, data: Mapping[str, Any]) -> "Candidate":
+        """Build from a TheTVDB v4 series search result (ADR-0023).
+
+        The English translation is the title when there is one (the record's `name` is in
+        the series' own language); every other translation and alias is an alternative
+        title, so an Arabic file name can match. Search results carry no runtime or
+        popularity: those signals are left out of the score (not counted as zero).
+        """
+        name = _str(data.get("name"))
+        translations = data.get("translations")
+        names = translations if isinstance(translations, Mapping) else {}
+        title = _str(names.get("eng")) or name
+        overviews = data.get("overviews")
+        overview_map = overviews if isinstance(overviews, Mapping) else {}
+        aliases = data.get("aliases")
+        alias_names = [_str(alias) for alias in aliases] if isinstance(aliases, list) else []
+        known = {title, name}
+        extra = [
+            text
+            for text in (*alias_names, *(_str(value) for value in names.values()))
+            if text and text not in known
+        ]
+        image = _str(data.get("image_url"))
+        raw_id = str(data.get("tvdb_id") or data.get("id") or "").rsplit("-", 1)[-1]
+        return cls(
+            provider_id=int(raw_id) if raw_id.isdigit() else 0,
+            kind="tv",
+            title=title,
+            original_title=name if name and name != title else None,
+            alternative_titles=tuple(dict.fromkeys(extra)),
+            year=_year(data.get("year")) or _year(data.get("first_air_time")),
+            poster_path=image or None,
+            overview=_str(overview_map.get("eng")) or _str(data.get("overview")),
+            provider="tvdb",
+        )
+
     def titles(self) -> tuple[str, ...]:
         """Every title the candidate is known by, the main one first."""
         names = (self.title, self.original_title or "", *self.alternative_titles)
@@ -192,7 +231,7 @@ class ScoredCandidate:
         """JSON-safe, for `MatchReview.candidates` (the admin picker shows these fields)."""
         candidate = self.candidate
         return {
-            "provider": "tmdb",
+            "provider": candidate.provider,
             "kind": candidate.kind,
             "id": candidate.provider_id,
             "title": candidate.title,
@@ -293,9 +332,9 @@ def score_candidates(
 
     Ties keep a stable order: higher popularity first, then the lower provider ID.
     """
-    unique: dict[tuple[str, int], Candidate] = {}
+    unique: dict[tuple[str, str, int], Candidate] = {}
     for item in candidates:
-        unique.setdefault((item.kind, item.provider_id), item)
+        unique.setdefault((item.provider, item.kind, item.provider_id), item)
     top_popularity = max((item.popularity for item in unique.values()), default=0.0)
     scored = [
         _score(
