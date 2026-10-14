@@ -20,6 +20,28 @@
 | M15 Scale & CDN | Done: the Edges page and per-session selection, standalone edges (`install.sh --edge`, own Let's Encrypt TLS, control channel, stream-auth over TLS), the private S3 origin (our SigV4, generations, height-tagged rungs), Bunny token auth (verified against vectors only), the read replica with a rehearsed failover, zero-downtime updates (`scripts/rollout.sh`, `make deploy`), load tests at 100/500/1,000 (5,000 extrapolated) and a web connection pool; G-44 fixed, G-17 fixed in part ([ADR-0022](adr/0022-scale-edges-origin-replica-and-rollouts.md)) | — |
 | M10 client matrix (needs the owner's devices) | Planned | — |
 
+## M14a and M15 deployed (2026-10-14)
+
+- **Gate:** `make ci ALLOW_DIRTY=1 BUILD_FLAGS="--pull --no-cache"` passed for the tree committed as `39e2239` in 1170 s. It covered:
+  - the backend: 3248 tests at 93.5% coverage;
+  - Vitest: ui 160, admin 178, portal 51;
+  - the Xtream contract: offline 161, `compat-live` 210, IPTVnator 9;
+  - the browser suites: `e2e-admin` 121 passed with 1 skipped (monitoring overlay off), `e2e-portal` 4;
+  - Semgrep, the dependency audit, the ZAP baseline, `edge-test`, `restore-test`, `hardening-test`, `monitoring-test`;
+  - images, Trivy and the licence gate.
+- **Tags:** `m14-done` (both halves) and `m15-done` at `39e2239`.
+- **Production:**
+  - a `pg_dump` safety copy first, in its own `umask 077` subshell, then the pull under umask 022;
+  - then `install.sh --update`: database roles, migrations, then a rolling replacement of the web replicas behind health checks;
+  - HTTPS green on seven hosts, `edges.` included.
+- **Verified on production:**
+  - two web replicas as `iptv_app`, and the `local` edge row;
+  - DB-IP geolocation loaded (8.8.8.8 → US, AS15169);
+  - CSP with a per-response nonce on admin and app, plus COOP, HSTS, and `no-referrer` on tv;
+  - `edges.` answers 401 to anything but a registered edge;
+  - unsigned media gives 403, and failed Xtream sign-in returns `{"user_info":{"auth":0}}`;
+  - the live contract suite gives 195 passed and 4 skipped.
+
 ## M15: scale and CDN (2026-10-14)
 
 ### Done ([ADR-0022](adr/0022-scale-edges-origin-replica-and-rollouts.md))

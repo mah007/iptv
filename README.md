@@ -19,6 +19,11 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-14:** application security and scale deployed to tv.mah007.net:
+  - The rolling update replaced the web replicas behind health checks with no errors.
+  - Strict CSP headers are live on the admin and portal; the IP geolocation database downloaded.
+  - Two web replicas run as the restricted database user, and edges.tv.mah007.net is ready for extra media servers.
+  - The live Xtream contract suite passes (195 passed). Milestones M14 and M15 are tagged.
 - **2026-10-14:** scale and CDN (M15):
   - **Edges:** media servers on other hosts with their own TLS, managed and health-checked from the admin's Edges page; viewers are spread across them.
   - **Storage and database:** an optional private S3 origin, an optional read replica with a rehearsed failover.
