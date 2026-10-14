@@ -42,7 +42,9 @@ def cards(client: APIClient) -> dict[str, Any]:
 
 def test_every_integration_starts_not_set(client: APIClient) -> None:
     listed = cards(client)
-    assert list(listed) == ["tmdb", "tvdb", "email", "stripe", "moyasar", "telegram"]
+    assert list(listed) == [
+        "tmdb", "tvdb", "email", "stripe", "moyasar", "telegram", "s3_origin", "bunny",
+    ]  # fmt: skip
     assert {card["status"] for card in listed.values()} == {"not_set"}
     stripe = listed["stripe"]
     assert stripe["enabled"] is False

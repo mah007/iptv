@@ -32,7 +32,12 @@ MONITORING_FILES := $(if $(MONITORING_ON),-f docker/compose.monitoring.yml -f do
 # and Traefik's bouncer (docker/compose.crowdsec.yml). Pass it to down/ps/logs too.
 CROWDSEC ?= $(shell sed -n 's/^CROWDSEC=//p' .env 2>/dev/null)
 CROWDSEC_FILES := $(if $(filter 1 true yes,$(CROWDSEC)),-f docker/compose.crowdsec.yml)
-COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml $(GPU_FILES) $(MONITORING_FILES) $(CROWDSEC_FILES)
+# Opt-in read replica (M15, ADR-0022): REPLICA=1 on the command line or in .env adds a hot
+# standby for reporting reads (docker/compose.replica.yml; with MONITORING=1 its exporter).
+REPLICA ?= $(shell sed -n 's/^REPLICA=//p' .env 2>/dev/null)
+REPLICA_ON := $(filter 1 true yes,$(REPLICA))
+REPLICA_FILES := $(if $(REPLICA_ON),-f docker/compose.replica.yml $(if $(MONITORING_ON),-f docker/compose.replica.monitoring.yml))
+COMPOSE := docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml $(GPU_FILES) $(MONITORING_FILES) $(CROWDSEC_FILES) $(REPLICA_FILES)
 # Every backend container bind-mounts ./media (the libraries, git-ignored). Create it as
 # the host user, or Docker would create it owned by root.
 $(shell mkdir -p media)
@@ -48,8 +53,9 @@ BUILD_FLAGS ?= --pull
 
 .PHONY: help secrets up down ps logs migrate backup restore-test crowdsec-test hardening-test seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
-	api-client api-client-check build smoke-images scan licenses ci ci-steps \
+	api-client api-client-check build smoke-images scan licenses ci ci-steps audit semgrep zap \
 	media-ready compat compat-live e2e-iptvnator e2e-admin e2e-portal \
+	edge-test s3-dev edge-dev rollout rollout-test loadtest deploy \
 	monitoring-test monitoring-dashboards monitoring-smoke monitoring-firedrill
 
 help: ## List available commands
@@ -94,6 +100,60 @@ hardening-test: ## Every production container drops capabilities, can't gain pri
 
 crowdsec-test: ## With CROWDSEC=1 up: a probe bans its own address and gets 403 from Traefik, the admin switch lets it pass, unban restores 200
 	@scripts/crowdsec_test.sh
+
+# --- M15 (ADR-0022): edges, the S3 origin ---
+edge-test: ## The media edge end to end in throwaway containers: tokens (njs vs reference), local, live, S3 (presigned, height-mapped), a standalone edge (TLS, control channel, rotation, G-17), CDN pulls, fail-closed, logs (no stack needed)
+	bash streaming/tests/run.sh
+
+S3_DEV := $(COMPOSE) -f docker/compose.s3-dev.yml
+s3-dev: ## Dev: SeaweedFS as the S3 origin (bucket `media`, publisher and read-only edge keys in secrets/s3-dev/), saved in the admin's settings, everything published
+	@mkdir -p secrets/s3-dev && chmod 700 secrets/s3-dev
+	@for name in publisher_access edge_access; do test -s secrets/s3-dev/$$name || \
+	  printf 'SIPTV%s' "$$(openssl rand -hex 8 | tr a-f A-F)" > secrets/s3-dev/$$name; done
+	@for name in publisher_secret edge_secret; do test -s secrets/s3-dev/$$name || \
+	  openssl rand -base64 30 | tr -d '\n/+=' > secrets/s3-dev/$$name; done
+	@chmod 644 secrets/s3-dev/*
+	$(S3_DEV) up -d --wait seaweedfs
+	@for i in $$(seq 30); do $(S3_DEV) exec -T seaweedfs sh -c 'echo "s3.bucket.create -name media" | weed shell' >/dev/null 2>&1 && break; sleep 2; done
+	@for pair in "storage.s3_endpoint=http://seaweedfs:8333" "storage.s3_bucket=media" "storage.s3_prefix=renditions" \
+	  "storage.s3_region=us-east-1" "storage.s3_path_style=true" "storage.s3_enabled=true"; do \
+	  printf '%s' "$${pair#*=}" | $(COMPOSE) exec -T web python manage.py set_setting "$${pair%%=*}" --stdin >/dev/null; done
+	@$(COMPOSE) exec -T web python manage.py set_setting storage.s3_access_key --stdin < secrets/s3-dev/publisher_access >/dev/null
+	@$(COMPOSE) exec -T web python manage.py set_setting storage.s3_secret_key --stdin < secrets/s3-dev/publisher_secret >/dev/null
+	@$(COMPOSE) exec -T web python manage.py set_setting storage.s3_edge_access_key --stdin < secrets/s3-dev/edge_access >/dev/null
+	@$(COMPOSE) exec -T web python manage.py set_setting storage.s3_edge_secret_key --stdin < secrets/s3-dev/edge_secret >/dev/null
+	$(COMPOSE) exec -T worker python manage.py publish_media --all
+	$(COMPOSE) exec -T worker python manage.py publish_media --status
+
+EDGE_DEV := EDGE_ID=dev-edge EDGE_DOMAIN=edge.localhost EDGE_CONTROL_URL=http://traefik \
+	docker compose --project-directory . -p smart-iptv-edge -f docker/compose.edge.yml -f docker/compose.edge.dev.yml
+edge-dev: ## Dev: a standalone edge (project smart-iptv-edge) on 127.0.0.1:18090 reading the dev SeaweedFS, registered as `dev-edge` in the admin; canary=<user> limits it to those customers; EDGE_DEV_DOWN=1 removes it
+	@if [ -n "$(EDGE_DEV_DOWN)" ]; then $(EDGE_DEV) down; exit 0; fi; \
+	mkdir -p secrets/dev-edge && chmod 700 secrets/dev-edge; \
+	$(COMPOSE) exec -T web python manage.py edges_dev_edge --edge-id dev-edge \
+	  --base-url http://127.0.0.1:18090 $(if $(canary),--canary $(canary)) > secrets/dev-edge/edge_token; \
+	chmod 644 secrets/dev-edge/edge_token; \
+	$(EDGE_DEV) up -d --force-recreate --wait edge
+
+rollout: ## Dev: roll the web service with no downtime (new replicas, health-gated; old ones drained, then stopped; scripts/rollout.sh). s=frontend rolls the apps' server
+	scripts/rollout.sh --service $(or $(s),web) -- --project-directory . -f docker/compose.yml -f docker/compose.dev.yml $(GPU_FILES) $(MONITORING_FILES) $(CROWDSEC_FILES) $(REPLICA_FILES)
+
+rollout-test: ## Dev proof of zero downtime: a steady load (Xtream catalog, APIs, sign-in POSTs) while web rolls twice; fails on any failed request
+	@xc_user=$$(sed -n 's/^COMPAT_XC_USER=//p' .env); xc_pass=$$(sed -n 's/^COMPAT_XC_PASS=//p' .env); \
+	XC_AUTH="$$xc_user:$$xc_pass" python3 loadtests/rollout_probe.py --base http://127.0.0.1:$$(sed -n 's/^HTTP_PORT=//p' .env) \
+	  --domain $$(sed -n 's/^DOMAIN=//p' .env) --seconds 150 --threads 12 & probe=$$!; \
+	sleep 10; $(MAKE) rollout; sleep 15; $(MAKE) rollout; wait $$probe
+
+loadtest: ## Locust against the local dev stack only (tiers=100,500,1000 by default; 5000 needs ~10 GB free): web on production gunicorn meanwhile, throwaway customers, memory guard, slot check; results in loadtests/results/ (docs/benchmarks/load.md)
+	LT_COMPOSE="$(COMPOSE)" python3 loadtests/run_load.py --tiers $(or $(tiers),100,500,1000) $(args)
+
+deploy: ## Update the server: ssh DEPLOY_HOST (e.g. root@203.0.113.10) and run install.sh --update there (pull, migrate once, roll web); the tree must be pushed
+	@test -n "$(DEPLOY_HOST)" || { echo "make deploy needs DEPLOY_HOST=user@server" >&2; exit 2; }
+	@test -z "$$(git status --porcelain --untracked-files=no)" || { echo "commit first: the server pulls what is pushed" >&2; exit 1; }
+	@git fetch -q origin && test -z "$$(git log --oneline origin/$$(git branch --show-current)..HEAD)" || \
+	  { echo "push first: the server pulls origin/$$(git branch --show-current)" >&2; exit 1; }
+	ssh -o BatchMode=yes $(DEPLOY_HOST) 'sudo /opt/iptv/scripts/install.sh --update --yes'
+# --- end M15 ---
 
 backup: ## Back up now: database (pgBackRest), configuration, artwork and pg_dump (restic), offsite when set; waits for the results
 	$(COMPOSE) exec -T web python manage.py backup_now --wait
@@ -321,6 +381,48 @@ licenses: ## Licence gate (SPEC §1.2) on production dependencies; run after mak
 	$(RUN_FRONTEND) sh -c 'pnpm install --frozen-lockfile --store-dir /pnpm-store > /dev/null && pnpm -r licenses list --prod --json' \
 	  | python3 scripts/license_gate.py npm
 
+# --- Supply chain and web scanning (M14a, ADR-0021) --------------------------------------
+# Separate processes in pinned containers: Semgrep CE (LGPL-2.1) and ZAP (Apache-2.0) are
+# never imported. Image sizes (amd64, compressed): Semgrep about 430 MB, zap-bare about
+# 505 MB (1.2 GB unpacked); both are kept between runs.
+PIP_AUDIT_VERSION := 2.10.1
+SEMGREP_IMAGE := semgrep/semgrep:1.178.0-nonroot@sha256:2124de200043ce3ded427d02e924ff3b59d017020614d28c2bb7ce6656bec5d4
+ZAP_IMAGE := zaproxy/zap-bare:20260807@sha256:fe8fa5157a9601b2db26531340717923bda544f2f2081ec3edc779baed7321eb
+
+audit: ## Known vulnerabilities in production dependencies: pip-audit (PyPI advisories, OSV) and pnpm audit; dated exceptions in scripts/audit-ignore.toml
+	python3 scripts/audit_deps.py --self-test
+	$(RUN_BACKEND) sh -c 'uv export --frozen --no-dev --no-emit-project -q -o /tmp/requirements.txt && \
+	  uv tool run -q --from pip-audit==$(PIP_AUDIT_VERSION) pip-audit -r /tmp/requirements.txt \
+	    --require-hashes --disable-pip --progress-spinner off -f json || true' \
+	  | python3 scripts/audit_deps.py pip
+	$(RUN_FRONTEND) sh -c 'pnpm audit --prod --json || true' | python3 scripts/audit_deps.py npm
+
+semgrep: ## The project's own Semgrep rules (.semgrep/rules.yml): their tests, then the code, offline
+	@for target in rules.py rules.ts; do \
+	  out="$$(docker run --rm -v "$(CURDIR):/src:ro" -w /src $(SEMGREP_IMAGE) semgrep --test --metrics=off \
+	    --disable-version-check --config .semgrep/rules.yml .semgrep/$$target 2>&1)" || \
+	    { echo "$$out" >&2; echo "Semgrep rule tests failed (.semgrep/$$target)" >&2; exit 1; }; \
+	done; echo "Semgrep rule tests: ok"
+	docker run --rm -v "$(CURDIR):/src:ro" -w /src $(SEMGREP_IMAGE) semgrep scan --config .semgrep/rules.yml \
+	  --metrics=off --disable-version-check --error --no-git-ignore --quiet backend frontend/apps frontend/packages scripts
+
+# ZAP's Automation Framework (security/zap/plan.yaml) against the running dev stack: passive
+# rules on every host; any Low-or-higher alert the plan's filters don't explain fails.
+# Reports: dist/zap/out/zap-report.{html,json}.
+ZAP_DOMAIN = $$(sed -n 's/^DOMAIN=//p' .env)
+ZAP_PORT = $$(sed -n 's/^HTTP_PORT=//p' .env)
+zap: ## ZAP baseline (passive) against the dev stack's admin, portal, API, Xtream and media hosts
+	@rm -rf dist/zap && mkdir -p dist/zap/out && cp security/zap/plan.yaml dist/zap/plan.yaml
+	@domain="$(ZAP_DOMAIN)"; port="$(ZAP_PORT)"; base="$$domain$$([ "$$port" = 80 ] || echo ":$$port")"; \
+	hosts=""; for h in admin app api tv media; do hosts="$$hosts --add-host $$h.$$domain:host-gateway"; done; \
+	set +e; docker run --rm --user "$$(id -u):$$(id -g)" -e HOME=/tmp $$hosts \
+	  -e ZAP_BASE="$$base" -e ZAP_BASE_RE="$${base//./\\.}" \
+	  -v "$(CURDIR)/dist/zap:/zap/wrk:rw" $(ZAP_IMAGE) zap.sh -cmd -silent -notel -autorun /zap/wrk/plan.yaml \
+	  | grep -v -e 'requesting URL' -e ' set ' -e 'Added global filter'; \
+	status=$${PIPESTATUS[0]}; set -e; \
+	[ "$$status" = 0 ] || echo "ZAP found alerts the plan doesn't accept: see dist/zap/out/zap-report.html" >&2; \
+	exit "$$status"
+
 # The project has no hosted CI (ADR-0003): this is the gate. Run it before pushing
 # and before tagging a milestone; it stops at the first failing step.
 ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitted work)
@@ -330,13 +432,17 @@ ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitt
 	@$(MAKE) ci-steps || { echo "make ci FAILED. Service status and recent logs:" >&2; \
 	  $(COMPOSE) ps >&2 || true; $(COMPOSE) logs --no-color --tail=60 >&2 || true; exit 1; }
 	@echo ""
-	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Xtream contract, monitoring configs and log redaction, types, API client, tests, live Xtream checks, IPTVnator, admin and portal E2E with axe, images, Trivy, licences."
+	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Semgrep, dependency audit, ZAP baseline, Xtream contract, media edges, monitoring configs and log redaction, types, API client, tests, live Xtream checks, IPTVnator, admin and portal E2E with axe, images, Trivy, licences."
 
 ci-steps:
 	$(MAKE) up
 	$(MAKE) smoke
 	$(MAKE) lint
+	$(MAKE) semgrep
+	$(MAKE) audit
+	$(MAKE) zap
 	$(MAKE) compat
+	$(MAKE) edge-test
 	$(MAKE) monitoring-test
 	$(MAKE) hardening-test
 	$(MAKE) typecheck

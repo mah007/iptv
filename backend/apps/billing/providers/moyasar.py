@@ -12,6 +12,7 @@ constant time with the `billing.moyasar_webhook_secret` setting. Events used: `p
 """
 
 import hmac
+from dataclasses import replace
 from datetime import timedelta
 from typing import Any, Final
 
@@ -196,6 +197,36 @@ class MoyasarProvider(PaymentProvider):
             case "payment_voided":
                 return PaymentResult(outcome=Outcome.CANCELLED, **common)
         return None
+
+    def confirm(self, result: PaymentResult) -> PaymentResult:
+        """The payment as Moyasar has it (G-29): its webhook proves itself only with a
+        shared token in the body, so its word alone never activates anything."""
+        if not result.provider_ref:
+            return replace(result, outcome=Outcome.FAILED, failure_reason="No payment to check.")
+        payment = self._get(f"/payments/{result.provider_ref}")
+        paid = payment.get("status") == "paid"
+        metadata = payment.get("metadata") or {}
+        invoice_id = str(metadata.get("invoice_id") or "") if isinstance(metadata, dict) else ""
+        return replace(
+            result,
+            outcome=Outcome.SUCCEEDED if paid else Outcome.FAILED,
+            amount=payment.get("amount"),
+            currency=str(payment.get("currency") or "").upper(),
+            invoice_id=invoice_id or result.invoice_id,
+            failure_reason="" if paid else "Moyasar does not confirm the payment.",
+        )
+
+    def _get(self, path: str) -> dict[str, Any]:
+        try:
+            with http_client(auth=(_secret_key(), "")) as client:
+                response = client.get(f"{API_BASE}{path}")
+        except httpx.HTTPError as exc:
+            msg = f"Moyasar unreachable: {type(exc).__name__}"
+            raise ProviderError(msg) from None
+        if response.status_code >= 400:
+            raise provider_error(response)
+        body: dict[str, Any] = response.json()
+        return body
 
     def refund(self, payment: Payment, amount: int) -> RefundResult:
         if not payment.provider_ref:

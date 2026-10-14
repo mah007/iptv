@@ -1,0 +1,178 @@
+# Smart IPTV's own Semgrep rules (ADR-0021): the project's invariants that Ruff (bandit),
+# ESLint and mypy can't express. `make semgrep` runs only these, offline; no registry rules.
+# Each rule says which rule of CLAUDE.md or SPEC §11 it guards. A justified exception gets
+# `# nosemgrep: <rule-id>` with a reason on the same line.
+rules:
+  # --- Storage paths and credentials never leave the server -----------------------------
+  - id: iptv-storage-key-serialized
+    message: >-
+      storage_key is never serialized (CLAUDE.md hard rules): admin views show
+      library-relative paths only.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: |
+          fields = (..., "storage_key", ...)
+      - pattern: |
+          fields = [..., "storage_key", ...]
+      - pattern: serializers.$FIELD(..., source="storage_key", ...)
+    paths:
+      include: ["/backend/apps/**/serializers*.py", "/backend/apps/**/api*.py"]
+
+  - id: iptv-log-credential
+    message: >-
+      A credential is logged. Never log passwords, tokens or secrets (CLAUDE.md hard
+      rules); log an id or a fingerprint instead.
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: $LOG.$METHOD(..., $KW=$VALUE, ...)
+      - metavariable-regex:
+          metavariable: $LOG
+          regex: (?i)^(log|logger|_log|_logger|structlog\.get_logger\(.*\))$
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(debug|info|warning|warn|error|exception|critical|msg)$
+      - metavariable-regex:
+          metavariable: $KW
+          regex: (?i)^(password|passwd|secret|token|api_key|apikey|authorization|otp|totp_code|credential)$
+    paths:
+      # The redaction tests log credentials on purpose, to prove they never reach a log.
+      exclude: ["/backend/apps/core/tests/test_logging.py"]
+
+  - id: iptv-token-in-browser-storage
+    message: >-
+      Tokens, passwords and secrets never go into localStorage or sessionStorage: a script
+      injection could read them (SPEC §11). Sessions are HttpOnly cookies.
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern-either:
+          - pattern: localStorage.setItem($KEY, ...)
+          - pattern: sessionStorage.setItem($KEY, ...)
+          - pattern: window.localStorage.setItem($KEY, ...)
+          - pattern: window.sessionStorage.setItem($KEY, ...)
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i).*(token|password|secret|credential|session).*
+
+  # --- Routing: internal endpoints only on the internal URLconf -------------------------
+  - id: iptv-internal-route-on-public-host
+    message: >-
+      /internal/ endpoints belong in config/urls_internal.py only (CLAUDE.md routing):
+      the public hosts must never route to them.
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: path("$ROUTE", ...)
+          - pattern: re_path("$ROUTE", ...)
+      - metavariable-regex:
+          metavariable: $ROUTE
+          regex: ^\^?/?internal/
+    paths:
+      include: ["/backend/config/urls*.py", "/backend/apps/**/urls*.py"]
+      exclude: ["/backend/config/urls_internal.py", "/backend/apps/**/urls_internal.py"]
+
+  - id: iptv-csrf-exempt
+    message: >-
+      csrf_exempt is reserved for endpoints that authenticate otherwise: Xtream (username and
+      password in the URL), the edges (bearer secret), webhooks (signatures) and the internal
+      network. Anything else takes the session and its CSRF token.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: |
+          @csrf_exempt
+          def $F(...): ...
+      - pattern: csrf_exempt($VIEW)
+    paths:
+      exclude:
+        - "/backend/apps/xtream_api/views.py"
+        - "/backend/apps/edges/views.py"
+        - "/backend/apps/**/views_internal.py"
+        - "/backend/apps/accounts/monitoring_views.py"
+        - "/backend/apps/core/security.py"
+        - "/backend/apps/core/errors.py"
+        - "/backend/apps/playback/views.py"
+        - "**/tests/**"
+
+  # --- Secrets are compared in constant time ----------------------------------------------
+  - id: iptv-secret-compared-with-equals
+    message: >-
+      A secret, token or signature is compared with == or !=, which leaks timing. Use
+      hmac.compare_digest (or secrets.compare_digest).
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $A == $B
+                  - pattern: $A != $B
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: (?i)^[\w.\[\]"']*(secret|signature|hmac|expected_token|token_hash|auth_token|api_key)[\w.\[\]"']*$
+          - patterns:
+              - pattern-either:
+                  - pattern: $A == $B
+                  - pattern: $A != $B
+              - metavariable-regex:
+                  metavariable: $B
+                  regex: (?i)^[\w.\[\]"']*(secret|signature|hmac|expected_token|token_hash|auth_token|api_key)[\w.\[\]"']*$
+      - pattern-not: $A == None
+      - pattern-not: $A != None
+      - pattern-not: $A == "..."
+      - pattern-not: $A != "..."
+      - pattern-not: $A == $B.$C
+      - pattern-not: len($A) == $B
+    paths:
+      exclude: ["**/tests/**", "**/migrations/**"]
+
+  # --- HTML documents carry their own CSP ------------------------------------------------
+  - id: iptv-html-without-csp
+    message: >-
+      An HTML response needs its own Content-Security-Policy (document_csp(), ADR-0021):
+      the API's default policy blocks its styles, and without one nothing stops scripts.
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern: $R = HttpResponse($BODY, ..., content_type=$TYPE, ...)
+      - metavariable-regex:
+          metavariable: $TYPE
+          regex: .*text/html.*
+      - pattern-not-inside: |
+          $R = HttpResponse(...)
+          ...
+          $R["Content-Security-Policy"] = $CSP
+    paths:
+      exclude: ["**/tests/**"]
+
+  # --- No content acquisition, no GPL clients (CLAUDE.md hard rules) ----------------------
+  - id: iptv-forbidden-dependency
+    message: >-
+      Forbidden import: no content-acquisition tools (torrent, Usenet, indexers, scrapers),
+      no OMDb or IMDb data, and no GPL client libraries such as tmdbsimple (CLAUDE.md hard
+      rules).
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: import $MOD
+          - pattern: from $MOD import $X
+      - metavariable-regex:
+          metavariable: $MOD
+          regex: ^(libtorrent|qbittorrentapi|transmission_rpc|deluge_client|torrentool|bencode|bencodepy|pynzb|nzb|sabnzbd|newznab|torznab|jackett|prowlarr|tmdbsimple|imdb|imdbpy|cinemagoer|omdb|omdbapi|subliminal|opensubtitles|yt_dlp|youtube_dl)(\..*)?$
+
+  - id: iptv-forbidden-dependency-ts
+    message: >-
+      Forbidden import: no content-acquisition or scraping libraries in the apps (CLAUDE.md
+      hard rules).
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern: import $X from "$MOD"
+      - metavariable-regex:
+          metavariable: $MOD
+          regex: ^(webtorrent|parse-torrent|torrent-stream|magnet-uri|nzb.*|imdb-api|omdb.*|ytdl-core)(/.*)?$

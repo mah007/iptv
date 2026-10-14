@@ -300,7 +300,8 @@ def test_update_admin_roles_and_guards(
         f"/api/v1/admin/admins/{other_owner.pk}", {"role_ids": []}, headers=ADMIN
     )
     assert response.status_code == 409
-    assert response.json()["detail"] == "At least one active owner must remain."
+    # Nobody changes their own roles (G-05); the last-owner guard stays behind it.
+    assert response.json()["detail"] == "You cannot change your own roles."
 
 
 def test_customers_are_not_admins(owner_client: APIClient, customer_user: User) -> None:

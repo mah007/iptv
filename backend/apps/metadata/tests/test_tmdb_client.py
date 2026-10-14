@@ -321,3 +321,19 @@ def test_in_memory_cache_expires_and_evicts() -> None:
 def test_image_url() -> None:
     assert image_url("/abc.jpg", "w500") == "https://image.tmdb.org/t/p/w500/abc.jpg"
     assert image_url("abc.png") == "https://image.tmdb.org/t/p/original/abc.png"
+
+
+def test_artwork_requests_stay_on_tmdbs_image_host() -> None:
+    """G-09: a redirect (or a crafted URL) to another host is refused before it is sent."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "image.tmdb.org":
+            return httpx.Response(302, headers={"Location": "http://169.254.169.254/latest"})
+        return httpx.Response(200, content=b"secret")
+
+    client = TMDBClient(transport=httpx.MockTransport(handler), api_key="k")
+    with client.open_image_client() as images:
+        with pytest.raises(httpx.RequestError):
+            images.get("https://image.tmdb.org/t/p/w500/a.jpg")
+        with pytest.raises(httpx.RequestError):
+            images.get("https://example.com/a.jpg")

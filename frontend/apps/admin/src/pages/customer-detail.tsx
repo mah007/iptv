@@ -49,6 +49,7 @@ import {
   InviteDialog,
 } from "../features/customers/billing-panels";
 import { CustomerHistory } from "../features/customers/history-panel";
+import { RiskPanel } from "../features/customers/risk-panel";
 import { CustomerSessions } from "../features/customers/sessions-panel";
 import { CUSTOMER_TABS, type CustomerTab } from "../features/customers/search";
 import { useCan } from "../lib/auth";
@@ -388,7 +389,8 @@ function CustomerView({ customer }: { customer: CustomerDetail }) {
         <TabsContent value="history">
           <CustomerHistory customerId={customer.id} />
         </TabsContent>
-        <TabsContent value="security">
+        <TabsContent value="security" className="grid gap-(--density-page)">
+          <RiskPanel customerId={customer.id} active={customer.status === "active"} />
           <Card className="p-0">
             <CardHeader className="flex-row items-start justify-between gap-3 p-(--density-card)">
               <div className="grid gap-1">

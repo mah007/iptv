@@ -69,6 +69,34 @@ def stripe_checkout(customer: User, plan: Plan, recorded: Recorded) -> Payment:
     return result.payment
 
 
+def confirm_stripe(recorded: Recorded, payment: Payment, *, amount: int = 4900) -> None:
+    """Stripe's API confirms the session (G-29: the event alone never activates)."""
+    recorded.add(
+        "GET",
+        f"https://api.stripe.com/v1/checkout/sessions/{payment.checkout_ref}",
+        200,
+        {
+            "id": payment.checkout_ref,
+            "payment_status": "paid",
+            "amount_total": amount,
+            "currency": "sar",
+            "payment_intent": "pi_3QfixturePaymentIntent",
+        },
+    )
+
+
+MOYASAR_PAYMENT = "9b8a7c6d-1e2f-4a3b-8c4d-5e6f7a8b9c0d"
+
+
+def confirm_moyasar(recorded: Recorded, *, status: str = "paid", amount: int = 4900) -> None:
+    recorded.add(
+        "GET",
+        f"https://api.moyasar.com/v1/payments/{MOYASAR_PAYMENT}",
+        200,
+        {"id": MOYASAR_PAYMENT, "status": status, "amount": amount, "currency": "SAR"},
+    )
+
+
 def stripe_post(body: bytes, *, secret: str = "whsec_fixture", at: int | None = None) -> Any:  # noqa: S107
     timestamp = at or int(time.time())
     signature = sign(body, secret, timestamp)
@@ -94,6 +122,7 @@ def test_a_signed_stripe_event_pays_the_checkout_once(
     customer: User, plan: Plan, provider_keys: Any, recorded: Recorded
 ) -> None:
     payment = stripe_checkout(customer, plan, recorded)
+    confirm_stripe(recorded, payment)
     body = completed_event(payment)
     processed, duplicates = webhooks("processed"), webhooks("duplicate")
     response = stripe_post(body)
@@ -199,6 +228,7 @@ def test_a_failure_is_kept_and_the_retry_applies_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     payment = stripe_checkout(customer, plan, recorded)
+    confirm_stripe(recorded, payment)
     body = completed_event(payment)
 
     def broken(provider: str, result: Any) -> None:
@@ -285,6 +315,7 @@ def test_a_moyasar_mada_payment(
     customer: User, plan: Plan, provider_keys: Any, recorded: Recorded
 ) -> None:
     payment = moyasar_checkout(customer, plan, recorded)
+    confirm_moyasar(recorded)
     event = filled("moyasar_event_payment_paid.json", checkout=payment.checkout_ref)
     response = APIClient().post(MOYASAR_URL, event, format="json", headers=API)
     assert response.status_code == 200
@@ -344,6 +375,7 @@ def test_moyasar_refund_events(
     customer: User, plan: Plan, provider_keys: Any, recorded: Recorded
 ) -> None:
     payment = moyasar_checkout(customer, plan, recorded)
+    confirm_moyasar(recorded)
     event = filled("moyasar_event_payment_paid.json", checkout=payment.checkout_ref)
     APIClient().post(MOYASAR_URL, event, format="json", headers=API)
     event["id"], event["type"] = "refund-1", "payment_refunded"
@@ -351,3 +383,67 @@ def test_moyasar_refund_events(
     APIClient().post(MOYASAR_URL, event, format="json", headers=API)
     payment.refresh_from_db()
     assert (payment.status, payment.refunded_amount) == (PaymentStatus.PARTIALLY_REFUNDED, 1500)
+
+
+# --- G-29: the provider's API decides, disputes suspend, full refunds end access ----------
+
+
+def test_a_moyasar_event_the_api_does_not_confirm_never_activates(
+    customer: User, plan: Plan, provider_keys: Any, recorded: Recorded
+) -> None:
+    payment = moyasar_checkout(customer, plan, recorded)
+    confirm_moyasar(recorded, status="failed")  # a forged or replayed "paid" event
+    event = filled("moyasar_event_payment_paid.json", checkout=payment.checkout_ref)
+    assert APIClient().post(MOYASAR_URL, event, format="json", headers=API).status_code == 200
+    payment.refresh_from_db()
+    assert payment.status == PaymentStatus.FAILED
+    assert "does not confirm" in payment.failure_reason
+    assert not Subscription.objects.filter(user=customer).exists()
+
+
+def test_the_confirmed_amount_wins_over_the_event(
+    customer: User, plan: Plan, provider_keys: Any, recorded: Recorded
+) -> None:
+    payment = stripe_checkout(customer, plan, recorded)
+    confirm_stripe(recorded, payment, amount=100)  # Stripe was paid 1.00, not 49.00
+    assert stripe_post(completed_event(payment)).status_code == 200
+    payment.refresh_from_db()
+    assert payment.status == PaymentStatus.FAILED
+    assert "expected 4900" in payment.failure_reason
+
+
+def test_a_dispute_suspends_the_subscription(
+    customer: User, plan: Plan, provider_keys: Any, recorded: Recorded
+) -> None:
+    payment = stripe_checkout(customer, plan, recorded)
+    confirm_stripe(recorded, payment)
+    stripe_post(completed_event(payment))
+    dispute = {
+        "id": "evt_dispute_1",
+        "type": "charge.dispute.created",
+        "data": {
+            "object": {
+                "payment_intent": "pi_3QfixturePaymentIntent",
+                "amount": 4900,
+                "currency": "sar",
+            }
+        },
+    }
+    assert stripe_post(json.dumps(dispute).encode()).status_code == 200
+    assert Subscription.objects.get(user=customer).status == SubscriptionStatus.SUSPENDED
+    assert AuditLog.objects.filter(action="payment.dispute").count() == 1
+
+
+def test_a_full_refund_at_the_provider_ends_the_subscription(
+    customer: User, plan: Plan, provider_keys: Any, recorded: Recorded
+) -> None:
+    payment = moyasar_checkout(customer, plan, recorded)
+    confirm_moyasar(recorded)
+    event = filled("moyasar_event_payment_paid.json", checkout=payment.checkout_ref)
+    APIClient().post(MOYASAR_URL, event, format="json", headers=API)
+    assert Subscription.objects.get(user=customer).status == SubscriptionStatus.ACTIVE
+    event["id"], event["type"] = "refund-all", "payment_refunded"
+    event["data"]["refunded"] = 4900
+    APIClient().post(MOYASAR_URL, event, format="json", headers=API)
+    subscription = Subscription.objects.get(user=customer)
+    assert subscription.status not in {SubscriptionStatus.ACTIVE, SubscriptionStatus.GRACE}

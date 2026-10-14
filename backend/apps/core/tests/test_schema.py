@@ -49,7 +49,17 @@ def test_operations_have_stable_ids(schema: dict[str, Any]) -> None:
 # The sign-in steps before a session exists need no authentication; signing out
 # works with or without a session (it also clears a half-finished sign-in).
 # The branding is public too: the sign-in page shows the logo (ADR-0019).
-PUBLIC_OPERATIONS = frozenset({"auth_csrf", "auth_login", "auth_mfa_verify", "branding_retrieve"})
+PUBLIC_OPERATIONS = frozenset(
+    {
+        "auth_csrf",
+        "auth_login",
+        "auth_mfa_verify",
+        # The second step with a security key instead of a code (ADR-0021).
+        "auth_mfa_webauthn_options",
+        "auth_mfa_webauthn_verify",
+        "branding_retrieve",
+    }
+)
 OPTIONAL_AUTH_OPERATIONS = frozenset({"auth_logout"})
 
 

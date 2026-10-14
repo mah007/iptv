@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-
+import { expect, test } from "./fixtures";
 import { settled, usePreferences } from "./support";
 
 /* Keyboard-first admin (SPEC §8.2): "go to" sequences, the palette and table rows. */

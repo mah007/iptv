@@ -27,6 +27,8 @@ def test_spec_queues_are_declared() -> None:
         "metadata",
         "images",
         "notify",
+        # S3 publishing (M15, ADR-0022): the worker consumes it with the others.
+        "publish",
         "transcode.cpu",
         "transcode.qsv",
         "transcode.vaapi",
@@ -45,6 +47,8 @@ def test_each_queue_has_its_own_routing_key() -> None:
     route = app.amqp.router.route({}, "apps.media.tasks.prepare_media_file")
     assert route["queue"].name == "scan"
     assert app.amqp.router.route({}, "apps.core.tasks.heartbeat")["queue"].name == "default"
+    publish = app.amqp.router.route({}, "apps.media.publish_tasks.publish_asset")
+    assert publish["queue"].name == "publish"
 
 
 def test_beat_schedules_the_heartbeat() -> None:

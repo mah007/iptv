@@ -8,6 +8,9 @@ Every failure (connection, timeout, HTTP error, a failed task) raises `MeiliErro
 callers fall back to PostgreSQL search with a single `except`.
 """
 
+import contextlib
+import hashlib
+import hmac
 import time
 from collections.abc import Sequence
 from functools import cache
@@ -26,6 +29,10 @@ class MeiliError(Exception):
 
 class MeiliIndexMissing(MeiliError):
     """The index does not exist yet (a fresh install): it needs a full build."""
+
+
+class MeiliKeyRefused(MeiliError):
+    """The API key is unknown or lacks the permission (the search key isn't created yet)."""
 
 
 class MeiliClient:
@@ -52,6 +59,8 @@ class MeiliClient:
             msg = f"meilisearch {method} {path}: HTTP {response.status_code} {code}"
             if code == "index_not_found":
                 raise MeiliIndexMissing(msg)
+            if response.status_code in {401, 403}:
+                raise MeiliKeyRefused(msg)
             raise MeiliError(msg)
         return response.json() if response.content else None
 
@@ -103,6 +112,14 @@ class MeiliClient:
         task = self._call("POST", "/swap-indexes", json=[{"indexes": [first, second]}])
         return int(task["taskUid"])
 
+    def create_key(self, body: dict[str, Any]) -> None:
+        """POST /keys; an existing key with the same uid is fine (idempotent)."""
+        try:
+            self._call("POST", "/keys", json=body)
+        except MeiliError as exc:
+            if "api_key_already_exists" not in str(exc):
+                raise
+
     def search(self, uid: str, body: dict[str, Any]) -> dict[str, Any]:
         return cast("dict[str, Any]", self._call("POST", f"/indexes/{uid}/search", json=body))
 
@@ -128,4 +145,44 @@ class MeiliClient:
 
 @cache
 def client() -> MeiliClient:
+    """The master key: index management only (creating, filling, swapping indexes)."""
     return MeiliClient(settings.MEILI_URL, settings.MEILI_MASTER_KEY)
+
+
+# --- The search-only key (G-12, ADR-0021) ---------------------------------------------------
+#: Customers' queries use a key that can only search the titles index, so a bug in the
+#: query path can never write, delete or read settings. Meilisearch derives a key from
+#: its uid and the master key (HMAC-SHA256), so the key itself is never stored: it
+#: follows the master key, and `ensure_search_key` creates it (idempotently) when missing.
+SEARCH_KEY_UID: Final = "5b0d6c8e-7a41-4c2f-9e63-1f8a2d7c4b90"
+
+
+def search_key() -> str:
+    return hmac.new(
+        str(settings.MEILI_MASTER_KEY).encode(), SEARCH_KEY_UID.encode(), hashlib.sha256
+    ).hexdigest()
+
+
+def ensure_search_key(*, replace: bool = False) -> None:
+    """Create the search-only key (idempotent). `replace` deletes and recreates it, for a
+    key that exists but was refused (created with other settings by an older version);
+    the value stays the same, since it is derived from the uid."""
+    meili = client()
+    if replace:
+        with contextlib.suppress(MeiliError):
+            meili._call("DELETE", f"/keys/{SEARCH_KEY_UID}")
+    meili.create_key(
+        {
+            "uid": SEARCH_KEY_UID,
+            "name": "smart-iptv-search",
+            "description": "Customer searches (search action only).",
+            "actions": ["search"],
+            "indexes": ["*"],
+            "expiresAt": None,
+        }
+    )
+
+
+@cache
+def search_client() -> MeiliClient:
+    return MeiliClient(settings.MEILI_URL, search_key())

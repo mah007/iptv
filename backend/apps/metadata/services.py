@@ -66,6 +66,7 @@ from apps.core.errors import ErrorCode, ProblemError
 from apps.core.metrics import MATCH_CONFIDENCE
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
+from apps.core.text import strip_bidi
 from apps.library.parsing import ParseResult
 from apps.metadata.images import ImageError, LocalImageStore, fetch_and_store, tmdb_source_size
 from apps.metadata.images import ImageKind as ImageKindName
@@ -860,7 +861,8 @@ def _arabic(value: object, english: str) -> str:
 
 
 def _str(value: object) -> str:
-    return value.strip() if isinstance(value, str) else ""
+    """Provider text, trimmed and without bidirectional controls (G-08)."""
+    return strip_bidi(value).strip() if isinstance(value, str) else ""
 
 
 def _int(value: object) -> int | None:

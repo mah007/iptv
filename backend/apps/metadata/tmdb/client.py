@@ -72,6 +72,7 @@ type ExternalSource = Literal["imdb_id", "tvdb_id"]
 
 API_BASE_URL: Final = "https://api.themoviedb.org/3"
 IMAGE_BASE_URL: Final = "https://image.tmdb.org/t/p/"
+IMAGE_HOST: Final = "image.tmdb.org"
 CACHE_TTL_S: Final = 24 * 60 * 60
 #: Appended to movie details (SPEC §7.2 step 5).
 MOVIE_APPEND: Final = (
@@ -98,6 +99,16 @@ TV_APPEND: Final = (
 #: Image languages kept by appended `images`: English, Arabic and language-less art.
 IMAGE_LANGUAGES: Final = ("en", "ar", "null")
 USER_AGENT: Final = "SmartIPTV/1.0 (metadata)"
+
+
+class ImageHostError(httpx.RequestError):
+    """An artwork request (or a redirect) pointed away from TMDB's image host."""
+
+
+def _image_host_only(request: httpx.Request) -> None:
+    if request.url.scheme != "https" or request.url.host != IMAGE_HOST:
+        msg = "artwork is only fetched from TMDB's image host"
+        raise ImageHostError(msg, request=request)
 
 
 def image_url(file_path: str, size: str = "original", base_url: str = IMAGE_BASE_URL) -> str:
@@ -263,12 +274,16 @@ class TMDBClient:
         return document
 
     def open_image_client(self, *, timeout_s: float = 30.0) -> httpx.Client:
-        """An HTTP client for image.tmdb.org downloads; it uses the fixtures in fixture mode."""
+        """An HTTP client for image.tmdb.org downloads; it uses the fixtures in fixture mode.
+
+        Requests, redirects included, may only go to TMDB's image host over HTTPS (G-09)."""
         return httpx.Client(
             transport=self._transport,
             timeout=timeout_s,
             follow_redirects=True,
+            max_redirects=3,
             headers={"User-Agent": USER_AGENT},
+            event_hooks={"request": [_image_host_only]},
         )
 
     def close(self) -> None:

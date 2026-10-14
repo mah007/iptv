@@ -81,6 +81,7 @@ Use this after a destructive mistake, such as a bad migration or a mass delete, 
    ```
 5. **Start the rest:** `dc up -d --wait`. Then search: `dc exec web python manage.py search_reindex`. Sessions in redis-state that refer to rows created after the target simply expire.
 6. **Take a new full backup** at once (`backup_now --full --wait`): the old timeline's backups stay usable, but the new one starts here.
+7. **With the read replica on** (`REPLICA=1`): it can't follow the new timeline. [Re-seed it](database-replica.md#re-seed-the-replica). Until then, reports read from the primary.
 
 Tested on the development stack and a throwaway project: a point-in-time restore took 27 seconds for a 17 MB database.
 

@@ -4,7 +4,8 @@
 The username and password come from E2E_ADMIN_USER and E2E_ADMIN_PASS (the Makefile
 makes a fresh password for every run) and are never printed. The admin holds the
 owner role; its authenticator stays enrolled between runs, and the suite reads the
-codes with `manage.py totp_code`. Failed sign-ins of earlier runs are cleared.
+codes with `manage.py totp_code`. Failed sign-ins of earlier runs are cleared, and so are
+security keys left by earlier runs (their virtual authenticators died with the browser).
 
 `--open-review` makes sure the review queue has an open item for the suite to resolve:
 when none is open, the latest decided movie review is opened again with the same
@@ -19,7 +20,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
-from apps.accounts.models import Role, User, UserStatus
+from apps.accounts import auth, stepup
+from apps.accounts.models import Role, User, UserStatus, WebAuthnCredential
 from apps.accounts.rbac import OWNER_ROLE, sync_rbac
 from apps.catalog.models import MatchReview, ReviewKind, ReviewStatus
 
@@ -69,7 +71,10 @@ class Command(BaseCommand):
             user.set_password(password)
             user.save()
             user.roles.add(Role.objects.get(name=OWNER_ROLE))
+            WebAuthnCredential.objects.filter(user=user).delete()
         axes_reset(username=username)
+        auth.clear_mfa_failures(user)
+        stepup.clear_failures(user)
         self.stdout.write(f"{'Created' if created else 'Updated'} the end-to-end admin {username}.")
         if options["open_review"]:
             self._open_review()

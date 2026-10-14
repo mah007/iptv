@@ -143,6 +143,9 @@ function applyApiErrors<T extends FieldValues>(
 function failureKey(error: unknown): string {
   if (isApiError(error) && error.code === "DEVICE_LIMIT") return "devices.errors.DEVICE_LIMIT";
   if (isApiError(error) && error.code === "RATE_LIMITED") return "devices.errors.RATE_LIMITED";
+  if (isApiError(error) && error.code === "STEP_UP_REQUIRED") {
+    return "devices.errors.STEP_UP_REQUIRED";
+  }
   return "devices.errors.UNEXPECTED";
 }
 

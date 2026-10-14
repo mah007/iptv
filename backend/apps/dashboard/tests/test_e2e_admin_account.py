@@ -8,7 +8,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.utils import timezone
 
-from apps.accounts.models import User
+from apps.accounts.models import User, WebAuthnCredential
 from apps.accounts.rbac import permission_codes
 from apps.catalog.models import MatchReview, ReviewStatus
 from apps.dashboard.tests.conftest import open_review
@@ -42,6 +42,19 @@ def test_creates_then_updates_an_owner_admin(
     assert SECRET not in output
     user.refresh_from_db()
     assert user.status == "active"
+
+
+def test_forgets_security_keys_of_earlier_runs(
+    settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.DEBUG = True
+    run(monkeypatch)
+    user = User.objects.get(username="e2e-admin")
+    WebAuthnCredential.objects.create(
+        user=user, credential_id="a2V5LWZyb20tYS1kZWFkLWJyb3dzZXI", public_key=b"\x01", name="Old"
+    )
+    run(monkeypatch)
+    assert not WebAuthnCredential.objects.filter(user=user).exists()
 
 
 def test_refuses_without_debug_or_credentials(

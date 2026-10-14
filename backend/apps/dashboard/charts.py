@@ -15,7 +15,6 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from django.db import connection
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -23,6 +22,7 @@ from django.utils import timezone
 from apps.accounts.models import CustomerAccess, User
 from apps.catalog.models import Category, Episode, Movie, Season, Series
 from apps.catalog.serializers import ImageSerializer, pick_image
+from apps.core import replica
 from apps.dashboard.services import cached
 from apps.playback.models import PlaybackSession
 
@@ -111,7 +111,7 @@ def _stream_points(now: datetime) -> list[StreamPoint]:
         GROUP BY bucket.start
         ORDER BY bucket.start
     """  # noqa: S608 (table names come from model metadata, values are parameters)
-    with connection.cursor() as cursor:
+    with replica.cursor() as cursor:
         params: dict[str, Any] = {"first": first, "last": last, "step": STREAM_BUCKET, "now": now}
         cursor.execute(sql, params)
         rows = cursor.fetchall()
@@ -147,7 +147,7 @@ def _days(now: datetime, tz: ZoneInfo) -> list[DayPoint]:
         WHERE s.started_at >= %(start)s AND s.started_at <= %(now)s
         GROUP BY day
     """  # noqa: S608
-    with connection.cursor() as cursor:
+    with replica.cursor() as cursor:
         cursor.execute(sql, {"tz": str(tz), "start": start, "now": now})
         plays = {day: (count, float(seconds)) for day, count, seconds in cursor.fetchall()}
     points = []
@@ -204,7 +204,7 @@ def _categories(since: datetime) -> list[CategoryPlays]:
         ORDER BY plays DESC, c.name_en
         LIMIT %(limit)s
     """  # noqa: S608
-    with connection.cursor() as cursor:
+    with replica.cursor() as cursor:
         cursor.execute(sql, {"since": since, "limit": TOP_CATEGORIES})
         rows = cursor.fetchall()
     return [
@@ -222,7 +222,7 @@ def _top_titles(since: datetime) -> list[TopTitle]:
         ORDER BY plays DESC, seconds DESC
         LIMIT %(limit)s
     """  # noqa: S608
-    with connection.cursor() as cursor:
+    with replica.cursor() as cursor:
         cursor.execute(sql, {"since": since, "limit": TOP_TITLES})
         rows = cursor.fetchall()
     ids = {"movie": [row[1] for row in rows if row[0] == "movie"]}
@@ -255,6 +255,7 @@ def _top_titles(since: datetime) -> list[TopTitle]:
     return top
 
 
+@replica.reporting
 def compute_timeseries(*, tz: ZoneInfo, now: datetime | None = None) -> Timeseries:
     moment = now or timezone.now()
     streams = _stream_points(moment)

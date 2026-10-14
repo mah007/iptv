@@ -37,7 +37,13 @@ from apps.catalog.browse import (
 from apps.catalog.models import Episode, Movie, Person, Series
 from apps.catalog.queries import Title, TitleRef, art, hydrate
 from apps.search import index
-from apps.search.meili import MeiliError, MeiliIndexMissing, client
+from apps.search.meili import (
+    MeiliError,
+    MeiliIndexMissing,
+    MeiliKeyRefused,
+    ensure_search_key,
+    search_client,
+)
 from apps.search.normalize import normalize
 
 logger = logging.getLogger(__name__)
@@ -150,7 +156,12 @@ def _meili(
         "hitsPerPage": page_size,
         "attributesToRetrieve": ["type", "pk"],
     }
-    result = client().search(index.INDEX, body)
+    try:
+        result = search_client().search(index.INDEX, body)
+    except MeiliKeyRefused:
+        # A fresh install, or a new master key: create the search-only key once.
+        ensure_search_key(replace=True)
+        result = search_client().search(index.INDEX, body)
     refs: list[tuple[ResultType, UUID]] = []
     for hit in result.get("hits", []):
         kind = hit.get("type")

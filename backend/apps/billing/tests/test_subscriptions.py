@@ -85,6 +85,8 @@ def test_activate_creates_a_running_subscription_with_a_snapshot(
     welcome = events("account_activated")[0]
     assert welcome.user == customer
     assert welcome.payload["usernames"] == [customer.devices.get().credential.username]
+    # G-28: the welcome names the server and the usernames, never a password.
+    assert set(welcome.payload) == {"plan_name", "ends_at", "server_url", "usernames"}
     assert welcome.payload["plan_name"] == "القياسية"  # the customer's language (ar)
 
 

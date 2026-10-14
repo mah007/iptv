@@ -69,6 +69,11 @@ describe("sign-in helpers", () => {
       mfa_enabled: true,
       roles: [],
       permissions: ["roles.manage"],
+      idle_timeout_min: 30,
+      step_up_window_min: 5,
+      step_up_until: null,
+      mfa_methods: ["totp"],
+      webauthn_enrolment_required: false,
     } as const;
     expect(hasPermission(admin, ["admins.manage", "roles.manage"])).toBe(true);
     expect(hasPermission(admin, "admins.manage")).toBe(false);

@@ -1,0 +1,28 @@
+diff --git a/dist/index.js b/dist/index.js
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -3,6 +3,10 @@
+   if (!code || typeof document == 'undefined') return
+   let head = document.head || document.getElementsByTagName('head')[0]
+   let style = document.createElement('style')
++  // Smart IPTV (ADR-0021): the page's CSP nonce, so a strict style-src admits the toasts' styles.
++  let nonceMeta = document.querySelector('meta[property="csp-nonce"]')
++  let nonce = nonceMeta && (nonceMeta.nonce || nonceMeta.getAttribute('nonce'))
++  if (nonce) style.nonce = nonce
+   style.type = 'text/css'
+   head.appendChild(style)
+   ;style.styleSheet ? (style.styleSheet.cssText = code) : style.appendChild(document.createTextNode(code))
+diff --git a/dist/index.mjs b/dist/index.mjs
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -3,6 +3,10 @@
+   if (!code || typeof document == 'undefined') return
+   let head = document.head || document.getElementsByTagName('head')[0]
+   let style = document.createElement('style')
++  // Smart IPTV (ADR-0021): the page's CSP nonce, so a strict style-src admits the toasts' styles.
++  let nonceMeta = document.querySelector('meta[property="csp-nonce"]')
++  let nonce = nonceMeta && (nonceMeta.nonce || nonceMeta.getAttribute('nonce'))
++  if (nonce) style.nonce = nonce
+   style.type = 'text/css'
+   head.appendChild(style)
+   ;style.styleSheet ? (style.styleSheet.cssText = code) : style.appendChild(document.createTextNode(code))

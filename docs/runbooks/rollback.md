@@ -34,6 +34,8 @@ To see which migrations the update brought:
 git -C /opt/iptv diff --stat <old commit> HEAD -- 'backend/apps/*/migrations/'
 ```
 
+**Zero-downtime updates (M15)** don't change this: a rollback is an update to an older commit. Rolling back the code alone replaces web replica by replica like any update (`scripts/rollout.sh`, [deploy.md](deploy.md#zero-downtime-updates-m15-adr-0022)). Rolling back the database stops the site while it restores.
+
 ## Roll back the code only
 ```bash
 cd /opt/iptv
@@ -61,6 +63,7 @@ Writes made since the update are lost: new customers, payments, watch progress. 
    - `migrate` finds nothing to apply.
 5. **Rebuild search:** `dc exec web python manage.py search_reindex`.
 6. **Take a full backup:** `dc exec web python manage.py backup_now --full --wait`.
+7. **With the read replica on:** [re-seed it](database-replica.md#re-seed-the-replica), because it can't follow the new timeline.
 
 If the restore point is missing (the database was down when the update ran), use the time the update started as `--target 'YYYY-MM-DD HH:MM:SS+00'`. The install log's lines carry UTC times.
 

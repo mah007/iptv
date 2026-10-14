@@ -57,15 +57,22 @@ const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "app",
   beforeLoad: async ({ context, location }) => {
+    let me;
     try {
       // Cached data is used as is (static); the signed-in shell refreshes it itself.
-      await context.queryClient.query({ ...meQueryOptions(), staleTime: "static" });
+      me = await context.queryClient.query({ ...meQueryOptions(), staleTime: "static" });
     } catch (error) {
       if (isSignedOutError(error)) {
         // eslint-disable-next-line @typescript-eslint/only-throw-error -- the router's redirect protocol
         throw redirect({ to: "/login", search: { redirect: location.href } });
       }
       throw error;
+    }
+    // `security.webauthn_required_for` covers this admin and they have no key yet: the
+    // API refuses everything else until they register one (ADR-0021).
+    if (me.webauthn_enrolment_required && location.pathname !== "/account/security") {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- the router's redirect protocol
+      throw redirect({ to: "/account/security" });
     }
   },
   // The guard failing (API down) has no shell to render in: full-page error.
@@ -232,6 +239,12 @@ const backupsRoute = createRoute({
   path: "/backups",
   component: lazyRouteComponent(() => import("./pages/backups"), "BackupsPage"),
 });
+/** M15 (ADR-0022): media edges, CDN zones, their health and load. */
+const edgesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/edges",
+  component: lazyRouteComponent(() => import("./pages/edges"), "EdgesPage"),
+});
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
@@ -247,6 +260,17 @@ const systemRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings/system",
   component: lazyRouteComponent(() => import("./pages/system"), "SystemPage"),
+});
+/** M14a (ADR-0021): the admin's own sign-in confirmation; credits. */
+const accountSecurityRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/account/security",
+  component: lazyRouteComponent(() => import("./pages/account-security"), "AccountSecurityPage"),
+});
+const aboutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/about",
+  component: lazyRouteComponent(() => import("./pages/about"), "AboutPage"),
 });
 
 /** Sign-in screens, outside the shell. */
@@ -298,9 +322,12 @@ export const routeTree = rootRoute.addChildren([
     healthRoute,
     monitoringRoute,
     backupsRoute,
+    edgesRoute,
     settingsRoute,
     integrationsRoute,
     systemRoute,
+    accountSecurityRoute,
+    aboutRoute,
   ]),
   authRoute.addChildren([loginRoute, mfaRoute]),
 ]);

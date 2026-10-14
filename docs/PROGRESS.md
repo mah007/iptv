@@ -16,7 +16,140 @@
 | M13 Monitoring & logging | Done: opt-in overlay (Prometheus 3.13 LTS, Grafana, Loki, Alloy, Alertmanager, exporters), 7 dashboards, 27 alerts delivered by Django per the admin's settings with an Alertmanager fallback, admin-only Grafana through the admin's sign-in, Loki redaction tested in `make ci`, dev fire drill passed ([ADR-0018](adr/0018-observability.md)); production fire drill waits for SMTP or Telegram | — |
 | CFG Dynamic configuration | Done: secret settings encrypted at rest with the `.env` fallback and its source shown, Integrations page (TMDB, TheTVDB, SMTP, Stripe, Moyasar, Telegram) with server-side Tests, System page, branding (logos, contacts, language, time zone) in both apps, emails and invoices, Alertmanager's fallback fetched from Django, installer writes settings instead of `.env` ([ADR-0019](adr/0019-dynamic-configuration.md)) | — |
 | M14b Operations security & backups | Done: pgBackRest with continuous WAL archiving and restic (local, optional S3), weekly restore drill with alerts, admin Backups page, point-in-time restore and restore points before updates, personal-data retention jobs, app database role and Valkey users, socket proxies, every container capability-dropped, read-only and digest-pinned (`make hardening-test`), CrowdSec with a Traefik bouncer switched from the admin, TLS options, ufw policy, `scripts/rotate-keys.sh`, seven runbooks; G-35 to G-39 and G-41 to G-43 closed ([ADR-0020](adr/0020-operations-security-and-backups.md)) | — |
-| M10 client matrix (needs the owner's devices), the rest of M14 (CSP, WebAuthn, step-up, ZAP), M15 | Planned | — |
+| M14a Application security | Done: strict nonce CSP on both SPAs and per-host headers, admin security keys and passkeys (WebAuthn) with an optional per-role requirement, step-up for sensitive actions (admins: code or key; customers: password before TV logins), idle timeout from `/auth/me`, admin IP allowlist, sharing detection with DB-IP Lite (scores, flags, evidence, warn/reset/suspend), per-account and progressive Xtream rate limits, *revoke by app*, payment confirmation and disputes, `make semgrep`/`audit`/`zap` in `make ci`, Renovate config, threat model v2 with a status for every gap ([ADR-0021](adr/0021-application-security.md)) | — |
+| M15 Scale & CDN | Done: the Edges page and per-session selection, standalone edges (`install.sh --edge`, own Let's Encrypt TLS, control channel, stream-auth over TLS), the private S3 origin (our SigV4, generations, height-tagged rungs), Bunny token auth (verified against vectors only), the read replica with a rehearsed failover, zero-downtime updates (`scripts/rollout.sh`, `make deploy`), load tests at 100/500/1,000 (5,000 extrapolated) and a web connection pool; G-44 fixed, G-17 fixed in part ([ADR-0022](adr/0022-scale-edges-origin-replica-and-rollouts.md)) | — |
+| M10 client matrix (needs the owner's devices) | Planned | — |
+
+## M15: scale and CDN (2026-10-14)
+
+### Done ([ADR-0022](adr/0022-scale-edges-origin-replica-and-rollouts.md))
+- **Edges (`apps.edges`):**
+  - Kinds: `local` (nginx-stream; made by a migration), `standalone` and `cdn`. Each has a weight, a capacity, draining and an audience (everyone, or canary customers). Secrets are 32 bytes, stored hashed, shown once and rotated with step-up.
+  - The admin's **Edges** page (`edges.view`, `edges.manage`) shows the list with live health, connections, egress, key ids, the install command and a **Test** (health, media, report, origin key). An edge outside the domain is added to the CSP's media origins.
+  - Selection runs per playback session: weighted rendezvous hashing over the healthy, eligible edges, with the local edge as the fallback. Live TV always plays from the local edge.
+  - Metrics and alerts: `iptv_edges_*`, `EdgeDown` and `EdgeOverCapacity`.
+- **Standalone edges** (`docker/compose.edge.yml`, `install.sh --edge`):
+  - the official nginx image, digest-pinned, read-only, with its own Let's Encrypt certificate (nginx's ACME module) or a certificate file;
+  - the control channel (`js_periodic`, every 15 s) to `edges.<domain>`: key ids and load go up; the media token keys, the S3 read-only key and the CDN secret come down, into shared memory only;
+  - stream-auth over TLS with the edge's bearer, Redis only (`edges:auth`), so kicks and heartbeats work across hosts;
+  - `rotate-keys.sh media-token` waits until every edge reports the new key.
+- **S3 origin** (`apps/media/s3.py`, our own SigV4 on httpx; `apps/media/publisher.py`):
+  - layout `<prefix>/<asset>-g<gen>/…`, with rungs as `hls/v<n>-h<height>/` so edges enforce plan ceilings by name;
+  - a server-side copy for a new generation, old generations retired after `storage.old_generation_hours`, playlists and subtitles overwritten in place (60 s at the edges);
+  - the `publish` queue, a reconciler, `manage.py publish_media`;
+  - separate publisher and read-only edge keys (encrypted settings), and an Integrations **Test** that fails if the edge key can write;
+  - SeaweedFS as the dev origin (`make s3-dev`).
+- **Bunny CDN** (`apps/edges/bunny.py`): signed path tokens scoped to a presentation's folder, with optional address binding, and the edges' `/c/` origin location gated by `X-Origin-Auth`. Verified against vectors only: Bunny's reference implementation run as an oracle, its 15 published vectors, and `make edge-test`.
+- **Read replica** (`docker/compose.replica.yml`, `install.sh --replica`, `make up REPLICA=1`):
+  - a hot standby by `pg_basebackup` through a slot capped at 8 GB, read as `iptv_app`;
+  - `@replica.reporting` and `replica.cursor()` for charts, billing KPIs, the storage report and the minute gauges;
+  - the lag measured every 15 s, with a fallback to the primary;
+  - a second exporter, and a failover runbook.
+- **Zero-downtime updates:**
+  - web runs 2 replicas × 3 workers in production, with Traefik health checks and a drain file, and `retry@file`;
+  - `scripts/rollout.sh` handles web and frontend, and recreates instead when the Traefik labels change;
+  - `install.sh --update` builds, migrates once, rolls web and frontend, then the rest, and continues with a freshly pulled installer;
+  - `make deploy`, `make rollout`, `make rollout-test`.
+- **Load tests:**
+  - `make loadtest` (Locust 2.46.6 in its own image, `manage.py loadtest_data`, a memory guard, the slot check, production gunicorn during the run);
+  - the report is [benchmarks/load.md](benchmarks/load.md);
+  - they led to a psycopg connection pool for web (`POSTGRES_POOL_MAX_SIZE`, 8 per process).
+- **G-17:** a per-connection rate after a 16 MB burst on every edge. **G-16:** the local edge sends `X-Edge-Auth`.
+- **Runbooks:** `add-edge.md`, `cdn-bunny.md` and `database-replica.md` are new. `deploy.md` (zero downtime, `make deploy`, the edges host), `alerts.md`, `backups.md`, `rollback.md`, `rotate-keys.md`, `streaming/README.md` and the threat model are updated.
+
+### Evidence (dev stack, 2026-10-13 and 14)
+- **Remote edge:** the dev standalone edge (`make edge-dev`, its own compose project) did the following:
+  - polled its keys through Traefik's `edges.localhost`;
+  - got stream-auth 204 on the edges host;
+  - read presigned objects from SeaweedFS's private bucket, with slice cache hits;
+  - gave a canary customer a playback URL on it;
+  - stopped a kicked session within the 60 s auth cache (403 `kicked`).
+- **S3:** SigV4 publishing to SeaweedFS (8 files, 181 MB). `check_origin` confirmed the edge key can read but not write.
+- **`make edge-test`:** every step passes (now in `make ci`):
+  - local disk 170 checks (CDN pulls included), live 47, S3 74;
+  - the standalone edge 47 (TLS, control channel, rotation without a reload, G-17's rate, a kick across hosts, CDN pulls with ceilings);
+  - Let's Encrypt through Pebble 5 (issued, HSTS, the same certificate after a restart);
+  - fail-closed 9, logs 34;
+  - njs 1,344 token checks plus the SigV4 and control-channel checks.
+- **Bunny:** `test_bunny.py` 14 tests against the oracle's vectors. Bunny's 15 published vectors matched `bunny.token`.
+- **Replica:**
+  - it streamed with lag 0; 20 reporting queries ran on the replica and none on the primary;
+  - **`PostgresReplicationLag` verified live:** replay paused, pending at 22:33:21, firing at 22:38:21, and the email in Mailpit at 22:38:51; then replay resumed and the lag returned to 0;
+  - **failover rehearsed** on a throwaway Compose project with the same scripts: the primary was lost after 1,100 rows had replicated; promotion took 0.24 s with no rows lost; 50 writes went to the promoted node; a fail back by `pg_basebackup` kept all 1,150 rows; the replica re-seeded and streamed again.
+- **Zero downtime:** `make rollout-test` sent 10,041 requests across two web rollouts with 0 failed, and 10,053 with 0 failed after the switch to `retry@file`.
+  - The frontend's first roll recreated it, as designed, because its Traefik labels had changed: 136 failures during the swap.
+  - The rolling path then lost 2 of 8,871 requests. The dev frontend is Vite, killed without draining; production's nginx drains on SIGQUIT.
+- **The gate's other steps, lane 1:**
+  - backend 3,243 passed at 93.45% coverage;
+  - `make lint`, `typecheck` and `api-client-check`;
+  - `make semgrep`, `make audit` (no known vulnerabilities, psycopg-pool included) and `make zap` (informational alerts only);
+  - `make hardening-test` (20, 36 and 37 services, and the edge);
+  - `make monitoring-test` (17/17, and 38 redaction cases);
+  - `make compat-live` 210;
+  - Vitest: Edges and locales.
+- **E2E:**
+  - `make e2e-admin`: 118 passed, 1 skipped. `/edges` passes axe in en/light and ar/dark, and the 390 px Arabic check after the fix (`grid-cols-1`, the control URL wraps). The Integrations "send a test email" journey failed once in the full run (its form reset before Save) and passed when its file was run again.
+  - `make e2e-portal`: the playback journey (The Matrix through the edge) and axe passed. The M14a journey "adding a TV app asks for the password again" failed twice: `DELETE /api/v1/auth/step-up` returned 204, then `POST /me/devices` returned 201 without asking. This is outside M15's code, and is reported to the coordinator. Fixed in M14a afterwards: the step-up confirmation moved from the session into redis-state, so a request already in flight can't write the old time back; e2e-portal then passed 4/4 three runs in a row.
+- **Load tests** ([benchmarks/load.md](benchmarks/load.md)):
+  - 100, 500 and 1,000 users ran to the end, with 0 failures after the pool; at 1,000, play start p95 was 230 ms and the steady-state catalog p95 52 ms;
+  - zero slot over-allocation at every tier;
+  - 5,000 is **extrapolated**: before the pool it ran with 22% errors, and after it the memory guard stopped it at about 3,400 users on this shared 15 GB machine.
+- **Installer:** ShellCheck clean (`install.sh`, `rollout.sh`). `--dry-run` passed in `ubuntu:24.04` with curl for:
+  - a new installation with `--replica`;
+  - `--update` with monitoring and the replica (3 web replicas);
+  - `--update --no-replica`;
+  - `--edge`, both installing and updating.
+
+### For the production server
+**`sudo /opt/iptv/scripts/install.sh --update`.** This first update to M15:
+1. pulls the code and continues with the new installer;
+2. appends `POSTGRES_REPLICATION_PASSWORD` to `.env` (`scripts/secrets.sh`), which is used only if the replica is turned on;
+3. builds, runs `db-roles` and the migrations once (`edges` 0001 and 0002 with the local edge row and permissions; `media` 0003 `AssetPublication`);
+4. rolls web. Its Traefik labels change in this update (health checks, `retry@file`, the edges router), so `rollout.sh` recreates web once: a short interruption. Web becomes 2 replicas × 3 workers with a connection pool. Later updates roll without downtime;
+5. routes `https://edges.<domain>`; its certificate comes from the wildcard DNS already in place.
+
+**Nothing else changes until the operator opts in:**
+- the S3 origin in **Settings → Storage**;
+- edges on the **Edges** page plus `install.sh --edge` on each;
+- Bunny in **Settings → Integrations** plus a `cdn` edge;
+- the replica with `--replica`.
+
+## M14a: application security (2026-10-14)
+
+### Done ([ADR-0021](adr/0021-application-security.md))
+- **Headers and CSP (G-19, G-24):**
+  - One policy module for both SPAs (`frontend/packages/ui/csp/policy.js`): `default-src 'none'`, scripts and styles only with a per-request nonce (nginx `$request_id` through `sub_filter` in production, a Vite plugin in development), media origins from Django at frontend start plus `security.csp_extra_media_origins`. Pages are never cached or revalidated, so a 304 can't pair an old nonce with a new header.
+  - sonner patched for the nonce, `__webpack_nonce__` for the scroll lock, a nonce prop for Radix Select, zod without its `new Function` probe.
+  - Django: `default-src 'none'` and Permissions-Policy on every response, Referrer-Policy per host; invoices and mail previews from their own URLs with `document_csp()`. Traefik's shared middleware keeps nosniff, frame-deny and HSTS.
+  - CSP reports counted in `iptv_csp_violations_total`; ESLint bans raw HTML.
+- **Admin sign-in (G-03, G-40):** security keys and passkeys (py_webauthn, @simplewebauthn/browser), `security.webauthn_required_for`; "Confirm it's you" on sensitive views (`step_up_methods`), never by password alone; 5 code attempts per sign-in and 10 per account in 15 minutes, new session keys after each step; MFA reset by owners and `manage.py reset_admin_mfa`; the idle timeout from `/auth/me`; `security.admin_ip_allowlist` with a self-lockout guard.
+- **Customers (G-28 to G-31):** password step-up before TV logins are created or renewed, emails on new and reset logins; checkouts confirmed with Stripe or Moyasar before activation; disputes suspend, full refunds end.
+- **Sharing detection (G-18, G-27):** `apps/antisharing`: hourly sightings per customer, login and network from sign-ins, playback starts, Xtream and stream-auth (redis-state, collected every 5 minutes); the score (ASNs, countries, impossible travel over Natural Earth centroids, networks per login), flags with evidence on the customer's Security tab and a *flagged* filter, the warn/reset/suspend ladder, admin alerts, 90-day retention.
+- **IP geolocation:** DB-IP Lite country and ASN (CC BY 4.0, credited on both About pages), downloaded by the worker on first start and checked daily, validated and swapped atomically; the GeoIP card on Integrations with a lookup; `geoip.unknown_country_policy`; *GeoIpDatabaseMissing*.
+- **Rate limits (G-20):** Traefik per IP on admin sign-in and CSP reports; Django per account (searches, playback starts, TV logins, checkouts, TMDB searches, backup runs; `security.rate_*`); progressive Xtream pauses per username and network, per username, per IP, with cached logins still passing.
+- **Other gaps:** G-02 (resets kick sessions), G-05 (no self-escalation), G-07 (library paths), G-08 (bidi controls), G-09 (TMDB image host), G-12 (search-only Meilisearch key), G-16 (the edge's `X-Edge-Auth` secret, Docker secret `edge_auth_token`), G-26 (*revoke by app*).
+- **Supply chain:** `make semgrep` (own rules with tests), `make audit` (pip-audit 2.10.1, `pnpm audit --prod`, `scripts/audit-ignore.toml`), `make zap` (ZAP 2.17 Automation Framework, passive, about 15 s), all in `make ci`; `renovate.json` (config only); ADR-0003's table updated.
+- **Docs:** [threat model v2](security/threat-model.md) (a status for every G-item and a review log), the security runbook (admin sign-in and recovery, headers, rate limits, geolocation, SPF/DKIM/DMARC, the checks), *Sharing flags* and *revoke by app* in leaked-credential.md, two new alerts in alerts.md.
+
+### Evidence (dev stack, 2026-10-14)
+- **Backend (lane 2), full suite:** 3237 passed, 93.45% coverage. Two failures are M15's work in progress (`test_spec_queues_are_declared` lists no `publish` queue; `test_publish_exports_every_state_gauge` reads through the replica decorator). New tests: WebAuthn with a software authenticator, step-up (admins and customers), GeoIP with generated databases, scoring timelines, anti-sharing services, headers, throttles, bidi text, edge secret, Xtream limits, G-29 webhooks, G-12, G-07, G-09, the session-key rotation.
+- **Vitest:** admin 178 (new: step-up dialog, security keys page, sharing panel, *revoke by app*, GeoIP card, About), portal 51 (password step-up, About), ui 160 (the CSP policy).
+- **E2E:**
+  - `make e2e-portal` 4/4 (three runs in a row), with a CSP-violation check on every page, playback included, and the password step-up journey;
+  - `make e2e-admin`: 121 passed, 1 skipped (monitoring, overlay off), on the tree with M15. The new CSP check first found sonner's stale pre-bundle, zod's eval probe and the 304-after-reload nonce mismatch (all fixed). The security-key journey passes (Chrome's virtual authenticator: add a key, sign in with it in a second browser, remove it), and step-up dialogs mid-suite are answered with codes. Flaky runs led to two fixes: the admin allowlist read its setting from the event loop on the async stack right after a settings change (a 500 on `/auth/me` and `/integrations`; it now reads through `sync_to_async`), and the SMTP journey refills the form if the card reloads before Save;
+  - the portal's step-up journey found that a lock could be undone by a request already in flight (`SESSION_SAVE_EVERY_REQUEST` wrote the old confirmation back): the confirmation now lives in redis-state; `e2e_portal_account` also revokes TV logins left by an interrupted run;
+  - `make compat` 161, `make compat-live` 210, `make e2e-iptvnator` 9 with the new Xtream limits.
+- **`make smoke`** with the new header checks per host and the admin sign-in burst (20 of 40 refused with 429); **`make semgrep`** 0 findings (5 + 2 rule tests); **`make audit`** no known vulnerabilities; **`make zap`** passes (accepted alerts listed with reasons in the plan); **`make hardening-test`** and **`make monitoring-test`** pass; `make api-client-check` current.
+- **Installer:** ShellCheck clean (`install.sh`, `smoke.sh`, `smoke_images.sh`); `--dry-run --update` in `ubuntu:24.04` shows the new frontend refresh after migrations.
+
+### For the production server
+`sudo /opt/iptv/scripts/install.sh --update` does everything:
+1. `scripts/secrets.sh` adds `EDGE_AUTH_TOKEN` to `.env` and writes the Docker secret `secrets/runtime/edge_auth_token` (web, the local edge and the live relay read it).
+2. The rebuild brings the new frontend image (CSP), `accounts` 0007 (security keys, `auth_epoch`) and `antisharing` 0001; existing admins keep their authenticator apps.
+3. After the migrations, the frontend restarts once so the pages' CSP gets the media origins from Django.
+4. On its first start the worker downloads the DB-IP Lite databases into the new `geoip-data` volume (outbound HTTPS to `download.db-ip.com`); country rules and the score use them within minutes.
+
+**Afterwards:** each owner adds a security key (user menu → **Sign-in and security**); consider `security.webauthn_required_for` and `security.admin_ip_allowlist`; set SPF, DKIM and DMARC for the mail domain ([security.md](runbooks/security.md)). If the media edge or a CDN uses a domain outside `*.<DOMAIN>`, add it to `security.csp_extra_media_origins` and run the update again (or recreate the frontend).
 
 ## M14b: operations security and backups (2026-10-11)
 

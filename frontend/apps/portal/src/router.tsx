@@ -181,6 +181,13 @@ const resetRoute = createRoute({
   component: lazyRouteComponent(() => import("./pages/login"), "ResetPasswordPage"),
 });
 
+/** Public: the credits (TMDB, DB-IP) must be reachable without an account. */
+const aboutRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/about",
+  component: lazyRouteComponent(() => import("./pages/about"), "AboutPage"),
+});
+
 export const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     shellRoute.addChildren([
@@ -202,7 +209,7 @@ export const routeTree = rootRoute.addChildren([
     watchMovieRoute,
     watchSeriesRoute,
   ]),
-  authRoute.addChildren([loginRoute, forgotRoute, resetRoute]),
+  authRoute.addChildren([loginRoute, forgotRoute, resetRoute, aboutRoute]),
 ]);
 
 export function createAppRouter({

@@ -1,5 +1,5 @@
 """Accounts (SPEC §6): users, RBAC, customer access profiles, devices, Xtream
-credentials, access rules and admin MFA."""
+credentials, access rules and admin MFA (TOTP, and WebAuthn from M14a)."""
 
 from typing import Any
 
@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils.crypto import salted_hmac
 
 from apps.accounts.validators import validate_e164_phone, validate_timezone
 from apps.core.models import BaseModel
@@ -74,6 +75,9 @@ class User(BaseModel, AbstractUser):
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
     marketing_opt_in = models.BooleanField(default=False)
     roles = models.ManyToManyField("accounts.Role", blank=True, related_name="users")
+    #: Raised to end every session of the account at once (an admin's MFA reset, M14a).
+    #: Zero keeps Django's own session hash, so existing sessions survive the upgrade.
+    auth_epoch = models.PositiveIntegerField(default=0)
 
     class Meta:
         constraints = (
@@ -104,6 +108,16 @@ class User(BaseModel, AbstractUser):
 
     def get_short_name(self) -> str:
         return self.get_full_name()
+
+    def get_session_auth_hash(self) -> str:
+        """Django's hash (over the password), plus the epoch once it was ever raised:
+        sessions made before the last raise stop verifying on their next request."""
+        base = super().get_session_auth_hash()
+        if not self.auth_epoch:
+            return base
+        return salted_hmac(
+            "apps.accounts.User.auth_epoch", f"{base}:{self.auth_epoch}", algorithm="sha256"
+        ).hexdigest()
 
 
 class Permission(BaseModel):
@@ -309,3 +323,33 @@ class MfaTotp(BaseModel):
 
     def __str__(self) -> str:
         return f"totp:{self.user_id}"
+
+
+class WebAuthnCredential(BaseModel):
+    """An admin's passkey or security key (SPEC §11; G-40, ADR-0021).
+
+    A second factor next to TOTP: used to sign in after the password and to confirm
+    sensitive actions (step-up). `credential_id` is the authenticator's id in unpadded
+    base64url; `public_key` its COSE key. `sign_count` must grow with every use when the
+    authenticator keeps a counter: a lower value means a cloned key and is refused.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="webauthn_credentials")
+    credential_id = models.CharField(max_length=1400, unique=True)
+    public_key = models.BinaryField()
+    sign_count = models.PositiveBigIntegerField(default=0)
+    transports = models.JSONField(default=list, blank=True)
+    aaguid = models.CharField(max_length=36, blank=True)
+    name = models.CharField(max_length=64)
+    #: A synced passkey (multi-device) rather than a single hardware key, and whether it
+    #: is backed up; shown to the admin, never used for decisions.
+    multi_device = models.BooleanField(default=False)
+    backed_up = models.BooleanField(default=False)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("created_at",)
+        indexes = (models.Index(fields=("user", "created_at"), name="accounts_webauthn_user"),)
+
+    def __str__(self) -> str:
+        return f"webauthn:{self.user_id}:{self.name}"

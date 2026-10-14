@@ -18,6 +18,8 @@ from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 from xml.parsers import expat
 
+from apps.core.text import strip_bidi
+
 _TIME = re.compile(
     r"(?P<y>\d{4})(?P<mo>\d{2})(?P<d>\d{2})(?P<h>\d{2})?(?P<mi>\d{2})?(?P<s>\d{2})?"
     r"\s*(?P<tz>[+-]\d{4}|Z|UTC|GMT)?"
@@ -83,7 +85,7 @@ def language(value: str | None) -> str:
 
 
 def _clean(text: str) -> str:
-    return " ".join(text.split())[:MAX_TEXT]
+    return strip_bidi(" ".join(text.split()))[:MAX_TEXT]
 
 
 class _Reader:

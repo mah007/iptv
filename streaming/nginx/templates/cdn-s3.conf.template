@@ -1,0 +1,27 @@
+# CDN pulls in S3 origin mode (EDGE_CDN=on; ADR-0022, docs/runbooks/cdn-bunny.md):
+# rendered by docker-entrypoint.d/40-edge-config.sh into cdn.conf, included by
+# edge-s3.conf. Edit the template.
+#
+# A pull zone's origin is https://<this edge>/c: it asks for /c/<title>/<path>, the path
+# of its viewer's signed URL. The object is mapped as for a token whose rendition is the
+# path's first folder (token.cdnObject, s3.js), and the cache entries are the token
+# locations' own: one copy whichever way a slice was asked for.
+
+# Playlists and subtitles change in place: kept a minute, then revalidated.
+location ~ "^/c/(?<cdn_title>[A-Za-z0-9_-]{1,64})/(?<cdn_tail>(?:[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}/){0,7}[A-Za-z0-9_-][A-Za-z0-9_.-]{0,122}\.(?:m3u8|vtt|srt))$" {
+    include /etc/nginx/edge/snippets/cdn-pull.conf;
+    proxy_cache_key $edge_object;
+    proxy_cache_valid 200 60s;
+    proxy_cache_revalidate on;
+    include /etc/nginx/edge/snippets/origin.conf;
+}
+
+# Everything else is immutable: 4 MB slices cached for 30 days.
+location ~ "^/c/(?<cdn_title>[A-Za-z0-9_-]{1,64})/(?<cdn_tail>[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}){0,7})$" {
+    include /etc/nginx/edge/snippets/cdn-pull.conf;
+    slice 4m;
+    proxy_cache_key $edge_object$slice_range;
+    proxy_cache_valid 200 206 30d;
+    proxy_set_header Range $slice_range;
+    include /etc/nginx/edge/snippets/origin.conf;
+}

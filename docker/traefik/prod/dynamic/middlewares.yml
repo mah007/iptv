@@ -6,10 +6,22 @@ http:
       headers:
         contentTypeNosniff: true
         frameDeny: true
-        referrerPolicy: strict-origin-when-cross-origin
-        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+        # Referrer-Policy, Permissions-Policy and the CSP differ per host, so the apps send
+        # them: Django (SecurityHeadersMiddleware) and the SPAs' nginx (ADR-0021).
         stsSeconds: 31536000
         stsIncludeSubdomains: true
         # Preload stays the operator's explicit choice (see backend/config/settings/prod.py):
         # DJANGO_HSTS_PRELOAD=1 in .env uncomments the next line (docker/traefik/entrypoint.sh).
         # hsts-preload: stsPreload: true
+    # Zero-downtime updates (M15, ADR-0022): a request whose replica refused the connection
+    # (one stopping during scripts/rollout.sh) is sent to another. Only connection errors
+    # are retried, before any response; the apps' routers use it.
+    retry:
+      retry:
+        attempts: 3
+        initialInterval: 100ms
+    # Grafana and the other monitoring pages (ADR-0018) send no policy headers of their own.
+    monitoring-headers:
+      headers:
+        referrerPolicy: same-origin
+        permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=(), usb=()"

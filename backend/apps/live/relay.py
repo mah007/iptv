@@ -53,6 +53,19 @@ NULL_PACKET = b"\x47\x1f\xff\x10" + b"\xff" * 184
 POLL_S = 0.5
 
 
+def _edge_auth_token() -> str:
+    """The shared secret stream-auth expects in X-Edge-Auth (G-16, ADR-0021):
+    EDGE_AUTH_TOKEN, else the Docker secret file EDGE_AUTH_TOKEN_FILE."""
+    value = os.environ.get("EDGE_AUTH_TOKEN", "").strip()
+    if value:
+        return value
+    path = Path(os.environ.get("EDGE_AUTH_TOKEN_FILE", "/run/secrets/edge_auth_token"))
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
 def _env_float(name: str, default: float) -> float:
     try:
         return float(os.environ.get(name, "") or default)
@@ -66,6 +79,8 @@ class RelayConfig:
     auth_url: str
     auth_host: str
     edge_id: str = "relay"
+    #: The shared secret for the internal stream-auth (G-16); empty fails every check.
+    auth_token: str = ""
     auth_interval_s: float = 30.0
     auth_grace_s: float = 90.0
     #: How long `live.ts` waits (sending null packets) for a starting channel.
@@ -82,6 +97,7 @@ class RelayConfig:
             auth_url=os.environ.get("LIVE_RELAY_AUTH_URL", "http://web:8000/internal/stream-auth"),
             auth_host=os.environ.get("LIVE_RELAY_AUTH_HOST", "web"),
             edge_id=os.environ.get("LIVE_RELAY_EDGE_ID", "relay"),
+            auth_token=_edge_auth_token(),
             auth_interval_s=_env_float("LIVE_RELAY_AUTH_INTERVAL_S", 30.0),
             auth_grace_s=_env_float("LIVE_RELAY_AUTH_GRACE_S", 90.0),
             start_timeout_s=_env_float("LIVE_RELAY_START_TIMEOUT_S", 15.0),
@@ -209,6 +225,7 @@ class Relay:
             "X-Real-IP": headers.get("x-real-ip", ""),
             "X-Request-ID": headers.get("x-request-id", ""),
             "X-Edge-Id": self.config.edge_id,
+            "X-Edge-Auth": self.config.auth_token,
         }
         session = Session(self.config, self.client(), auth_headers)
         head = scope.get("method") == "HEAD"

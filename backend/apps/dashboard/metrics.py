@@ -34,7 +34,7 @@ from apps.audit import services as audit
 from apps.billing import kpis as billing_kpis
 from apps.billing.models import WebhookEvent
 from apps.catalog.models import MatchReview, Movie, ReviewStatus, Series
-from apps.core import metrics
+from apps.core import metrics, replica
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
 from apps.core.tasks import HEARTBEAT_KEY as BEAT_HEARTBEAT_KEY
@@ -137,8 +137,10 @@ def _operations(now: datetime) -> None:
     metrics.NOTIFICATION_OUTBOX.publish(dict(outbox))
 
 
+@replica.reporting
 def publish(now: datetime | None = None) -> None:
-    """Compute and publish every snapshot gauge this module owns."""
+    """Compute and publish every snapshot gauge this module owns (the reads may come
+    from the read replica, ADR-0022)."""
     moment = now or timezone.now()
     _business(moment)
     _catalog()

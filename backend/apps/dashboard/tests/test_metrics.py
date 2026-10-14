@@ -88,6 +88,8 @@ def test_publish_exports_every_state_gauge(
     NotificationOutbox.objects.create(template_key="t", locale="en")
     NotificationOutbox.objects.create(template_key="t", locale="en", status=OutboxStatus.FAILED)
     NotificationOutbox.objects.create(template_key="t", locale="en", status=OutboxStatus.SENT)
+    # Ours plus the new-device emails the customers' devices queued.
+    queued_emails = NotificationOutbox.objects.filter(status=OutboxStatus.QUEUED).count()
 
     with (
         mock.patch.object(billing_kpis, "compute", return_value=billing()),
@@ -112,7 +114,8 @@ def test_publish_exports_every_state_gauge(
     assert 'iptv_transcode_jobs{backend="cpu",status="failed"} 1.0' in body
     assert 'iptv_transcode_speed_ratio{backend="cpu"} 2.5' in body
     assert 'iptv_payment_webhooks_failing{provider="stripe"} 1.0' in body
-    assert 'iptv_notification_outbox{channel="email",status="queued"} 1.0' in body
+    queued_line = 'iptv_notification_outbox{channel="email",status="queued"}'
+    assert f"{queued_line} {float(queued_emails)}" in body
     assert 'iptv_notification_outbox{channel="email",status="failed"} 1.0' in body
     assert 'iptv_notification_outbox{channel="email",status="sent"}' not in body
 

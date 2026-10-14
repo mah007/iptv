@@ -5,7 +5,7 @@ failure: media requests never touch Postgres (CLAUDE.md hard rule).
 """
 
 import uuid
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from django.conf import settings
@@ -25,7 +25,7 @@ USER = str(uuid.UUID(int=1))
 DEVICE = str(uuid.UUID(int=2))
 SESSION = "0192f3a4b5c67d8e9f00112233445566"
 ASSET = "0192f3a4-b5c6-7d8e-9f00-1122334455aa"
-INTERNAL = {"host": "web"}
+INTERNAL = {"host": "web", "X-Edge-Auth": settings.EDGE_AUTH_TOKEN}
 
 
 @pytest.fixture(autouse=True)
@@ -231,3 +231,33 @@ def test_original_uri_parsing() -> None:
 def test_the_database_guard_is_armed() -> None:
     with pytest.raises(AssertionError, match="touched the database"):
         connection.ensure_connection()
+
+
+# --- G-16 and G-18 (ADR-0021) ----------------------------------------------------------
+
+
+@pytest.mark.parametrize("secret", [None, "", "wrong-secret"])
+def test_only_callers_with_the_edge_secret_are_heard(
+    media_keys: tokens.KeySet, live_session: SessionRecord, secret: str | None
+) -> None:
+    headers: dict[str, str] = {
+        "host": "web",
+        "X-Original-URI": f"/v/{token(media_keys)}/compat.mp4",
+    }
+    if secret is not None:
+        headers["X-Edge-Auth"] = secret
+    response = Client().get("/internal/stream-auth", headers=headers)
+    assert response.status_code == 403
+    assert response["X-Reason"] == "invalid"
+
+
+def test_each_network_of_a_session_is_noted_without_postgres(
+    media_keys: tokens.KeySet, live_session: SessionRecord
+) -> None:
+    for address in ("81.2.69.142", "81.2.69.7", "41.32.1.9", "10.0.0.3"):
+        assert (
+            ask(f"/v/{token(media_keys)}/compat.mp4", **{"X-Real-IP": address}).status_code == 204
+        )
+    members = cast("set[bytes]", state_redis().smembers(f"sessnets:{SESSION}"))
+    networks = {item.decode() for item in members}
+    assert networks == {"81.2.69.0/24", "41.32.1.0/24"}  # local addresses are left out

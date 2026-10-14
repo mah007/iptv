@@ -1,0 +1,18 @@
+# Rendered for a standalone edge with its own TLS (ADR-0022): plain HTTP on 8080 (the
+# host's 80) answers Let's Encrypt's HTTP-01 challenges (the ACME module serves them
+# before any location runs), the health check, and redirects everything else.
+server {
+    listen 8080 default_server;
+    server_name _;
+    access_log off;
+
+    location = /healthz {
+        default_type text/plain;
+        add_header Cache-Control "no-store" always;
+        js_content token.health;
+    }
+
+    location / {
+        return 301 https://${EDGE_DOMAIN}$request_uri;
+    }
+}

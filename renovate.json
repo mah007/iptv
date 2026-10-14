@@ -1,0 +1,104 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Dependency update proposals (ADR-0021). Config only: run Renovate yourself (self-hosted or the app); every proposal still passes `make ci` before it merges.",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
+    "docker:pinDigests",
+    ":disableDependencyDashboard"
+  ],
+  "timezone": "Asia/Riyadh",
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 6,
+  "minimumReleaseAge": "14 days",
+  "internalChecksFilter": "strict",
+  "rangeStrategy": "pin",
+  "labels": [
+    "dependencies"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "frontend/packages/api*/src/generated/**",
+    "media/**"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 6am on the first day of the month"
+    ]
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": [
+      "dependencies",
+      "security"
+    ],
+    "minimumReleaseAge": null,
+    "schedule": [
+      "at any time"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Python (uv): one weekly proposal for patches and minors.",
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "python minor and patch"
+    },
+    {
+      "description": "Frontend (pnpm): one weekly proposal for patches and minors.",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "frontend minor and patch"
+    },
+    {
+      "description": "Base images and tool containers: digests stay pinned; one proposal for them.",
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose"
+      ],
+      "groupName": "container images"
+    },
+    {
+      "description": "kombu 5.6 needs redis-py below 6.5 (CLAUDE.md): wait for kombu 5.7.",
+      "matchPackageNames": [
+        "redis"
+      ],
+      "allowedVersions": "<6.5"
+    },
+    {
+      "description": "GPL/AGPL code must never be imported (CLAUDE.md hard rules): never propose these.",
+      "matchPackageNames": [
+        "tmdbsimple",
+        "cinemagoer",
+        "imdbpy"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Majors one at a time, never automerged; read the changelog and the licence.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "labels": [
+        "dependencies",
+        "major"
+      ]
+    }
+  ]
+}

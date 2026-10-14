@@ -16,6 +16,8 @@ import {
   ThemeToggle,
   Topbar,
   useFormatters,
+  SidebarFooter,
+  TmdbAttribution,
 } from "@smart-iptv/ui";
 import { useAuthLogout, useReviewQueueList } from "@smart-iptv/api";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,6 +43,7 @@ import { NAV_SECTIONS, NAV_SHORTCUTS, type NavItem } from "./nav";
 import { ShortcutsHelp } from "./shortcuts-help";
 import { AlertsMenu, LiveStreams } from "./topbar-status";
 import { UserMenu } from "./user-menu";
+import { StepUpProvider, StepUpStatus } from "../features/security/step-up";
 
 /** How often the sidebar's counts refresh. */
 const BADGE_REFRESH_MS = 60_000;
@@ -100,6 +103,10 @@ function AdminSidebar() {
           </SidebarSection>
         ))}
       </SidebarContent>
+      {/* SPEC §1.3: TMDB's notice in the admin's footer (ADR-0021). */}
+      <SidebarFooter className="group-data-[collapsed=true]/sidebar:hidden">
+        <TmdbAttribution />
+      </SidebarFooter>
     </Sidebar>
   );
 }
@@ -246,6 +253,7 @@ export function AdminLayout() {
               </span>
               <ThemeToggle />
               <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block" />
+              <StepUpStatus />
               <UserMenu
                 user={me ? { name: me.name || me.username, email: me.email || me.username } : null}
                 onSignOut={signOut}
@@ -270,6 +278,7 @@ export function AdminLayout() {
         />
         <ShortcutsHelp open={help} onOpenChange={setHelp} />
         <IdleTimeout onSignOut={signOut} />
+        <StepUpProvider />
       </SidebarProvider>
     </ShortcutsProvider>
   );

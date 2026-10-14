@@ -333,10 +333,26 @@ def _stripe_checkout(customer: User, plan: Plan, recorded: Recorded) -> Payment:
     return result.payment
 
 
+def _confirmed(recorded: Recorded, payment: Payment, *, amount: int) -> None:
+    """Stripe's API confirms the session the result names (G-29)."""
+    recorded.add(
+        "GET",
+        f"https://api.stripe.com/v1/checkout/sessions/{payment.checkout_ref}",
+        200,
+        {
+            "payment_status": "paid",
+            "amount_total": amount,
+            "currency": "sar",
+            "payment_intent": "pi_1",
+        },
+    )
+
+
 def test_a_successful_result_completes_once(
     customer: User, plan: Plan, provider_keys: Any, recorded: Recorded
 ) -> None:
     payment = _stripe_checkout(customer, plan, recorded)
+    _confirmed(recorded, payment, amount=4900)
     result = PaymentResult(
         outcome=Outcome.SUCCEEDED,
         checkout_ref=payment.checkout_ref,
@@ -361,6 +377,7 @@ def test_an_amount_mismatch_never_activates(
     customer: User, plan: Plan, provider_keys: Any, recorded: Recorded
 ) -> None:
     payment = _stripe_checkout(customer, plan, recorded)
+    _confirmed(recorded, payment, amount=100)
     services.apply_result(
         "stripe",
         PaymentResult(

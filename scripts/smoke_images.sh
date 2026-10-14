@@ -48,7 +48,9 @@ docker run --rm --env-file "$env_file" -e DJANGO_SETTINGS_MODULE=config.settings
 echo "Starting the production images:"
 docker run -d --name "$app_name" --env-file "$env_file" \
   -e DJANGO_SETTINGS_MODULE=config.settings.prod "$app_image" >/dev/null
-docker run -d --name "$frontend_name" "$frontend_image" >/dev/null
+# No web here: the CSP's media origins come from the fallback (docker/nginx/30-csp.sh).
+docker run -d --name "$frontend_name" -e CSP_FETCH_ATTEMPTS=1 \
+  -e CSP_MEDIA_ORIGINS="https://media.example.com https://*.example.com" "$frontend_image" >/dev/null
 wait_healthy "$app_name" 90
 wait_healthy "$frontend_name" 60
 
@@ -67,6 +69,39 @@ sys.exit(0 if ok else 1)
 else
   echo "  FAIL  /metrics; last logs:" >&2
   docker logs --tail 40 "$app_name" >&2 || true
+  exit 1
+fi
+# The SPAs' security headers (ADR-0021): a CSP whose nonce is fresh per request and the
+# same as the page's, no inline script without it, and the companion headers.
+echo "Security headers of the SPAs (production image):"
+if docker exec "$frontend_name" sh -c '
+  set -e
+  for port in 8080 8081; do
+    one="$(wget -S -q -O /tmp/nginx/page1 "http://127.0.0.1:$port/" 2>&1)"
+    two="$(wget -S -q -O /tmp/nginx/page2 "http://127.0.0.1:$port/customers" 2>&1)"
+    csp1="$(printf "%s" "$one" | sed -n "s/^ *Content-Security-Policy: //p")"
+    csp2="$(printf "%s" "$two" | sed -n "s/^ *Content-Security-Policy: //p")"
+    nonce1="$(printf "%s" "$csp1" | sed -n "s/.*nonce-\([0-9a-f]\{32\}\).*/\1/p")"
+    nonce2="$(printf "%s" "$csp2" | sed -n "s/.*nonce-\([0-9a-f]\{32\}\).*/\1/p")"
+    [ -n "$nonce1" ] && [ -n "$nonce2" ] && [ "$nonce1" != "$nonce2" ]
+    grep -q "nonce=\"$nonce1\"" /tmp/nginx/page1
+    ! grep -q CSPNONCE /tmp/nginx/page1
+    printf "%s" "$csp1" | grep -q "frame-ancestors '"'"'none'"'"'"
+    printf "%s" "$csp1" | grep -q "https://media.example.com"
+    ! printf "%s" "$csp1" | grep -q "unsafe-inline"
+    printf "%s" "$one" | grep -q "Permissions-Policy:"
+    printf "%s" "$one" | grep -q "Referrer-Policy:"
+    printf "%s" "$one" | grep -q "X-Content-Type-Options: nosniff"
+    # Never a 304 for a page: the cached page would keep an old nonce.
+    printf "%s" "$one" | grep -q "Cache-Control: no-store"
+    ! printf "%s" "$one" | grep -qi "^ *ETag:"
+    ! printf "%s" "$one" | grep -qi "^ *Last-Modified:"
+  done
+'; then
+  echo "  ok    a fresh nonce per page, in the CSP and the page, never revalidated; no unsafe-inline; headers set"
+else
+  echo "  FAIL  the SPAs' security headers; last logs:" >&2
+  docker logs --tail 40 "$frontend_name" >&2 || true
   exit 1
 fi
 # The media image (worker, watcher, transcoder) runs FFmpeg as a separate process.

@@ -6,7 +6,8 @@ makes a fresh password for every run) and are never printed. The customer has an
 open-ended access profile for every category, three streams at once and 1080p, so the
 journey can play whatever the sample media holds. Failed sign-ins of earlier runs are
 cleared, and the customer's watch history, favourites and ratings are emptied, so
-"continue watching" shows only what this run played.
+"continue watching" shows only what this run played. TV logins left by an earlier run
+that stopped halfway are revoked, so the device limit leaves room for this run's.
 """
 
 import os
@@ -18,7 +19,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.accounts import services
-from apps.accounts.models import User, UserStatus
+from apps.accounts.models import Device, DeviceKind, User, UserStatus
 from apps.engagement.models import Favorite, Rating, WatchProgress
 from apps.playback import entitlements
 
@@ -70,6 +71,11 @@ class Command(BaseCommand):
             WatchProgress.objects.filter(user=user).delete()
             Favorite.objects.filter(user=user).delete()
             Rating.objects.filter(user=user).delete()
+            leftovers = Device.objects.filter(
+                user=user, kind=DeviceKind.XTREAM, revoked_at__isnull=True
+            )
+            for device in leftovers:
+                services.revoke_device(device, actor=None)
             entitlements.schedule_refresh(user.pk)
         axes_reset(username=username)
         self.stdout.write(f"{'Created' if created else 'Updated'} the portal customer {username}.")

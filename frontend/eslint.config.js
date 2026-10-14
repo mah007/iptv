@@ -46,6 +46,25 @@ export default defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
+        // G-24 (ADR-0021): no raw HTML from data. Text goes through React, documents
+        // (mail and invoice previews) through their own URL with their own CSP.
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message: "Render text through React; raw HTML from data is how XSS gets in.",
+        },
+        {
+          selector: "JSXAttribute[name.name='srcDoc']",
+          message: "A srcdoc frame inherits the page's CSP; load the document from its URL.",
+        },
+        {
+          selector:
+            "AssignmentExpression > MemberExpression.left[property.name=/^(innerHTML|outerHTML)$/]",
+          message: "Don't assign HTML strings; build elements or render through React.",
+        },
+        {
+          selector: "CallExpression[callee.property.name='insertAdjacentHTML']",
+          message: "Don't insert HTML strings; build elements or render through React.",
+        },
         ...classContexts.flatMap((context) => [
           { selector: `${context} Literal[value=${PHYSICAL_CLASS}]`, message: RTL_MESSAGE },
           {

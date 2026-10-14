@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
+    "@simplewebauthn/browser": "^14.0.0",
     "@smart-iptv/api": "workspace:*",
     "@smart-iptv/ui": "workspace:*",
     "@tanstack/react-query": "^5.104.1",

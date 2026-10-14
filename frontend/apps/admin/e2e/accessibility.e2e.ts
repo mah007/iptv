@@ -1,5 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
+import { expect, test } from "./fixtures";
 import { expectAccessible, settled, usePreferences, type Language, type Theme } from "./support";
 
 /*
@@ -37,6 +38,7 @@ const PAGES = [
   "/health",
   "/monitoring",
   "/backups",
+  "/edges",
   "/settings",
   "/settings/integrations",
   "/settings/system",

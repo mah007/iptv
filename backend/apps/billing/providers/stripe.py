@@ -16,6 +16,7 @@ Events used:
 import hashlib
 import hmac
 import time
+from dataclasses import replace
 from datetime import timedelta
 from typing import Any, Final
 
@@ -222,6 +223,14 @@ class StripeProvider(PaymentProvider):
             return None
         if event.type.startswith("checkout.session."):
             return self._session_result(event.type, obj)
+        if event.type == "charge.dispute.created":
+            return PaymentResult(
+                outcome=Outcome.DISPUTED,
+                provider_ref=str(obj.get("payment_intent") or ""),
+                amount=obj.get("amount"),
+                currency=str(obj.get("currency") or "").upper(),
+                raw=obj,
+            )
         if event.type == "charge.refunded":
             return PaymentResult(
                 outcome=Outcome.REFUNDED,
@@ -258,6 +267,35 @@ class StripeProvider(PaymentProvider):
             case "checkout.session.expired":
                 return PaymentResult(outcome=Outcome.CANCELLED, **common)
         return None
+
+    def confirm(self, result: PaymentResult) -> PaymentResult:
+        """The Checkout Session as Stripe has it: paid, and for which amount (G-29)."""
+        if not result.checkout_ref:
+            return replace(result, outcome=Outcome.FAILED, failure_reason="No checkout to check.")
+        session = self._get(f"/checkout/sessions/{result.checkout_ref}")
+        paid = session.get("payment_status") in ("paid", "no_payment_required")
+        return replace(
+            result,
+            outcome=Outcome.SUCCEEDED if paid else Outcome.FAILED,
+            amount=session.get("amount_total"),
+            currency=str(session.get("currency") or "").upper(),
+            provider_ref=str(session.get("payment_intent") or result.provider_ref),
+            failure_reason="" if paid else "Stripe does not confirm the payment.",
+        )
+
+    def _get(self, path: str) -> dict[str, Any]:
+        try:
+            with http_client() as client:
+                response = client.get(
+                    f"{API_BASE}{path}", headers={"Authorization": f"Bearer {_secret_key()}"}
+                )
+        except httpx.HTTPError as exc:
+            msg = f"Stripe unreachable: {type(exc).__name__}"
+            raise ProviderError(msg) from None
+        if response.status_code >= 400:
+            raise provider_error(response)
+        body: dict[str, Any] = response.json()
+        return body
 
     def refund(self, payment: Payment, amount: int) -> RefundResult:
         if not payment.provider_ref:

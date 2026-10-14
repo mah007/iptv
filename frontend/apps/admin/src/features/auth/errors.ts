@@ -8,6 +8,8 @@ export const AUTH_ERROR_CODES = [
   "RATE_LIMITED",
   "MFA_INVALID",
   "NOT_AUTHENTICATED",
+  "IP_NOT_ALLOWED",
+  "KEY_CANCELLED",
   "UNAVAILABLE",
 ] as const;
 

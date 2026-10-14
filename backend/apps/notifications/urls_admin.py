@@ -19,6 +19,11 @@ urlpatterns = [
     path("templates", api.TemplateListView.as_view(), name="admin-templates-list"),
     path("templates/preview", api.TemplatePreviewView.as_view(), name="admin-templates-preview"),
     path(
+        "templates/preview/<str:token>",
+        api.TemplatePreviewDocumentView.as_view(),
+        name="admin-templates-preview-document",
+    ),
+    path(
         "templates/<slug:key>/<slug:channel>/<slug:locale>",
         api.TemplateDetailView.as_view(),
         name="admin-templates-detail",

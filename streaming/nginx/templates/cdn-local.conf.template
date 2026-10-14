@@ -1,0 +1,12 @@
+# CDN pulls in local disk mode (EDGE_CDN=on; ADR-0022, docs/runbooks/cdn-bunny.md):
+# rendered by docker-entrypoint.d/40-edge-config.sh into cdn.conf, included by edge.conf.
+# Edit the template.
+#
+# A pull zone's origin is https://<this edge>/c: it asks for /c/<title>/<path>, the path
+# of its viewer's signed URL, served from the media root like a token's (capped
+# presentations reach only their rungs, through the asset's own links, ADR-0014).
+location ~ "^/c/(?<cdn_title>[A-Za-z0-9_-]{1,64})/(?<cdn_tail>[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}){0,7})$" {
+    include /etc/nginx/edge/snippets/cdn-pull.conf;
+    js_header_filter token.mediaHeaders;
+    alias $edge_media_root/$edge_object;
+}

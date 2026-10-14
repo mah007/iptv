@@ -1,3 +1,4 @@
+import { cspPlugin } from "@smart-iptv/ui/csp";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
@@ -6,9 +7,16 @@ import { defineConfig } from "vitest/config";
 // the HMR websocket must go back through that same port.
 const domain = process.env.DOMAIN ?? "localhost";
 const hmrClientPort = process.env.VITE_HMR_CLIENT_PORT;
+// The production CSP in development too (ADR-0021): the media edge and every subdomain
+// on the dev port, plus the HMR websocket back through Traefik.
+const port = hmrClientPort && hmrClientPort !== "80" ? `:${hmrClientPort}` : "";
+const csp = cspPlugin("portal", {
+  mediaOrigins: [`http://media.${domain}${port}`, `http://*.${domain}${port}`],
+  hmr: [`ws://app.${domain}${port}`],
+});
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), csp],
   server: {
     host: true,
     port: 5174,

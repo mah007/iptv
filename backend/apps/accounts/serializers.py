@@ -5,16 +5,17 @@ plain enums as (value, NAME) pairs; that is how drf-spectacular matches them to
 the stable names in SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"].
 """
 
-from datetime import datetime
+import time
+from datetime import UTC, datetime
 from enum import Enum, StrEnum
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.accounts.auth import LoginStatus
+from apps.accounts.auth import LoginStatus, second_factors
 from apps.accounts.models import (
     AccessRule,
     AccessRuleType,
@@ -24,11 +25,13 @@ from apps.accounts.models import (
     Permission,
     Role,
     User,
+    WebAuthnCredential,
     XtreamCredential,
 )
 from apps.accounts.rbac import ALL_PERMISSIONS, OWNER_ROLE, SYSTEM_ROLES
 from apps.accounts.validators import normalize_phone, validate_timezone
 from apps.catalog.serializers import CategoryBriefSerializer
+from apps.core.services import get_setting
 from apps.playback.entitlements import EntitlementStatus, status_of
 
 
@@ -81,18 +84,105 @@ class LoginResponseSerializer(serializers.Serializer[Any]):
         required=False,
         help_text="Only with mfa_setup_required: the content of the authenticator QR code.",
     )
+    methods = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text="With mfa_required: the second factors this admin may use (totp, webauthn).",
+    )
 
 
 class MfaVerifySerializer(serializers.Serializer[Any]):
     code = serializers.CharField(max_length=16, help_text="The six-digit code.")
 
 
+# --- WebAuthn and step-up (M14a, ADR-0021) ---------------------------------------------------
+
+
+class WebAuthnOptionsSerializer(serializers.Serializer[Any]):
+    """PublicKeyCredential{Creation,Request}Options as JSON (base64url for binary fields);
+    the SPA hands it to @simplewebauthn/browser."""
+
+    options = serializers.DictField(child=serializers.JSONField())
+
+
+class WebAuthnVerifySerializer(serializers.Serializer[Any]):
+    credential = serializers.DictField(
+        child=serializers.JSONField(),
+        help_text="The browser's PublicKeyCredential as JSON (@simplewebauthn/browser).",
+    )
+
+
+class StepUpSerializer(serializers.Serializer[Any]):
+    code = serializers.CharField(
+        max_length=16, required=False, help_text="An authenticator code (admins)."
+    )
+    credential = serializers.DictField(
+        child=serializers.JSONField(),
+        required=False,
+        help_text="An assertion from one of the admin's security keys.",
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if bool(attrs.get("code")) == bool(attrs.get("credential")):
+            raise serializers.ValidationError(
+                "Send either a code or a security key response.", code="invalid"
+            )
+        return attrs
+
+
+class CustomerStepUpSerializer(serializers.Serializer[Any]):
+    password = serializers.CharField(max_length=1024, trim_whitespace=False)
+
+
+class StepUpResultSerializer(serializers.Serializer[Any]):
+    step_up_until = serializers.DateTimeField(
+        help_text="Sensitive actions stay unlocked until then."
+    )
+
+
+class WebAuthnCredentialSerializer(serializers.ModelSerializer[WebAuthnCredential]):
+    class Meta:
+        model = WebAuthnCredential
+        fields = ("id", "name", "created_at", "last_used_at", "multi_device", "backed_up")
+        read_only_fields = fields
+
+
+class WebAuthnRegisterSerializer(serializers.Serializer[Any]):
+    name = serializers.CharField(max_length=64)
+    credential = serializers.DictField(child=serializers.JSONField())
+
+
+class WebAuthnRenameSerializer(serializers.Serializer[Any]):
+    name = serializers.CharField(max_length=64)
+
+
+class RevokeByAppSerializer(serializers.Serializer[Any]):
+    app_hint = serializers.ChoiceField(choices=AppHint.choices)
+    notify = serializers.BooleanField(default=True)
+    dry_run = serializers.BooleanField(
+        default=True, help_text="Count the devices without revoking them (the default)."
+    )
+
+
+class RevokeByAppResultSerializer(serializers.Serializer[Any]):
+    devices = serializers.IntegerField()
+    dry_run = serializers.BooleanField()
+
+
 class MeSerializer(serializers.ModelSerializer[User]):
-    """The signed-in admin. `permissions` is what the UI may offer; the API checks again."""
+    """The signed-in admin. `permissions` is what the UI may offer; the API checks again.
+
+    The session fields (idle timeout, step-up) come from the context, so every admin sees
+    the right values whatever their permissions (ADR-0021)."""
 
     name = serializers.CharField(source="get_full_name", read_only=True)
     roles = serializers.SerializerMethodField(method_name="role_names")
     permissions = serializers.SerializerMethodField(method_name="permission_list")
+    idle_timeout_min = serializers.SerializerMethodField()
+    step_up_window_min = serializers.SerializerMethodField()
+    step_up_until = serializers.SerializerMethodField()
+    mfa_methods = serializers.SerializerMethodField()
+    webauthn_enrolment_required = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -106,8 +196,33 @@ class MeSerializer(serializers.ModelSerializer[User]):
             "mfa_enabled",
             "roles",
             "permissions",
+            "idle_timeout_min",
+            "step_up_window_min",
+            "step_up_until",
+            "mfa_methods",
+            "webauthn_enrolment_required",
         )
         read_only_fields = fields
+
+    def get_idle_timeout_min(self, user: User) -> int:
+        return int(cast("int", get_setting("security.admin_idle_timeout_min")))
+
+    def get_step_up_window_min(self, user: User) -> int:
+        return int(cast("int", get_setting("security.admin_step_up_window_min")))
+
+    @extend_schema_field(serializers.DateTimeField(allow_null=True))
+    def get_step_up_until(self, user: User) -> str | None:
+        until = self.context.get("step_up_until")
+        if not isinstance(until, int) or until <= time.time():
+            return None
+        return datetime.fromtimestamp(until, tz=UTC).isoformat()
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_mfa_methods(self, user: User) -> list[str]:
+        return list(second_factors(user))
+
+    def get_webauthn_enrolment_required(self, user: User) -> bool:
+        return bool(self.context.get("webauthn_enrolment_required", False))
 
     @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def role_names(self, user: User) -> list[str]:
@@ -337,6 +452,7 @@ class CustomerSummarySerializer(serializers.ModelSerializer[User]):
     max_devices = serializers.SerializerMethodField(method_name="max_devices_of")
     device_count = serializers.IntegerField(read_only=True)
     last_seen = serializers.DateTimeField(read_only=True, allow_null=True)
+    risk_flagged = serializers.BooleanField(read_only=True, default=False)
 
     class Meta:
         model = User
@@ -352,6 +468,7 @@ class CustomerSummarySerializer(serializers.ModelSerializer[User]):
             "max_devices",
             "device_count",
             "last_seen",
+            "risk_flagged",
             "created_at",
         )
         read_only_fields = fields

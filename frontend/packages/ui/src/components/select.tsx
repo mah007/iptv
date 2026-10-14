@@ -3,11 +3,18 @@ import { Select as SelectPrimitive } from "radix-ui";
 import type { ComponentProps } from "react";
 
 import { cn } from "../lib/cn";
+import { cspNonce } from "../lib/csp-nonce";
 import { fieldClassName } from "./input";
 
 export const Select = SelectPrimitive.Root;
 export const SelectGroup = SelectPrimitive.Group;
 export const SelectValue = SelectPrimitive.Value;
+
+/** Radix Select's viewport adds a <style>; it carries the page's CSP nonce (ADR-0021). */
+function nonceProp(): { nonce?: string } {
+  const nonce = cspNonce();
+  return nonce === undefined ? {} : { nonce };
+}
 
 export function SelectTrigger({
   className,
@@ -56,7 +63,9 @@ export function SelectContent({
         <SelectPrimitive.ScrollUpButton className="flex h-6 cursor-default items-center justify-center text-muted-foreground">
           <ChevronUp aria-hidden="true" className="size-4" />
         </SelectPrimitive.ScrollUpButton>
-        <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
+        <SelectPrimitive.Viewport className="p-1" {...nonceProp()}>
+          {children}
+        </SelectPrimitive.Viewport>
         <SelectPrimitive.ScrollDownButton className="flex h-6 cursor-default items-center justify-center text-muted-foreground">
           <ChevronDown aria-hidden="true" className="size-4" />
         </SelectPrimitive.ScrollDownButton>

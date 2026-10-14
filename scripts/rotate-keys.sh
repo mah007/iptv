@@ -126,6 +126,10 @@ rotate_media_token() {
   media_step stage
   record media_token staged
   sleep 5 # every edge has reloaded and accepts the new key before Django signs with it
+  # Standalone edges (ADR-0022) fetch keys on their control channel (every 15 s): wait
+  # until each enabled one reports the staged key; nothing is promoted otherwise.
+  manage edges_wait_keys --timeout 300 ||
+    die "a standalone edge doesn't hold the new key yet (admin → Edges); both keys stay accepted, run this again"
   media_step promote
   record media_token signing
   manage key_rotation media-token-finish || true

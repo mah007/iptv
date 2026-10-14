@@ -36,6 +36,9 @@ class IntegrationName(StrEnum):
     STRIPE = "stripe"
     MOYASAR = "moyasar"
     TELEGRAM = "telegram"
+    # M15 (ADR-0022): the S3 origin and the Bunny CDN.
+    S3_ORIGIN = "s3_origin"
+    BUNNY = "bunny"
 
 
 class IntegrationStatus(StrEnum):
@@ -115,6 +118,33 @@ INTEGRATIONS: Final[tuple[Integration, ...]] = (
         keys=("notifications.telegram_bot_token", "notifications.telegram_chat_id"),
         required=(("notifications.telegram_bot_token",), ("notifications.telegram_chat_id",)),
     ),
+    Integration(
+        IntegrationName.S3_ORIGIN,
+        keys=(
+            "storage.s3_enabled",
+            "storage.s3_endpoint",
+            "storage.s3_region",
+            "storage.s3_bucket",
+            "storage.s3_prefix",
+            "storage.s3_path_style",
+            "storage.s3_access_key",
+            "storage.s3_secret_key",
+            "storage.s3_edge_access_key",
+            "storage.s3_edge_secret_key",
+        ),
+        required=(
+            ("storage.s3_endpoint",),
+            ("storage.s3_bucket",),
+            ("storage.s3_access_key",),
+            ("storage.s3_secret_key",),
+        ),
+        enabled_key="storage.s3_enabled",
+    ),
+    Integration(
+        IntegrationName.BUNNY,
+        keys=("cdn.bunny_token_key", "cdn.origin_secret", "cdn.bunny_ip_binding"),
+        required=(("cdn.bunny_token_key",), ("cdn.origin_secret",)),
+    ),
 )
 _BY_NAME: Final = {integration.name.value: integration for integration in INTEGRATIONS}
 
@@ -177,7 +207,9 @@ def get_integration(name: str) -> Integration:
         raise ProblemError(ErrorCode.NOT_FOUND, f"Unknown integration {name}.") from None
 
 
-def _tester(integration: Integration, actor: User) -> Callable[[], TestResult]:
+def _tester(  # noqa: PLR0911 (one tester per integration)
+    integration: Integration, actor: User
+) -> Callable[[], TestResult]:
     # Imports stay local: each one pulls in its app (billing, metadata, notifications).
     match integration.name:
         case IntegrationName.TMDB:
@@ -204,6 +236,14 @@ def _tester(integration: Integration, actor: User) -> Callable[[], TestResult]:
             from apps.notifications.telegram import send_test_message  # noqa: PLC0415
 
             return send_test_message
+        case IntegrationName.S3_ORIGIN:
+            from apps.media.checks import check_origin  # noqa: PLC0415
+
+            return check_origin
+        case IntegrationName.BUNNY:
+            from apps.edges.checks import check_bunny  # noqa: PLC0415
+
+            return check_bunny
 
 
 def _limit(actor: User, name: str) -> None:

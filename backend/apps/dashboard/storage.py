@@ -16,10 +16,10 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from django.db import connection
 from django.utils import timezone
 
 from apps.catalog.models import Episode, MediaFile, Movie, Season, Series
+from apps.core import replica
 from apps.dashboard.services import cached
 from apps.library.models import Library
 from apps.media.models import Rendition
@@ -94,7 +94,7 @@ def _libraries() -> list[LibraryUsage]:
         ) out ON out.library_id = l.id
         ORDER BY COALESCE(src.bytes, 0) + COALESCE(out.bytes, 0) DESC, l.name
     """  # noqa: S608
-    with connection.cursor() as cursor:
+    with replica.cursor() as cursor:
         cursor.execute(sql)
         rows = cursor.fetchall()
     return [
@@ -130,7 +130,7 @@ def _growth(now: datetime, tz: ZoneInfo) -> list[GrowthPoint]:
         FROM events
         GROUP BY day
     """  # noqa: S608
-    with connection.cursor() as cursor:
+    with replica.cursor() as cursor:
         cursor.execute(sql, {"now": now, "start": start, "tz": str(tz)})
         deltas = {day: (int(src), int(out)) for day, src, out in cursor.fetchall()}
     sources, outputs = deltas.pop(None, (0, 0))
@@ -177,7 +177,7 @@ def _largest() -> list[TitleUsage]:
         ORDER BY SUM(src) + SUM(out) DESC
         LIMIT %(limit)s
     """  # noqa: S608
-    with connection.cursor() as cursor:
+    with replica.cursor() as cursor:
         cursor.execute(sql, {"limit": LARGEST})
         rows = cursor.fetchall()
     titles: dict[tuple[str, str], Movie | Series] = {}
@@ -207,6 +207,7 @@ def _largest() -> list[TitleUsage]:
     return largest
 
 
+@replica.reporting
 def compute_storage(*, tz: ZoneInfo, now: datetime | None = None) -> StorageUsage:
     moment = now or timezone.now()
     libraries = _libraries()

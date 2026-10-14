@@ -40,6 +40,7 @@ from apps.billing.models import (
     SubscriptionStatus,
 )
 from apps.billing.renewal import zone
+from apps.core import replica
 from apps.core.services import get_setting
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,7 @@ def _mrr() -> tuple[list[Amount], list[Amount]]:
     return gross, net
 
 
+@replica.reporting
 def compute(*, now: datetime | None = None) -> BillingKpis:
     moment = now or timezone.now()
     month = _month_start(moment)

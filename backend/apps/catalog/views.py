@@ -54,6 +54,7 @@ from apps.catalog.serializers import (
 )
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
+from apps.core.throttling import AdminTmdbThrottle
 
 VIEW: tuple[str, ...] = ("library.view", "library.manage", "library.review")
 TITLE_ORDERING = ("title", "year", "created_at", "updated_at", "rating", "popularity")
@@ -367,6 +368,7 @@ class ReviewSkipView(AdminView):
 
 
 class MetadataSearchView(AdminView):
+    throttle_classes = (AdminTmdbThrottle,)
     required_permissions: ClassVar[Requirements] = {"GET": ("library.review", "library.manage")}
 
     @extend_schema(
@@ -439,6 +441,7 @@ class CategoryDetailView(AdminView):
         "PATCH": "library.manage",
         "DELETE": "library.manage",
     }
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="categories_retrieve",
@@ -547,6 +550,7 @@ class CollectionDetailView(AdminView):
         "PATCH": "library.manage",
         "DELETE": "library.manage",
     }
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="collections_retrieve",

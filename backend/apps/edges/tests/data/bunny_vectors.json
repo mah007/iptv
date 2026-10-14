@@ -1,0 +1,105 @@
+{
+  "source": "BunnyWay/BunnyCDN.TokenAuthentication python3/token.py 48ff1af0879c61b69a42c8db5ead76f849f5ef87, run as an oracle",
+  "vectors": [
+    {
+      "name": "hls_directory",
+      "base": "https://cdn.example.test",
+      "path": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls720/master.m3u8",
+      "directory": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls720/",
+      "ip": null,
+      "key": "test-zone-key-one",
+      "expires": 1800000000,
+      "url": "https://cdn.example.test/bcdn_token=HS256-XYIEBgjHye4viKZRayWsXwGAveu9uTBjc0j52wx2Ldk&token_path=%2F0192f3a4b5c67d8e9f001122334455aa-g3%2Fhls720%2F&expires=1800000000/0192f3a4b5c67d8e9f001122334455aa-g3/hls720/master.m3u8"
+    },
+    {
+      "name": "hls_segment_same_scope",
+      "base": "https://cdn.example.test",
+      "path": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls720/v1-h720/seg_00042.m4s",
+      "directory": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls720/",
+      "ip": null,
+      "key": "test-zone-key-one",
+      "expires": 1800003600,
+      "url": "https://cdn.example.test/bcdn_token=HS256-B2eJlroeZRYVaJSb-boeWFRm9rsbMDZmwGNuaSxqlpg&token_path=%2F0192f3a4b5c67d8e9f001122334455aa-g3%2Fhls720%2F&expires=1800003600/0192f3a4b5c67d8e9f001122334455aa-g3/hls720/v1-h720/seg_00042.m4s"
+    },
+    {
+      "name": "full_ladder_directory",
+      "base": "https://cdn.example.test",
+      "path": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls/master.m3u8",
+      "directory": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls/",
+      "ip": null,
+      "key": "test-zone-key-one",
+      "expires": 1800007200,
+      "url": "https://cdn.example.test/bcdn_token=HS256-rCcms8X2ah6Mq6-lesYDuFAPrPHWolge_77CN_3n57c&token_path=%2F0192f3a4b5c67d8e9f001122334455aa-g3%2Fhls%2F&expires=1800007200/0192f3a4b5c67d8e9f001122334455aa-g3/hls/master.m3u8"
+    },
+    {
+      "name": "progressive_file",
+      "base": "https://cdn.example.test",
+      "path": "/0192f3a4b5c67d8e9f001122334455aa-g3/compat.mp4",
+      "directory": null,
+      "ip": null,
+      "key": "test-zone-key-one",
+      "expires": 1800010800,
+      "url": "https://cdn.example.test/bcdn_token=HS256-nEquxAtyxrFeYY0Q7-VT5UvsD_opJVTW-_0gRB0OGyY&expires=1800010800/0192f3a4b5c67d8e9f001122334455aa-g3/compat.mp4"
+    },
+    {
+      "name": "progressive_ipv4",
+      "base": "https://cdn.example.test",
+      "path": "/0192f3a4b5c67d8e9f001122334455aa-g3/compat.mp4",
+      "directory": null,
+      "ip": "203.0.113.7",
+      "key": "test-zone-key-two",
+      "expires": 1800014400,
+      "url": "https://cdn.example.test/bcdn_token=HS256-1-mqkHfLylHkwBLyW33AU2Ss_0aH3xrmEE1diu7HDg62k&expires=1800014400/0192f3a4b5c67d8e9f001122334455aa-g3/compat.mp4"
+    },
+    {
+      "name": "hls_ipv4",
+      "base": "https://cdn.example.test",
+      "path": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls1080/master.m3u8",
+      "directory": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls1080/",
+      "ip": "198.51.100.23",
+      "key": "test-zone-key-two",
+      "expires": 1800018000,
+      "url": "https://cdn.example.test/bcdn_token=HS256-1-IVozm9x8GE74j5atESaH_SG0-RqrSi-iW-NTeUcTGss&token_path=%2F0192f3a4b5c67d8e9f001122334455aa-g3%2Fhls1080%2F&expires=1800018000/0192f3a4b5c67d8e9f001122334455aa-g3/hls1080/master.m3u8"
+    },
+    {
+      "name": "hls_ipv6_masked_to_64",
+      "base": "https://cdn.example.test",
+      "path": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls/master.m3u8",
+      "directory": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls/",
+      "ip": "2001:db8:1:2:aaaa:bbbb:cccc:dddd",
+      "key": "test-zone-key-two",
+      "expires": 1800021600,
+      "url": "https://cdn.example.test/bcdn_token=HS256-1-aFlvo9DGyYRhgXahVJpHhy38Usc6Hjyvjv0kSnSwxck&token_path=%2F0192f3a4b5c67d8e9f001122334455aa-g3%2Fhls%2F&expires=1800021600/0192f3a4b5c67d8e9f001122334455aa-g3/hls/master.m3u8"
+    },
+    {
+      "name": "hls_ipv6_same_64",
+      "base": "https://cdn.example.test",
+      "path": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls/master.m3u8",
+      "directory": "/0192f3a4b5c67d8e9f001122334455aa-g3/hls/",
+      "ip": "2001:db8:1:2::1",
+      "key": "test-zone-key-two",
+      "expires": 1800025200,
+      "url": "https://cdn.example.test/bcdn_token=HS256-1-xGaJSRzIQkElKkAxyc5YI41uk2yXX1KmxAOCt5h9wjA&token_path=%2F0192f3a4b5c67d8e9f001122334455aa-g3%2Fhls%2F&expires=1800025200/0192f3a4b5c67d8e9f001122334455aa-g3/hls/master.m3u8"
+    },
+    {
+      "name": "probe_file",
+      "base": "https://cdn.example.test",
+      "path": "/edgeprobe/probe.txt",
+      "directory": null,
+      "ip": null,
+      "key": "test-zone-key-three",
+      "expires": 1800028800,
+      "url": "https://cdn.example.test/bcdn_token=HS256-Xnnje6Et_FmyADYf2SVK9gAK4e_qkHEt9W6Arv1s1Iw&expires=1800028800/edgeprobe/probe.txt"
+    },
+    {
+      "name": "unicode_free_key_symbols",
+      "base": "https://cdn.example.test",
+      "path": "/0192f3a4b5c67d8e9f001122334455aa-g3/uhd.mp4",
+      "directory": null,
+      "ip": null,
+      "key": "k3y/with+symbols=&?",
+      "expires": 1800032400,
+      "url": "https://cdn.example.test/bcdn_token=HS256-i6QbtlIU8z443gGrdwOPXTAhXxB8gzY6AVSkyux6XiY&expires=1800032400/0192f3a4b5c67d8e9f001122334455aa-g3/uhd.mp4"
+    }
+  ]
+}

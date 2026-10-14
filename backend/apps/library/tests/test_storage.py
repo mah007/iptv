@@ -83,3 +83,19 @@ def test_walk_lists_videos_sorted_and_skips_hidden_and_system(media_root: Path) 
     assert [f.key for f in storage.walk(str(root), "a")] == ["a/A.MP4"]
     assert list(storage.walk(str(root), "gone")) == []
     assert list(storage.walk(str(root), "a/notes.txt")) == []
+
+
+def test_files_whose_real_path_leaves_the_library_are_skipped(
+    media_root: Path, tmp_path: Path
+) -> None:
+    """G-07: a symlink to a file elsewhere on the server is never scanned or probed."""
+    library = media_root / "g07"
+    library.mkdir()
+    (library / "Real (2020).mkv").write_bytes(b"x")
+    secret = tmp_path / "secret.mkv"
+    secret.write_bytes(b"y")
+    (library / "Escape (2021).mkv").symlink_to(secret)
+    (library / "Inside (2022).mkv").symlink_to(library / "Real (2020).mkv")
+    keys = [found.key for found in storage.walk(str(library))]
+    assert keys == ["Inside (2022).mkv", "Real (2020).mkv"]
+    assert list(storage.walk(str(library), "Escape (2021).mkv")) == []

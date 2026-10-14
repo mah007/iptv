@@ -327,11 +327,14 @@ function TemplateEditor({ template }: { template: Template }) {
                 <p className="text-ui font-medium text-foreground" dir={rtl ? "rtl" : "ltr"}>
                   {preview.subject}
                 </p>
-                {preview.html ? (
+                {preview.html_url ? (
+                  // Its own document and policy (inline styles, no scripts): a srcdoc
+                  // frame would inherit the admin's stricter CSP (ADR-0021).
                   <iframe
+                    key={preview.html_url}
                     title={t("templates.preview")}
                     sandbox=""
-                    srcDoc={preview.html}
+                    src={preview.html_url}
                     className="h-80 w-full rounded-input border border-border bg-white"
                   />
                 ) : (

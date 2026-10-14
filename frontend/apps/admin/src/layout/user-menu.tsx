@@ -9,7 +9,8 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@smart-iptv/ui";
-import { Keyboard, LogOut, UserRound } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Info, Keyboard, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export interface SignedInUser {
@@ -58,6 +59,18 @@ export function UserMenu({ user, onSignOut, onShowShortcuts }: UserMenuProps) {
             <DropdownMenuSeparator />
           </>
         ) : null}
+        <DropdownMenuItem asChild>
+          <Link to="/account/security">
+            <ShieldCheck aria-hidden="true" />
+            {t("userMenu.security")}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/about">
+            <Info aria-hidden="true" />
+            {t("userMenu.about")}
+          </Link>
+        </DropdownMenuItem>
         {onShowShortcuts ? (
           <DropdownMenuItem onSelect={onShowShortcuts}>
             <Keyboard aria-hidden="true" />

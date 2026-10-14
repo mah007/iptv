@@ -104,8 +104,18 @@ services:
   web:
     <<: *app
     networks: [edge, backend]
-    # Signs media URLs and re-verifies them in /internal/stream-auth (ADR-0007).
-    secrets: [media_token_keys]
+    # Zero-downtime updates (M15, ADR-0022): scripts/rollout.sh starts new replicas next
+    # to the old ones, waits for them to be healthy, then stops the old ones gracefully
+    # (gunicorn finishes requests in flight within 30 s). Production runs two.
+    deploy:
+      replicas: ${WEB_REPLICAS:-1}
+    stop_grace_period: 35s
+    # Signs media URLs and re-verifies them in /internal/stream-auth (ADR-0007); only
+    # callers presenting edge_auth_token may use stream-auth (G-16, ADR-0021).
+    secrets: [media_token_keys, edge_auth_token]
+    volumes:
+      # The DB-IP Lite databases the worker downloads (GeoIP, ADR-0021), read-only here.
+      - geoip-data:/geoip:ro
     healthcheck:
       test: ["CMD", "python", "-m", "apps.core.healthcheck", "web"]
       interval: 10s
@@ -115,15 +125,22 @@ services:
     labels:
       traefik.enable: "true"
       traefik.http.services.web.loadbalancer.server.port: "8000"
+      # Zero-downtime (M15, ADR-0022): Traefik only routes to healthy replicas (Docker's
+      # health), checks each one itself every 5 s, and retries a request whose replica
+      # refused the connection (one stopping during a rollout) on another (retry@file).
+      traefik.http.services.web.loadbalancer.healthcheck.path: /internal/health/live
+      traefik.http.services.web.loadbalancer.healthcheck.hostname: web
+      traefik.http.services.web.loadbalancer.healthcheck.interval: 5s
+      traefik.http.services.web.loadbalancer.healthcheck.timeout: 3s
       # Internal endpoints are also 404 by URLconf; this is defence in depth.
       traefik.http.routers.api.rule: Host(`api.${DOMAIN:-localhost}`) && !PathPrefix(`/internal`) && !PathPrefix(`/metrics`)
       traefik.http.routers.api.entrypoints: web
       traefik.http.routers.api.service: web
-      traefik.http.routers.api.middlewares: secure-headers@file
+      traefik.http.routers.api.middlewares: secure-headers@file,retry@file
       traefik.http.routers.tv.rule: Host(`tv.${DOMAIN:-localhost}`) && !PathPrefix(`/internal`) && !PathPrefix(`/metrics`)
       traefik.http.routers.tv.entrypoints: web
       traefik.http.routers.tv.service: web
-      traefik.http.routers.tv.middlewares: secure-headers@file,xtream-ratelimit@docker
+      traefik.http.routers.tv.middlewares: secure-headers@file,xtream-ratelimit@docker,retry@file
       # Per client IP: IPTV apps fire bursts of catalogue calls, brute force fires more.
       traefik.http.middlewares.xtream-ratelimit.ratelimit.average: "10"
       traefik.http.middlewares.xtream-ratelimit.ratelimit.period: "1s"
@@ -135,23 +152,53 @@ services:
       traefik.http.routers.admin-api.priority: "1000"
       traefik.http.routers.admin-api.entrypoints: web
       traefik.http.routers.admin-api.service: web
-      traefik.http.routers.admin-api.middlewares: secure-headers@file
+      traefik.http.routers.admin-api.middlewares: secure-headers@file,retry@file
       traefik.http.routers.portal-api.rule: Host(`app.${DOMAIN:-localhost}`) && PathPrefix(`/api`)
       traefik.http.routers.portal-api.priority: "1000"
       traefik.http.routers.portal-api.entrypoints: web
       traefik.http.routers.portal-api.service: web
-      traefik.http.routers.portal-api.middlewares: secure-headers@file
+      traefik.http.routers.portal-api.middlewares: secure-headers@file,retry@file
       # --- C1 (ADR-0013): customer sign-in, token refresh and password links, a stricter
       # rate per client IP on the portal and API hosts (SPEC §11); Django adds lockouts.
       traefik.http.routers.customer-auth.rule: (Host(`app.${DOMAIN:-localhost}`) || Host(`api.${DOMAIN:-localhost}`)) && PathPrefix(`/api/v1/auth`)
       traefik.http.routers.customer-auth.priority: "2000"
       traefik.http.routers.customer-auth.entrypoints: web
       traefik.http.routers.customer-auth.service: web
-      traefik.http.routers.customer-auth.middlewares: secure-headers@file,customer-auth-ratelimit@docker
+      traefik.http.routers.customer-auth.middlewares: secure-headers@file,customer-auth-ratelimit@docker,retry@file
       traefik.http.middlewares.customer-auth-ratelimit.ratelimit.average: "5"
       traefik.http.middlewares.customer-auth-ratelimit.ratelimit.period: "1s"
       traefik.http.middlewares.customer-auth-ratelimit.ratelimit.burst: "20"
       # --- end C1 ---
+      # --- M14a (ADR-0021): admin sign-in, the same per-IP limit as customers' (Django adds
+      # per-account limits and lockouts), and CSP reports, which any page can send.
+      traefik.http.routers.admin-auth.rule: Host(`admin.${DOMAIN:-localhost}`) && PathPrefix(`/api/v1/auth`)
+      traefik.http.routers.admin-auth.priority: "2000"
+      traefik.http.routers.admin-auth.entrypoints: web
+      traefik.http.routers.admin-auth.service: web
+      traefik.http.routers.admin-auth.middlewares: secure-headers@file,admin-auth-ratelimit@docker,retry@file
+      traefik.http.middlewares.admin-auth-ratelimit.ratelimit.average: "5"
+      traefik.http.middlewares.admin-auth-ratelimit.ratelimit.period: "1s"
+      traefik.http.middlewares.admin-auth-ratelimit.ratelimit.burst: "20"
+      traefik.http.routers.csp-report.rule: (Host(`admin.${DOMAIN:-localhost}`) || Host(`app.${DOMAIN:-localhost}`)) && Path(`/api/v1/csp-report`)
+      traefik.http.routers.csp-report.priority: "3000"
+      traefik.http.routers.csp-report.entrypoints: web
+      traefik.http.routers.csp-report.service: web
+      traefik.http.routers.csp-report.middlewares: secure-headers@file,csp-report-ratelimit@docker
+      traefik.http.middlewares.csp-report-ratelimit.ratelimit.average: "1"
+      traefik.http.middlewares.csp-report-ratelimit.ratelimit.period: "1s"
+      traefik.http.middlewares.csp-report-ratelimit.ratelimit.burst: "10"
+      # --- end M14a ---
+      # --- M15 (ADR-0022): standalone edges' control channel and stream-auth. Bearer
+      # secrets per edge; the limit only keeps junk away (a busy edge asks stream-auth
+      # about once a minute per playing session).
+      traefik.http.routers.edges.rule: Host(`edges.${DOMAIN:-localhost}`)
+      traefik.http.routers.edges.entrypoints: web
+      traefik.http.routers.edges.service: web
+      traefik.http.routers.edges.middlewares: secure-headers@file,edges-ratelimit@docker,retry@file
+      traefik.http.middlewares.edges-ratelimit.ratelimit.average: "300"
+      traefik.http.middlewares.edges-ratelimit.ratelimit.period: "1s"
+      traefik.http.middlewares.edges-ratelimit.ratelimit.burst: "600"
+      # --- end M15 ---
 
   worker:
     <<: *app
@@ -161,7 +208,8 @@ services:
       context: .
       dockerfile: docker/app.Dockerfile
       target: media
-    command: ["celery", "-A", "config", "worker", "--queues", "default,scan,metadata,images,notify", "--concurrency", "2", "--loglevel", "INFO"]
+    # `publish`: renditions to the S3 origin (M15, ADR-0022), when Settings → Storage turns it on.
+    command: ["celery", "-A", "config", "worker", "--queues", "default,scan,metadata,images,notify,publish", "--concurrency", "2", "--loglevel", "INFO"]
     # The worker's metrics (its pool processes' counters), served on this port inside
     # the backend network (apps.core.worker_metrics, ADR-0018).
     environment: &worker-metrics
@@ -169,7 +217,9 @@ services:
     volumes:
       # Artwork (images/) and, from slice 3, renditions; the overlays add /media.
       - media-data:/data
-    # TMDB and its image CDN need the internet; the backend network has none.
+      # DB-IP Lite country and ASN databases, downloaded monthly (ADR-0021).
+      - geoip-data:/geoip
+    # TMDB, its image CDN and DB-IP's downloads need the internet; backend has none.
     networks: [backend, egress]
     depends_on:
       postgres: { condition: service_healthy }
@@ -274,6 +324,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-}
       POSTGRES_REPORTING_PASSWORD: ${POSTGRES_REPORTING_PASSWORD:-}
+      # The read replica's streaming role, when set (M15, ADR-0022).
+      POSTGRES_REPLICATION_PASSWORD: ${POSTGRES_REPLICATION_PASSWORD:-}
     volumes:
       - postgres-run:/var/run/postgresql
     network_mode: none
@@ -293,12 +345,13 @@ services:
     read_only: true
     entrypoint: ["sh", "-c"]
     # The CrowdSec overlay mounts /crowdsec-traefik too: the worker writes Traefik's file there.
-    command: ["mkdir -p /data/images /data/renditions && chown \"$$DATA_OWNER\" /data /data/images /data/renditions /live && if [ -d /crowdsec-traefik ]; then chown \"$$DATA_OWNER\" /crowdsec-traefik; fi"]
+    command: ["mkdir -p /data/images /data/renditions && chown \"$$DATA_OWNER\" /data /data/images /data/renditions /live /geoip && if [ -d /crowdsec-traefik ]; then chown \"$$DATA_OWNER\" /crowdsec-traefik; fi"]
     environment:
       DATA_OWNER: "10001:10001"
     volumes:
       - media-data:/data
       - live-data:/live
+      - geoip-data:/geoip
     network_mode: none
     restart: "no"
     logging: *logging
@@ -317,6 +370,8 @@ services:
     cap_add: [CHOWN, SETUID, SETGID]
     security_opt: ["no-new-privileges:true"]
     environment:
+      # The local edge in the admin's Edges page and in session records (ADR-0022).
+      EDGE_ID: local
       EDGE_AUTH_UPSTREAM: web:8000
       EDGE_KEYS_FILE: /run/secrets/media_token_keys
       EDGE_MEDIA_ROOT: /data/renditions
@@ -328,7 +383,8 @@ services:
       # Live TV (ADR-0017): segments from the live volume, streams from the relay.
       EDGE_LIVE_ROOT: /live
       EDGE_LIVE_RELAY: live-relay:8090
-    secrets: [media_token_keys]
+    # The shared secret for the internal stream-auth (G-16, ADR-0021).
+    secrets: [media_token_keys, edge_auth_token]
     volumes:
       - ./streaming/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./streaming/nginx:/etc/nginx/edge:ro
@@ -353,6 +409,8 @@ services:
       traefik.http.routers.media.rule: Host(`media.${DOMAIN:-localhost}`)
       traefik.http.routers.media.entrypoints: web
       traefik.http.routers.media.service: media
+      # nosniff and frame-deny; HSTS in production (M14a, ADR-0021).
+      traefik.http.routers.media.middlewares: secure-headers@file
       traefik.http.services.media.loadbalancer.server.port: "8080"
 
   # Live TV (ADR-0017): the packager runs one ffmpeg per watched (or recording)
@@ -385,8 +443,8 @@ services:
       retries: 3
 
   # The live relay (ADR-0017): what the edge cannot serve from a file (continuous
-  # .ts, the live playlist, catch-up windows). No secrets, no database: it reads the
-  # live volume and asks web's /internal/stream-auth while a stream lasts.
+  # .ts, the live playlist, catch-up windows). No database: it reads the live volume and
+  # asks web's /internal/stream-auth while a stream lasts, with the edges' shared secret.
   live-relay:
     image: smart-iptv/app:${APP_VERSION:-dev}
     build:
@@ -402,6 +460,7 @@ services:
       LIVE_ROOT: /live
       LIVE_RELAY_AUTH_URL: http://web:8000/internal/stream-auth
       LIVE_RELAY_AUTH_HOST: web
+    secrets: [edge_auth_token]
     volumes:
       - live-data:/live:ro
     networks: [backend]
@@ -632,17 +691,21 @@ services:
     restart: unless-stopped
     logging: *logging
     networks: [edge]
+    environment:
+      # The SPAs' CSP takes its media origins from Django at start (docker/nginx/30-csp.sh);
+      # this is the fallback while web can't be reached (ADR-0021).
+      CSP_MEDIA_ORIGINS: ${MEDIA_BASE_URL:-https://media.${DOMAIN:-localhost}} https://*.${DOMAIN:-localhost}
     labels:
       traefik.enable: "true"
       traefik.http.routers.admin.rule: Host(`admin.${DOMAIN:-localhost}`)
       traefik.http.routers.admin.entrypoints: web
       traefik.http.routers.admin.service: admin
-      traefik.http.routers.admin.middlewares: secure-headers@file
+      traefik.http.routers.admin.middlewares: secure-headers@file,retry@file
       traefik.http.services.admin.loadbalancer.server.port: "8080"
       traefik.http.routers.portal.rule: Host(`app.${DOMAIN:-localhost}`)
       traefik.http.routers.portal.entrypoints: web
       traefik.http.routers.portal.service: portal
-      traefik.http.routers.portal.middlewares: secure-headers@file
+      traefik.http.routers.portal.middlewares: secure-headers@file,retry@file
       traefik.http.services.portal.loadbalancer.server.port: "8081"
 
 networks:
@@ -678,6 +741,8 @@ volumes:
   backup-repo:
   # The restore drill's throwaway database, emptied after every drill.
   backup-drill:
+  # DB-IP Lite country and ASN databases (ADR-0021): written by the worker, read by web.
+  geoip-data:
 
 secrets:
   # Media token keys (ADR-0007), generated by `make secrets` (scripts/secrets.sh).
@@ -690,3 +755,7 @@ secrets:
   # The backup service's token for Django's internal API (copied from .env).
   backup_agent_token:
     file: ./secrets/runtime/backup_agent_token
+  # The edges' shared secret for the internal stream-auth (G-16, ADR-0021), copied from
+  # .env by scripts/secrets.sh.
+  edge_auth_token:
+    file: ./secrets/runtime/edge_auth_token

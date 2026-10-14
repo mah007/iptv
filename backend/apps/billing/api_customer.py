@@ -41,6 +41,7 @@ from apps.billing.serializers import (
 )
 from apps.core.http import client_ip
 from apps.core.schema import problems
+from apps.core.throttling import CheckoutThrottle
 from apps.playback.entitlements import governing_subscription
 
 
@@ -75,6 +76,8 @@ class ProviderListView(CustomerView):
 
 
 class CheckoutView(CustomerView):
+    throttle_classes = (CheckoutThrottle,)
+
     @extend_schema(
         operation_id="billing_checkout",
         summary="Start paying for a plan (or start a free trial)",

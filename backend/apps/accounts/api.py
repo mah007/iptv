@@ -9,7 +9,7 @@ that carry a plaintext password are marked `Cache-Control: no-store`.
 from typing import Any, ClassVar
 from uuid import UUID
 
-from django.db.models import Count, Max, Prefetch, Q, QuerySet
+from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q, QuerySet
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
@@ -18,7 +18,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts import services
+from apps.accounts import auth, services, stepup
 from apps.accounts.filters import AccessRuleFilter, CustomerFilter
 from apps.accounts.models import AccessRule, CustomerAccess, Device, Permission, Role, User
 from apps.accounts.permissions import HasPermission, Requirements
@@ -41,9 +41,12 @@ from apps.accounts.serializers import (
     DeviceSerializer,
     IssuedCredentialSerializer,
     PermissionSerializer,
+    RevokeByAppResultSerializer,
+    RevokeByAppSerializer,
     RoleSerializer,
     SuspendSerializer,
 )
+from apps.antisharing.models import FlagStatus, RiskFlag
 from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
@@ -84,6 +87,10 @@ def customer_list_queryset() -> QuerySet[User]:
                 "devices", filter=Q(devices__revoked_at__isnull=True), distinct=True
             ),
             last_seen=Max("devices__last_seen"),
+            # An open anti-sharing flag (M14a, ADR-0021).
+            risk_flagged=Exists(
+                RiskFlag.objects.filter(user=OuterRef("pk"), status=FlagStatus.OPEN)
+            ),
         )
         .order_by("-created_at", "-id")
     )
@@ -157,6 +164,9 @@ class CustomerListView(generics.ListCreateAPIView[User]):
         profile = dict(payload.validated_data)
         access = profile.pop("access", None)
         device = profile.pop("device", None)
+        if device is not None:
+            # Issuing a credential reveals its password: confirm it's you first (ADR-0021).
+            stepup.require(request)
         user, issued = services.create_customer(
             profile,
             access=access,
@@ -300,6 +310,7 @@ class CustomerDeviceListView(generics.ListCreateAPIView[Device]):
         "GET": "customers.view",
         "POST": "devices.manage",
     }
+    step_up_methods = frozenset({"POST"})
     serializer_class = DeviceSerializer
     filter_backends = ()
 
@@ -398,6 +409,7 @@ class DeviceRevokeView(AdminView):
 
 class DeviceResetCredentialsView(AdminView):
     required_permissions: ClassVar[Requirements] = {"POST": "devices.manage"}
+    step_up_methods = frozenset({"POST"})
 
     @extend_schema(
         operation_id="devices_reset_credentials",
@@ -478,6 +490,7 @@ class AccessRuleListView(generics.ListCreateAPIView[AccessRule]):
 
 class AccessRuleDetailView(AdminView):
     required_permissions: ClassVar[Requirements] = {"DELETE": "customers.edit"}
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="access_rules_destroy",
@@ -541,6 +554,7 @@ def roles_queryset() -> QuerySet[Role]:
 class RoleListView(generics.ListCreateAPIView[Role]):
     permission_classes = (HasPermission,)
     required_permissions: ClassVar[Requirements] = {"GET": ROLE_READERS, "POST": "roles.manage"}
+    step_up_methods = frozenset({"POST"})
     serializer_class = RoleSerializer
     pagination_class = None
     filter_backends = ()
@@ -567,6 +581,7 @@ class RoleDetailView(AdminView):
         "PATCH": "roles.manage",
         "DELETE": "roles.manage",
     }
+    step_up_methods = frozenset({"PATCH", "DELETE"})
 
     @extend_schema(
         operation_id="roles_retrieve",
@@ -629,6 +644,7 @@ def admins_queryset() -> QuerySet[User]:
 class AdminListView(generics.ListCreateAPIView[User]):
     permission_classes = (HasPermission,)
     required_permissions: ClassVar[Requirements] = {"GET": "admins.manage", "POST": "admins.manage"}
+    step_up_methods = frozenset({"POST"})
     serializer_class = AdminSerializer
     filter_backends = (filters.SearchFilter,)
     search_fields = ("username", "name", "email")
@@ -657,6 +673,7 @@ class AdminDetailView(AdminView):
         "GET": "admins.manage",
         "PATCH": "admins.manage",
     }
+    step_up_methods = frozenset({"PATCH"})
 
     @extend_schema(
         operation_id="admins_retrieve",
@@ -686,3 +703,64 @@ class AdminDetailView(AdminView):
             ip=client_ip(request),
         )
         return Response(AdminSerializer(admins_queryset().get(pk=pk)).data)
+
+
+class AdminResetMfaView(AdminView):
+    """POST /api/v1/admin/admins/{id}/reset-mfa: remove an admin's authenticator and keys.
+
+    The recovery path for a lost phone or key (ADR-0021): their sessions end, and their
+    next sign-in enrols a new authenticator app. Only owners reset an owner; resetting
+    yourself is refused (use My account → Security, or the host command)."""
+
+    required_permissions: ClassVar[Requirements] = {"POST": "admins.manage"}
+    step_up_methods = frozenset({"POST"})
+
+    @extend_schema(
+        operation_id="admins_reset_mfa",
+        summary="Reset an admin's sign-in confirmation (authenticator app and keys)",
+        request=None,
+        responses={200: AdminSerializer, **problems(401, 403, 404, 409)},
+    )
+    def post(self, request: Request, pk: UUID) -> Response:
+        target = get_object_or_404(admins_queryset(), pk=pk)
+        actor = acting_user(request)
+        if actor is not None and actor.pk == target.pk:
+            raise ProblemError(
+                ErrorCode.CONFLICT, "You cannot reset your own sign-in confirmation here."
+            )
+        if services.is_owner(target) and (actor is None or not services.is_owner(actor)):
+            raise ProblemError(ErrorCode.PERMISSION_DENIED, "Only an owner can reset an owner.")
+        auth.reset_mfa(target, actor=actor, ip=client_ip(request))
+        return Response(AdminSerializer(admins_queryset().get(pk=pk)).data)
+
+
+class DeviceRevokeByAppView(AdminView):
+    """POST /api/v1/admin/devices/revoke-by-app: revoke every login made for one app (G-26).
+
+    A dry run (the default) only counts. The real run needs a recent confirmation: it
+    can stop thousands of logins at once."""
+
+    required_permissions: ClassVar[Requirements] = {"POST": "devices.manage"}
+
+    @extend_schema(
+        operation_id="devices_revoke_by_app",
+        summary="Revoke every IPTV login made for one app (vendor breach, public leak)",
+        request=RevokeByAppSerializer,
+        responses={200: RevokeByAppResultSerializer, **problems(400, 401, 403)},
+    )
+    def post(self, request: Request) -> Response:
+        payload = RevokeByAppSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        if not data["dry_run"]:
+            stepup.require(request)
+        count = services.revoke_by_app(
+            data["app_hint"],
+            actor=acting_user(request),
+            ip=client_ip(request),
+            notify=data["notify"],
+            dry_run=data["dry_run"],
+        )
+        return Response(
+            RevokeByAppResultSerializer({"devices": count, "dry_run": data["dry_run"]}).data
+        )

@@ -39,6 +39,27 @@ groups:
           description: "nginx-stream's /healthz has failed for 2 minutes: playback and artwork are unavailable."
           runbook: docs/runbooks/alerts.md#mediaedgedown
 
+      # M15 (ADR-0022): every enabled edge, as Django sees it (reports and probes).
+      - alert: EdgeDown
+        expr: iptv_edges_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Edge {{ $labels.edge }} is down or not reporting"
+          description: "The edge hasn't reported in time (or lacks the signing key) for 2 minutes. New sessions go to other edges; its playing sessions may fail. Check it on the admin's Edges page (Test)."
+          runbook: docs/runbooks/alerts.md#edgedown
+
+      - alert: EdgeOverCapacity
+        expr: iptv_edges_egress_bits > 0.8 * iptv_edges_capacity_bits
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Edge {{ $labels.edge }} is sending {{ $value | humanize }}bit/s, over 80% of its capacity"
+          description: "The edge's reported egress has stayed above 80% of the capacity set on the Edges page for 10 minutes; above 90% it takes no new sessions."
+          runbook: docs/runbooks/alerts.md#edgeovercapacity
+
   - name: iptv-state
     rules:
       - alert: RedisStateEvictions

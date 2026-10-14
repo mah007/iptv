@@ -235,5 +235,12 @@
     "partially_refunded": "مستردّ جزئيًا",
     "refunded": "مستردّ",
     "void": "ملغاة"
+  },
+  "attribution": {
+    "tmdb": "يستخدم هذا المنتج واجهة TMDB البرمجية، لكنه غير معتمد أو مصادق عليه من TMDB.",
+    "tmdbLogo": "قاعدة بيانات الأفلام (TMDB)",
+    "dbip": "تحديد الموقع الجغرافي لعناوين IP بواسطة DB-IP",
+    "dbipLicence": "بيانات الدول والشبكات: DB-IP Lite بترخيص CC BY 4.0.",
+    "naturalEarth": "مواقع الدول لفحص التنقل: Natural Earth (ملكية عامة)."
   }
 }

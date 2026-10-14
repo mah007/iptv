@@ -15,7 +15,9 @@ The checks themselves still matter. Only where they run changes.
   1. `up`: build and start the stack, waiting up to 5 minutes for every healthcheck;
   2. `smoke`: routing, isolation and readiness through Traefik;
   3. `lint`: Ruff, a missing-migrations check, and ESLint with warnings as errors plus Prettier;
+  3a. `semgrep`, `audit`, `zap` (M14a, ADR-0021): the project's own Semgrep rules and their tests; pip-audit and `pnpm audit --prod` on the production dependencies, with dated exceptions; a ZAP baseline (passive rules) against every dev host;
   4. `compat`: the Xtream contract's schemas and golden fixtures, offline;
+  4a. `edge-test` (M15, ADR-0022): every media edge mode in throwaway containers: local disk with live TV, the S3 origin, a standalone edge with its own TLS and control channel, CDN pulls, fail-closed, and the logs;
   5. `typecheck`;
   6. `api-client-check`: the OpenAPI schemas and both generated clients are current;
   7. `test`: pytest with 85% coverage and Vitest, including Arabic/English key parity;
@@ -38,10 +40,11 @@ The checks themselves still matter. Only where they run changes.
 | OpenAPI client freshness (§8.4) | Added to `make ci` in M2 |
 | Xtream contract tests and the IPTVnator end-to-end run (§7.5) | Added to `make ci` in M9 |
 | Admin and portal Playwright journeys with axe (§8, §9, §15) | Added to `make ci` in M11 and M11b |
-| pip-audit, pnpm audit, Semgrep (§11, §15) | Added to `make ci` in M14 (Bandit rules already run via Ruff's `S` rules) |
+| pip-audit, pnpm audit, Semgrep (§11, §15) | `make audit` and `make semgrep` inside `make ci` since M14a (ADR-0021); Bandit's rules run via Ruff's `S` rules, Semgrep runs only the project's own rules (`.semgrep/rules.yml`) |
+| OWASP ZAP baseline (§11, §15) | `make zap` inside `make ci` since M14a (ADR-0021): the Automation Framework plan `security/zap/plan.yaml`, passive rules, about 15 s |
 | Weekly restore test (§11) | M14: a weekly scheduled job (cron or systemd timer) on the staging host runs `make restore-test` |
 | Release workflow (§5 `release.yml`) | Not created; releases run by hand through `make deploy` (§13, planned for M13–M15) |
-| Renovate (§11) | Deferred: without automated tests on its PRs it adds noise. Dependencies are re-checked with `dep-check` at each milestone instead |
+| Renovate (§11) | Config only since M14a (`renovate.json`: weekly grouped proposals, releases at least 14 days old, digests pinned, security fixes at once). Nothing runs it automatically; whoever runs it checks each proposal with `make ci` before merging. Dependencies are also re-checked at each milestone |
 
 ## Alternatives considered
 - **Keep GitHub Actions:** rejected by the owner, as not worth it (and blocked by the account's billing lock).

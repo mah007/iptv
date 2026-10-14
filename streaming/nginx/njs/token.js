@@ -8,7 +8,12 @@
  * streaming/tests/vectors.json.
  *
  * Keys come from the key file that nginx preloads at configuration time
- * (`js_preload_object edge_keys from <file>`), so workers never open it.
+ * (`js_preload_object edge_keys from <file>`), so workers never open it. A standalone
+ * edge gets them from the control plane instead (control.js, ADR-0022): the shared
+ * dictionary `edge_ctl` holds the last key set the control channel fetched.
+ *
+ * In the S3 origin mode ($edge_mode = s3), $edge_object is the bucket object s3.js maps
+ * the path to, and a path past a capped presentation's ceiling is out of scope.
  *
  * This module never logs anything: every error line nginx writes while serving a
  * request ends with the raw request line, and that line holds the token.
@@ -25,6 +30,7 @@
  * ip_mismatch, scope, no_keys.
  */
 import crypto from 'crypto';
+import s3 from 's3.js';
 
 const CLOCK_SKEW_S = 30;
 const MAX_TTL_S = 7 * 24 * 3600;
@@ -319,11 +325,26 @@ function check(keys, token, tail, addr, now) {
 var keyCache = null;
 var parseCache = { token: null, value: null };
 
+/* The key set from the control channel's dictionary (standalone edges, ADR-0022). */
+function controlKeySet() {
+    var dict = typeof ngx !== 'undefined' && ngx.shared && ngx.shared.edge_ctl;
+    if (!dict) {
+        return { keys: null, error: 'no key file preloaded' };
+    }
+    var raw = dict.get('keys');
+    if (!raw) {
+        return { keys: null, error: 'no keys from the control plane yet' };
+    }
+    try {
+        return parseKeySet(JSON.parse(raw));
+    } catch (e) {
+        return { keys: null, error: 'the control plane sent an invalid key set' };
+    }
+}
+
 function keySet() {
     if (keyCache === null) {
-        keyCache = typeof edge_keys === 'undefined'
-            ? { keys: null, error: 'no key file preloaded' }
-            : parseKeySet(edge_keys);
+        keyCache = typeof edge_keys === 'undefined' ? controlKeySet() : parseKeySet(edge_keys);
     }
     return keyCache;
 }
@@ -359,15 +380,76 @@ function verify(r) {
     if (ks.error !== null) {
         return 'no_keys';
     }
-    return check(ks.keys, token, r.variables.tail, r.variables.remote_addr,
-                 Math.floor(Date.now() / 1000));
+    var verdict = check(ks.keys, token, r.variables.tail, r.variables.remote_addr,
+                        Math.floor(Date.now() / 1000));
+    if (verdict === 'ok' && r.variables.edge_mode === 's3') {
+        var t = parsed(token);
+        if (s3.map(t.title, t.rendition, r.variables.tail) === null) {
+            return 'scope';
+        }
+    }
+    return verdict;
 }
 
-/* js_set $edge_object: only used once $edge_verdict is "ok". */
+/* js_set $edge_object: only used once $edge_verdict (or $edge_cdn_verdict) is "ok".
+ * Local mode: the path under the media root; S3 mode: the bucket object (s3.js). */
 function object(r) {
+    if (r.variables.cdn_title) {
+        return cdnObject(r.variables.cdn_title, r.variables.cdn_tail, r.variables.edge_mode);
+    }
     var t = parsed(r.variables.token);
     var tail = r.variables.tail;
-    return t !== null && validTail(tail) ? t.title + '/' + tail : '';
+    if (t === null || !validTail(tail)) {
+        return '';
+    }
+    if (r.variables.edge_mode === 's3') {
+        return s3.map(t.title, t.rendition, tail) || '';
+    }
+    return t.title + '/' + tail;
+}
+
+/* CDN pulls (ADR-0022, docs/runbooks/cdn-bunny.md): /c/<title>/<tail>. The pull zone
+ * checked its own token (scoped to the presentation's folder or the file), so the edge
+ * checks only that the request comes from the zone, then maps the path as for a token
+ * whose rendition is the tail's first folder: a capped presentation reaches the rungs
+ * within its ceiling and no others. "" when the path maps to nothing. */
+function cdnObject(title, tail, mode) {
+    if (!TITLE.test(title || '') || !validTail(tail)) {
+        return '';
+    }
+    if (mode !== 's3') {
+        return title + '/' + tail;
+    }
+    var cut = tail.indexOf('/');
+    return s3.map(title, cut === -1 ? '' : tail.slice(0, cut), tail) || '';
+}
+
+/* Equal secrets, compared in constant time (hashes first, so the lengths match). */
+function sameSecret(given, expected) {
+    var a = crypto.createHash('sha256').update(given).digest('hex');
+    var b = crypto.createHash('sha256').update(expected).digest('hex');
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) {
+        diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diff === 0;
+}
+
+const MIN_CDN_SECRET = 16;
+
+/* js_set $edge_cdn_verdict: "ok" for a pull carrying the CDN origin secret in
+ * X-Origin-Auth ($edge_cdn_secret: the control channel's copy or a file), "scope" when
+ * its path maps to nothing, "denied" otherwise (also when no secret is set). */
+function cdnVerdict(r) {
+    var expected = r.variables.edge_cdn_secret || '';
+    var given = r.headersIn['X-Origin-Auth'] || '';
+    if (expected.length < MIN_CDN_SECRET || !sameSecret(given, expected)) {
+        return 'denied';
+    }
+    if (cdnObject(r.variables.cdn_title, r.variables.cdn_tail, r.variables.edge_mode) === '') {
+        return 'scope';
+    }
+    return 'ok';
 }
 
 /* js_set $edge_auth_key: the cache stores this hash, never the token. */
@@ -388,6 +470,10 @@ function logPath(r) {
         var tail = cut === -1 ? '' : rest.slice(cut + 1);
         return '/v/' + (t !== null ? t.session.slice(0, SESSION_LOG_PREFIX) : '-')
             + (tail === '' ? '' : validTail(tail) ? '/' + tail : '/...');
+    }
+    if (uri.slice(0, 3) === '/c/' && r.variables.cdn_title) {
+        // A CDN pull's path: a title and a file, nothing secret (the secret is a header).
+        return validTail(r.variables.cdn_tail) ? uri : '/c/...';
     }
     var m = XTREAM_PATH.exec(uri);
     if (m) {
@@ -532,7 +618,8 @@ function originHeaders(r) {
     mediaHeaders(r);
 }
 
-/* js_content for /healthz: the edge is healthy when its key file is usable. */
+/* js_content for /healthz: the edge is healthy when its key set is usable (the key
+ * file, or the control channel's copy on a standalone edge). */
 function health(r) {
     if (keySet().error !== null) {
         r.return(503, 'unavailable\n');
@@ -544,6 +631,7 @@ function health(r) {
 export default {
     verify,
     object,
+    cdnVerdict,
     authKey,
     logPath,
     logSession,
@@ -556,6 +644,9 @@ export default {
     /* Pure functions for check_keys.js and streaming/tests/njs/token_test.js. */
     parseToken,
     parseKeySet,
+    cdnObject,
+    sameSecret,
+    keySet,
     check,
     clientNet,
     validTail,

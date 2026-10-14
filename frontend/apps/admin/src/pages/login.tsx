@@ -1,4 +1,10 @@
-import { isApiError, useAuthLogin, useAuthMfaVerify } from "@smart-iptv/api";
+import {
+  authMfaWebauthnOptions,
+  authMfaWebauthnVerify,
+  isApiError,
+  useAuthLogin,
+  useAuthMfaVerify,
+} from "@smart-iptv/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -6,6 +12,7 @@ import { useTranslation } from "react-i18next";
 
 import { LoginForm } from "../features/auth/login-form";
 import { MfaForm } from "../features/auth/mfa-form";
+import { keyCancelled, keysSupported, signWithKey } from "../features/security/webauthn";
 import { meQueryOptions, safeRedirect } from "../lib/auth";
 import { usePageTitle } from "../lib/page-title";
 
@@ -14,6 +21,7 @@ const mfaApi = getRouteApi("/auth/login/mfa");
 
 /** problem+json code of a failed sign-in step; network failures read as unavailable. */
 function failureCode(error: unknown): string {
+  if (keyCancelled(error)) return "KEY_CANCELLED";
   return isApiError(error) ? error.code : "UNAVAILABLE";
 }
 
@@ -37,6 +45,7 @@ export function LoginPage() {
           signIn.setEnrolment(
             result.status === "mfa_setup_required" ? (result.otpauth_uri ?? null) : null,
           );
+          signIn.setMethods(result.methods ?? []);
           await navigate({ to: "/login/mfa", search });
         } catch (error) {
           setErrorCode(failureCode(error));
@@ -55,6 +64,7 @@ export function MfaPage() {
   const { signIn } = mfaApi.useRouteContext();
   // Read once: the enrolment belongs to the sign-in that brought us here.
   const [otpauthUri] = useState(() => signIn.enrolment());
+  const [methods] = useState(() => signIn.methods());
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const verify = useAuthMfaVerify();
   usePageTitle(otpauthUri ? t("auth.mfa.setupTitle") : t("auth.mfa.verifyTitle"));
@@ -63,6 +73,19 @@ export function MfaPage() {
     setErrorCode(null);
     try {
       const me = await verify.mutateAsync({ data: { code } });
+      signIn.setEnrolment(null);
+      queryClient.setQueryData(meQueryOptions().queryKey, me);
+      await navigate({ href: safeRedirect(search.redirect), replace: true });
+    } catch (error) {
+      setErrorCode(failureCode(error));
+    }
+  }
+
+  async function onSecurityKey(): Promise<void> {
+    setErrorCode(null);
+    try {
+      const { options } = await authMfaWebauthnOptions();
+      const me = await authMfaWebauthnVerify({ credential: await signWithKey(options) });
       signIn.setEnrolment(null);
       queryClient.setQueryData(meQueryOptions().queryKey, me);
       await navigate({ href: safeRedirect(search.redirect), replace: true });
@@ -85,6 +108,13 @@ export function MfaPage() {
       onBack={onBack}
     />
   ) : (
-    <MfaForm mode="verify" errorCode={errorCode} onSubmit={onSubmit} onBack={onBack} />
+    <MfaForm
+      mode="verify"
+      errorCode={errorCode}
+      onSubmit={onSubmit}
+      onBack={onBack}
+      codeAllowed={methods.includes("totp")}
+      {...(methods.includes("webauthn") && keysSupported() ? { onSecurityKey } : {})}
+    />
   );
 }

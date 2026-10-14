@@ -223,5 +223,12 @@
     "partially_refunded": "Partly refunded",
     "refunded": "Refunded",
     "void": "Void"
+  },
+  "attribution": {
+    "tmdb": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+    "tmdbLogo": "The Movie Database (TMDB)",
+    "dbip": "IP Geolocation by DB-IP",
+    "dbipLicence": "Country and network data: DB-IP Lite, licensed under CC BY 4.0.",
+    "naturalEarth": "Country locations for travel checks: Natural Earth (public domain)."
   }
 }

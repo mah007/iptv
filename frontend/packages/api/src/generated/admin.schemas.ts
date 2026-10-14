@@ -352,6 +352,39 @@ export const AppHint = {
   other: "other",
 } as const;
 
+export interface Signal {
+  name: string;
+  value: number;
+  limit: number;
+  points: number;
+}
+
+export interface Travel {
+  from_country: string;
+  to_country: string;
+  km: number;
+  hours: number;
+  at: string;
+}
+
+export interface Assessment {
+  score: number;
+  flagged: boolean;
+  signals: Signal[];
+  travel: Travel[];
+}
+
+/**
+ * * `all` - Everyone
+ * * `canary` - Selected customers
+ */
+export type AudienceEnum = (typeof AudienceEnum)[keyof typeof AudienceEnum];
+
+export const AudienceEnum = {
+  all: "all",
+  canary: "canary",
+} as const;
+
 export interface AudioTrack {
   stream_index: number;
   codec: string;
@@ -1235,6 +1268,7 @@ export interface CustomerSummary {
   readonly device_count: number;
   /** @nullable */
   readonly last_seen: string | null;
+  readonly risk_flagged: boolean;
   readonly created_at: string;
 }
 
@@ -1276,6 +1310,166 @@ export interface DayPoint {
 export interface DeviceBlockRequest {
   /** @maxLength 200 */
   reason?: string;
+}
+
+/**
+ * * `local` - This server
+ * * `standalone` - Standalone edge
+ * * `cdn` - CDN pull zone
+ */
+export type EdgeKind = (typeof EdgeKind)[keyof typeof EdgeKind];
+
+export const EdgeKind = {
+  local: "local",
+  standalone: "standalone",
+  cdn: "cdn",
+} as const;
+
+/**
+ * * `disk` - Its own disk
+ * * `origin` - The S3 origin
+ */
+export type StorageEnum = (typeof StorageEnum)[keyof typeof StorageEnum];
+
+export const StorageEnum = {
+  disk: "disk",
+  origin: "origin",
+} as const;
+
+export interface Edge {
+  readonly id: string;
+  readonly edge_id: string;
+  readonly name: string;
+  readonly kind: EdgeKind;
+  readonly storage: StorageEnum;
+  readonly base_url: string;
+  readonly effective_url: string;
+  readonly enabled: boolean;
+  readonly draining: boolean;
+  readonly weight: number;
+  readonly capacity_mbps: number;
+  readonly audience: AudienceEnum;
+  readonly canary_user_ids: readonly string[];
+  /** @nullable */
+  readonly origin_edge_id: string | null;
+  readonly status: string;
+  /** @nullable */
+  readonly last_seen_at: string | null;
+  /** @nullable */
+  readonly connections: number | null;
+  /** @nullable */
+  readonly egress_mbps: number | null;
+  readonly kids: readonly string[];
+  readonly version: string;
+  readonly has_secret: boolean;
+  /** @nullable */
+  readonly secret_set_at: string | null;
+  readonly created_at: string;
+  readonly csp_changed: boolean;
+}
+
+/**
+ * A new standalone edge, with its secret (shown once).
+ */
+export interface EdgeCreated {
+  readonly id: string;
+  readonly edge_id: string;
+  readonly name: string;
+  readonly kind: EdgeKind;
+  readonly storage: StorageEnum;
+  readonly base_url: string;
+  readonly effective_url: string;
+  readonly enabled: boolean;
+  readonly draining: boolean;
+  readonly weight: number;
+  readonly capacity_mbps: number;
+  readonly audience: AudienceEnum;
+  readonly canary_user_ids: readonly string[];
+  /** @nullable */
+  readonly origin_edge_id: string | null;
+  readonly status: string;
+  /** @nullable */
+  readonly last_seen_at: string | null;
+  /** @nullable */
+  readonly connections: number | null;
+  /** @nullable */
+  readonly egress_mbps: number | null;
+  readonly kids: readonly string[];
+  readonly version: string;
+  readonly has_secret: boolean;
+  /** @nullable */
+  readonly secret_set_at: string | null;
+  readonly created_at: string;
+  readonly csp_changed: boolean;
+  /** @nullable */
+  readonly secret: string | null;
+}
+
+/**
+ * The list, plus what the page shows beside it.
+ */
+export interface EdgeList {
+  edges: Edge[];
+  signing_kid: string;
+  s3_enabled: boolean;
+  cdn_ready: boolean;
+  edges_host: string;
+  control_url: string;
+}
+
+export interface EdgeSecret {
+  secret: string;
+}
+
+/**
+ * * `standalone` - standalone
+ * * `cdn` - cdn
+ */
+export type EdgeWriteKindEnum = (typeof EdgeWriteKindEnum)[keyof typeof EdgeWriteKindEnum];
+
+export const EdgeWriteKindEnum = {
+  standalone: "standalone",
+  cdn: "cdn",
+} as const;
+
+/**
+ * Create (every field) or change (any subset) an edge.
+ */
+export interface EdgeWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  edge_id?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  kind?: EdgeWriteKindEnum;
+  storage?: StorageEnum;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  base_url?: string;
+  enabled?: boolean;
+  draining?: boolean;
+  /**
+   * @minimum 0
+   * @maximum 1000
+   */
+  weight?: number;
+  /**
+   * @minimum 1
+   * @maximum 1000000
+   */
+  capacity_mbps?: number;
+  audience?: AudienceEnum;
+  /** @maxItems 500 */
+  canary_user_ids?: string[];
+  /** @nullable */
+  origin_edge_id?: string | null;
 }
 
 export interface EpgChannel {
@@ -1488,12 +1682,60 @@ export interface ExtendRequest {
   days: number;
 }
 
+export interface FlagAction {
+  action: string;
+  at: string;
+  by: string;
+}
+
 export interface Genre {
   readonly id: string;
   /** @nullable */
   readonly tmdb_id: number | null;
   readonly name_en: string;
   readonly name_ar: string;
+}
+
+export interface GeoDatabase {
+  installed: boolean;
+  /** @nullable */
+  built_at: string | null;
+  /** @nullable */
+  updated_at: string | null;
+  size: number;
+}
+
+export interface GeoDatabases {
+  country: GeoDatabase;
+  asn: GeoDatabase;
+}
+
+export interface GeoIpQueued {
+  queued: boolean;
+}
+
+export interface GeoIpStatus {
+  enabled: boolean;
+  auto_update: boolean;
+  databases: GeoDatabases;
+  attribution: string;
+}
+
+export interface GeoLookup {
+  ip: string;
+  country: string;
+  /** @nullable */
+  asn: number | null;
+  asn_org: string;
+  local: boolean;
+}
+
+export interface GeoLookupRequestRequest {
+  /**
+   * The address to look up; yours when left out.
+   * @minLength 1
+   */
+  ip?: string;
 }
 
 export interface GrowthPoint {
@@ -1650,6 +1892,8 @@ export interface ImageAlternative {
  * * `stripe` - STRIPE
  * * `moyasar` - MOYASAR
  * * `telegram` - TELEGRAM
+ * * `s3_origin` - S3_ORIGIN
+ * * `bunny` - BUNNY
  */
 export type IntegrationName = (typeof IntegrationName)[keyof typeof IntegrationName];
 
@@ -1660,6 +1904,8 @@ export const IntegrationName = {
   stripe: "stripe",
   moyasar: "moyasar",
   telegram: "telegram",
+  s3_origin: "s3_origin",
+  bunny: "bunny",
 } as const;
 
 /**
@@ -2268,6 +2514,8 @@ export interface LoginResponse {
   status: LoginStatus;
   /** Only with mfa_setup_required: the content of the authenticator QR code. */
   otpauth_uri?: string;
+  /** With mfa_required: the second factors this admin may use (totp, webauthn). */
+  methods?: string[];
 }
 
 export interface LogoRequest {
@@ -2319,6 +2567,9 @@ export interface ManualPaymentRequest {
 
 /**
  * The signed-in admin. `permissions` is what the UI may offer; the API checks again.
+ *
+ * The session fields (idle timeout, step-up) come from the context, so every admin sees
+ * the right values whatever their permissions (ADR-0021).
  */
 export interface Me {
   readonly id: string;
@@ -2331,6 +2582,12 @@ export interface Me {
   readonly mfa_enabled: boolean;
   readonly roles: readonly string[];
   readonly permissions: readonly string[];
+  readonly idle_timeout_min: number;
+  readonly step_up_window_min: number;
+  /** @nullable */
+  readonly step_up_until: string | null;
+  readonly mfa_methods: readonly string[];
+  readonly webauthn_enrolment_required: boolean;
 }
 
 export interface MediaAudioTrack {
@@ -3397,6 +3654,46 @@ export interface PatchedCustomerProfileRequest {
 }
 
 /**
+ * Create (every field) or change (any subset) an edge.
+ */
+export interface PatchedEdgeWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  edge_id?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  kind?: EdgeWriteKindEnum;
+  storage?: StorageEnum;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  base_url?: string;
+  enabled?: boolean;
+  draining?: boolean;
+  /**
+   * @minimum 0
+   * @maximum 1000
+   */
+  weight?: number;
+  /**
+   * @minimum 1
+   * @maximum 1000000
+   */
+  capacity_mbps?: number;
+  audience?: AudienceEnum;
+  /** @maxItems 500 */
+  canary_user_ids?: string[];
+  /** @nullable */
+  origin_edge_id?: string | null;
+}
+
+/**
  * JSON or multipart: `url` for a feed, or `file` for an uploaded XMLTV.
  */
 export interface PatchedEpgSourceWriteRequest {
@@ -3678,7 +3975,7 @@ export interface PatchedRoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 25
+   * @maxItems 27
    * @items.minLength 1
    * @items.maxLength 64
    */
@@ -3776,6 +4073,14 @@ export interface PatchedTrackUpdateRequest {
   title?: string;
   default?: boolean;
   forced?: boolean;
+}
+
+export interface PatchedWebAuthnRenameRequest {
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name?: string;
 }
 
 export interface WebhookEvent {
@@ -3950,6 +4255,8 @@ export interface Preview {
   subject: string;
   text: string;
   html: string;
+  /** The HTML version as a document for a sandboxed frame (10 minutes), with its own Content-Security-Policy; empty without HTML. */
+  html_url: string;
 }
 
 export interface PreviewRequestRequest {
@@ -3980,6 +4287,18 @@ export interface PriorityRequest {
    * @maximum 9
    */
   priority: number;
+}
+
+export interface ProbeStep {
+  name: string;
+  ok: boolean;
+  code: string;
+  detail: string;
+}
+
+export interface ProbeResult {
+  ok: boolean;
+  steps: ProbeStep[];
 }
 
 export interface Programme {
@@ -4117,6 +4436,10 @@ export interface ReprocessResult {
   outputs: string[];
 }
 
+export interface ResetResult {
+  logins: number;
+}
+
 export interface ResolveRequest {
   /** @minimum 1 */
   tmdb_id: number;
@@ -4129,6 +4452,95 @@ export interface ResolveRequest {
   kind?: ReviewKind;
 }
 
+export interface ReviewRequest {
+  /** @maxLength 2000 */
+  note?: string;
+}
+
+export interface RevokeByAppRequest {
+  app_hint: AppHint;
+  notify?: boolean;
+  /** Count the devices without revoking them (the default). */
+  dry_run?: boolean;
+}
+
+export interface RevokeByAppResult {
+  devices: number;
+  dry_run: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type RiskFlagAssessment = { [key: string]: unknown } | null;
+
+/**
+ * * `open` - Open
+ * * `reviewed` - Reviewed
+ */
+export type RiskFlagStatus = (typeof RiskFlagStatus)[keyof typeof RiskFlagStatus];
+
+export const RiskFlagStatus = {
+  open: "open",
+  reviewed: "reviewed",
+} as const;
+
+export interface RiskFlag {
+  readonly id: string;
+  status: RiskFlagStatus;
+  readonly score: number;
+  /** @nullable */
+  readonly assessment: RiskFlagAssessment;
+  readonly opened_at: string;
+  readonly last_scored_at: string;
+  actions: FlagAction[];
+  /** @nullable */
+  readonly reviewed_at: string | null;
+  readonly reviewed_by_name: string;
+  readonly note: string;
+}
+
+/**
+ * * `playback` - Playback start
+ * * `xtream` - IPTV app sign-in
+ * * `stream` - Stream heartbeat
+ * * `portal` - Portal sign-in
+ */
+export type SightingSource = (typeof SightingSource)[keyof typeof SightingSource];
+
+export const SightingSource = {
+  playback: "playback",
+  xtream: "xtream",
+  stream: "stream",
+  portal: "portal",
+} as const;
+
+export interface Sighting {
+  readonly id: string;
+  readonly network: string;
+  /** @nullable */
+  readonly asn: number | null;
+  readonly asn_org: string;
+  readonly country: string;
+  readonly source: SightingSource;
+  /** @nullable */
+  readonly device: string | null;
+  readonly device_name: string;
+  readonly app: string;
+  readonly first_seen: string;
+  readonly last_seen: string;
+  readonly hits: number;
+}
+
+export interface RiskOverview {
+  enabled: boolean;
+  geoip_installed: boolean;
+  flag: RiskFlag | null;
+  assessment: Assessment;
+  sightings: Sighting[];
+  attribution_url: string;
+}
+
 /**
  * A role and its permission codes. The owner role always lists every permission.
  */
@@ -4139,7 +4551,7 @@ export interface Role {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 25
+   * @maxItems 27
    * @items.maxLength 64
    */
   permissions?: string[];
@@ -4161,7 +4573,7 @@ export interface RoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 25
+   * @maxItems 27
    * @items.minLength 1
    * @items.maxLength 64
    */
@@ -4306,6 +4718,27 @@ export const SourceTestResultStatusEnum = {
 export interface SourceTestResult {
   status: SourceTestResultStatusEnum;
   result: Probe | null;
+}
+
+/**
+ * An assertion from one of the admin's security keys.
+ */
+export type StepUpRequestCredential = { [key: string]: unknown };
+
+export interface StepUpRequest {
+  /**
+   * An authenticator code (admins).
+   * @minLength 1
+   * @maxLength 16
+   */
+  code?: string;
+  /** An assertion from one of the admin's security keys. */
+  credential?: StepUpRequestCredential;
+}
+
+export interface StepUpResult {
+  /** Sensitive actions stay unlocked until then. */
+  step_up_until: string;
 }
 
 export interface TitleUsage {
@@ -4642,6 +5075,47 @@ export interface Unmatched {
   guide_channels: UnusedGuideChannel[];
 }
 
+export interface WebAuthnCredential {
+  readonly id: string;
+  readonly name: string;
+  readonly created_at: string;
+  /** @nullable */
+  readonly last_used_at: string | null;
+  readonly multi_device: boolean;
+  readonly backed_up: boolean;
+}
+
+export type WebAuthnOptionsOptions = { [key: string]: unknown };
+
+/**
+ * PublicKeyCredential{Creation,Request}Options as JSON (base64url for binary fields);
+ * the SPA hands it to @simplewebauthn/browser.
+ */
+export interface WebAuthnOptions {
+  options: WebAuthnOptionsOptions;
+}
+
+export type WebAuthnRegisterRequestCredential = { [key: string]: unknown };
+
+export interface WebAuthnRegisterRequest {
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name: string;
+  credential: WebAuthnRegisterRequestCredential;
+}
+
+/**
+ * The browser's PublicKeyCredential as JSON (@simplewebauthn/browser).
+ */
+export type WebAuthnVerifyRequestCredential = { [key: string]: unknown };
+
+export interface WebAuthnVerifyRequest {
+  /** The browser's PublicKeyCredential as JSON (@simplewebauthn/browser). */
+  credential: WebAuthnVerifyRequestCredential;
+}
+
 /**
  * Stable machine-readable error code.
  */
@@ -4679,6 +5153,8 @@ export const ErrorCode = {
   PAYMENT_PROVIDER_UNAVAILABLE: "PAYMENT_PROVIDER_UNAVAILABLE",
   PAYMENT_PROVIDER_ERROR: "PAYMENT_PROVIDER_ERROR",
   WEBHOOK_INVALID: "WEBHOOK_INVALID",
+  STEP_UP_REQUIRED: "STEP_UP_REQUIRED",
+  IP_NOT_ALLOWED: "IP_NOT_ALLOWED",
 } as const;
 
 /**
@@ -4903,6 +5379,12 @@ export type CustomersListParams = {
    */
   page_size?: number;
   /**
+   * flagged: customers with an open anti-sharing flag (ADR-0021).
+   *
+   * * `flagged` - flagged
+   */
+  risk?: CustomersListRisk;
+  /**
    * A search term.
    */
   search?: string;
@@ -4938,6 +5420,12 @@ export const CustomersListOrderingItem = {
   expires_at: "expires_at",
   name: "name",
   username: "username",
+} as const;
+
+export type CustomersListRisk = (typeof CustomersListRisk)[keyof typeof CustomersListRisk];
+
+export const CustomersListRisk = {
+  flagged: "flagged",
 } as const;
 
 export type CustomersListStatus = (typeof CustomersListStatus)[keyof typeof CustomersListStatus];

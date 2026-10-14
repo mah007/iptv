@@ -1,0 +1,12 @@
+
+# Let's Encrypt for this edge's own name (EDGE_TLS=acme, ADR-0022), with nginx's ACME
+# module (in the official image). The account and certificates persist in the state
+# folder (a volume), so restarts don't re-issue them (Let's Encrypt rate limits).
+acme_issuer edge {
+    uri ${EDGE_ACME_DIRECTORY};
+    ${EDGE_ACME_CONTACT_LINE}
+    state_path ${EDGE_ACME_STATE_DIR};
+    accept_terms_of_service;
+    ${EDGE_ACME_CA_LINE}
+}
+acme_shared_zone zone=ngx_acme_shared:256k;

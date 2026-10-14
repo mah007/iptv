@@ -7,7 +7,7 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from apps.accounts.models import User
+from apps.accounts.models import Device, DeviceKind, User
 from apps.catalog.tests.builders import Builder, build, clean_stores
 from apps.engagement.models import Favorite, WatchProgress
 
@@ -48,6 +48,20 @@ def test_creates_then_resets_a_customer(
     assert user.status == "active"
     assert not WatchProgress.objects.filter(user=user).exists()
     assert not Favorite.objects.filter(user=user).exists()
+
+
+def test_revokes_tv_logins_left_by_an_earlier_run(
+    settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.DEBUG = True
+    run(monkeypatch)
+    user = User.objects.get(username="e2e-portal")
+    for name in ("E2E step-up a", "E2E step-up b"):
+        Device.objects.create(user=user, kind=DeviceKind.XTREAM, name=name)
+    run(monkeypatch)
+    assert not Device.objects.filter(
+        user=user, kind=DeviceKind.XTREAM, revoked_at__isnull=True
+    ).exists()
 
 
 def test_refuses_without_debug_or_credentials(

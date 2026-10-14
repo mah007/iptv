@@ -28,7 +28,12 @@ A self-hosted OTT/VOD subscription platform for **owned or licensed content** on
   - `live-relay` (`apps.live.relay`, ASGI without Django) serves `live.ts`, the live playlist and catch-up windows behind the edge.
   - Tokens carry the rendition `live` or `archive`, with the channel UUID as the title.
   - Live knobs are `live.*` settings. Source URLs are encrypted, and `apps/live/egress.py` guards every URL an admin supplies.
-- **Celery queues.** `worker` consumes default/scan/metadata/images/notify. Transcoders detect their hardware at start and subscribe only to the matching `transcode.{nvenc,qsv,vaapi,cpu}` queues. Rendition ladders and encoder presets live in `streaming/ffmpeg/profiles.yaml`, not in code.
+- **Edges and scale (ADR-0022).**
+  - `apps.edges.Edge` rows are `local` (nginx-stream), `standalone` (another host) or `cdn` (Bunny in front of one of ours). `edges.choose()` picks one per session at playback start; the local edge is the fallback.
+  - Standalone edges use `edges.<domain>` (`config/urls_edge.py`, bearer secret per edge): the control channel (keys, the S3 read-only key, the CDN secret) and stream-auth (Redis only, `edges:auth`).
+  - Renditions publish to the S3 origin with `apps/media/s3.py` (our SigV4) on the `publish` queue. The token title is then the published key `<asset>-g<gen>`.
+  - The read replica is read only by code marked `@replica.reporting` or using `replica.cursor()`.
+- **Celery queues.** `worker` consumes default/scan/metadata/images/notify/publish. Transcoders detect their hardware at start and subscribe only to the matching `transcode.{nvenc,qsv,vaapi,cpu}` queues. Rendition ladders and encoder presets live in `streaming/ffmpeg/profiles.yaml`, not in code.
 
 ## Hard rules
 - No content-acquisition features (torrent, Usenet, indexers, scrapers). Media enters only through admin libraries.
@@ -71,7 +76,20 @@ Everything runs in containers through the Makefile (`make` lists targets). The s
 - Configuration (ADR-0019): every operator setting is a registry key edited in the admin (Settings, Settings → Integrations with a Test per integration, Settings → System read-only). Secrets are `sensitive=True` keys, Fernet-encrypted in `core.Setting.ciphertext`, read only with `get_secret` (`get_setting` refuses them), audited without values. `SettingDef(env=...)` names the `.env` fallback (the Django setting, else the variable); the API reports the source. `.env` is bootstrap only. `manage.py settings_report [--count]` lists settings still coming from `.env` (names only). A key made sensitive later needs a data migration using `apps.core.migration_helpers.encrypt_rows`.
 - Backups and hardening (ADR-0020): `make backup` (a backup now, through the `backup` service), `make restore-test` (the restore drill: latest backup plus WAL into a throwaway server, counts compared; in `make ci`), `make hardening-test` (cap_drop, no-new-privileges, read-only roots, digest pins and socket mounts on the rendered prod config with every overlay; in `make ci`), `make crowdsec-test` (CrowdSec overlay up: a banned address gets 403 and the admin switch works). The `backup` agent (`apps/ops/agent.py`, stdlib only) only executes jobs Django queues (`apps/ops/backups.py`); schedules, retention and the bucket are `backups.*` settings, personal-data retention `privacy.*`. Key and password rotation is `scripts/rotate-keys.sh` (audited `keys.rotate`); test it only in a throwaway compose project whose services set `traefik.enable=false`, never on the shared stack.
 - Database and Valkey users (ADR-0020): app services connect as `iptv_app` (`DB_ROLE=app` in `docker/app.env`: no DDL, the audit log append-only) and Valkey user `app` (dangerous commands denied). Migrations run as the owner: `make up`/`make migrate` do it; by hand `docker compose ... run --rm migrate`, or `exec -e DB_ROLE=owner web python manage.py migrate`. `manage.py migrate` as `iptv_app` is refused. Grants are reapplied after every migrate (`apps/ops/grants.py`); a new table needing `audit_purge`-style protection gets a `SECURITY DEFINER` function, not a grant. Tests run as the owner and Valkey `default`.
-- Planned, not yet in the Makefile: `make loadtest`, `make deploy`.
+- Scale (ADR-0022):
+  - `make edge-test`: every edge mode in throwaway `prework-*` containers, the standalone edge and CDN pulls included; in `make ci`.
+  - `make s3-dev`: SeaweedFS as the S3 origin, saved in the settings, everything published. `make edge-dev`: a standalone edge on 127.0.0.1:18090, its own compose project.
+  - `make up REPLICA=1`: the read replica overlay (or `REPLICA=1` in `.env`).
+  - `make rollout [s=frontend]` and `make rollout-test`: zero-downtime proof (`scripts/rollout.sh`).
+  - `make loadtest [tiers=100,500,1000]`: Locust, local only. It switches web to production gunicorn, uses throwaway customers and a memory guard, and puts everything back.
+  - `make deploy DEPLOY_HOST=user@host`: `install.sh --update` over SSH, for a committed and pushed tree only.
+  - Migrations must stay backward compatible: the old web serves while they run.
+- Application security (ADR-0021):
+  - `make semgrep` (the project's own rules in `.semgrep/rules.yml`, with their tests), `make audit` (pip-audit and `pnpm audit --prod`; dated exceptions only in `scripts/audit-ignore.toml`) and `make zap` (ZAP baseline against the dev hosts; accepted alerts with reasons in `security/zap/plan.yaml`): all three in `make ci`.
+  - A view that changes something sensitive sets `step_up_methods` (admins confirm with a code or key; customers with their password before TV logins); protective actions (block, revoke, kill, suspend) never do. Tests get step-up for free unless marked `@pytest.mark.step_up`.
+  - HTML responses carry their own CSP (`apps.core.security.document_csp()`); the SPAs' policy lives in `frontend/packages/ui/csp/policy.js`; no raw HTML in React (ESLint). Libraries that add `<style>` at run time need the nonce (`cspNonce()`); the admin and portal E2E fail on any CSP violation.
+  - `manage.py reset_admin_mfa <user>` resets an admin's second factors from the host; `set_setting security.admin_ip_allowlist --stdin < /dev/null` clears the allowlist.
+  - IP geolocation is DB-IP Lite in the `geoip-data` volume (worker downloads, web reads); tests build their own databases (`apps/core/tests/geoip_data.py`) and never download.
 
 ## Gotchas learned building M1
 - Dev runs on `HTTP_PORT` from `.env`. It's 8080 on this machine, where Apache holds port 80, so URLs are `http://admin.localhost:8080`.

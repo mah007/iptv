@@ -68,6 +68,9 @@ class ErrorCode(StrEnum):
     PAYMENT_PROVIDER_UNAVAILABLE = "PAYMENT_PROVIDER_UNAVAILABLE"
     PAYMENT_PROVIDER_ERROR = "PAYMENT_PROVIDER_ERROR"
     WEBHOOK_INVALID = "WEBHOOK_INVALID"
+    # Application security (M14a, ADR-0021).
+    STEP_UP_REQUIRED = "STEP_UP_REQUIRED"
+    IP_NOT_ALLOWED = "IP_NOT_ALLOWED"
 
 
 # Default HTTP status and RFC 9457 title per code; a raise site may override the status.
@@ -104,6 +107,9 @@ _DEFAULTS: dict[ErrorCode, tuple[int, str]] = {
     ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE: (503, "Payment method unavailable"),
     ErrorCode.PAYMENT_PROVIDER_ERROR: (502, "Payment provider error"),
     ErrorCode.WEBHOOK_INVALID: (400, "Invalid webhook"),
+    # Application security (M14a, ADR-0021).
+    ErrorCode.STEP_UP_REQUIRED: (403, "Confirm it's you"),
+    ErrorCode.IP_NOT_ALLOWED: (403, "Network not allowed"),
 }
 
 # Key for errors that belong to no single field (DRF's convention).

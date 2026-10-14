@@ -13,7 +13,8 @@ import {
   Input,
   QRCodeCard,
 } from "@smart-iptv/ui";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
@@ -27,6 +28,10 @@ export type MfaFormProps = {
   onBack: () => void;
   /** problem+json code of the last failed attempt, e.g. MFA_INVALID. */
   errorCode?: string | null;
+  /** Sign in with a security key or passkey instead (ADR-0021). */
+  onSecurityKey?: () => Promise<void>;
+  /** False when policy requires a key: the code form is hidden. */
+  codeAllowed?: boolean;
 } & (
   | { mode: "verify" }
   | {
@@ -38,7 +43,8 @@ export type MfaFormProps = {
 
 /** Second sign-in step: verify a TOTP code, or enrol an authenticator first. Presentational. */
 export function MfaForm(props: MfaFormProps) {
-  const { onSubmit, onBack, errorCode = null } = props;
+  const { onSubmit, onBack, errorCode = null, onSecurityKey, codeAllowed = true } = props;
+  const [keyPending, setKeyPending] = useState(false);
   const { t } = useTranslation();
   const form = useForm<MfaCodeInput, unknown, MfaCodeValues>({
     resolver: zodResolver(mfaCodeSchema),
@@ -89,40 +95,60 @@ export function MfaForm(props: MfaFormProps) {
           </ol>
         ) : null}
 
-        <Form {...form}>
-          <form
-            noValidate
-            className="grid gap-4"
-            onSubmit={(event) => void form.handleSubmit(onSubmit)(event)}
+        {onSecurityKey && !setup ? (
+          <Button
+            type="button"
+            variant={codeAllowed ? "secondary" : "primary"}
+            className="w-full"
+            pending={keyPending}
+            onClick={() => {
+              setKeyPending(true);
+              void onSecurityKey().finally(() => {
+                setKeyPending(false);
+              });
+            }}
           >
-            <FormField
-              control={form.control}
-              name="code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("auth.mfa.codeLabel")}</FormLabel>
-                  <FormControl>
-                    <Input
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      autoFocus={!setup}
-                      maxLength={7}
-                      dir="ltr"
-                      placeholder="000000"
-                      className="h-12 text-center indent-[0.4em] font-mono text-xl tracking-[0.4em] placeholder:tracking-[0.4em]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>{t("auth.mfa.codeHelp")}</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" pending={submitting}>
-              {setup ? t("auth.mfa.submitSetup") : t("auth.mfa.submit")}
-            </Button>
-          </form>
-        </Form>
+            <KeyRound aria-hidden="true" />
+            {t("auth.mfa.useKey")}
+          </Button>
+        ) : null}
+
+        {codeAllowed || setup ? (
+          <Form {...form}>
+            <form
+              noValidate
+              className="grid gap-4"
+              onSubmit={(event) => void form.handleSubmit(onSubmit)(event)}
+            >
+              <FormField
+                control={form.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("auth.mfa.codeLabel")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        autoFocus={!setup}
+                        maxLength={7}
+                        dir="ltr"
+                        placeholder="000000"
+                        className="h-12 text-center indent-[0.4em] font-mono text-xl tracking-[0.4em] placeholder:tracking-[0.4em]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>{t("auth.mfa.codeHelp")}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" pending={submitting}>
+                {setup ? t("auth.mfa.submitSetup") : t("auth.mfa.submit")}
+              </Button>
+            </form>
+          </Form>
+        ) : null}
       </div>
 
       <Button variant="ghost" size="sm" className="justify-self-center" onClick={onBack}>

@@ -236,6 +236,8 @@ def test_csrf_failures_answer_problem_json() -> None:
     assert body(response)["detail"] == "CSRF verification failed."
 
 
+# The admin host's API reads the IP allowlist setting first (ADR-0021).
+@pytest.mark.django_db
 @pytest.mark.parametrize("host", [settings.ADMIN_HOST, settings.APP_HOST, settings.API_HOST])
 @pytest.mark.parametrize("method", ["get", "post", "delete"])
 def test_unknown_api_paths_are_problem_404s_for_any_method(host: str, method: str) -> None:

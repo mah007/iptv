@@ -450,6 +450,13 @@ function TestOutcome({ name, result }: { name: string; result: IntegrationTestRe
   if (details.webhook_secret_set === false) {
     facts.push(t("integrations.facts.noWebhookSecret"));
   }
+  // M15 (ADR-0022): the S3 origin's read-only edge key, and a Bunny zone's probe.
+  if (typeof details.edges === "boolean") {
+    facts.push(t(`integrations.facts.edges.${details.edges ? "yes" : "no"}`));
+  }
+  if (typeof details.zone === "boolean") {
+    facts.push(t(`integrations.facts.zone.${details.zone ? "yes" : "no"}`));
+  }
   return (
     <Alert
       tone={result.ok ? "success" : "danger"}

@@ -8,10 +8,14 @@ The small tier from SPEC §13: one server runs the whole stack behind Traefik, w
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mah007/iptv/main/scripts/install.sh -o install.sh
 sudo bash install.sh                                  # new server: questions, checks, install
-sudo /opt/iptv/scripts/install.sh --update            # pull, add new .env keys, rebuild, migrate, check HTTPS
+sudo /opt/iptv/scripts/install.sh --update            # pull, add new .env keys, rebuild, migrate, roll web without downtime
 sudo /opt/iptv/scripts/install.sh --reconfigure       # change domain, admin email, media folder, monitoring
 sudo /opt/iptv/scripts/install.sh --update --monitoring   # turn monitoring on for an existing server
 sudo /opt/iptv/scripts/install.sh --update --crowdsec     # turn CrowdSec on (or off with --no-crowdsec)
+sudo /opt/iptv/scripts/install.sh --update --replica      # the PostgreSQL read replica (database-replica.md)
+sudo bash install.sh --edge --control-url https://edges.tv.example.com --edge-id media2 --edge-domain media2.example.com
+                                                      # a media edge on another server (add-edge.md)
+make deploy DEPLOY_HOST=root@203.0.113.10             # from a checkout: the pushed main, updated on the server
 bash install.sh --help                                # every option, unattended use (--yes)
 ```
 - **Questions:** domain, owner admin (email, sign-in name, password or a generated one), media folder and sample titles, TMDB token, SMTP, monitoring (alert email and an optional Telegram bot and chat), backups (folder, media on or off, an optional S3-compatible bucket), CrowdSec (default yes; its community blocklist default no), ufw (and SSH only from given networks). TMDB, SMTP and the alert answers go into the admin's settings, where they are edited afterwards (**Settings → Integrations**); `--reconfigure` asks only for the domain, the admin email, the media folder and monitoring on or off.
@@ -23,7 +27,11 @@ bash install.sh --help                                # every option, unattended
   4. `create_owner --username --email` (password from `OWNER_PASSWORD`, or generated);
   5. `ensure_libraries` for `movies/` and `series/`, `search_reindex`, and an HTTPS check per host;
   6. backups: the folder (`BACKUP_DIR`, default `/var/backups/smart-iptv`) and the **backup passphrase**, shown once and kept in `/root/smart-iptv-backup-passphrase.txt` (mode 600). Copy it somewhere off the server: no backup can be read without it. The first full backup and a restore drill run within minutes ([backups.md](backups.md)).
-- **`--update`** creates a restore point (`pre-update-<UTC time>`) before pulling, so an update can be undone ([rollback.md](rollback.md)), keeps every answer, adds what's new (new `.env` keys, the backup folder and passphrase on the first update with backups), rebuilds and migrates. Back up first: [rollback.md](rollback.md#before-every-update).
+- **`--update`:**
+  - It creates a restore point (`pre-update-<UTC time>`) before pulling, so an update can be undone ([rollback.md](rollback.md)). Back up first: [rollback.md](rollback.md#before-every-update).
+  - It keeps every answer and adds what's new (new `.env` keys, the backup folder and passphrase on the first update with backups).
+  - It goes on with the new installer if the pull changed it.
+  - It updates **without downtime** ([below](#zero-downtime-updates-m15-adr-0022)).
 - **Where things go:**
   - the log: `/var/log/smart-iptv-install.log`, with no secrets;
   - a generated admin password: shown once and kept in `/root/smart-iptv-admin.txt` (mode 600);
@@ -62,6 +70,7 @@ docker compose ... exec web python manage.py settings_report   # names and varia
 | `api.tv.example.com` | REST API for external clients |
 | `media.tv.example.com` | Nginx media edge: artwork and signed playback URLs (ADR-0007, ADR-0010) |
 | `grafana.tv.example.com` | Monitoring, when enabled: Grafana, `/prometheus`, `/alertmanager`, admins only (ADR-0018) |
+| `edges.tv.example.com` | The control plane for standalone media edges: their keys and stream-auth, each with its own secret (ADR-0022); 401 for anything else |
 
 ## Media folder
 The libraries live in a host folder, `MEDIA_ROOT` in `.env` (default `/srv/media`), mounted read-only at `/media` in every container that reads media. Each library is a folder under it, for example `/srv/media/movies` and `/srv/media/series`, created in the admin under Libraries as `/media/movies` and `/media/series`. Transcoded renditions and artwork live in the `media-data` volume.
@@ -106,7 +115,33 @@ docker compose --project-directory . -f docker/compose.yml -f docker/compose.pro
 Migrations run as the database owner, in the `migrate` service; the app services use the restricted `iptv_app` role and can't change the schema. To migrate again by hand: `docker compose ... run --rm migrate`.
 `scripts/secrets.sh` only appends keys that are new in `.env.example` and creates `secrets/media_token_keys.json` if it's missing, so running it on every update is safe.
 
-There's a single web replica, so an update causes a few seconds of downtime. Zero-downtime rolling updates come in M15.
+## Zero-downtime updates (M15, ADR-0022)
+Production runs **two web replicas** (`WEB_REPLICAS`, default 2, each with `WEB_CONCURRENCY` = 3 gunicorn workers). `install.sh --update` keeps the site answering through an update:
+1. **Build** the new images while the old ones serve.
+2. **Update the database:** `db-roles`, then `migrate`, once, as the owner. The old web keeps serving meanwhile.
+3. **Start the read replica**, if it is on.
+4. **`scripts/rollout.sh`** for `web`:
+   - start new replicas next to the old ones, and wait until Docker reports them healthy (Traefik routes only to healthy containers);
+   - drain the old ones: their liveness answers 503, and Traefik's own health check (every 5 s) drops them;
+   - stop them gracefully (35 s for requests in flight), then remove them.
+
+   Traefik's `retry@file` middleware resends a request whose replica refused the connection meanwhile.
+5. **The same for `frontend`,** whose new container also picks up the media origins of the apps' CSP from the updated web.
+6. **`up -d --wait --remove-orphans`** for everything else, recreating only what changed.
+
+**What this needs from a release:**
+- **Backward-compatible migrations.** Add tables and columns first. Remove or rename them a release later, once no running code uses them, because the old web serves while the migration runs.
+- **The same Traefik labels on web and frontend.** When an update changes them, old and new containers can't serve side by side (Traefik drops a router its containers define differently). `rollout.sh` sees that and recreates the service instead: a few seconds of downtime, once. **The first update to M15 is such an update** (it adds the health check and retry labels).
+
+**What still restarts:** a service whose image or configuration changed, other than web and frontend, restarts in step 6:
+- `nginx-stream` (media, a few seconds; players retry);
+- `traefik` (everything, a few seconds; rare);
+- the workers (their tasks are retried);
+- the database and Valkey (only when their images change; that release's notes say so).
+
+**`make deploy DEPLOY_HOST=root@203.0.113.10`** (from a checkout) refuses a dirty or unpushed tree, then runs `install.sh --update --yes` on the server over SSH (key authentication).
+
+**Prove it (dev):** `make rollout-test` sends a steady load while web rolls twice, and fails on any failed request. To roll by hand: `make rollout`, or `make rollout s=frontend`.
 
 ## Monitoring (M13, ADR-0018)
 An opt-in overlay: Prometheus, Grafana, Loki, Grafana Alloy, Alertmanager and the exporters (node, cAdvisor, PostgreSQL, Valkey, nginx, blackbox). The installer asks for it (default yes with 8 GB of memory or more) and records the choice as `MONITORING=1` in `.env`; `--update` keeps it.
@@ -170,3 +205,9 @@ apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docke
 - [rotate-keys.md](rotate-keys.md): change every key and password with `scripts/rotate-keys.sh`.
 - [leaked-credential.md](leaked-credential.md) and [incident-response.md](incident-response.md): when something goes wrong.
 - [search-index.md](search-index.md): rebuild the search index.
+
+## Scaling out (M15, ADR-0022)
+- [add-edge.md](add-edge.md): media edges on other servers, fed by the S3 origin (Settings → Storage).
+- [cdn-bunny.md](cdn-bunny.md): a Bunny CDN pull zone in front of an edge (verified against vectors only).
+- [database-replica.md](database-replica.md): the PostgreSQL read replica, failover and re-seeding.
+- [docs/benchmarks/load.md](../benchmarks/load.md): what the load tests measured, and where the limits are.

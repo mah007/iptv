@@ -8,6 +8,7 @@ from django.urls import path
 
 from apps.accounts.monitoring_views import forward_auth
 from apps.core import views
+from apps.core.security import frontend_csp
 from apps.notifications.views_internal import alert_fallback, alert_webhook
 from apps.ops.views_internal import agent_job, agent_poll
 from apps.playback.views import stream_auth
@@ -25,5 +26,7 @@ urlpatterns = [
     # The backup service's configuration, jobs and results (ADR-0020).
     path("internal/backups/agent/poll", agent_poll, name="backup-agent-poll"),
     path("internal/backups/agent/jobs/<uuid:run_id>", agent_job, name="backup-agent-job"),
+    # The media origins the SPAs' Content-Security-Policy allows (M14a, ADR-0021).
+    path("internal/frontend-csp", frontend_csp, name="frontend-csp"),
     path("metrics", views.metrics, name="metrics"),
 ]

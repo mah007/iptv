@@ -1,4 +1,9 @@
-import { AccessStatus, CustomersListOrderingItem, UserStatus } from "@smart-iptv/api";
+import {
+  AccessStatus,
+  CustomersListOrderingItem,
+  CustomersListRisk,
+  UserStatus,
+} from "@smart-iptv/api";
 import { parseTableSearch } from "@smart-iptv/ui";
 
 import { booleanParam, compact, enumParam, intParam, stringParam } from "../../lib/search";
@@ -16,6 +21,7 @@ export function parseCustomersSearch(raw: Record<string, unknown>) {
     access: enumParam(raw.access, Object.values(AccessStatus)),
     status: enumParam(raw.status, Object.values(UserStatus)),
     expiring: intParam(raw.expiring, EXPIRING_WINDOWS),
+    risk: enumParam(raw.risk, Object.values(CustomersListRisk)),
     page: table.page,
     page_size: table.page_size,
     ordering: enumParam(table.ordering, ORDERINGS),

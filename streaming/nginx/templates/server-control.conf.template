@@ -1,0 +1,53 @@
+# Rendered by docker-entrypoint.d/40-edge-config.sh for a standalone edge (ADR-0022):
+# EDGE_CONTROL_URL is set. Edit the template, not the rendered copy. The script appends
+# the trusted-proxy (real IP) directives when EDGE_REAL_IP_FROM is set.
+
+# nginx ends every request-scoped error line with the raw request line, which holds
+# the token, so the default level (emerg) keeps them out of the logs altogether.
+error_log /dev/stderr ${EDGE_REQUEST_ERROR_LOG_LEVEL};
+
+# stream-auth on the control plane's edges host (ADR-0007 §4, ADR-0022): the same
+# contract as the internal endpoint, over TLS, authenticated with this edge's bearer
+# secret. The client address goes as X-Edge-Client-IP (Traefik rewrites X-Real-IP).
+# A 204 is cached per token for EDGE_AUTH_CACHE_TTL; a 403 or an error never is, and the
+# edge fails closed when the control plane is unreachable.
+location = /_auth {
+    internal;
+    proxy_pass ${EDGE_CONTROL_SCHEME}://edge_auth/edge/v1/stream-auth;
+    proxy_pass_request_body off;
+    proxy_pass_request_headers off;
+    proxy_set_header Host ${EDGE_CONTROL_HOST_HEADER};
+    proxy_set_header Content-Length "";
+    proxy_set_header Connection "";
+    proxy_set_header Authorization $edge_control_bearer;
+    proxy_set_header X-Edge-Id $edge_id;
+    proxy_set_header X-Original-URI $request_uri;
+    proxy_set_header X-Edge-Client-IP $remote_addr;
+    proxy_set_header X-Request-ID $edge_request_id;
+    proxy_http_version 1.1;
+    proxy_connect_timeout 3s;
+    proxy_send_timeout 5s;
+    proxy_read_timeout 5s;
+    proxy_ssl_server_name on;
+    proxy_ssl_name ${EDGE_CONTROL_SNI};
+    proxy_ssl_verify on;
+    proxy_ssl_verify_depth 3;
+    proxy_ssl_trusted_certificate ${EDGE_CONTROL_CA_FILE};
+    proxy_ssl_session_reuse on;
+
+    proxy_cache edge_auth;
+    proxy_cache_key $edge_auth_key;
+    proxy_cache_valid 204 ${EDGE_AUTH_CACHE_TTL};
+    proxy_cache_lock on;
+    proxy_cache_lock_timeout 5s;
+    proxy_ignore_headers Cache-Control Expires Set-Cookie Vary X-Accel-Expires
+                         X-Accel-Redirect X-Accel-Limit-Rate X-Accel-Buffering
+                         X-Accel-Charset;
+}
+
+# The control channel (control.js): every 5 s worker 0 checks whether a poll is due.
+location @edge_control {
+    js_periodic control.poll interval=5s;
+    js_fetch_trusted_certificate ${EDGE_CONTROL_CA_FILE};
+    js_fetch_timeout 10s;
+}

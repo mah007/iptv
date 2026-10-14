@@ -5,6 +5,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from django.conf import settings
 from rest_framework.test import APIClient
 
 from apps.accounts import services as accounts
@@ -230,3 +231,16 @@ def test_the_rebuild_task_and_its_debounce(
     tasks.schedule_rebuild()
     tasks.schedule_rebuild()
     assert queued == [{"countdown": 10}]
+
+
+def test_queries_use_a_search_only_key(meili_index: str) -> None:
+    """G-12: the key customers' searches run with can't manage anything."""
+    from apps.search import index, meili  # noqa: PLC0415
+
+    index.ensure_index(meili.client())
+    meili.ensure_search_key()
+    assert meili.search_key() != str(settings.MEILI_MASTER_KEY)
+    with pytest.raises(meili.MeiliKeyRefused):
+        meili.search_client()._call("GET", "/keys")
+    with pytest.raises(meili.MeiliKeyRefused):
+        meili.search_client().delete_index(meili_index)

@@ -31,6 +31,45 @@ tests:
               description: "Media egress has stayed above 80% of the edge capacity set in Settings (Monitoring) for 10 minutes. New streams may start to buffer."
               runbook: "docs/runbooks/alerts.md#edgeegresshigh"
 
+  - name: edges reported by Django (M15)
+    interval: 30s
+    input_series:
+      - series: 'iptv_edges_up{edge="media2"}'
+        values: '1 1 0x10'
+      - series: 'iptv_edges_up{edge="local"}'
+        values: '1x12'
+      - series: 'iptv_edges_egress_bits{edge="media2"}'
+        values: '900000000x30'
+      - series: 'iptv_edges_capacity_bits{edge="media2"}'
+        values: '1000000000x30'
+      - series: 'iptv_edges_egress_bits{edge="local"}'
+        values: '100000000x30'
+      - series: 'iptv_edges_capacity_bits{edge="local"}'
+        values: '1000000000x30'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: EdgeDown
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: EdgeDown
+        exp_alerts:
+          - exp_labels: {severity: critical, edge: media2}
+            exp_annotations:
+              summary: "Edge media2 is down or not reporting"
+              description: "The edge hasn't reported in time (or lacks the signing key) for 2 minutes. New sessions go to other edges; its playing sessions may fail. Check it on the admin's Edges page (Test)."
+              runbook: "docs/runbooks/alerts.md#edgedown"
+      - eval_time: 5m
+        alertname: EdgeOverCapacity
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: EdgeOverCapacity
+        exp_alerts:
+          - exp_labels: {severity: warning, edge: media2}
+            exp_annotations:
+              summary: "Edge media2 is sending 900Mbit/s, over 80% of its capacity"
+              description: "The edge's reported egress has stayed above 80% of the capacity set on the Edges page for 10 minutes; above 90% it takes no new sessions."
+              runbook: "docs/runbooks/alerts.md#edgeovercapacity"
+
   - name: media 5xx over 1 percent
     interval: 30s
     input_series:

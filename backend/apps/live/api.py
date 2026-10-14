@@ -145,6 +145,7 @@ class LiveChannelListView(generics.ListCreateAPIView[LiveChannel]):
 
 class LiveChannelDetailView(LiveView):
     required_permissions: ClassVar[Requirements] = {"GET": VIEW, "PATCH": MANAGE, "DELETE": MANAGE}
+    step_up_methods = frozenset({"DELETE"})
 
     def _get(self, pk: UUID) -> LiveChannel:
         return get_object_or_404(_channels(), pk=pk)
@@ -425,6 +426,7 @@ class EpgSourceListView(generics.ListCreateAPIView[EpgSource]):
 class EpgSourceDetailView(LiveView):
     required_permissions: ClassVar[Requirements] = {"GET": VIEW, "PATCH": MANAGE, "DELETE": MANAGE}
     parser_classes = (JSONParser, MultiPartParser, FormParser)
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="live_epg_sources_retrieve",
@@ -659,6 +661,7 @@ class LiveIntegrationListView(generics.ListCreateAPIView[LiveIntegration]):
 
 class LiveIntegrationDetailView(LiveView):
     required_permissions: ClassVar[Requirements] = {"GET": VIEW, "PATCH": MANAGE, "DELETE": MANAGE}
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="live_integrations_retrieve",

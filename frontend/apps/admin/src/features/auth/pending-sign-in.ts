@@ -9,14 +9,22 @@ export interface PendingSignIn {
   setEnrolment: (otpauthUri: string | null) => void;
   /** The enrolment URI when this sign-in must set up an authenticator first. */
   enrolment: () => string | null;
+  /** The second factors the server offers this admin (`totp`, `webauthn`; ADR-0021). */
+  setMethods: (methods: readonly string[]) => void;
+  methods: () => readonly string[];
 }
 
 export function createPendingSignIn(): PendingSignIn {
   let otpauthUri: string | null = null;
+  let factors: readonly string[] = ["totp"];
   return {
     setEnrolment: (uri) => {
       otpauthUri = uri;
     },
     enrolment: () => otpauthUri,
+    setMethods: (methods) => {
+      factors = methods.length > 0 ? methods : ["totp"];
+    },
+    methods: () => factors,
   };
 }

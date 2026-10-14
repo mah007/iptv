@@ -33,4 +33,16 @@ ALTER ROLE iptv_reporting WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLI
 -- Reporting reads, never writes, whatever a session asks for.
 ALTER ROLE iptv_reporting SET default_transaction_read_only = on;
 SQL
+
+# The read replica's streaming role (M15, ADR-0022), when its password is set.
+if [ -n "${POSTGRES_REPLICATION_PASSWORD:-}" ]; then
+    psql --no-psqlrc --quiet -v ON_ERROR_STOP=1 <<'SQL'
+\getenv replication_password POSTGRES_REPLICATION_PASSWORD
+SELECT 'CREATE ROLE iptv_replicator LOGIN REPLICATION'
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'iptv_replicator') \gexec
+ALTER ROLE iptv_replicator WITH LOGIN REPLICATION NOSUPERUSER NOCREATEDB NOCREATEROLE
+    NOBYPASSRLS CONNECTION LIMIT 3 PASSWORD :'replication_password';
+SQL
+    echo "db-roles: iptv_replicator is ready"
+fi
 echo "db-roles: iptv_app and iptv_reporting are ready"

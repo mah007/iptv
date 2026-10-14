@@ -6,12 +6,16 @@
   testable by sending it to oneself.
 """
 
-from typing import Any, ClassVar
+import json
+import secrets
+from typing import Any, ClassVar, Final, cast
 from uuid import UUID
 
 from django.db.models import QuerySet
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import filters, generics
 from rest_framework.request import Request
@@ -23,6 +27,8 @@ from apps.accounts.permissions import HasPermission, Requirements
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
+from apps.core.security import document_csp
+from apps.core.stores import cache_redis
 from apps.notifications import services
 from apps.notifications.defaults import COMMON_VARIABLES, EVENTS, SECRET_EVENTS
 from apps.notifications.filters import OutboxFilter
@@ -35,6 +41,10 @@ from apps.notifications.serializers import (
     TemplateSerializer,
     TemplateWriteSerializer,
 )
+
+#: Rendered previews kept for their sandboxed frame (redis-cache; recomputable).
+PREVIEW_KEY: Final = "notifications:preview:"
+PREVIEW_TTL_S: Final = 600
 
 
 class AdminView(APIView):
@@ -141,6 +151,7 @@ class TemplateDetailView(AdminView):
         "PUT": "notifications.manage",
         "DELETE": "notifications.manage",
     }
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="templates_retrieve",
@@ -211,11 +222,55 @@ class TemplatePreviewView(AdminView):
             body_html=data["body_html"],
             user=acting_user(request),
         )
+        html_url = ""
+        if message.html:
+            token = secrets.token_urlsafe(18)
+            owner = acting_user(request)
+            cache_redis().set(
+                f"{PREVIEW_KEY}{token}",
+                json.dumps({"user": str(owner.pk) if owner else "", "html": message.html}),
+                ex=PREVIEW_TTL_S,
+            )
+            html_url = f"/api/v1/admin/templates/preview/{token}"
         return Response(
             PreviewSerializer(
-                {"subject": message.subject, "text": message.text, "html": message.html}
+                {
+                    "subject": message.subject,
+                    "text": message.text,
+                    "html": message.html,
+                    "html_url": html_url,
+                }
             ).data
         )
+
+
+class TemplatePreviewDocumentView(AdminView):
+    """GET templates/preview/{token}: a rendered preview as its own document.
+
+    The admin shows it in a sandboxed frame. As a separate document it keeps its own
+    policy (inline styles, images from the media edge, no scripts): a `srcdoc` frame
+    would inherit the admin's stricter policy and lose the message's styling (ADR-0021).
+    Only the admin who asked for it can open it, for 10 minutes."""
+
+    required_permissions: ClassVar[Requirements] = {"GET": "notifications.view"}
+
+    @extend_schema(
+        operation_id="templates_preview_document",
+        summary="A rendered template preview as an HTML document",
+        responses={(200, "text/html"): OpenApiTypes.STR, **problems(401, 403, 404)},
+    )
+    def get(self, request: Request, token: str) -> HttpResponse:
+        raw = cache_redis().get(f"{PREVIEW_KEY}{token}") if len(token) <= 64 else None
+        stored = json.loads(cast("bytes", raw)) if raw is not None else None
+        owner = acting_user(request)
+        if not isinstance(stored, dict) or stored.get("user") != (str(owner.pk) if owner else ""):
+            raise ProblemError(ErrorCode.NOT_FOUND, "The preview has expired.", status=404)
+        html = str(stored.get("html", ""))
+        response = HttpResponse(html, content_type="text/html; charset=utf-8")
+        response["Cache-Control"] = "private, no-store"
+        response["Content-Security-Policy"] = document_csp(sandbox=True)
+        response["X-Frame-Options"] = "SAMEORIGIN"
+        return response
 
 
 class TemplateTestView(AdminView):

@@ -27,6 +27,7 @@ from apps.core.errors import ErrorCode, ProblemError
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
 from apps.core.services import get_setting
+from apps.core.throttling import BackupRunThrottle
 from apps.ops import backups
 from apps.ops.models import DB_KINDS, BackupKind, BackupRun, RunStatus, RunTrigger
 from apps.ops.serializers import (
@@ -83,8 +84,10 @@ class BackupRunListView(generics.ListAPIView[BackupRun]):
 
 
 class BackupRunNowView(APIView):
+    throttle_classes = (BackupRunThrottle,)
     permission_classes = (HasPermission,)
     required_permissions: ClassVar[Requirements] = {"POST": RUN}
+    step_up_methods = frozenset({"POST"})
 
     @extend_schema(
         operation_id="backups_run",

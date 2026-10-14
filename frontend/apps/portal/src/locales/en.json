@@ -521,7 +521,8 @@
     "errors": {
       "DEVICE_LIMIT": "Your plan's device limit is reached. Remove a TV app you no longer use first.",
       "RATE_LIMITED": "Too many attempts. Wait a few minutes.",
-      "UNEXPECTED": "Something went wrong. Try again."
+      "UNEXPECTED": "Something went wrong. Try again.",
+      "STEP_UP_REQUIRED": "Not done: confirm your password to continue."
     },
     "guides": {
       "smarters": [
@@ -661,5 +662,23 @@
     "title": "Need help?",
     "phone": "Call support",
     "whatsapp": "Message support on WhatsApp"
+  },
+  "stepUp": {
+    "title": "Confirm your password",
+    "description": "For your safety, enter your password again before adding a TV app or a new TV login.",
+    "password": "Password",
+    "confirm": "Confirm",
+    "errors": {
+      "INVALID_CREDENTIALS": "That password isn't right. Try again.",
+      "RATE_LIMITED": "Too many attempts. Wait a few minutes, then try again.",
+      "UNEXPECTED": "Something went wrong. Try again in a moment."
+    }
+  },
+  "about": {
+    "link": "About and credits",
+    "title": "About",
+    "description": "{{name}}: watch on the web, or in any IPTV app with your TV login.",
+    "credits": "Credits",
+    "back": "Back to the service"
   }
 }

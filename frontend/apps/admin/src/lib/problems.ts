@@ -13,6 +13,8 @@ const MESSAGE_CODES = new Set([
   "CONFLICT",
   "DEVICE_LIMIT",
   "NETWORK_ERROR",
+  "STEP_UP_REQUIRED",
+  "IP_NOT_ALLOWED",
 ]);
 
 /** Translation key that explains a failed request to the admin. */
@@ -25,6 +27,8 @@ export function errorMessageKey(error: unknown): string {
 function problemDetail(error: unknown): string | undefined {
   if (!isApiError(error) || error.problem === null) return undefined;
   if (error.status >= 500 || error.code === "VALIDATION_ERROR") return undefined;
+  // The step-up dialog was dismissed: the summary says it all.
+  if (error.code === "STEP_UP_REQUIRED") return undefined;
   return error.detail || undefined;
 }
 

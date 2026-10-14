@@ -1,0 +1,79 @@
+# A standalone media edge on its own host (M15, ADR-0022; docs/runbooks/add-edge.md).
+# scripts/install.sh --edge writes .env and secrets/edge_token, then runs:
+#   docker compose --project-directory . -f docker/compose.edge.yml up -d --wait
+#
+# nginx + njs only (the official image, digest-pinned): it terminates its own TLS with
+# Let's Encrypt (nginx's ACME module), verifies the signed media tokens, asks the control
+# plane's stream-auth over TLS with this edge's secret, and serves published renditions
+# from the private S3 origin through its slice cache (or a full mirror on its disk).
+# Its keys and the origin's read-only key arrive on the control channel (control.js):
+# nothing secret but its own bearer secret lives on this host. Live TV stays on the
+# control host. Kicks and heartbeats reach the control plane like the local edge's.
+name: smart-iptv-edge
+
+services:
+  edge:
+    image: nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/run, /tmp, /etc/nginx/conf.d]
+    # Root starts nginx and chowns its cache folders; workers run as nginx.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETUID, SETGID]
+    security_opt: ["no-new-privileges:true"]
+    ulimits:
+      nofile: { soft: 65535, hard: 65535 }
+    environment:
+      EDGE_ID: ${EDGE_ID:?set EDGE_ID in .env (the id from the admin's Edges page)}
+      EDGE_DOMAIN: ${EDGE_DOMAIN:?set EDGE_DOMAIN in .env, e.g. media2.example.com}
+      EDGE_CONTROL_URL: ${EDGE_CONTROL_URL:?set EDGE_CONTROL_URL in .env, e.g. https://edges.example.com}
+      EDGE_CONTROL_TOKEN_FILE: /run/secrets/edge_token
+      # s3: published renditions from the S3 origin; local: a full mirror in EDGE_MIRROR_DIR.
+      EDGE_MODE: ${EDGE_MODE:-s3}
+      EDGE_ORIGIN_URL: ${EDGE_ORIGIN_URL:-}
+      EDGE_MEDIA_ROOT: /srv/media
+      EDGE_MEDIA_CACHE_SIZE: ${EDGE_CACHE_SIZE:-50g}
+      EDGE_TLS: ${EDGE_TLS:-acme}
+      EDGE_ACME_EMAIL: ${EDGE_ACME_EMAIL:-}
+      EDGE_ACME_DIRECTORY: ${EDGE_ACME_DIRECTORY:-https://acme-v02.api.letsencrypt.org/directory}
+      EDGE_CORS_ORIGINS: ${EDGE_CORS_ORIGINS:-}
+      EDGE_CDN: ${EDGE_CDN:-off}
+      EDGE_RATE_LIMIT: ${EDGE_RATE_LIMIT:-3m}
+      EDGE_RATE_LIMIT_UHD: ${EDGE_RATE_LIMIT_UHD:-10m}
+      EDGE_RATE_AFTER: ${EDGE_RATE_AFTER:-16m}
+    secrets: [edge_token]
+    volumes:
+      - ./streaming/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./streaming/nginx:/etc/nginx/edge:ro
+      - ./streaming/nginx/docker-entrypoint.d/40-edge-config.sh:/docker-entrypoint.d/40-edge-config.sh:ro
+      # The slice cache (EDGE_CACHE_SIZE): a fast disk with room to spare.
+      - ${EDGE_CACHE_DIR:-edge-cache}:/var/cache/nginx
+      # Let's Encrypt's account and certificates: kept, so restarts don't re-issue them.
+      - edge-acme:/var/lib/nginx-acme
+      # A full mirror of the renditions when EDGE_MODE=local (docs/runbooks/add-edge.md).
+      - ${EDGE_MIRROR_DIR:-edge-mirror}:/srv/media:ro
+    ports:
+      # 80 answers Let's Encrypt's HTTP-01 challenge and redirects; 443 serves media.
+      - "${EDGE_BIND:-0.0.0.0}:80:8080"
+      - "${EDGE_BIND:-0.0.0.0}:443:8443"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+secrets:
+  # This edge's bearer secret, shown once in the admin when the edge was added.
+  edge_token:
+    file: ./secrets/edge_token
+
+volumes:
+  edge-cache:
+  edge-acme:
+  edge-mirror:

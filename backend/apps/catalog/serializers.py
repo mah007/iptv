@@ -26,6 +26,7 @@ from apps.catalog.models import (
     TitleStatus,
 )
 from apps.catalog.services import media_url
+from apps.core.text import SafeTextField
 from apps.library.parsing import ParseResult
 
 #: The size shown by default (poster grids, detail pages).
@@ -187,7 +188,7 @@ class FileSerializer(serializers.ModelSerializer[MediaFile]):
     and pipeline state. Never the storage path."""
 
     library = LibraryBriefSerializer(read_only=True)
-    relative_path = serializers.CharField(read_only=True)
+    relative_path = SafeTextField(read_only=True)
     audio = serializers.SerializerMethodField()
     subtitles = serializers.SerializerMethodField()
 
@@ -577,7 +578,7 @@ class CandidateSerializer(serializers.Serializer[Any]):
 
 class ReviewFileSerializer(serializers.ModelSerializer[MediaFile]):
     library = LibraryBriefSerializer(read_only=True)
-    relative_path = serializers.CharField(read_only=True)
+    relative_path = SafeTextField(read_only=True)
 
     class Meta:
         model = MediaFile

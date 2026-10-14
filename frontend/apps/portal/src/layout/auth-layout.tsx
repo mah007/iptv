@@ -1,5 +1,5 @@
 import { cn, LanguageToggle, ThemeToggle } from "@smart-iptv/ui";
-import { Outlet } from "@tanstack/react-router";
+import { Link, Outlet } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -30,6 +30,11 @@ export function CenteredLayout({
       <footer className="grid gap-2 px-4 pb-6 text-center text-xs text-muted-foreground">
         <p>{t("auth.footer")}</p>
         <SupportContacts />
+        <p>
+          <Link to="/about" className="underline-offset-4 hover:text-foreground hover:underline">
+            {t("about.link")}
+          </Link>
+        </p>
       </footer>
     </div>
   );

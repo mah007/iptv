@@ -11,7 +11,8 @@
 # For the dev .env it also creates secrets/media_token_keys.json (media token keys,
 # ADR-0007) and secrets/backup_passphrase (ADR-0020) when they are missing, and refreshes
 # the Docker secrets copied from .env: the monitoring overlay's in secrets/monitoring/
-# (ADR-0018), the backup service's token and CrowdSec's bouncer key in secrets/runtime/.
+# (ADR-0018), the backup service's token, CrowdSec's bouncer key and the edges' shared
+# stream-auth secret (ADR-0021) in secrets/runtime/.
 #
 # Placeholders:
 #   __GENERATE__         64 hex characters (safe inside URLs and shell quoting)
@@ -124,6 +125,7 @@ MONITORING_SECRETS=(
 RUNTIME_SECRETS=(
   backup_agent_token:BACKUP_AGENT_TOKEN
   crowdsec_bouncer_key:CROWDSEC_BOUNCER_KEY
+  edge_auth_token:EDGE_AUTH_TOKEN
 )
 
 monitoring_secrets() {

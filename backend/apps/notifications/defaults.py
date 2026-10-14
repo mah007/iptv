@@ -145,6 +145,25 @@ _EVENTS: tuple[EventDef, ...] = (
         ("customer", "reason"),
         {"customer": "cus-a1b2c3d4", "reason": "Streams from 3 countries within an hour"},
     ),
+    # --- Anti-sharing ladder and vendor breaches (M14a, ADR-0021) ---
+    EventDef(
+        "sharing_warning",
+        "An admin warns the customer that their account looks shared.",
+        (),
+        {},
+    ),
+    EventDef(
+        "sharing_reset",
+        "An admin reset all of the customer's IPTV app logins because of sharing.",
+        ("count",),
+        {"count": 2},
+    ),
+    EventDef(
+        "devices_revoked",
+        "The customer's logins for one app were revoked (a breach at the app's vendor).",
+        ("app",),
+        {"app": "IBO Player"},
+    ),
 )
 EVENTS: Final = MappingProxyType({event.key: event for event in _EVENTS})
 #: Events whose message carries a secret (a password link): sent at once by
@@ -417,6 +436,81 @@ _DEFAULTS: dict[tuple[str, str], DefaultTemplate] = {
         + "</p>",
     ),
 }
+# --- Anti-sharing ladder and vendor breaches (M14a, ADR-0021) ---
+_DEFAULTS.update(
+    {
+        ("sharing_warning", "en"): DefaultTemplate(
+            "Your {{ service_name }} account is being used in many places",
+            "Hello {{ name }},\n\nWe noticed your account being used from more networks or "
+            "countries than one household uses. Your subscription is for your household only: "
+            "please don't share your logins. If someone else has them, make new ones in the "
+            "portal ({{ portal_url }}), under Devices & TV apps.\n\nIf it continues, we may "
+            "reset your logins or suspend the account.\n\n" + _FOOTER_EN,
+            "<p>Hello {{ name }},</p><p>We noticed your account being used from more networks "
+            "or countries than one household uses. Your subscription is for your household "
+            "only: please don't share your logins. If someone else has them, make new ones in "
+            '<a href="{{ portal_url }}">the portal</a>, under Devices &amp; TV apps.</p>'
+            "<p>If it continues, we may reset your logins or suspend the account.</p><p>"
+            + _FOOTER_EN
+            + "</p>",
+        ),
+        ("sharing_warning", "ar"): DefaultTemplate(
+            "حسابك في {{ service_name }} يُستخدم من أماكن كثيرة",
+            "مرحباً {{ name }}،\n\nلاحظنا استخدام حسابك من شبكات أو دول أكثر مما يستخدمه منزل "
+            "واحد. اشتراكك لأهل منزلك فقط، فلا تشارك بيانات الدخول. إن كانت لدى غيرك فأنشئ "
+            "بيانات جديدة من البوابة ({{ portal_url }}) في قسم الأجهزة وتطبيقات التلفزيون.\n\n"
+            "إن استمر ذلك فقد نعيد تعيين بيانات الدخول أو نوقف الحساب.\n\n" + _FOOTER_AR,
+            "<p>مرحباً {{ name }}،</p><p>لاحظنا استخدام حسابك من شبكات أو دول أكثر مما يستخدمه "
+            "منزل واحد. اشتراكك لأهل منزلك فقط، فلا تشارك بيانات الدخول. إن كانت لدى غيرك "
+            'فأنشئ بيانات جديدة من <a href="{{ portal_url }}">البوابة</a> في قسم الأجهزة '
+            "وتطبيقات التلفزيون.</p><p>إن استمر ذلك فقد نعيد تعيين بيانات الدخول أو نوقف الحساب."
+            "</p><p>" + _FOOTER_AR + "</p>",
+        ),
+        ("sharing_reset", "en"): DefaultTemplate(
+            "Your IPTV app logins were reset",
+            "Hello {{ name }},\n\nYour account was used from more places than one household "
+            "uses, so we reset your IPTV app logins ({{ count }}). They no longer work. Make new "
+            "ones in the portal ({{ portal_url }}), under Devices & TV apps, and keep them to "
+            "yourself.\n\n" + _FOOTER_EN,
+            "<p>Hello {{ name }},</p><p>Your account was used from more places than one "
+            "household uses, so we reset your IPTV app logins ({{ count }}). They no longer "
+            'work. Make new ones in <a href="{{ portal_url }}">the portal</a>, under Devices '
+            "&amp; TV apps, and keep them to yourself.</p><p>" + _FOOTER_EN + "</p>",
+        ),
+        ("sharing_reset", "ar"): DefaultTemplate(
+            "تمت إعادة تعيين بيانات دخول تطبيقات IPTV",
+            "مرحباً {{ name }}،\n\nاستُخدم حسابك من أماكن أكثر مما يستخدمه منزل واحد، لذا أعدنا "
+            "تعيين بيانات دخول تطبيقات IPTV ({{ count }}) ولم تعد تعمل. أنشئ بيانات جديدة من "
+            "البوابة ({{ portal_url }}) في قسم الأجهزة وتطبيقات التلفزيون، واحتفظ بها لنفسك."
+            "\n\n" + _FOOTER_AR,
+            "<p>مرحباً {{ name }}،</p><p>استُخدم حسابك من أماكن أكثر مما يستخدمه منزل واحد، لذا "
+            "أعدنا تعيين بيانات دخول تطبيقات IPTV ({{ count }}) ولم تعد تعمل. أنشئ بيانات جديدة "
+            'من <a href="{{ portal_url }}">البوابة</a> في قسم الأجهزة وتطبيقات التلفزيون، '
+            "واحتفظ بها لنفسك.</p><p>" + _FOOTER_AR + "</p>",
+        ),
+        ("devices_revoked", "en"): DefaultTemplate(
+            "Your {{ app }} logins were turned off",
+            "Hello {{ name }},\n\nFor your security we turned off the logins you made for "
+            "{{ app }}: that app's vendor may have exposed them. Make a new login in the portal "
+            "({{ portal_url }}), under Devices & TV apps.\n\n" + _FOOTER_EN,
+            "<p>Hello {{ name }},</p><p>For your security we turned off the logins you made for "
+            "<strong>{{ app }}</strong>: that app's vendor may have exposed them. Make a new "
+            'login in <a href="{{ portal_url }}">the portal</a>, under Devices &amp; TV '
+            "apps.</p><p>" + _FOOTER_EN + "</p>",
+        ),
+        ("devices_revoked", "ar"): DefaultTemplate(
+            "أوقفنا بيانات دخول {{ app }}",
+            "مرحباً {{ name }}،\n\nحرصاً على أمانك أوقفنا بيانات الدخول التي أنشأتها لتطبيق "
+            "{{ app }}، فقد تكون الجهة المطوّرة له كشفتها. أنشئ بيانات جديدة من البوابة "
+            "({{ portal_url }}) في قسم الأجهزة وتطبيقات التلفزيون.\n\n" + _FOOTER_AR,
+            "<p>مرحباً {{ name }}،</p><p>حرصاً على أمانك أوقفنا بيانات الدخول التي أنشأتها لتطبيق "
+            "<strong>{{ app }}</strong>، فقد تكون الجهة المطوّرة له كشفتها. أنشئ بيانات جديدة من "
+            '<a href="{{ portal_url }}">البوابة</a> في قسم الأجهزة وتطبيقات التلفزيون.</p><p>'
+            + _FOOTER_AR
+            + "</p>",
+        ),
+    }
+)
 DEFAULTS: Final = MappingProxyType(_DEFAULTS)
 
 

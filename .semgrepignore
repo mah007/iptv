@@ -1,0 +1,12 @@
+# Paths `make semgrep` skips (ADR-0021): generated code, dependencies and build output.
+.git/
+**/node_modules/
+**/.venv/
+**/dist/
+**/coverage/
+frontend/packages/api/src/generated/
+frontend/packages/api-portal/src/generated/
+backend/**/migrations/
+backend/tests/cassettes/
+media/
+docs/

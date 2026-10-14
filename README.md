@@ -2,10 +2,16 @@
 
 **A self-hosted OTT/VOD subscription platform with an Xtream Codes-compatible API.** It brings library management like Plex/Jellyfin together with an IPTV panel. IPTV Smarters, TiviMate, XCIPTV, OTT Navigator and similar apps work with it out of the box.
 
-> 🚧 **Status: the VOD platform is built and runs in production at tv.mah007.net, with optional monitoring. Live TV with EPG and catch-up is built (M12); security hardening and scale-out come next.**
+> 🚧 **Status: the VOD platform is built and runs in production at tv.mah007.net, with optional monitoring. Live TV with EPG and catch-up is built (M12), and so is security hardening (M14); scale-out comes next.**
 > - **Working end to end:** an admin signs in with MFA and creates a customer, typing the IPTV username and password or generating them. Media is scanned, matched on TMDB (English and Arabic), transcoded and served by the signed-URL edge, and IPTV apps log in and play over the Xtream API. The contract suite and an automated IPTVnator journey prove it.
-> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout); and monitoring (M13): seven Grafana dashboards, logs in Loki with credentials redacted, and alerts by email and Telegram, opened from the admin and configured in its Settings; and live TV (M12): your own licensed channels with an XMLTV guide, catch-up and timeshift, played by IPTV apps over the Xtream live URLs and managed in the admin; and dynamic configuration: TMDB, email, payments, Telegram, branding and every other setting are edited in the admin (secrets encrypted, each integration with a Test), with `.env` kept for bootstrap only; and operations security (M14b): encrypted backups with point-in-time restore and a weekly restore drill, CrowdSec, least-privilege database and Valkey users, hardened containers and scripted key rotation.
-> - **Still to come:** the rest of security hardening (M14: CSP, re-authentication, ZAP baseline), scale-out and CDN (M15), and testing on real TVs and phones (M10).
+> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout); and monitoring (M13): seven Grafana dashboards, logs in Loki with credentials redacted, and alerts by email and Telegram, opened from the admin and configured in its Settings; and live TV (M12): your own licensed channels with an XMLTV guide, catch-up and timeshift, played by IPTV apps over the Xtream live URLs and managed in the admin; and dynamic configuration: TMDB, email, payments, Telegram, branding and every other setting are edited in the admin (secrets encrypted, each integration with a Test), with `.env` kept for bootstrap only; and operations security (M14b): encrypted backups with point-in-time restore and a weekly restore drill, CrowdSec, least-privilege database and Valkey users, hardened containers and scripted key rotation; and application security (M14a): a strict nonce-based CSP, security keys and passkeys for admins, "confirm it's you" before sensitive actions, an optional admin IP allowlist, sharing detection with IP geolocation, rate limits everywhere, and dependency, Semgrep and ZAP checks in the quality gate.
+> - **Scale-out (M15), built and tested on the dev stack, not yet used in production:**
+>   - media edges on other servers with their own TLS, fed by a private S3 origin;
+>   - a Bunny CDN option (verified against test vectors only);
+>   - a PostgreSQL read replica with a rehearsed failover;
+>   - updates without downtime;
+>   - load tests ([docs/benchmarks/load.md](docs/benchmarks/load.md)).
+> - **Still to come:** testing on real TVs and phones (M10).
 >
 > See the [roadmap](#roadmap), [docs/PROGRESS.md](docs/PROGRESS.md) and the decisions in [docs/adr/](docs/adr/).
 
@@ -13,6 +19,23 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-14:** scale and CDN (M15):
+  - **Edges:** media servers on other hosts with their own TLS, managed and health-checked from the admin's Edges page; viewers are spread across them.
+  - **Storage and database:** an optional private S3 origin, an optional read replica with a rehearsed failover.
+  - **Deploys:** zero-downtime updates (`scripts/rollout.sh`, `make deploy`).
+  - **Load tests:** 0 failures at 1,000 virtual users after adding a database connection pool; 5,000 is extrapolated on this machine.
+  - **Bunny CDN:** token auth, checked against Bunny's published vectors only.
+- **2026-10-14:** application security (M14a):
+  - **Admin sign-in and accounts:** security keys and passkeys for admins; step-up before sensitive actions (admins by code or key, customers by password before new TV logins); an optional admin IP allowlist.
+  - **Anti-sharing:** sharing detection with DB-IP Lite geolocation (flags with evidence, never automatic locks); country rules now get a country, so they actually apply.
+  - **Headers and limits:** a strict nonce-based CSP on both web apps and per-account and progressive rate limits.
+  - **Checks and docs:** dependency audits, Semgrep and a ZAP scan in `make ci`, TMDB and DB-IP credits on About pages, and threat model v2.
+- **2026-10-14:** scale-out (M15), built and tested on the dev stack:
+  - **Media edges on other servers:** an Edges page in the admin, and `install.sh --edge` (its own Let's Encrypt certificate, keys over a control channel). Kicks work across servers.
+  - **The S3 origin and Bunny:** a private S3 origin that edges read with a read-only key, and Bunny CDN token auth, verified against test vectors only.
+  - **The read replica:** an opt-in PostgreSQL read replica with a lag alert and a rehearsed failover.
+  - **Updates without downtime:** two web replicas, replaced behind health checks, and `make deploy`.
+  - **Load tests:** at 1,000 IPTV viewers, no failures, play start p95 230 ms and no slot over-allocation; 5,000 is extrapolated. The test also found and fixed database connection exhaustion with a connection pool. [Report](docs/benchmarks/load.md).
 - **2026-10-11:** configuration in the admin and backups/hardening deployed to tv.mah007.net:
   - The app now runs on restricted database and cache accounts.
   - The first nightly-style full backup, file backup and restore drill succeeded within minutes of the update.
@@ -92,8 +115,16 @@ From a file on disk to a TV screen:
 
 **Streaming and anti-sharing**
 - ✅ Separate control and streaming planes. Media servers only verify signed tokens and serve bytes; the database never sees a media request.
-- ✅ Per-device credentials, server-side concurrency limits, device approval, IP and country rules, and new-device emails. 🔜 Per-user risk scoring.
+- ✅ Per-device credentials, server-side concurrency limits, device approval, IP and country rules, and new-device emails.
+- ✅ **Sharing detection:** every 5 minutes a score per customer from the providers, countries, impossible journeys and networks per TV login they were seen on (DB-IP Lite geolocation, updated monthly). Flags show their evidence and never lock anyone; admins warn, reset the TV logins or suspend, and *revoke by app* stops every login of one app after a vendor leak.
 - ✅ Live session view, with kill, block-device and block-IP actions.
+- ✅ **Media edges on other servers (M15):** add one in the admin's **Edges** page and run `install.sh --edge` on it.
+  - Each edge has its own Let's Encrypt certificate and a secret of its own. It receives its keys on a control channel, so nothing else secret lives there.
+  - Kicks and the concurrency heartbeats work across servers.
+  - New sessions go to edges by health, weight, load and audience (canary customers first). The built-in edge is the fallback.
+- ✅ **A private S3 origin (M15):** finished renditions publish to an S3-compatible bucket (SeaweedFS in development; R2, B2 or AWS in production) with our own SigV4 client. Edges read it with a separate read-only key and keep 4 MB slices in their cache. A re-encode publishes a new generation, so caches never serve stale bytes.
+- ✅ **Bunny CDN (M15)**, verified against test vectors only (no live pull zone yet): signed URLs with Bunny's token authentication, and pulls from one of our edges with a shared secret. The trade-offs are in [docs/runbooks/cdn-bunny.md](docs/runbooks/cdn-bunny.md).
+- ✅ Per-connection rate limits on every edge (after a 16 MB burst), so a whole film can't be pulled at line rate.
 
 **Xtream compatibility**
 - ✅ `player_api.php`, `get.php` (M3U) and `/movie` and `/series` play URLs, with field types that exactly match the PHP panels apps expect.
@@ -122,7 +153,10 @@ From a file on disk to a TV screen:
 - ✅ Prometheus metrics and credential redaction in every log (Django, Nginx and Traefik at the source, Alloy again before Loki, with an automated test).
 - ✅ Optional monitoring overlay: seven Grafana dashboards (streaming, transcoding, library, business, platform, edges, hosts and GPU), 30 days of logs in Loki with one request id across Traefik, Django and the edge, and 27 alerts sent by email and Telegram. Admins open it from the admin with their own MFA sign-in; recipients, Telegram, severities and the edge capacity are admin settings; "Send a test alert" checks the whole path.
 - ✅ An audit log of every admin action (append-only in the database); sign-in rate limits and lockouts.
+- ✅ **Application security:** a strict Content-Security-Policy with a fresh nonce per page on both apps and `default-src 'none'` on the API and media; security keys and passkeys (WebAuthn) for admins, which can be required for owners or admins; "confirm it's you" with a code or key before settings, roles, refunds and deletions, and with the password before a customer adds a TV app; an optional admin IP allowlist; per-account rate limits on searches, playback, checkouts and TV logins, and progressive Xtream sign-in pauses that spare carrier-grade NAT.
 - ✅ Encrypted backups: the database with point-in-time recovery (pgBackRest, continuous WAL archiving), plus `.env`, secrets, artwork and optionally media (restic), on the server and optionally in an S3-compatible bucket. An automatic weekly restore drill proves they restore, and alerts if not. The admin's **Backups** page shows it all and has **Back up now**; schedule and retention are in Settings → Backups.
+- ✅ **Updates without downtime (M15):** two health-gated web replicas, replaced one set at a time by `install.sh --update` or `make deploy`. A steady load across two rollouts saw no failed request.
+- ✅ **A PostgreSQL read replica (M15),** opt-in with `install.sh --replica`: reports read from it while it is current, and fall back to the primary otherwise. It has a lag alert and a failover runbook rehearsed end to end.
 - ✅ CrowdSec on Traefik's logs with a bouncer that blocks at the edge (switch and allowlist in Settings → Security); personal-data retention jobs (Settings → Privacy); scripted rotation of every key and password.
 - ✅ **Configuration in the admin, not in files.** Integrations (TMDB, TheTVDB, SMTP, Stripe, Moyasar, Telegram) each have a card with its status and a server-side **Test**; secrets are encrypted at rest, never shown again and audited without values; changes apply in every process within seconds, Alertmanager's fallback included. A System page shows the installation's facts and why the few bootstrap secrets stay in `.env`. Older `.env` values keep working and can be moved in with one click.
 
@@ -180,7 +214,7 @@ flowchart LR
 | Edge and ingress | Nginx with njs, Traefik v3 |
 | Observability | Prometheus, Grafana, Loki, Grafana Alloy |
 | Tooling | uv, Ruff, mypy, pytest, pnpm, Vitest, Playwright, Locust, k6 |
-| Quality gate | `make ci`, run locally (no hosted CI): lint, types, tests, image build, Trivy, licence gate; pip-audit, pnpm audit and Semgrep join in M14 |
+| Quality gate | `make ci`, run locally (no hosted CI): lint, types, tests, image build, Trivy, licence gate, pip-audit, pnpm audit, Semgrep (own rules) and a ZAP baseline |
 
 **Pinned today:** Python 3.13, Django 5.2 LTS, Celery 5.6, PostgreSQL 18, Valkey 9.1, Meilisearch 1.54, Traefik 3.7, Node.js 24 LTS, pnpm 12, React 19, Vite 8, Tailwind CSS 4, TypeScript 6.0. [ADR-0001](docs/adr/0001-stack-and-versions.md) lists every version, the date it was checked, and the reason for each deviation from the original spec.
 
@@ -199,7 +233,7 @@ Every dependency imported into our code is permissively licensed (MIT, BSD, Apac
 
 ### Network
 - Ports **80** and **443** free on the host, for Traefik. In development, `make secrets` switches to port **8080** automatically if 80 is taken.
-- DNS records for `app.`, `api.`, `tv.`, `admin.`, `media.` (small tier) and `grafana.` under your domain. Development uses `*.localhost` with no DNS needed.
+- DNS records for `app.`, `api.`, `tv.`, `admin.`, `media.` (small tier), `edges.` (standalone edges reach the control plane there) and `grafana.` under your domain. Development uses `*.localhost` with no DNS needed.
 - Outbound HTTPS to TMDB, plus any of TheTVDB, SMTP, payment providers, Telegram and WhatsApp that you enable.
 
 ### Accounts and keys
@@ -208,7 +242,7 @@ Every dependency imported into our code is permissively licensed (MIT, BSD, Apac
 - Payment provider, SMTP, Telegram bot and WhatsApp Business accounts, as needed. Keys are entered in the admin (**Settings → Integrations**), not in files.
 
 ### Hardware sizing
-These are starting points, not benchmarks. The M15 load-test report will replace them with measured figures.
+These are starting points. The M15 load test ([docs/benchmarks/load.md](docs/benchmarks/load.md)) measured 1,000 concurrent IPTV viewers on one 10-core, 16-thread machine, with web using about one core in steady state and about seven during a burst of 50 first sign-ins a second. Plan more web workers, or a second app host, for 5,000.
 
 | Setup | CPU | RAM | Disk |
 |---|---|---|---|
@@ -258,6 +292,7 @@ On port 8080, add `:8080` to each URL. Modern browsers and curl resolve `*.local
 | `make monitoring-smoke` · `make monitoring-firedrill` | With the overlay up: targets, rules, the admin-only Grafana and a request id traced in Loki · a test alert end to end, read back from Mailpit |
 | `make monitoring-dashboards` | Regenerate the Grafana dashboards from `monitoring/grafana/build_dashboards.py` |
 | `make backup` · `make restore-test` | Back up now through the `backup` service · the restore drill: the latest backup and WAL restored into a throwaway server and compared with live (part of `make ci`) |
+| `make audit` · `make semgrep` · `make zap` | Known vulnerabilities in production dependencies (pip-audit, pnpm audit; exceptions in `scripts/audit-ignore.toml`) · the project's Semgrep rules and their tests · a ZAP baseline against every dev host (report in `dist/zap/out`); all three in `make ci` |
 | `make hardening-test` · `make crowdsec-test` | Every production service capability-dropped, read-only, digest-pinned and off the Docker socket (part of `make ci`) · with `CROWDSEC=1`: a banned address gets 403, and the admin's switch works |
 
 Demo data and media:
@@ -296,7 +331,7 @@ Supported apps include IPTV Smarters, TiviMate, XCIPTV, OTT Navigator, IBO Playe
 
 ## Deployment (production)
 
-> **The small tier works today, with a one-command installer.** One host runs everything behind Traefik with Let's Encrypt TLS and HSTS, optionally with monitoring. The live server at tv.mah007.net runs exactly this. It includes encrypted backups with a weekly restore drill, and CrowdSec. Zero-downtime deploys and the medium/large tiers come in M15.
+> **The small tier works today, with a one-command installer.** One host runs everything behind Traefik with Let's Encrypt TLS and HSTS, optionally with monitoring. The live server at tv.mah007.net runs exactly this. It includes encrypted backups with a weekly restore drill, and CrowdSec. Updates replace the web replicas one set at a time, so the site keeps answering (M15). Edges on other servers, the S3 origin, Bunny and the read replica are opt-in additions.
 
 ### Install on a server
 **You need:**
@@ -335,6 +370,9 @@ sudo bash install.sh
 | Change the domain, admin email, media folder or monitoring (everything else: admin → Settings) | `sudo /opt/iptv/scripts/install.sh --reconfigure` |
 | Turn monitoring on (or off) for an existing installation | `sudo /opt/iptv/scripts/install.sh --update --monitoring` (`--no-monitoring`) |
 | Turn CrowdSec on (or off) | `sudo /opt/iptv/scripts/install.sh --update --crowdsec` (`--no-crowdsec`) |
+| Add the PostgreSQL read replica (or remove it) | `sudo /opt/iptv/scripts/install.sh --update --replica` (`--no-replica`); [docs/runbooks/database-replica.md](docs/runbooks/database-replica.md) |
+| Add a media edge on another server | admin → **Edges** → Add, then on that server `sudo bash install.sh --edge --control-url https://edges.<domain> --edge-id … --edge-domain …`; [docs/runbooks/add-edge.md](docs/runbooks/add-edge.md) |
+| Update the server from a checkout | `make deploy DEPLOY_HOST=root@<server>` (the pushed `main`; [docs/runbooks/deploy.md](docs/runbooks/deploy.md)) |
 | Back up now, or run the restore drill | admin → **Backups**, or `docker compose ... exec web python manage.py backup_now --wait` (`restore_drill --wait`) |
 | Restore the database to a point in time, undo an update | [docs/runbooks/backups.md](docs/runbooks/backups.md), [docs/runbooks/rollback.md](docs/runbooks/rollback.md) |
 | Rotate a key or password | `sudo /opt/iptv/scripts/rotate-keys.sh <kind>` ([docs/runbooks/rotate-keys.md](docs/runbooks/rotate-keys.md)) |
@@ -348,18 +386,26 @@ The admin enrols an authenticator app (TOTP) at first sign-in. A generated passw
 | Tier | Layout | Status |
 |---|---|---|
 | **Small** | One host runs everything. Traefik routes `media.` to the built-in Nginx edge. | ✅ Works; installed by `scripts/install.sh` |
-| **Medium / Large** | Standalone edge servers (own TLS, or behind a CDN with token auth), an S3-compatible origin (SeaweedFS, Cloudflare R2, Backblaze B2) with sliced range caching, and a PostgreSQL replica. | 🔜 M15 |
+| **Medium / Large** | Standalone edge servers (own TLS, or behind a Bunny CDN with token auth), an S3-compatible origin (SeaweedFS, Cloudflare R2, Backblaze B2) with sliced range caching, and a PostgreSQL read replica. | ✅ Built (M15), tested on the dev stack with a remote edge, SeaweedFS and the replica; not yet run in production. Bunny is verified against test vectors only |
 
 ### Beyond the installer
 - ✅ **Monitoring (M13):** the `compose.monitoring.yml` overlay (the installer's monitoring question) with Grafana, Prometheus and Alertmanager on `grafana.<domain>` behind the admin's sign-in, and alerts by email and Telegram; what each alert means and what to do is in [docs/runbooks/alerts.md](docs/runbooks/alerts.md).
 - ✅ **Live TV (M12):** included in every install and update (the `live` packager, the `live-relay` and the `live-data` volume). The catch-up disk budget and the other live settings are in the admin (**Settings → Live TV**). The optional MediaMTX ingest for your own encoders and OBS is `LIVE_INGEST=1` in `.env` plus `install.sh --update`. Channels, ingest, ErsatzTV, guides and disk sizing are in [docs/runbooks/live-tv.md](docs/runbooks/live-tv.md).
 - ✅ **Backups (M14b):** included in every install and update. pgBackRest takes a full backup weekly and a differential nightly, and archives WAL continuously (at most 5 minutes of data at risk); restic keeps `.env`, `secrets/`, the artwork, a logical dump and optionally the media (renditions are excluded because they can be regenerated). Everything is encrypted, kept in `BACKUP_DIR` and optionally copied to an S3-compatible bucket (Settings → Backups). A restore drill runs weekly; its result and restore time are on the admin's Backups page, and a failure alerts. Restores, disaster recovery and rollback: [docs/runbooks/backups.md](docs/runbooks/backups.md), [docs/runbooks/rollback.md](docs/runbooks/rollback.md).
 - ✅ **Server security (M14b):** CrowdSec (opt-in at install, on by default), ufw with SSH rate-limited or limited to your networks, TLS 1.2+ with forward-secret ciphers, least-privilege database and Valkey users, and key rotation. The checklist, CrowdSec commands and the privacy settings are in [docs/runbooks/security.md](docs/runbooks/security.md); for trouble, [leaked-credential.md](docs/runbooks/leaked-credential.md) and [incident-response.md](docs/runbooks/incident-response.md).
-- 🔜 **Zero-downtime deploys (M15):** `make deploy` with prebuilt images and two health-gated `web` replicas. Today an update restarts the app for a few seconds.
+- ✅ **Application security (M14a):** included in every update, with nothing to do by hand (the edge's stream-auth secret is generated, the GeoIP databases download on the worker's first start). Then add a security key for each owner (user menu → **Sign-in and security**), consider **Settings → Security** → *Security key required for* and *Admin allowed addresses*, and set SPF, DKIM and DMARC for your mail domain: [docs/runbooks/security.md](docs/runbooks/security.md). Sharing flags: [docs/runbooks/leaked-credential.md](docs/runbooks/leaked-credential.md#sharing-flags).
+- ✅ **Zero-downtime updates (M15):** two health-gated `web` replicas (2 × 3 gunicorn workers). `install.sh --update` builds, migrates once, then replaces web and the apps' server behind Traefik's health checks. `make deploy DEPLOY_HOST=…` runs it from a checkout. The first update to M15 restarts web once, because its routing labels change. Migrations must stay backward compatible: [docs/runbooks/deploy.md](docs/runbooks/deploy.md#zero-downtime-updates-m15-adr-0022).
+- ✅ **Scale-out (M15):**
+  - the S3 origin: **Settings → Storage**, and a Test on **Settings → Integrations**;
+  - edges on other servers: **Edges**, plus `install.sh --edge` ([add-edge.md](docs/runbooks/add-edge.md));
+  - Bunny ([cdn-bunny.md](docs/runbooks/cdn-bunny.md));
+  - the read replica: `--replica` ([database-replica.md](docs/runbooks/database-replica.md)).
+
+  Live TV stays on the main server.
 - **GPU transcoding:** a server with an NVIDIA or Intel GPU can add `docker/compose.gpu-nvidia.yml` or `docker/compose.gpu-intel.yml` (the NVIDIA Container Toolkit, or `/dev/dri`, must be available).
 
 ### CDN
-- Bunny CDN pull zones with token authentication are supported and documented in a runbook.
+- Bunny CDN pull zones with token authentication are supported: [docs/runbooks/cdn-bunny.md](docs/runbooks/cdn-bunny.md). They are verified against Bunny's reference implementation and published vectors only, not yet a live zone, and cache hits at Bunny bypass kicks until a token expires.
 - **Don't** put video behind Cloudflare's free or pro CDN, because its terms forbid it.
 - Never load-test against a CDN or public egress.
 
@@ -413,24 +459,27 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 | M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up and timeshift, ErsatzTV and MediaMTX integrations | ✅ Done (portal live TV later) |
 | M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | ✅ Done |
 | CFG | Dynamic configuration | Encrypted secret settings with the `.env` fallback, Integrations page with Tests, System page, branding, Alertmanager's fallback from Django, installer writes settings | ✅ Done |
-| M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | Partly: rate limits, lockouts; backups, restore drill, CrowdSec, key rotation and container hardening (M14b) done |
-| M15 | Scale & CDN | Standalone edges, S3 origin, Bunny CDN token auth, Postgres replica, load-test report at 1,000+ virtual users | Planned |
+| M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | ✅ Done: operations (M14b) and application security (M14a: CSP, WebAuthn, step-up, IP allowlist, sharing detection, rate limits, dependency/Semgrep/ZAP checks, threat model v2) |
+| M15 | Scale & CDN | Standalone edges, S3 origin, Bunny CDN token auth, Postgres replica, load-test report at 1,000+ virtual users | ✅ Done: edges on other servers with their own TLS, the S3 origin, Bunny (vectors only), the read replica, zero-downtime updates, load tests at 100/500/1,000 (5,000 extrapolated; [report](docs/benchmarks/load.md)) |
 | Later | Beyond v1 | Native TV apps, pluggable ML recommender | Ideas |
 
 ## Repository layout
 
 ```
 backend/     Django apps: accounts, billing, catalog, library, metadata, media,
-             playback, xtream_api, live, engagement, search, notifications, audit, dashboard
+             playback, xtream_api, live, engagement, search, notifications, audit, dashboard,
+             antisharing
 frontend/    pnpm workspace: packages/ui (design system), packages/api (generated client),
              apps/admin, apps/portal
 streaming/   Nginx edge config, njs token verification, FFmpeg rendition profiles
 docker/      Dockerfiles and compose files (base, dev, prod, GPU, monitoring, CrowdSec), Traefik config
 monitoring/  Prometheus rules, Grafana dashboards, Loki and Alloy config
 compat/      Xtream JSON schemas, golden fixtures, client checklist
-loadtests/   Locust and k6 scenarios
-scripts/     installer, secrets, sample media, key rotation, hardening and CrowdSec checks
-docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, client setup guides (ar/en)
+loadtests/   Locust (make loadtest) and the zero-downtime probe
+scripts/     installer, secrets, sample media, key rotation, hardening and CrowdSec checks,
+             the dependency audit gate
+security/    ZAP baseline plan (accepted findings with their reasons); .semgrep/ holds our rules
+docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, threat model, client setup guides (ar/en)
 ```
 
 ## Development workflow
@@ -440,6 +489,7 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, client setup guides (ar/en
 - There's no hosted CI ([ADR-0003](docs/adr/0003-no-hosted-ci.md)). `make ci` is the quality gate. It runs:
   - the stack and smoke test;
   - lint (with a missing-migrations check) and types;
+  - the project's Semgrep rules, a dependency vulnerability audit and a ZAP baseline;
   - the Xtream contract suite;
   - the monitoring checks and the container hardening check;
   - tests, then a backup and a restore drill on the dev stack;
@@ -457,8 +507,11 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, client setup guides (ar/en
 - Per-device Xtream credentials hashed with Argon2id. Failed logins look identical whether the user or the password was wrong.
 - Short-lived HMAC-signed media URLs with key rotation, and optional IP binding.
 - Server-side concurrency limits, with sessions killable within 60 seconds.
-- Admin MFA (TOTP and WebAuthn), re-authentication for sensitive actions, and an idle timeout.
-- Rate limiting at Traefik and in Django, CrowdSec, a strict CSP and an append-only audit log.
+- Admin MFA with an authenticator app or security keys and passkeys (WebAuthn, can be required per role), "confirm it's you" before sensitive actions, an idle timeout and an optional IP allowlist; customers confirm their password before adding a TV app.
+- Rate limiting at Traefik and in Django (per IP and per account), progressive Xtream sign-in pauses, CrowdSec, and an append-only audit log.
+- A strict Content-Security-Policy with per-request nonces and no inline script on both apps, `default-src 'none'` on the API and media, and the other security headers per host (`make smoke` checks them).
+- Sharing detection with DB-IP Lite geolocation: flags with evidence and a manual warn, reset, suspend ladder; never an automatic lock.
+- Supply chain: pinned lockfiles, a licence gate, Trivy, pip-audit and pnpm audit, the project's own Semgrep rules and a ZAP baseline, all in `make ci`. The STRIDE [threat model](docs/security/threat-model.md) gives every finding its status.
 - Least privilege on the server: the app uses a database role that can't change the schema or rewrite the audit log, and Valkey users without dangerous commands; only two allowlisting proxies reach the Docker socket; every container drops all capabilities, can't gain privileges, has a read-only root and a digest-pinned image (`make hardening-test` enforces it).
 - Encrypted backups with point-in-time recovery and a weekly restore drill; scripted rotation of every key and password; personal-data retention jobs.
 - Credentials and tokens are redacted in every log pipeline (Traefik, Nginx, Django, Alloy), and a test enforces it.

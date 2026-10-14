@@ -5,6 +5,7 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+import redis
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
@@ -83,7 +84,9 @@ def test_kpis_survive_a_cache_outage(
     owner_client: APIClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def broken(*_args: object, **_kwargs: object) -> None:
-        raise ConnectionError
+        # What Django's Redis cache raises when redis-cache is down (every admin request
+        # also reads settings through it, e.g. the IP allowlist: ADR-0021).
+        raise redis.ConnectionError
 
     monkeypatch.setattr(cache, "get", broken)
     monkeypatch.setattr(cache, "set", broken)

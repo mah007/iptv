@@ -1,0 +1,35 @@
+# SeaweedFS as the S3 origin in development (M15, ADR-0022): Apache-2.0, a separate
+# process (MinIO's server is AGPL). `make s3-dev` starts it, creates the bucket and
+# saves its keys in the admin's settings (Settings → Storage):
+#   publisher   read, write and list on the bucket `media` (the worker's publisher)
+#   edge        read only (standalone edges; the Integrations Test proves it can't write)
+# The keys are generated into secrets/s3-dev/ (git-ignored) on first use.
+services:
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
+    restart: unless-stopped
+    mem_limit: 512m
+    entrypoint: ["sh", "-c"]
+    # The identities file is built from the key files at start, into /tmp (never logged).
+    command:
+      - >-
+        umask 077 &&
+        printf '{"identities":[{"name":"publisher","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Read:media","Write:media","List:media","Tagging:media"]},{"name":"edge","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Read:media"]}]}'
+        "$$(cat /keys/publisher_access)" "$$(cat /keys/publisher_secret)"
+        "$$(cat /keys/edge_access)" "$$(cat /keys/edge_secret)" > /tmp/s3.json &&
+        exec weed server -dir=/data -ip.bind=0.0.0.0 -s3 -s3.port=8333 -s3.config=/tmp/s3.json
+        -master.volumeSizeLimitMB=256 -volume.max=8
+    volumes:
+      - seaweedfs-data:/data
+      - ./secrets/s3-dev:/keys:ro
+    networks: [backend, edge]
+    healthcheck:
+      # Ready once the S3 gateway listens (it starts after the master and the filer).
+      test: ["CMD-SHELL", "netstat -tln | grep -q ':8333 '"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+
+volumes:
+  seaweedfs-data:

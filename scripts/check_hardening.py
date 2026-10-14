@@ -33,7 +33,19 @@ CONFIGURATIONS = {
         "docker/compose.crowdsec.yml",
         "docker/compose.mediamtx.yml",
     ],
+    # M15 (ADR-0022): the read replica with its exporter, and a standalone edge's host.
+    "production with the read replica": [
+        "docker/compose.yml",
+        "docker/compose.prod.yml",
+        "docker/compose.monitoring.yml",
+        "docker/compose.monitoring.prod.yml",
+        "docker/compose.replica.yml",
+        "docker/compose.replica.monitoring.yml",
+    ],
+    "a standalone edge": ["docker/compose.edge.yml"],
 }
+#: What a standalone edge's installer writes to its .env (placeholders for rendering).
+EDGE_ENV = "EDGE_ID=edge-check\nEDGE_DOMAIN=edge.example.com\nEDGE_CONTROL_URL=https://edges.example.com\n"
 PROFILES = ["gpu-nvidia", "restore"]
 #: Services that may write to their root file system, and why.
 READ_WRITE: dict[str, str] = {}
@@ -107,6 +119,8 @@ def main() -> int:
             check=True,
             capture_output=True,
         )
+        with env_file.open("a", encoding="utf-8") as handle:
+            handle.write(EDGE_ENV)
         for label, files in CONFIGURATIONS.items():
             services = render(files, env_file)["services"]
             bad = {name: service_problems(name, service) for name, service in services.items()}

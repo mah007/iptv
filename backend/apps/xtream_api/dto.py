@@ -14,6 +14,8 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import Literal
 
+from apps.core.text import strip_bidi
+
 type Locale = Literal["en", "ar"]
 type CategoryKind = Literal["vod", "series", "live"]
 
@@ -31,7 +33,7 @@ class Text:
 
     def only(self, locale: Locale) -> str:
         """The text in `locale`, without falling back to the other language."""
-        return (self.ar if locale == "ar" else self.en).strip()
+        return strip_bidi(self.ar if locale == "ar" else self.en).strip()
 
 
 @dataclass(frozen=True, slots=True)

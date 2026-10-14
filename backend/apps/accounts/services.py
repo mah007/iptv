@@ -37,7 +37,7 @@ from apps.accounts.models import (
     UserStatus,
     XtreamCredential,
 )
-from apps.accounts.rbac import OWNER_ROLE
+from apps.accounts.rbac import OWNER_ROLE, permission_codes
 from apps.accounts.signals import access_expired, access_suspended, device_disabled
 from apps.accounts.validators import normalize_country, normalize_ip, normalize_network
 from apps.audit import services as audit
@@ -501,7 +501,27 @@ def create_device_credential(  # noqa: PLR0913 (all but the first are keyword-on
         user = User.objects.select_for_update().get(pk=user.pk)
         access = ensure_access(user)
         values = {"name": name, "app_hint": app_hint, "username": username, "password": password}
-        return _issue_device(user, access, values, actor=actor, ip=ip)
+        issued = _issue_device(user, access, values, actor=actor, ip=ip)
+        _notify_customer(
+            user,
+            "new_device",
+            {"device_name": issued.device.name, "app": issued.device.get_app_hint_display()},
+        )
+        return issued
+
+
+def _notify_customer(user: User, event: str, payload: Mapping[str, Any]) -> None:
+    """Tell the customer about a new or reset IPTV app login, never its password (G-31).
+
+    Queued in the caller's transaction (sent after commit); staff accounts get nothing."""
+    if user.is_staff:
+        return
+    from apps.notifications import services as notifications  # noqa: PLC0415 (import cycle)
+
+    try:
+        notifications.enqueue(user, event, payload)
+    except Exception:  # a notice must never undo the change it reports
+        logger.exception("customer notice not queued", extra={"event": event})
 
 
 def _locked_device(device: Device) -> Device:
@@ -525,13 +545,14 @@ def _username_of(device: Device) -> str | None:
     return credential.username if credential is not None else None
 
 
-def reset_credential(
+def reset_credential(  # noqa: PLR0913 (all but the first are keyword-only)
     device: Device,
     *,
     username: str = "",
     password: str = "",
     actor: User | None,
     ip: str | None = None,
+    notify: bool = True,
 ) -> IssuedCredential:
     """A new password for the device; the old one stops working at once.
 
@@ -582,7 +603,62 @@ def reset_credential(
             after={"xtream_username": credential.username},
             ip=ip,
         )
+        if before is not None:
+            # Streams started with the old password stop too (G-02), not only new sign-ins.
+            _device_disabled_on_commit(device)
+        if notify:
+            _notify_customer(
+                device.user,
+                "credentials_reset",
+                {
+                    "device_name": device.name,
+                    "username": credential.username,
+                    "server_url": xtream_server_url(),
+                },
+            )
     return IssuedCredential(device=device, username=credential.username, password=password)
+
+
+def revoke_by_app(
+    app_hint: str,
+    *,
+    actor: User | None,
+    ip: str | None = None,
+    notify: bool = True,
+    dry_run: bool = False,
+) -> int:
+    """Revoke every customer's IPTV login made for one app (G-26): after a breach at a
+    MAC-app vendor, or a public leak of that app's playlists. Each customer is told once
+    (`devices_revoked`) and makes new logins in the portal. Returns how many devices."""
+    if app_hint not in AppHint.values or not app_hint:
+        raise ProblemError(
+            ErrorCode.VALIDATION_ERROR,
+            field_errors={"app_hint": [field_error("Unknown app.", code="invalid_choice")]},
+        )
+    devices = Device.objects.filter(
+        app_hint=app_hint,
+        kind=DeviceKind.XTREAM,
+        revoked_at__isnull=True,
+        user__is_staff=False,
+    ).select_related("user")
+    if dry_run:
+        return devices.count()
+    count = 0
+    told: set[UUID] = set()
+    with transaction.atomic():
+        for device in devices.select_for_update(of=("self",)):
+            revoke_device(device, actor=actor, ip=ip)
+            count += 1
+            if notify and device.user_id not in told:
+                told.add(device.user_id)
+                _notify_customer(device.user, "devices_revoked", {"app": AppHint(app_hint).label})
+        audit.record(
+            "devices.revoke_by_app",
+            actor=actor,
+            after={"app_hint": app_hint, "devices": count, "customers": len(told)},
+            ip=ip,
+        )
+    return count
 
 
 def _device_disabled_on_commit(device: Device) -> None:
@@ -673,12 +749,15 @@ class XtreamLogin:
     user: User
 
 
-def authenticate_xtream(username: str, password: str) -> XtreamLogin | None:
+def authenticate_xtream(
+    username: str, password: str, *, cached_only: bool = False
+) -> XtreamLogin | None:
     """Check an IPTV app's username and password (SPEC §11); None when refused.
 
     One query loads the credential with its device and customer. A recent success
     for the same pair (cached 5 minutes in redis-state under an HMAC of the pair)
-    skips Argon2id while the stored hash is unchanged. Unknown usernames still pay
+    skips Argon2id while the stored hash is unchanged; `cached_only` accepts nothing
+    else (sign-ins paused by the rate limits, G-20). Unknown usernames still pay
     for one verification, so timing does not reveal which usernames exist. Revoked
     credentials and devices are refused here; blocked devices and inactive
     accounts are left to playback, which answers with a specific error code.
@@ -692,7 +771,8 @@ def authenticate_xtream(username: str, password: str) -> XtreamLogin | None:
     # Read before the unknown-user branch, so both paths make the same Redis round trip.
     cached_raw = cast("bytes | None", state_redis().get(cache_key))
     if credential is None:
-        creds.burn_verify(password)
+        if not cached_only:
+            creds.burn_verify(password)
         return None
     fingerprint = creds.hash_fingerprint(credential.password_hash)
     cached = creds.CachedAuth.decode(cached_raw) if cached_raw else None
@@ -702,7 +782,8 @@ def authenticate_xtream(username: str, password: str) -> XtreamLogin | None:
         and secrets.compare_digest(cached.hash_fingerprint, fingerprint)
     )
     if not verified:
-        if not creds.verify_password(credential.password_hash, password):
+        # While sign-ins are paused (G-20), only a cached success passes: no Argon2.
+        if cached_only or not creds.verify_password(credential.password_hash, password):
             return None
         now = timezone.now()
         updates: dict[str, Any] = {"last_used_at": now, "updated_at": now}
@@ -929,6 +1010,31 @@ def _guard_owner_change(actor: User | None, granting_or_revoking_owner: bool) ->
         )
 
 
+def _guard_grant(actor: User | None, codes: Iterable[str]) -> None:
+    """No self-escalation (G-05): a non-owner grants only permissions they hold."""
+    if actor is None or is_owner(actor):
+        return
+    beyond = set(codes) - set(permission_codes(actor))
+    if beyond:
+        raise ProblemError(
+            ErrorCode.PERMISSION_DENIED,
+            "You can only grant permissions you hold yourself: " + ", ".join(sorted(beyond)) + ".",
+        )
+
+
+def _role_codes(roles: Iterable[Role]) -> set[str]:
+    codes: set[str] = set()
+    for role in roles:
+        codes.update(role.permissions.values_list("code", flat=True))
+    return codes
+
+
+def _guard_owner_account(actor: User | None, target_is_owner: bool) -> None:
+    """Only owners change an owner's account (G-05)."""
+    if target_is_owner and actor is not None and not is_owner(actor):
+        raise ProblemError(ErrorCode.PERMISSION_DENIED, "Only an owner can change an owner.")
+
+
 def generate_admin_password() -> str:
     return secrets.token_urlsafe(ADMIN_PASSWORD_BYTES)
 
@@ -946,6 +1052,7 @@ def create_admin(  # noqa: PLR0913 (keyword-only fields of one admin)
     their first sign-in."""
     roles = _roles(role_ids)
     _guard_owner_change(actor, any(role.name == OWNER_ROLE for role in roles))
+    _guard_grant(actor, _role_codes(roles))
     password = generate_admin_password()
     with transaction.atomic():
         user = User(username=username, name=name, email=email, is_staff=True)
@@ -971,7 +1078,9 @@ def update_admin(
     ip: str | None = None,
 ) -> User:
     """Change an admin's profile, status or roles. Guards: only owners touch the owner
-    role, nobody disables themselves, and one active owner always remains."""
+    role or an owner's account, nobody changes their own roles or disables themselves,
+    a non-owner grants only permissions they hold (G-05), and one active owner always
+    remains."""
     with transaction.atomic():
         target = User.objects.select_for_update().get(pk=target.pk, is_staff=True)
         current_roles = list(target.roles.all())
@@ -980,6 +1089,12 @@ def update_admin(
         had_owner = any(role.name == OWNER_ROLE for role in current_roles)
         has_owner = any(role.name == OWNER_ROLE for role in new_roles)
         _guard_owner_change(actor, had_owner != has_owner)
+        _guard_owner_account(actor, had_owner)
+        added = [role for role in new_roles if role not in current_roles]
+        own = role_ids is not None and actor is not None and actor.pk == target.pk
+        if own and {role.pk for role in new_roles} != {role.pk for role in current_roles}:
+            raise ProblemError(ErrorCode.CONFLICT, "You cannot change your own roles.")
+        _guard_grant(actor, _role_codes(added))
         new_status = changes.get("status", target.status)
         if actor is not None and actor.pk == target.pk and new_status != UserStatus.ACTIVE:
             raise ProblemError(ErrorCode.CONFLICT, "You cannot disable your own account.")
@@ -1032,6 +1147,7 @@ def create_role(
     ip: str | None = None,
 ) -> Role:
     rows = _permission_rows(permissions)
+    _guard_grant(actor, (row.code for row in rows))
     with transaction.atomic():
         role = Role.objects.create(name=name, description=description)
         role.permissions.set(rows)
@@ -1065,6 +1181,7 @@ def update_role(
         codes: Iterable[str] = current
         if permissions is not None:
             rows = _permission_rows(permissions)
+            _guard_grant(actor, {row.code for row in rows} - set(current))
             role.permissions.set(rows)
             codes = [row.code for row in rows]
         old, new = _changed(before, role_snapshot(role, codes))

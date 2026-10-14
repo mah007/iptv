@@ -36,6 +36,12 @@ export function me(overrides: Partial<Me> = {}): Me {
     mfa_enabled: true,
     roles: ["owner"],
     permissions: ALL_PERMISSIONS,
+    idle_timeout_min: 30,
+    step_up_window_min: 5,
+    // Sensitive actions start unlocked, so tests don't meet the step-up dialog unasked.
+    step_up_until: new Date(Date.now() + 5 * 60_000).toISOString(),
+    mfa_methods: ["totp"],
+    webauthn_enrolment_required: false,
     ...overrides,
   };
 }
@@ -60,6 +66,7 @@ export function customerSummary(overrides: Partial<CustomerSummary> = {}): Custo
     max_devices: 2,
     device_count: 1,
     last_seen: null,
+    risk_flagged: false,
     created_at: "2026-09-01T10:00:00Z",
     ...overrides,
   };

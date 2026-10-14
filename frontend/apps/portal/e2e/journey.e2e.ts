@@ -1,5 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+
+import { expect, test } from "./fixtures";
 
 /*
  * A customer's evening (SPEC §15): sign in, look around, search in Arabic,
@@ -162,6 +164,7 @@ for (const { language, theme } of [
       "/account/devices",
       "/account/subscription",
       "/plans",
+      "/about",
     ];
     for (const path of pages) {
       await page.goto(path);
@@ -175,3 +178,44 @@ for (const { language, theme } of [
     }
   });
 }
+
+test("adding a TV app asks for the password again once the confirmation is old", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("smart-iptv.language", "en");
+  });
+  await signIn(page);
+  // Signing in counts as a confirmation (G-31): lock again, as if it were old.
+  const csrf = (await page.context().cookies()).find((cookie) => cookie.name === "csrftoken");
+  const locked = await page.request.delete("/api/v1/auth/step-up", {
+    headers: { "X-CSRFToken": csrf?.value ?? "" },
+  });
+  expect(locked.status()).toBe(204);
+
+  await page.goto("/account/devices");
+  await page.getByRole("button", { name: "Add TV app" }).first().click();
+  const add = page.getByRole("dialog", { name: "Add a TV app" });
+  const name = `E2E step-up ${Date.now().toString(36)}`;
+  await add.getByLabel("Device name").fill(name);
+  await add.getByRole("button", { name: "Create login" }).click();
+
+  const confirm = page.getByRole("dialog", { name: "Confirm your password" });
+  await expect(confirm).toBeVisible();
+  await expectAccessible(page, "password confirmation");
+  await confirm.getByLabel("Password", { exact: true }).fill(password);
+  await confirm.getByRole("button", { name: "Confirm" }).click();
+
+  const done = page.getByRole("dialog", { name: "Your TV app login" });
+  await expect(done).toBeVisible();
+  await done.getByRole("button", { name: "Done" }).click();
+
+  // Leave the account as it was: the login is removed again (no confirmation needed).
+  await page.getByRole("button", { name: `Actions for ${name}` }).click();
+  await page.getByRole("menuitem", { name: "Remove" }).click();
+  await page
+    .getByRole("alertdialog", { name: `Remove ${name}?` })
+    .getByRole("button", { name: "Remove" })
+    .click();
+  await expect(page.getByText("Device removed")).toBeVisible();
+});

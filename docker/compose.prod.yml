@@ -9,7 +9,8 @@
 x-prod-app: &prod-app
   environment:
     DJANGO_SETTINGS_MODULE: config.settings.prod
-    WEB_CONCURRENCY: ${WEB_CONCURRENCY:-4}
+    # Per web replica; two replicas by default (WEB_REPLICAS, M15): 6 workers in all.
+    WEB_CONCURRENCY: ${WEB_CONCURRENCY:-3}
     # The app services sign in with the restricted database role and Valkey user
     # (docker/app.env, ADR-0020): the owner's and the operator's passwords are not
     # handed to them at all.
@@ -39,6 +40,20 @@ services:
 
   web:
     <<: *prod-app
+    # Two replicas behind Traefik, rolled one set at a time on updates (M15, ADR-0022).
+    deploy:
+      replicas: ${WEB_REPLICAS:-2}
+    # The anchor's environment repeated: a service's own `environment` replaces the
+    # anchor's (YAML merge keys are shallow).
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-3}
+      POSTGRES_PASSWORD: ""
+      REDIS_STATE_PASSWORD: ""
+      REDIS_CACHE_PASSWORD: ""
+      # A connection pool per gunicorn worker (docs/benchmarks/load.md): 2 replicas x 3
+      # workers x 8 = 48 of PostgreSQL's 100 connections at most, whatever the burst.
+      POSTGRES_POOL_MAX_SIZE: ${POSTGRES_POOL_MAX_SIZE:-8}
     volumes:
       # Libraries, read-only; the admin only accepts folders under /media (ADR-0009).
       - ${MEDIA_ROOT:-/srv/media}:/media:ro
@@ -46,7 +61,7 @@ services:
       traefik.http.routers.api.entrypoints: websecure
       traefik.http.routers.api.tls.certresolver: letsencrypt
       # The Xtream host is TV_HOST (e.g. the bare base name), not always tv.<DOMAIN>.
-      traefik.http.routers.tv.rule: Host(`${TV_HOST:-tv.${DOMAIN:-localhost}}`) && !PathPrefix(`/internal`)
+      traefik.http.routers.tv.rule: Host(`${TV_HOST:-tv.${DOMAIN:-localhost}}`) && !PathPrefix(`/internal`) && !PathPrefix(`/metrics`)
       traefik.http.routers.tv.entrypoints: websecure
       traefik.http.routers.tv.tls.certresolver: letsencrypt
       # The admin SPA's same-origin API (admin.<DOMAIN>/api, ADR-0004).
@@ -57,6 +72,14 @@ services:
       traefik.http.routers.portal-api.tls.certresolver: letsencrypt
       traefik.http.routers.customer-auth.entrypoints: websecure
       traefik.http.routers.customer-auth.tls.certresolver: letsencrypt
+      # M14a (ADR-0021): the admin sign-in limit and CSP reports.
+      traefik.http.routers.admin-auth.entrypoints: websecure
+      traefik.http.routers.admin-auth.tls.certresolver: letsencrypt
+      traefik.http.routers.csp-report.entrypoints: websecure
+      traefik.http.routers.csp-report.tls.certresolver: letsencrypt
+      # M15 (ADR-0022): standalone edges reach the control plane here, over TLS.
+      traefik.http.routers.edges.entrypoints: websecure
+      traefik.http.routers.edges.tls.certresolver: letsencrypt
 
   worker:
     <<: *prod-app

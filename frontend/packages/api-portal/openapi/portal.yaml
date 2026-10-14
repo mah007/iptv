@@ -172,6 +172,91 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/auth/step-up:
+    post:
+      operationId: auth_step_up
+      description: Adding a TV app or a new TV app login needs a confirmation within
+        security.customer_step_up_window_min; signing in counts as one.
+      summary: Confirm it's you with your password
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerStepUpRequest"
+        required: true
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepUpResult"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: auth_step_up_forget
+      description: "POST /api/v1/auth/step-up: the password again (G-31); DELETE locks
+        again."
+      summary: Lock adding TV apps until the next confirmation
+      tags:
+        - auth
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "204":
+          description: Locked.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/branding:
     get:
       operationId: branding_retrieve
@@ -2464,6 +2549,15 @@ components:
         - status
         - timezone
         - username
+    CustomerStepUpRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+      required:
+        - password
     CustomerSubscription:
       type: object
       properties:
@@ -4131,6 +4225,15 @@ components:
       required:
         - id
         - title
+    StepUpResult:
+      type: object
+      properties:
+        step_up_until:
+          type: string
+          format: date-time
+          description: Sensitive actions stay unlocked until then.
+      required:
+        - step_up_until
     StopReportRequest:
       type: object
       properties:
@@ -4410,6 +4513,8 @@ components:
         - PAYMENT_PROVIDER_UNAVAILABLE
         - PAYMENT_PROVIDER_ERROR
         - WEBHOOK_INVALID
+        - STEP_UP_REQUIRED
+        - IP_NOT_ALLOWED
       description: Stable machine-readable error code.
     Problem:
       type: object

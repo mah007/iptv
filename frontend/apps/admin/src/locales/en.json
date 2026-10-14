@@ -47,7 +47,8 @@
     "monitoring": "Monitoring",
     "integrations": "Integrations",
     "system": "System",
-    "backups": "Backups"
+    "backups": "Backups",
+    "edges": "Edges"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -56,7 +57,9 @@
   "userMenu": {
     "label": "Account menu",
     "signOut": "Sign out",
-    "shortcuts": "Keyboard shortcuts"
+    "shortcuts": "Keyboard shortcuts",
+    "security": "Sign-in and security",
+    "about": "About"
   },
   "states": {
     "denied": {
@@ -77,7 +80,9 @@
     "CONFLICT": "That can't be done right now.",
     "DEVICE_LIMIT": "This customer has reached their device limit.",
     "NETWORK_ERROR": "The server couldn't be reached. Check your connection.",
-    "UNEXPECTED": "Something went wrong. Try again."
+    "UNEXPECTED": "Something went wrong. Try again.",
+    "STEP_UP_REQUIRED": "Not done: confirm it's you to continue.",
+    "IP_NOT_ALLOWED": "The admin can't be used from this network."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -194,7 +199,12 @@
       "chipAccess": "Access: {{value}}",
       "chipStatus": "Account: {{value}}",
       "expiringWithin_one": "Expires within {{count}} day",
-      "expiringWithin_other": "Expires within {{count}} days"
+      "expiringWithin_other": "Expires within {{count}} days",
+      "risk": "Sharing",
+      "chipRisk": "Sharing: flagged",
+      "riskOptions": {
+        "flagged": "Flagged for review"
+      }
     },
     "empty": {
       "title": "No customers yet",
@@ -362,7 +372,8 @@
       "description": "The customer can watch again, within their access profile.",
       "confirm": "Reactivate",
       "done": "Customer reactivated"
-    }
+    },
+    "riskFlagged": "Possible sharing"
   },
   "credential": {
     "server": "Server URL",
@@ -540,6 +551,15 @@
       "usernameFormat": "Use letters, digits and @ . + - _ only.",
       "nameTooLong": "Use at most 150 characters.",
       "email": "Enter a valid email address, or leave it empty."
+    },
+    "resetMfa": {
+      "title": "Sign-in confirmation",
+      "help": "Lost phone or key? Remove their authenticator app and security keys: they're signed out everywhere and set up an authenticator again at their next sign-in.",
+      "action": "Reset sign-in confirmation",
+      "confirmTitle": "Reset sign-in confirmation for {{name}}?",
+      "confirmDescription": "Their authenticator app and every security key are removed and all their sessions end. Do this only after checking it's really them asking.",
+      "confirm": "Reset",
+      "done": "{{name}} sets up sign-in confirmation again at their next sign-in."
     }
   },
   "roles": {
@@ -848,6 +868,30 @@
       "privacy": {
         "title": "Privacy and retention",
         "description": "How long personal data is kept before it is deleted or anonymised."
+      },
+      "edges": {
+        "title": "Edges",
+        "description": "When an edge counts as down or busy (manage edges on the Edges page)."
+      },
+      "storage": {
+        "title": "S3 origin",
+        "description": "Publishing renditions to an S3-compatible bucket for standalone edges and CDNs."
+      },
+      "cdn": {
+        "title": "CDN (Bunny)",
+        "description": "Bunny's token authentication and the origin secret."
+      },
+      "database": {
+        "title": "Database",
+        "description": "The read replica, when one is installed."
+      },
+      "geoip": {
+        "title": "IP geolocation",
+        "description": "DB-IP Lite country and provider lookups for country rules and sharing detection."
+      },
+      "antisharing": {
+        "title": "Sharing detection",
+        "description": "When a customer's networks and countries suggest their account is shared."
       }
     },
     "keys": {
@@ -1157,6 +1201,50 @@
         "crowdsec_allowlist": {
           "label": "Never blocked by CrowdSec",
           "description": "Addresses and networks CrowdSec never blocks, separated by commas, e.g. your office's 203.0.113.0/24."
+        },
+        "admin_step_up_window_min": {
+          "label": "Admin confirmation lasts",
+          "description": "Minutes an admin's confirmation (an authenticator code or a security key) unlocks sensitive actions such as settings, roles, refunds and deletions."
+        },
+        "customer_step_up_window_min": {
+          "label": "Customer confirmation lasts",
+          "description": "Minutes a customer's password confirmation unlocks adding a TV app or a new TV app login."
+        },
+        "webauthn_required_for": {
+          "label": "Security key required for",
+          "description": "Which admins must sign in with a security key or passkey instead of an authenticator code."
+        },
+        "admin_ip_allowlist": {
+          "label": "Admin allowed addresses",
+          "description": "Only these addresses and networks may use the admin, separated by commas (empty: any). Your current address must be in the list."
+        },
+        "csp_extra_media_origins": {
+          "label": "Extra media origins",
+          "description": "Extra media and CDN origins the admin and the portal may load media and images from, separated by commas. Applies after the next update or restart."
+        },
+        "rate_search_per_minute": {
+          "label": "Searches per minute",
+          "description": "Searches one customer may run per minute."
+        },
+        "rate_playback_start_per_minute": {
+          "label": "Playback starts per minute",
+          "description": "Playback starts one customer may request per minute."
+        },
+        "rate_device_credentials_per_hour": {
+          "label": "TV app logins per hour",
+          "description": "TV app logins one customer may create or renew per hour."
+        },
+        "rate_checkout_per_hour": {
+          "label": "Checkouts per hour",
+          "description": "Checkouts one customer may start per hour."
+        },
+        "rate_admin_tmdb_search_per_minute": {
+          "label": "TMDB searches per minute",
+          "description": "Manual TMDB searches and re-matches one admin may run per minute."
+        },
+        "rate_backup_runs_per_hour": {
+          "label": "Backup runs per hour",
+          "description": "Backups, restore drills and destination checks one admin may start per hour."
         }
       },
       "features": {
@@ -1407,6 +1495,150 @@
         "webhook_payload_days": {
           "label": "Payment webhook payloads kept (days)",
           "description": "Days payment providers' raw webhook payloads are kept (the payment records stay)."
+        },
+        "antisharing_retention_days": {
+          "label": "Keep sharing evidence",
+          "description": "Days the networks and countries seen per customer (anti-sharing evidence) are kept."
+        }
+      },
+      "edges": {
+        "stale_after_s": {
+          "label": "Edge report deadline (s)",
+          "description": "An edge that hasn't reported for this long gets no new sessions."
+        },
+        "max_utilisation_pct": {
+          "label": "Edge busy threshold (%)",
+          "description": "An edge sending more than this share of its capacity gets no new sessions."
+        }
+      },
+      "storage": {
+        "s3_enabled": {
+          "label": "Publish to S3",
+          "description": "Copy transcoded renditions to the bucket; local disk stays the primary copy."
+        },
+        "s3_endpoint": {
+          "label": "Service address",
+          "description": "e.g. https://<account>.r2.cloudflarestorage.com or https://s3.us-west-004.backblazeb2.com."
+        },
+        "s3_region": {
+          "label": "Region",
+          "description": "auto for Cloudflare R2; empty means us-east-1."
+        },
+        "s3_bucket": {
+          "label": "Bucket",
+          "description": "A private bucket."
+        },
+        "s3_prefix": {
+          "label": "Folder",
+          "description": "Folder inside the bucket."
+        },
+        "s3_path_style": {
+          "label": "Path-style addressing",
+          "description": "Address the bucket by path (R2, B2, SeaweedFS)."
+        },
+        "s3_access_key": {
+          "label": "Publisher's access key id",
+          "description": "Read and write on the bucket."
+        },
+        "s3_secret_key": {
+          "label": "Publisher's secret key",
+          "description": "Read and write on the bucket."
+        },
+        "s3_edge_access_key": {
+          "label": "Edges' access key id",
+          "description": "Read-only on the bucket; sent to standalone edges over their control channel."
+        },
+        "s3_edge_secret_key": {
+          "label": "Edges' secret key",
+          "description": "Read-only on the bucket."
+        },
+        "publish_sources": {
+          "label": "Publish direct-play originals",
+          "description": "They can be large; without them those titles play from this server only."
+        },
+        "publish_mbps": {
+          "label": "Upload limit (Mbit/s)",
+          "description": "0: no limit."
+        },
+        "old_generation_hours": {
+          "label": "Keep replaced copies (hours)",
+          "description": "Longer than the longest playback link."
+        }
+      },
+      "cdn": {
+        "bunny_token_key": {
+          "label": "Bunny token key",
+          "description": "Pull zone → Security → Token authentication."
+        },
+        "origin_secret": {
+          "label": "Origin secret",
+          "description": "Bunny sends it in the X-Origin-Auth header (an edge rule); our edges serve CDN pulls only with it."
+        },
+        "bunny_ip_binding": {
+          "label": "Bind Bunny links to the viewer's address",
+          "description": "IPv6 by its /64."
+        }
+      },
+      "database": {
+        "replica_reads": {
+          "label": "Reporting reads on the replica",
+          "description": "Dashboard charts, billing figures and the storage report read the replica when one is installed."
+        },
+        "replica_max_lag_s": {
+          "label": "Replica lag limit (s)",
+          "description": "The replica is used only while it is at most this far behind."
+        }
+      },
+      "geoip": {
+        "enabled": {
+          "label": "Look up countries and providers",
+          "description": "Look up the country and network (ASN) of client addresses with DB-IP Lite."
+        },
+        "auto_update": {
+          "label": "Update monthly",
+          "description": "Download the new DB-IP Lite country and ASN databases each month."
+        },
+        "unknown_country_policy": {
+          "label": "Unknown country",
+          "description": "When country rules allow only some countries and an address's country is unknown. Local network addresses are always allowed."
+        }
+      },
+      "antisharing": {
+        "enabled": {
+          "label": "Detect sharing",
+          "description": "Score each customer's sign-ins and streams for signs of credential sharing. Flags never lock an account."
+        },
+        "max_asns_1h": {
+          "label": "Providers per hour",
+          "description": "Networks (ASNs) one customer may use within an hour before it counts as a sharing signal."
+        },
+        "max_asns_24h": {
+          "label": "Providers per day",
+          "description": "Networks (ASNs) one customer may use within 24 hours before it counts as a sharing signal."
+        },
+        "max_countries_24h": {
+          "label": "Countries per day",
+          "description": "Countries one customer may appear from within 24 hours before it counts as a sharing signal."
+        },
+        "max_networks_per_credential_1h": {
+          "label": "Networks per TV app login",
+          "description": "Networks one TV app login may be used from within an hour (changes within one provider don't count)."
+        },
+        "travel_speed_kmh": {
+          "label": "Impossible travel speed",
+          "description": "Faster apparent travel between two countries counts as impossible travel, in km/h."
+        },
+        "travel_min_km": {
+          "label": "Shortest counted journey",
+          "description": "Countries closer than this, in km, never count as impossible travel."
+        },
+        "flag_score": {
+          "label": "Flag at score",
+          "description": "Score at which a customer is flagged for review."
+        },
+        "notify_admins": {
+          "label": "Tell the admins",
+          "description": "Tell the admins (alert recipients and Telegram) when a customer is flagged."
         }
       }
     },
@@ -1417,7 +1649,11 @@
       "starttls": "STARTTLS",
       "ssl": "SSL/TLS",
       "ar": "Arabic",
-      "en": "English"
+      "en": "English",
+      "owners": "Owners",
+      "admins": "Owners and admins",
+      "deny": "Deny",
+      "allow": "Allow"
     },
     "tabs": {
       "label": "Settings pages",
@@ -1511,7 +1747,8 @@
       "codeHelp": "The code changes every 30 seconds.",
       "submit": "Verify",
       "submitSetup": "Verify and finish",
-      "back": "Back to sign in"
+      "back": "Back to sign in",
+      "useKey": "Use a security key or passkey"
     },
     "validation": {
       "loginRequired": "Enter your username or email.",
@@ -1527,7 +1764,9 @@
       "RATE_LIMITED": "Too many attempts. Wait a moment, then try again.",
       "MFA_INVALID": "That code didn't work. Check your app and enter the current code.",
       "NOT_AUTHENTICATED": "Your sign-in timed out. Start again with your password.",
-      "UNAVAILABLE": "Sign-in isn't available right now. Try again in a few minutes."
+      "UNAVAILABLE": "Sign-in isn't available right now. Try again in a few minutes.",
+      "IP_NOT_ALLOWED": "The admin can't be used from this network. Ask an owner to add your address to the allowed list.",
+      "KEY_CANCELLED": "The security key didn't answer, or you cancelled. Try again."
     }
   },
   "libraries": {
@@ -3390,6 +3629,18 @@
         "description": "A bot that sends alerts to the admins' chat. Create it with @BotFather, add it to the chat, then get the chat's id.",
         "test": "Send a test message",
         "passed": "Test message sent"
+      },
+      "s3_origin": {
+        "title": "S3 origin",
+        "description": "A private S3-compatible bucket (Cloudflare R2, Backblaze B2, SeaweedFS) that standalone edges and CDNs read published renditions from. The edges get a read-only key.",
+        "test": "Test the bucket",
+        "passed": "The bucket works"
+      },
+      "bunny": {
+        "title": "Bunny CDN",
+        "description": "A Bunny pull zone in front of our edges, with token authentication. Add the zone on the Edges page.",
+        "test": "Test the pull zone",
+        "passed": "The pull zone works"
       }
     },
     "codes": {
@@ -3418,7 +3669,15 @@
         "no": "Our webhook is not registered yet: add the URL above",
         "unknown": "Couldn't check the webhook with this key"
       },
-      "noWebhookSecret": "No webhook secret is set yet"
+      "noWebhookSecret": "No webhook secret is set yet",
+      "edges": {
+        "yes": "The edges' key reads but can't write",
+        "no": "The edges' read-only key isn't set yet"
+      },
+      "zone": {
+        "yes": "A signed probe went through the pull zone",
+        "no": "Add the pull zone on the Edges page to test it end to end"
+      }
     }
   },
   "system": {
@@ -3606,5 +3865,368 @@
       "size": "Added",
       "by": "By"
     }
+  },
+  "edges": {
+    "title": "Edges",
+    "description": "Where playback URLs point: this server's edge, standalone edges on other hosts and CDN pull zones. New sessions go to a healthy edge that can serve them, by weight; live TV always plays from this server.",
+    "add": "Add",
+    "addStandalone": "Standalone edge",
+    "addCdn": "CDN pull zone (Bunny)",
+    "empty": "No edges yet.",
+    "close": "Close",
+    "removed": "{{name}} removed",
+    "cdnLoad": "Bunny's network",
+    "noEgress": "No traffic reported yet",
+    "egress": "{{used}} of {{capacity}} Mbit/s",
+    "connections_one": "{{count}} connection",
+    "connections_other": "{{count}} connections",
+    "pullsFrom": "Pulls from {{name}}",
+    "canaryBadge_one": "Canary: {{count}} customer",
+    "canaryBadge_other": "Canary: {{count}} customers",
+    "actionsFor": "Actions for {{name}}",
+    "columns": {
+      "edge": "Edge",
+      "kind": "Kind",
+      "status": "Status",
+      "load": "Load",
+      "weight": "Weight",
+      "actions": "Actions"
+    },
+    "kind": {
+      "local": "This server",
+      "standalone": "Standalone edge",
+      "cdn": "CDN pull zone"
+    },
+    "kindHelp": {
+      "local": "nginx-stream on this server: every rendition from the media volume, and live TV.",
+      "standalone": "An edge on another host with its own TLS. Install it with the command shown after adding it; it fetches its keys from this server.",
+      "cdn": "A Bunny pull zone in front of one of our edges. Set its token key and origin secret in Settings → Integrations first."
+    },
+    "storage": {
+      "disk": "Its own disk",
+      "origin": "The S3 origin"
+    },
+    "storageHelp": {
+      "disk": "A full copy of the renditions on the edge's disk (a mirror you keep in sync), or this server's media volume.",
+      "origin": "Published renditions from the S3 bucket, cached on the edge. Titles not published yet play from this server."
+    },
+    "audience": {
+      "all": "Everyone",
+      "canary": "Selected customers only"
+    },
+    "status": {
+      "healthy": "Healthy",
+      "stale": "Late",
+      "down": "Down",
+      "never_seen": "Never reported",
+      "disabled": "Off",
+      "draining": "Draining",
+      "keys_outdated": "Old keys",
+      "waiting_for_origin": "No origin edge"
+    },
+    "actions": {
+      "test": "Test",
+      "edit": "Edit",
+      "rotate": "New secret",
+      "remove": "Remove"
+    },
+    "facts": {
+      "title": "How edges are used",
+      "description": "Standalone edges reach this server on the control address below with their own secret; the signing key must be on every edge before it signs.",
+      "signingKey": "Signing key id",
+      "controlUrl": "Control address for edges",
+      "s3": "Publishing to S3",
+      "s3On": "On: renditions are published to the bucket",
+      "s3Off": "Off: set it up in Integrations",
+      "cdn": "Bunny CDN",
+      "cdnOn": "Token key set",
+      "cdnOff": "Not set up: Integrations",
+      "none": "none"
+    },
+    "form": {
+      "addTitle": {
+        "standalone": "Add a standalone edge",
+        "cdn": "Add a CDN pull zone",
+        "local": "Edge"
+      },
+      "editTitle": "Edit {{name}}",
+      "edgeId": "Edge id",
+      "edgeIdHelp": "Letters, digits, dots and dashes, e.g. media2. The installer asks for it.",
+      "name": "Name",
+      "baseUrl": "Address",
+      "baseUrlHelp": "The edge's https address, e.g. https://media2.example.com. Point its DNS name at the edge's host.",
+      "cdnUrlHelp": "The pull zone's address, e.g. https://cdn.example.com (a custom hostname) or https://zone.b-cdn.net.",
+      "storage": "Media from",
+      "origin": "Pulls from",
+      "originPlaceholder": "Choose an edge",
+      "originHelp": "Bunny pulls from this edge's /c/ address with the origin secret.",
+      "weight": "Weight",
+      "weightHelp": "Share of new sessions among the edges that can take them (0: only as a last resort).",
+      "capacity": "Capacity (Mbit/s)",
+      "capacityHelp": "Its uplink; above 90% of it the edge takes no new sessions.",
+      "audience": "Who it serves",
+      "audienceHelp": "Try a new edge with a few customers before opening it to everyone.",
+      "canary": "Customers",
+      "canarySearch": "Search customers by name, user name or email",
+      "canaryNone": "No customers chosen yet.",
+      "canaryCustomer": "Customer",
+      "canaryRemove": "Remove {{name}}",
+      "draining": "Draining",
+      "drainingHelp": "No new sessions; those playing carry on (before maintenance).",
+      "enabled": "On",
+      "enabledHelp": "Off: no sessions, and a standalone edge loses its access to this server.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "add": "Add edge",
+      "saved": "{{name}} saved",
+      "created": "{{name}} added",
+      "cspChanged": "Its address is outside this domain, so it was added to the apps' allowed media origins. It applies after the next update or restart."
+    },
+    "secret": {
+      "title": "Secret of {{name}}",
+      "description": "The edge proves who it is with this secret. Install the edge with the command below and give it this secret when asked (or in EDGE_TOKEN).",
+      "label": "Edge secret",
+      "command": "Installer command (on the edge's host)",
+      "onceTitle": "Shown once",
+      "once": "It isn't stored here, only its hash. If it's lost, make a new one: the old one stops working at once.",
+      "done": "Done"
+    },
+    "confirm": {
+      "rotateTitle": "A new secret for {{name}}?",
+      "rotate": "The edge stops working until it has the new secret (install.sh --edge --reconfigure on its host).",
+      "removeTitle": "Remove {{name}}?",
+      "remove": "No new sessions go there; sessions already playing continue until their links expire."
+    },
+    "test": {
+      "title": "Test of {{name}}",
+      "passed": "The edge served a signed probe URL end to end.",
+      "failed": "Something on the way failed:",
+      "steps": {
+        "setup": "Setup",
+        "health": "Health",
+        "media": "A signed probe URL",
+        "report": "Its reports",
+        "origin_credentials": "The origin's read-only key"
+      },
+      "codes": {
+        "ok": "OK",
+        "no_origin_edge": "Choose the edge Bunny pulls from",
+        "no_address": "No address set",
+        "keys_unusable": "This server's key file is unusable",
+        "refused_destination": "That address is refused",
+        "timeout": "No answer in time",
+        "unreachable": "Couldn't connect",
+        "wrong_content": "Wrong bytes came back",
+        "http_403": "Refused (403)",
+        "http_404": "Not found (404)",
+        "http_503": "Unavailable (503)",
+        "http_502": "Bad gateway (502)",
+        "healthy": "Reporting, with the signing key",
+        "stale": "Its reports are late",
+        "down": "No reports for a while",
+        "never_seen": "It has never reported",
+        "keys_outdated": "It lacks the signing key",
+        "disabled": "It is off",
+        "draining": "Draining",
+        "not_configured": "Set the edges' read-only key (Integrations → S3 origin)"
+      }
+    },
+    "validation": {
+      "edgeId": "Use 1-64 letters, digits, dots, dashes or underscores.",
+      "nameRequired": "Enter a name.",
+      "nameTooLong": "At most 100 characters.",
+      "baseUrl": "Enter an address such as https://media2.example.com (no path).",
+      "weight": "0 to 1000.",
+      "capacity": "1 to 1000000 Mbit/s.",
+      "origin": "Choose the edge Bunny pulls from."
+    }
+  },
+  "stepUp": {
+    "title": "Confirm it's you",
+    "description": "This action needs a fresh confirmation. It stays unlocked for {{minutes}} minutes.",
+    "useKey": "Use a security key or passkey",
+    "codeLabel": "Code from your authenticator app",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "lockNow": "Lock sensitive actions now",
+    "unlockedHint": "Sensitive actions are unlocked. Click to lock them now.",
+    "errors": {
+      "cancelled": "The security key didn't answer, or you cancelled. Try again.",
+      "invalid": "That didn't work. Check the code and try again.",
+      "locked": "Too many tries. Wait a few minutes, then try again.",
+      "unavailable": "Confirmation isn't available right now. Try again in a moment."
+    }
+  },
+  "security": {
+    "title": "Sign-in and security",
+    "description": "How you confirm it's you when you sign in and before sensitive actions.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "enrolRequired": {
+      "title": "Add a security key to continue",
+      "description": "Your role must sign in with a security key or passkey. Add one here; the rest of the admin opens once it's added."
+    },
+    "keys": {
+      "title": "Security keys and passkeys",
+      "description": "Sign in and confirm actions with a hardware key (such as a YubiKey) or a passkey on your phone or computer. They can't be phished.",
+      "unsupported": "This browser can't use security keys. Use a current Chrome, Edge, Firefox or Safari.",
+      "emptyTitle": "No keys yet",
+      "emptyDescription": "Add a key to sign in without typing codes.",
+      "add": "Add a key",
+      "addTitle": "Add a security key or passkey",
+      "addDescription": "Name it so you can tell your keys apart, then follow your browser's prompt.",
+      "addSubmit": "Continue",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. YubiKey on my keyring",
+      "defaultName": "Security key",
+      "added": "Key added.",
+      "addedOn": "Added {{date}}",
+      "lastUsed": "last used {{date}}",
+      "neverUsed": "never used",
+      "passkey": "Passkey",
+      "rename": "Rename",
+      "remove": "Remove",
+      "removeTitle": "Remove “{{name}}”?",
+      "removeDescription": "You can no longer sign in with this key. Your other keys and your authenticator app keep working.",
+      "removed": "Key removed.",
+      "cancelled": "The key didn't answer, or you cancelled. Try again.",
+      "duplicate": "That key is already added.",
+      "invalid": "The key's answer couldn't be verified. Try again.",
+      "failed": "The key couldn't be added. Try again."
+    },
+    "totp": {
+      "title": "Authenticator app",
+      "description": "Six-digit codes from an app such as Google Authenticator. Ask another owner or admin to reset it if you lose your phone.",
+      "on": "On",
+      "keysOnly": "Not set up: you sign in with keys"
+    },
+    "stepUp": {
+      "title": "Sensitive actions",
+      "description": "After you confirm it's you, settings, roles, refunds and deletions stay unlocked for {{minutes}} minutes.",
+      "lock": "Lock now",
+      "locked": "Locked"
+    }
+  },
+  "about": {
+    "title": "About",
+    "description": "{{name}}: self-hosted streaming for owned and licensed content.",
+    "defaultName": "Smart IPTV",
+    "credits": "Credits",
+    "creditsDescription": "Data this service uses, and the credit its licence asks for."
+  },
+  "revokeByApp": {
+    "action": "Revoke by app",
+    "title": "Revoke every login of one app",
+    "description": "After an app vendor's breach or a public leak: every IPTV app login made for that app stops working at once. Customers make new logins in the portal.",
+    "app": "App",
+    "pick": "Choose an app",
+    "counted_one": "{{formatted}} login would be revoked.",
+    "counted_other": "{{formatted}} logins would be revoked.",
+    "notify": "Email the customers that their login was revoked",
+    "confirm_one": "Revoke {{count}} login",
+    "confirm_other": "Revoke {{count}} logins",
+    "done_one": "{{count}} login revoked.",
+    "done_other": "{{count}} logins revoked."
+  },
+  "risk": {
+    "title": "Account sharing",
+    "description": "Signs that this account is used by more than one household, from the networks and countries it's seen on. A flag only asks you to look; nothing is blocked on its own.",
+    "disabled": "Sharing detection is off (Settings → Sharing detection).",
+    "noDatabase": "The IP geolocation database isn't installed, so countries and providers are unknown. See Settings → Integrations.",
+    "flagged": "Flagged",
+    "clear": "No concern",
+    "score": "Score {{score}}",
+    "flag": {
+      "open": "Open flag, highest score {{score}}.",
+      "reviewed": "Reviewed by {{name}} on {{date}}.",
+      "someone": "an admin",
+      "opened": "Flagged {{date}}"
+    },
+    "signals": {
+      "asns_1h": "Providers in the last hour",
+      "asns_24h": "Providers in the last 24 hours",
+      "countries_24h": "Countries in the last 24 hours",
+      "impossible_travel": "Impossible journeys",
+      "networks_per_credential_1h": "Networks per TV app login (1 hour)"
+    },
+    "travel": "{{from}} → {{to}}: {{km}} km in {{hours}} h",
+    "actions": {
+      "warn": "warned",
+      "reset": "logins reset",
+      "suspend": "suspended"
+    },
+    "sources": {
+      "playback": "Playback",
+      "xtream": "IPTV app sign-in",
+      "stream": "Streaming",
+      "portal": "Portal sign-in"
+    },
+    "sightings": {
+      "title": "Where they were seen (last 7 days)",
+      "empty": "Not seen yet.",
+      "network": "Network",
+      "provider": "Provider",
+      "country": "Country",
+      "device": "Device",
+      "source": "Seen by",
+      "hits": "Times",
+      "lastSeen": "Last seen",
+      "local": "Local network"
+    },
+    "warn": {
+      "action": "Warn",
+      "title": "Warn this customer?",
+      "description": "They get an email saying their account looks shared and that sharing breaks the terms.",
+      "confirm": "Send warning",
+      "done": "Warning sent."
+    },
+    "reset": {
+      "action": "Reset app logins",
+      "title": "Reset every TV app login?",
+      "description": "Each IPTV app login gets a new password nobody knows and its streams stop. The customer makes new logins in the portal; they get an email saying so.",
+      "confirm": "Reset logins",
+      "done_one": "{{count}} login reset.",
+      "done_other": "{{count}} logins reset."
+    },
+    "suspend": {
+      "action": "Suspend",
+      "title": "Suspend this customer for sharing?",
+      "description": "Playback stops on every device. They can still sign in to the portal. Reactivate them from the customer page.",
+      "confirm": "Suspend",
+      "done": "Customer suspended."
+    },
+    "review": {
+      "action": "Mark reviewed",
+      "title": "Mark this flag reviewed?",
+      "description": "The flag closes. A new one opens if the score crosses the threshold again.",
+      "noteLabel": "Note (optional)",
+      "confirm": "Mark reviewed",
+      "done": "Flag marked reviewed."
+    }
+  },
+  "geoip": {
+    "title": "IP geolocation (DB-IP Lite)",
+    "description": "Country and provider of client addresses, for country rules and sharing detection. No account needed.",
+    "status": {
+      "ready": "Installed",
+      "missing": "Not installed",
+      "off": "Off"
+    },
+    "databases": {
+      "country": "Countries",
+      "asn": "Providers (ASN)"
+    },
+    "release": "{{date}} release · {{size}}",
+    "missing": "Missing",
+    "autoUpdate": "Updated automatically each month.",
+    "manualUpdate": "Automatic updates are off (Settings → IP geolocation).",
+    "lookupLabel": "Look up an address",
+    "lookupPlaceholder": "Leave empty for yours",
+    "lookup": "Look up",
+    "local": "local network",
+    "found": "{{country}} · {{provider}}",
+    "unknown": "unknown",
+    "update": "Update now",
+    "updateQueued": "Download started. It takes a minute."
   }
 }

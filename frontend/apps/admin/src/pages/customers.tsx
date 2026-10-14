@@ -1,5 +1,6 @@
 import {
   AccessStatus,
+  CustomersListRisk,
   UserStatus,
   useCustomersList,
   type CustomerSummary,
@@ -26,13 +27,14 @@ import {
 } from "@smart-iptv/ui";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Link, getRouteApi } from "@tanstack/react-router";
-import { Plus, Users } from "lucide-react";
-import { useMemo } from "react";
+import { Plus, ShieldAlert, ShieldOff, Users } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { RequirePermission } from "../components/states";
 import { CreateCustomerSheet } from "../features/customers/create-customer-sheet";
 import { ExpiryText } from "../features/customers/expiry";
+import { RevokeByAppDialog } from "../features/customers/revoke-by-app";
 import { EXPIRING_WINDOWS, type CustomersSearch } from "../features/customers/search";
 import { useCan } from "../lib/auth";
 import { usePageTitle } from "../lib/page-title";
@@ -63,6 +65,12 @@ function useColumns() {
                   >
                     {customer.name || customer.username}
                   </Link>
+                  {customer.risk_flagged ? (
+                    <span className="flex items-center gap-1 text-xs text-warning-text">
+                      <ShieldAlert aria-hidden="true" className="size-3.5" />
+                      {t("customers.riskFlagged")}
+                    </span>
+                  ) : null}
                   <span className="ltr-value truncate text-xs text-muted-foreground" dir="ltr">
                     {customer.email || customer.username}
                   </span>
@@ -139,6 +147,7 @@ function apiParams(search: CustomersSearch): CustomersListParams {
     access_status: search.access,
     status: search.status,
     expiring_within_days: search.expiring,
+    risk: search.risk,
     ordering: search.ordering ? [search.ordering] : undefined,
     page: search.page,
     page_size: pageSize,
@@ -148,6 +157,7 @@ function apiParams(search: CustomersSearch): CustomersListParams {
 function Customers() {
   const { t } = useTranslation();
   const can = useCan();
+  const [revoking, setRevoking] = useState(false);
   const search = route.useSearch();
   const navigate = route.useNavigate();
   const columns = useColumns();
@@ -168,7 +178,8 @@ function Customers() {
     search.q !== undefined ||
     search.access !== undefined ||
     search.status !== undefined ||
-    search.expiring !== undefined;
+    search.expiring !== undefined ||
+    search.risk !== undefined;
   const chips: FilterChip[] = [];
   if (search.access !== undefined) {
     chips.push({
@@ -198,6 +209,16 @@ function Customers() {
     });
   }
 
+  if (search.risk !== undefined) {
+    chips.push({
+      id: "risk",
+      label: t("customers.filters.chipRisk"),
+      onRemove: () => {
+        update({ risk: undefined });
+      },
+    });
+  }
+
   const newButton = can("customers.edit") ? (
     <Button asChild>
       <Link to="/customers" search={{ ...search, new: true }}>
@@ -206,14 +227,31 @@ function Customers() {
       </Link>
     </Button>
   ) : null;
+  const revokeButton = can("devices.manage") ? (
+    <Button
+      variant="secondary"
+      onClick={() => {
+        setRevoking(true);
+      }}
+    >
+      <ShieldOff aria-hidden="true" />
+      {t("revokeByApp.action")}
+    </Button>
+  ) : null;
 
   return (
     <>
       <PageHeader
         title={t("customers.title")}
         description={t("customers.description")}
-        actions={newButton}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {revokeButton}
+            {newButton}
+          </div>
+        }
       />
+      <RevokeByAppDialog open={revoking} onOpenChange={setRevoking} />
       <DataTable
         label={t("customers.title")}
         columns={columns}
@@ -277,6 +315,18 @@ function Customers() {
                 />
                 <FacetFilter
                   single
+                  title={t("customers.filters.risk")}
+                  options={Object.values(CustomersListRisk).map((value) => ({
+                    value,
+                    label: t(`customers.filters.riskOptions.${value}`),
+                  }))}
+                  selected={search.risk ? [search.risk] : []}
+                  onSelectedChange={(values) => {
+                    update({ risk: values[0] as CustomersSearch["risk"] });
+                  }}
+                />
+                <FacetFilter
+                  single
                   title={t("customers.filters.expiring")}
                   options={EXPIRING_WINDOWS.map((days) => ({
                     value: String(days),
@@ -291,7 +341,13 @@ function Customers() {
             }
             chips={chips}
             onClearAll={() => {
-              update({ q: undefined, access: undefined, status: undefined, expiring: undefined });
+              update({
+                q: undefined,
+                access: undefined,
+                status: undefined,
+                expiring: undefined,
+                risk: undefined,
+              });
             }}
           />
         }

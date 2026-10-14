@@ -1,6 +1,6 @@
 # Runbook: server security
 
-How the server is hardened (ADR-0020), what to check after installing, and the day-to-day commands: firewall and SSH, TLS, CrowdSec, the container and data-store boundaries, and personal-data retention. Other runbooks for when something goes wrong:
+How the server is hardened (ADR-0020) and how the application protects itself (ADR-0021), what to check after installing, and the day-to-day commands: firewall and SSH, TLS, CrowdSec, the container and data-store boundaries, admin sign-in and recovery, security headers, rate limits, IP geolocation, mail authentication and personal-data retention. Other runbooks for when something goes wrong:
 - [incident-response.md](incident-response.md): something is wrong;
 - [leaked-credential.md](leaked-credential.md): a secret got out;
 - [rotate-keys.md](rotate-keys.md): routine key and password changes;
@@ -23,6 +23,9 @@ alias dc='docker compose --project-directory . -f docker/compose.yml -f docker/c
 - [ ] **Alerts:** a test alert arrived (admin → Monitoring → **Send a test alert**).
 - [ ] **Disk encryption:** if your host or provider offers encryption at rest for the volumes and the backup disk, it is on. The application doesn't encrypt Docker volumes; the backups themselves are encrypted.
 - [ ] `make hardening-test` passed on the commit you deployed (it runs in `make ci`).
+- [ ] **Security keys:** every owner has added a security key or passkey (admin → user menu → **Sign-in and security**), and at least two owners exist, so one can reset the other ([below](#locked-out-admins)).
+- [ ] **Mail:** SPF, DKIM and DMARC are set for the sending domain ([below](#mail-authentication-spf-dkim-dmarc-g-33)).
+- [ ] **IP geolocation:** admin → **Settings → Integrations** → *IP geolocation* shows both databases installed (the worker downloads them on its first start).
 
 ## Firewall and SSH (G-42)
 The installer (`--firewall`, or its question) configures ufw:
@@ -131,9 +134,79 @@ Each Valkey has three users, rendered into an ACL file at start from `.env`:
 redis-state's memory is capped (`REDIS_STATE_MAXMEMORY`, 1 GB) with `noeviction`. The RedisStateMemoryHigh alert fires at 80%, long before writes fail (G-35).
 
 ## Secrets
-- `.env` (mode 600) holds the bootstrap secrets; `secrets/` holds the Docker secrets (media token keys, backup passphrase, agent token, monitoring and CrowdSec keys).
+- `.env` (mode 600) holds the bootstrap secrets; `secrets/` holds the Docker secrets (media token keys, the edge's stream-auth secret `edge_auth_token`, backup passphrase, agent token, monitoring and CrowdSec keys).
 - Both are backed up, encrypted, nightly. Integration secrets (TMDB, SMTP, payments, Telegram, the backup bucket) live encrypted in the settings (ADR-0019).
 - Every key and password can be rotated with `scripts/rotate-keys.sh` ([rotate-keys.md](rotate-keys.md)).
+
+## Admin sign-in (ADR-0021)
+- **Second factor:** every admin has an authenticator app (TOTP) or a security key or passkey (WebAuthn). Keys are added under user menu → **Sign-in and security**; they can't be phished, because the browser only answers the real admin host.
+- **Requiring keys:** `security.webauthn_required_for` (Settings → Security): `none` (default), `owners`, or `admins` (owners and admins). Those admins must add a key at their next sign-in and can no longer confirm with a code.
+- **Confirm it's you (step-up):** settings, roles and admins, refunds, plan changes, trials and extensions, deletions, credential resets, backups and *revoke by app* ask for a fresh code or key once every `security.admin_step_up_window_min` minutes (5 by default). Protective actions (block, revoke, kill a stream, suspend) never ask. The top bar shows the time left and a **Lock** button. Five wrong answers in a row end the session.
+- **Idle timeout:** `security.admin_idle_timeout_min` (30 minutes), for every admin, with a warning two minutes before.
+
+### Locked-out admins
+- **Lost phone or key, other owners available:** another owner (or an admin with *admins.manage*, for non-owners) opens **Admins** → the admin → **Reset sign-in confirmation**. Their authenticator and keys are removed, their sessions end, and their next sign-in enrols a new authenticator app. Check that it is really them asking first.
+- **The only owner is locked out:** from the server, which proves you're the operator:
+  ```bash
+  dc exec -T web python manage.py reset_admin_mfa <username or email>
+  ```
+  It's audited as `admin.mfa_reset` without an actor, and prints nothing secret. A lost password is `dc exec web python manage.py changepassword <username>`.
+
+### Admin IP allowlist
+`security.admin_ip_allowlist` (Settings → Security): addresses and networks, separated by commas (`203.0.113.0/24, 198.51.100.7`). When set, the admin's API (and Grafana's sign-in) answer `403 IP_NOT_ALLOWED` to every other address; health checks and the sign-in page's branding stay reachable. The admin refuses a list that leaves out your own address. If your address changes and locks you out, clear the list from the server:
+```bash
+dc exec -T web python manage.py set_setting security.admin_ip_allowlist --stdin < /dev/null
+```
+Use it only where staff have stable addresses (an office, a VPN): mobile networks change address often.
+
+## Security headers and CSP (G-19, G-24)
+| Where | What sends them | Content-Security-Policy |
+|---|---|---|
+| Admin and portal pages | the frontend's nginx (`frontend/packages/ui/csp/policy.js`, rendered at image build) | `default-src 'none'`; scripts and styles only from the app with a fresh nonce per page; media and images from the media edge, `*.<DOMAIN>` and `security.csp_extra_media_origins`; frames: the portal's YouTube trailers only; `frame-ancestors 'none'` |
+| API responses (`api.`, `admin./api`, `app./api`, `tv.`) | Django (`apps/core/security.py`) | `default-src 'none'; frame-ancestors 'none'` |
+| Invoices and mail previews | Django, per document | inline styles and images only, no scripts; previews sandboxed |
+| Media | the edge (`streaming/nginx/snippets/headers.conf`) | `default-src 'none'` |
+
+`Referrer-Policy` is `no-referrer` on `tv.` and the media edge, `same-origin` on the admin, `strict-origin-when-cross-origin` on the portal and API. Traefik adds `nosniff`, `X-Frame-Options: DENY` and, in production, HSTS.
+
+- **Extra media origins** (a CDN on another domain): add them to `security.csp_extra_media_origins`. The pages read the list when the frontend starts: run `scripts/install.sh --update`, or `dc up -d --no-deps --force-recreate frontend`.
+- **Violations:** browsers report them to `/api/v1/csp-report` (rate-limited); they're counted in `iptv_csp_violations_total{app,directive}` and logged without query strings. A steady count after an update usually means a new media or image origin: add it as above.
+- **HSTS preload** is off by default: it's hard to undo, and every subdomain must serve HTTPS first. Turn it on with `DJANGO_HSTS_PRELOAD=1` in `.env` only once you're sure, then submit the base name at hstspreload.org.
+
+## Rate limits (ADR-0021)
+| Where | Limit | Setting |
+|---|---|---|
+| Admin and customer sign-in, password links (Traefik, per IP) | 5 per second, bursts of 20 | compose labels |
+| Xtream host (Traefik, per IP) | 10 per second, bursts of 50 | compose labels |
+| Failed Xtream sign-ins | pause per username and network, per username overall (10×), per IP (doubling, up to a day); cached logins keep working | `xtream.auth_failures_per_username`, `xtream.auth_failures_per_ip`, `xtream.auth_failure_window_s` |
+| Searches, playback starts (per customer, per minute) | 60, 30 | `security.rate_search_per_minute`, `security.rate_playback_start_per_minute` |
+| TV app logins created or renewed, checkouts (per customer, per hour) | 10, 10 | `security.rate_device_credentials_per_hour`, `security.rate_checkout_per_hour` |
+| TMDB searches and re-matches, backup runs (per admin) | 30 per minute, 6 per hour | `security.rate_admin_tmdb_search_per_minute`, `security.rate_backup_runs_per_hour` |
+| CSP reports (Traefik, per IP) | 1 per second, bursts of 10 | compose labels |
+
+Refused requests answer `429 RATE_LIMITED` with `Retry-After`.
+
+## IP geolocation (DB-IP Lite)
+Country rules and the sharing score use DB-IP's free country and ASN databases (CC BY 4.0: the admin's and the portal's About pages, and the evidence views, credit DB-IP). The worker downloads them on its first start, then checks daily at 04:50 and downloads each new monthly release (`geoip.auto_update`) into the `geoip-data` volume, validates it, and swaps it in atomically. **Settings → Integrations → IP geolocation** shows the release, looks up an address, and downloads now.
+- **Local network addresses** never match country rules.
+- **Unknown country** (an address the database doesn't know): `geoip.unknown_country_policy`, `deny` by default when country rules allow only some countries.
+- **Missing database:** admins get a *GeoIpDatabaseMissing* message after an hour ([alerts.md](alerts.md#geoipdatabasemissing)).
+
+## Credential sharing
+The sharing score and its flags are in [leaked-credential.md](leaked-credential.md#sharing-flags).
+
+## Mail authentication: SPF, DKIM, DMARC (G-33)
+Customers trust the service's emails (password links, new-login notices), so make forging them hard. In the DNS of the domain in **Settings → Email** (the *From* address):
+1. **SPF:** a TXT record on the domain listing who may send, e.g. `v=spf1 include:<your provider's SPF domain> -all` (your mail provider documents its include).
+2. **DKIM:** the provider gives one or more selector records (`<selector>._domainkey`); publish them exactly.
+3. **DMARC:** a TXT record on `_dmarc.<domain>`: start with `v=DMARC1; p=none; rua=mailto:dmarc@<domain>`, read the reports for two to four weeks, then move to `p=quarantine` and finally `p=reject`.
+Check with **Settings → Integrations → Email → Test**, then the headers of the received message (`spf=pass`, `dkim=pass`, `dmarc=pass`).
+
+## Checks in `make ci` (ADR-0003, ADR-0021)
+- `make audit`: pip-audit and `pnpm audit --prod` on the production dependencies. An accepted advisory goes into `scripts/audit-ignore.toml` with a reason and an expiry date.
+- `make semgrep`: the project's own rules (`.semgrep/rules.yml`): credentials in logs, tokens in browser storage, `/internal` routes on public hosts, `csrf_exempt`, secrets compared with `==`, HTML without its own CSP, forbidden imports.
+- `make zap`: a ZAP baseline (passive rules) against every dev host; accepted findings and their reasons are in `security/zap/plan.yaml`. The report is in `dist/zap/out/`.
+- `renovate.json`: if you run Renovate, its proposals are grouped weekly, at least 14 days old, with digests pinned; each one still needs `make ci`.
 
 ## Privacy and data retention
 Personal data is kept only as long as it is needed. A daily job (04:20) applies the admin's **Settings → Privacy**, and records what it removed in the audit log (`privacy.retention`).
@@ -148,6 +221,7 @@ Personal data is kept only as long as it is needed. A daily job (04:20) applies 
 | Audit entries for billing, payments and subscriptions | `privacy.audit_billing_retention_days` | 2190 days, 6 years (min. 1826) | deleted |
 | Notification log (sent, failed, skipped) | `privacy.outbox_retention_days` | 90 days | deleted |
 | Failed admin sign-ins | `privacy.auth_log_retention_days` | 90 days | deleted |
+| Networks, providers and countries seen per customer (sharing evidence) | `privacy.antisharing_retention_days` | 90 days (min. 7) | deleted; open flags keep their own summary |
 | Payment providers' raw webhook payloads | `privacy.webhook_payload_days` | 365 days | emptied; the payment records stay |
 | Expired admin and portal sessions | none | at once | deleted |
 

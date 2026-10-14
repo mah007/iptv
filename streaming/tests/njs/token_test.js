@@ -92,6 +92,34 @@ function keySetCases(good) {
     });
 }
 
+/* CDN pulls (ADR-0022): the object for /c/<title>/<tail>, and the secret comparison. */
+function cdnCases() {
+    var T = '0192f3a4-b5c6-7d8e-9f00-1122334455aa';
+    [
+        ['s3 progressive', T, 'compat.mp4', 's3', T + '/compat.mp4'],
+        ['s3 full ladder', T, 'hls/master.m3u8', 's3', T + '/hls/master.m3u8'],
+        ['s3 capped master', T, 'hls720/master.m3u8', 's3', T + '/hls720/master.m3u8'],
+        ['s3 rung within the ceiling', T, 'hls720/v1-h720/seg_00001.m4s', 's3',
+         T + '/hls/v1-h720/seg_00001.m4s'],
+        ['s3 rung above the ceiling', T, 'hls720/v0-h1080/seg_00001.m4s', 's3', ''],
+        ['s3 rung without a height', T, 'hls720/v0/seg_00001.m4s', 's3', ''],
+        ['s3 shared subtitles', T, 'hls720/subs/x1.ara.vtt', 's3', T + '/subs/x1.ara.vtt'],
+        ['local maps as is', T, 'hls720/v1-h720/seg_00001.m4s', 'local',
+         T + '/hls720/v1-h720/seg_00001.m4s'],
+        ['dot-dot', T, 'hls/../compat.mp4', 's3', ''],
+        ['hidden file', T, 'hls/.secret', 'local', ''],
+        ['bad title', 'a/b', 'compat.mp4', 'local', ''],
+        ['empty title', '', 'compat.mp4', 's3', ''],
+        ['no tail', T, undefined, 's3', ''],
+    ].forEach(function (c) {
+        expect('cdnObject ' + c[0], token.cdnObject(c[1], c[2], c[3]), c[4]);
+    });
+    expect('sameSecret equal', token.sameSecret('origin-secret-0123456789', 'origin-secret-0123456789'), true);
+    expect('sameSecret differs', token.sameSecret('origin-secret-0123456789', 'origin-secret-012345678A'), false);
+    expect('sameSecret prefix', token.sameSecret('origin-secret', 'origin-secret-0123456789'), false);
+    expect('sameSecret empty', token.sameSecret('', 'origin-secret-0123456789'), false);
+}
+
 if (process.argv.length < 3) {
     throw new Error('usage: token_test.js <vectors.json> [<fuzz.json>]');
 }
@@ -106,6 +134,7 @@ expect('max lifetime matches the reference', token.MAX_TTL_S, vectors.max_ttl_s)
 runCases('vector', keys.keys, vectors.now, vectors.cases);
 runNets('vector', vectors.client_nets);
 keySetCases(vectors.keys);
+cdnCases();
 
 if (process.argv.length > 3) {
     var fuzz = load(process.argv[3]);

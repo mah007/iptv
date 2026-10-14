@@ -6,6 +6,9 @@
 #     sudo bash install.sh
 #   From a checkout:          sudo scripts/install.sh
 #   Update an installation:   sudo /opt/iptv/scripts/install.sh --update
+#   A media edge on another server (admin → Edges → Add shows the command):
+#     sudo bash install.sh --edge --control-url https://edges.tv.example.com \
+#       --edge-id edge-2 --edge-domain media2.example.com
 #   All options:              scripts/install.sh --help
 #
 # It asks for the domain, the admin's email and sign-in name, the media folder, the
@@ -15,11 +18,16 @@
 # starts the stack, saves the optional answers in the admin's settings (where they stay
 # editable: Settings → Integrations), creates the owner admin and the default libraries,
 # and checks HTTPS on every host. Run again on an installed server, it offers to update
-# or to change the domain, email, media folder or monitoring.
+# or to change the domain, email, media folder or monitoring. An update replaces the web
+# service replica by replica behind Traefik's health checks, so the site keeps answering.
+#
+# With --edge it installs a standalone media edge instead (ADR-0022,
+# docs/runbooks/add-edge.md): nginx with its own Let's Encrypt certificate, serving the
+# renditions published to the S3 origin, signed in to the control plane with its secret.
 #
 # Secrets are never taken from the command line (other users can read it): pass them in
-# environment variables (ADMIN_PASSWORD, TMDB_TOKEN, SMTP_PASSWORD, TELEGRAM_BOT_TOKEN)
-# or type them when asked. Nothing secret is written to the log.
+# environment variables (ADMIN_PASSWORD, TMDB_TOKEN, SMTP_PASSWORD, TELEGRAM_BOT_TOKEN,
+# EDGE_TOKEN) or type them when asked. Nothing secret is written to the log.
 set -Eeuo pipefail
 
 readonly DEFAULT_REPO="https://github.com/mah007/iptv.git"
@@ -27,11 +35,14 @@ readonly DEFAULT_DIR="/opt/iptv"
 readonly LOG_FILE="/var/log/smart-iptv-install.log"
 readonly CONF_DIR="/etc/smart-iptv"
 readonly CREDENTIALS_FILE="/root/smart-iptv-admin.txt"
-readonly MIN_CPUS=2 MIN_RAM_MB=3500 MIN_DISK_GB=25
-readonly GOOD_CPUS=4 GOOD_RAM_MB=7500 GOOD_DISK_GB=60
+# The platform's needs; check_resources uses the edge's (EDGE_MIN_*) with --edge.
+MIN_CPUS=2 MIN_RAM_MB=3500 MIN_DISK_GB=25
+GOOD_CPUS=4 GOOD_RAM_MB=7500 GOOD_DISK_GB=60
+readonly EDGE_MIN="1 900 20" EDGE_GOOD="2 1900 80"
 
 # --- Answers: options and environment variables fill these; questions fill the rest. ----
 MODE=""                       # install | update | reconfigure
+ROLE=""                       # "" (the platform) | edge: a standalone media edge (--edge)
 ASSUME_YES=0
 DRY_RUN=0
 SKIP_DNS_CHECK=0
@@ -70,6 +81,14 @@ S3_SECRET_KEY="${S3_SECRET_KEY:-}"
 CROWDSEC="${CROWDSEC:-}"                  # yes | no: CrowdSec and its Traefik bouncer
 CROWDSEC_ONLINE="${CROWDSEC_ONLINE:-}"    # yes | no: the community blocklist
 SSH_FROM="${SSH_FROM:-}"                  # with --firewall: SSH only from these networks
+REPLICA="${REPLICA:-}"                    # yes | no: the PostgreSQL read replica (ADR-0022)
+# A standalone media edge (--edge, ADR-0022): the id and secret come from admin → Edges.
+CONTROL_URL="${CONTROL_URL:-}"            # the control plane's edges host, https://edges.<domain>
+EDGE_ID="${EDGE_ID:-}"
+EDGE_DOMAIN="${EDGE_DOMAIN:-}"            # this edge's own name, e.g. media2.example.com
+EDGE_TOKEN="${EDGE_TOKEN:-}"              # its secret: environment or hidden input only
+EDGE_CACHE_SIZE="${EDGE_CACHE_SIZE:-}"    # the slice cache, e.g. 50g
+ORIG_ARGS=()
 BACKUP_PASSPHRASE_FILE="/root/smart-iptv-backup-passphrase.txt"
 readonly DEFAULT_BACKUP_DIR="/var/backups/smart-iptv"
 
@@ -96,9 +115,12 @@ Smart IPTV installer: install, update or reconfigure on one server.
 Usage: sudo scripts/install.sh [options]
 
 Modes (asked when there's already an installation):
-  --update               pull the latest code and restart; keeps every setting
+  --update               pull the latest code and update without downtime (web replicas
+                         are replaced one set at a time); keeps every setting
   --reconfigure          change the domain, admin email, media folder or monitoring
                          (TMDB, email, payments and alerts: admin → Settings → Integrations)
+  --edge                 install (or, with --update/--reconfigure, maintain) a standalone
+                         media edge on this server instead of the platform (see below)
 
 Answers (otherwise asked):
   --dir DIR              where the code lives (default $DEFAULT_DIR, or this checkout)
@@ -129,6 +151,18 @@ Answers (otherwise asked):
   --crowdsec-online | --no-crowdsec-online   CrowdSec's community blocklist (default off;
                          it shares the attacking addresses this server sees with CrowdSec)
   --ssh-from CIDRS       with --firewall: allow SSH only from these networks (comma-separated)
+  --replica | --no-replica   a PostgreSQL read replica for reports and as a failover copy
+                         (about 1 GB of memory and a second copy of the database on disk;
+                         default off; docs/runbooks/database-replica.md)
+
+A standalone media edge (--edge; add it first in admin → Edges, which shows its secret once):
+  --control-url URL      the control plane's edges host, e.g. https://edges.tv.example.com
+  --edge-id ID           the edge's id from admin → Edges
+  --edge-domain NAME     this server's name for players, e.g. media2.example.com (its DNS
+                         A record points here; Let's Encrypt issues its certificate)
+  --email ADDRESS        the Let's Encrypt contact (optional)
+  --edge-cache-size SIZE the media cache on this disk, e.g. 50g (default 50g)
+  --media-root DIR       for an edge with "disk" storage: the full copy of the renditions
 
 Other:
   -y, --yes              unattended: no questions; defaults for whatever isn't given
@@ -142,6 +176,7 @@ Secrets come from environment variables, never options:
   SMTP_PASSWORD    the SMTP password; optional
   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   a Telegram bot and chat for alerts; optional
   S3_ACCESS_KEY, S3_SECRET_KEY           the backup bucket's keys; optional
+  EDGE_TOKEN       a standalone edge's secret (admin → Edges); asked if empty
 
 Example (unattended):
   sudo ADMIN_PASSWORD='...' TMDB_TOKEN='...' scripts/install.sh --yes \\
@@ -188,6 +223,13 @@ parse_args() {
       --crowdsec-online) CROWDSEC_ONLINE=yes ;;
       --no-crowdsec-online) CROWDSEC_ONLINE=no ;;
       --ssh-from) SSH_FROM="${2:?--ssh-from needs a value}"; shift ;;
+      --replica) REPLICA=yes ;;
+      --no-replica) REPLICA=no ;;
+      --edge) ROLE=edge ;;
+      --control-url) CONTROL_URL="${2:?--control-url needs a value}"; shift ;;
+      --edge-id) EDGE_ID="${2:?--edge-id needs a value}"; shift ;;
+      --edge-domain) EDGE_DOMAIN="${2:?--edge-domain needs a value}"; shift ;;
+      --edge-cache-size) EDGE_CACHE_SIZE="${2:?--edge-cache-size needs a value}"; shift ;;
       -y | --yes) ASSUME_YES=1 ;;
       --skip-dns-check) SKIP_DNS_CHECK=1 ;;
       --dry-run) DRY_RUN=1 ;;
@@ -354,6 +396,27 @@ valid_networks() {
   done
   return 0
 }
+valid_control_url() {
+  [[ "$1" =~ ^https://[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?(:[0-9]{1,5})?/?$ ]] && return 0
+  warn "Enter the control plane's edges address, e.g. https://edges.tv.example.com."; return 1
+}
+valid_edge_id() {
+  [[ "$1" =~ ^[A-Za-z0-9_.-]{1,64}$ ]] && return 0
+  warn "The edge id from admin → Edges: letters, digits, . _ or -."; return 1
+}
+valid_edge_domain() {
+  local d="${1,,}"
+  [[ "$d" =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$ ]] && return 0
+  warn "Enter this server's name such as media2.example.com (no https://, no slash)."; return 1
+}
+valid_edge_token() {
+  [[ "$1" =~ ^[A-Za-z0-9_-]{32,128}$ ]] && return 0
+  warn "That isn't an edge secret: copy it from admin → Edges (shown once when added or rotated)."; return 1
+}
+valid_cache_size() {
+  [[ "$1" =~ ^[1-9][0-9]{0,5}[kKmMgG]$ ]] && return 0
+  warn "Enter a size such as 50g."; return 1
+}
 valid_env_value() {
   [[ "$1" != *"'"* && "$1" != *$'\n'* ]] && return 0
   warn "Single quotes and line breaks aren't allowed."; return 1
@@ -395,15 +458,35 @@ crowdsec_enabled() {
   return 1
 }
 
+# The read replica (ADR-0022) is on when this run says so, else when .env says so.
+replica_enabled() {
+  case "$REPLICA" in yes) return 0 ;; no) return 1 ;; esac
+  case "$(get_env REPLICA)" in 1 | yes | true) return 0 ;; esac
+  return 1
+}
+
 # The compose files, relative to the installation (for messages) or absolute.
 compose_files() {
   local prefix="${1-}"
+  if [[ "$ROLE" == edge ]]; then printf -- '-f %sdocker/compose.edge.yml' "$prefix"; return 0; fi
   printf -- '-f %sdocker/compose.yml -f %sdocker/compose.prod.yml' "$prefix" "$prefix"
   if monitoring_enabled; then
     printf -- ' -f %sdocker/compose.monitoring.yml -f %sdocker/compose.monitoring.prod.yml' "$prefix" "$prefix"
   fi
   if crowdsec_enabled; then printf -- ' -f %sdocker/compose.crowdsec.yml' "$prefix"; fi
   if live_ingest_enabled; then printf -- ' -f %sdocker/compose.mediamtx.yml' "$prefix"; fi
+  if replica_enabled; then
+    printf -- ' -f %sdocker/compose.replica.yml' "$prefix"
+    if monitoring_enabled; then printf -- ' -f %sdocker/compose.replica.monitoring.yml' "$prefix"; fi
+  fi
+}
+
+# Web replicas in production (docker/compose.prod.yml's default, or WEB_REPLICAS in .env).
+web_replicas() {
+  local n
+  n="$(get_env WEB_REPLICAS)"
+  [[ "$n" =~ ^[1-9][0-9]?$ ]] || n=2
+  printf '%s' "$n"
 }
 
 # The optional MediaMTX ingest for the operator's own encoders (ADR-0017,
@@ -449,7 +532,8 @@ set_env() {
 }
 
 hosts() {
-  printf '%s\n' "$DOMAIN" "admin.$DOMAIN" "app.$DOMAIN" "api.$DOMAIN" "media.$DOMAIN"
+  if [[ "$ROLE" == edge ]]; then printf '%s\n' "$EDGE_DOMAIN"; return 0; fi
+  printf '%s\n' "$DOMAIN" "admin.$DOMAIN" "app.$DOMAIN" "api.$DOMAIN" "media.$DOMAIN" "edges.$DOMAIN"
   if monitoring_enabled; then printf '%s\n' "grafana.$DOMAIN"; fi
 }
 
@@ -493,6 +577,10 @@ check_os() {
 
 check_resources() {
   local cpus ram_mb disk_gb target
+  if [[ "$ROLE" == edge ]]; then
+    read -r MIN_CPUS MIN_RAM_MB MIN_DISK_GB <<<"$EDGE_MIN"
+    read -r GOOD_CPUS GOOD_RAM_MB GOOD_DISK_GB <<<"$EDGE_GOOD"
+  fi
   cpus="$(nproc)"
   ram_mb="$(ram_mb)"
   target="$INSTALL_DIR"
@@ -536,6 +624,17 @@ check_ports() {
 check_no_other_install() {
   docker_ready || return 0
   local dir volumes
+  if [[ "$ROLE" == edge ]]; then
+    # An edge needs ports 80 and 443 to itself, and the platform holds them.
+    dir="$(docker ps -a --filter label=com.docker.compose.project=smart-iptv \
+      --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null | sort -u | sed -n 1p)"
+    [[ -z "$dir" ]] || die "The Smart IPTV platform runs on this server ($dir): a standalone edge goes on another server."
+    dir="$(docker ps -a --filter label=com.docker.compose.project=smart-iptv-edge \
+      --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null | sort -u | sed -n 1p)"
+    [[ -z "$dir" ]] || die "An edge already runs on this server from $dir. Update it with: sudo $dir/scripts/install.sh --update"
+    ok "No other Smart IPTV installation on this server"
+    return 0
+  fi
   dir="$(docker ps -a --filter label=com.docker.compose.project=smart-iptv \
     --format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null | sort -u | sed -n 1p)"
   if [[ -n "$dir" ]]; then
@@ -575,9 +674,14 @@ check_dns() {
     fi
   done < <(hosts)
   if ((bad)); then
-    info "Create two DNS A records pointing at $ip, then run the installer again:"
-    info "  $DOMAIN        A  $ip"
-    info "  *.$DOMAIN      A  $ip"
+    if [[ "$ROLE" == edge ]]; then
+      info "Create a DNS A record pointing at $ip, then run the installer again:"
+      info "  $EDGE_DOMAIN   A  $ip"
+    else
+      info "Create two DNS A records pointing at $ip, then run the installer again:"
+      info "  $DOMAIN        A  $ip"
+      info "  *.$DOMAIN      A  $ip"
+    fi
     info "Without them Let's Encrypt can't issue certificates (the site still starts, and"
     info "certificates follow automatically once DNS is right)."
     local cont=""
@@ -757,7 +861,7 @@ ask_monitoring() {
 show_plan() {
   step "Summary"
   info "Code:          $INSTALL_DIR ($REPO_URL, $BRANCH)"
-  info "Domain:        $DOMAIN (+ admin., app., api., media.)"
+  info "Domain:        $DOMAIN (+ admin., app., api., media., edges.)"
   info "Owner admin:   ${ADMIN_USER:-unchanged} <$ADMIN_EMAIL>, password $([[ -n "$ADMIN_PASSWORD" ]] && echo "as typed" || echo "generated")"
   info "Media folder:  $MEDIA_ROOT$([[ "$SAMPLE_MEDIA" == yes ]] && echo ", with sample titles")"
   if [[ "$MODE" == install ]]; then
@@ -767,6 +871,7 @@ show_plan() {
   info "Firewall:      $([[ "$FIREWALL" == yes ]] && echo "ufw: SSH${SSH_FROM:+ from $SSH_FROM}, 80, 443" || echo "unchanged")"
   info "Backups:       $BACKUP_DIR$([[ "$BACKUP_MEDIA" == yes ]] && echo ", media included")$([[ -n "$S3_ENDPOINT" ]] && echo "; offsite: $S3_BUCKET at $S3_ENDPOINT")"
   info "CrowdSec:      $(crowdsec_enabled && echo "on$([[ "$CROWDSEC_ONLINE" == yes ]] && echo ", with the community blocklist")" || echo "off")"
+  info "Read replica:  $(replica_enabled && echo "on (reports read from it; a failover copy)" || echo "off")"
   if monitoring_enabled; then
     info "Monitoring:    grafana.$DOMAIN$([[ -n "$ALERT_EMAIL" ]] && echo "; alerts to $ALERT_EMAIL")$([[ -n "$TELEGRAM_BOT_TOKEN" ]] && echo " and Telegram")"
   else
@@ -914,6 +1019,7 @@ write_config() {
   write_backup_config
   write_crowdsec_config
   write_monitoring_config
+  write_replica_config
   ok "Settings written to $INSTALL_DIR/.env (mode 600; secrets generated on this server)"
   mkdir -p "$CONF_DIR"
   printf 'INSTALL_DIR=%s\n' "$INSTALL_DIR" > "$CONF_DIR/install.conf"
@@ -1078,6 +1184,84 @@ start_stack() {
   # The migrate service ran before the app services; once more, as the database owner
   # (the app services use a restricted role that can't change the schema, ADR-0020).
   run "Applying database migrations" compose run --rm --no-deps migrate
+  # The apps' Content-Security-Policy takes its media origins from Django when the
+  # frontend starts (docker/nginx/30-csp.sh; ADR-0021): start it again now that web is up,
+  # so origins added in Settings → Security apply with this update.
+  run "Refreshing the apps' security policy" compose up -d --no-deps --force-recreate --wait frontend
+}
+
+# An update without downtime (ADR-0022, docs/runbooks/deploy.md): build while the old
+# version serves; migrate (migrations stay backward compatible: add now, remove a release
+# later); replace the web replicas behind Traefik's health checks (scripts/rollout.sh);
+# then the other services, each recreated only if it changed.
+update_stack() {
+  if ((!DRY_RUN)) && [[ -z "$(compose ps -q --status running web 2>/dev/null)" ]]; then
+    info "The web service isn't running, so there's nothing to keep serving: starting everything."
+    start_stack
+    return 0
+  fi
+  info "Rebuilding the changed images takes a few minutes; the site keeps serving meanwhile."
+  run "Building the images" compose build
+  run "Updating the database roles" compose run --rm --no-deps db-roles
+  run "Applying database migrations" compose run --rm --no-deps migrate
+  if replica_enabled; then
+    run "Starting the read replica" compose up -d --wait --wait-timeout 1800 postgres-replica
+  fi
+  local files
+  read -r -a files <<<"$(compose_files "$INSTALL_DIR/")"
+  run "Replacing the web replicas behind the health checks" "$INSTALL_DIR/scripts/rollout.sh" \
+    --replicas "$(web_replicas)" -- --project-directory "$INSTALL_DIR" "${files[@]}"
+  # The apps (admin and portal) the same way; a new one also takes the media origins of
+  # its Content-Security-Policy from the updated web (docker/nginx/30-csp.sh, ADR-0021).
+  run "Replacing the apps' server" "$INSTALL_DIR/scripts/rollout.sh" --service frontend \
+    --replicas 1 -- --project-directory "$INSTALL_DIR" "${files[@]}"
+  run "Updating the other services" compose up -d --wait --wait-timeout 1800 --remove-orphans
+}
+
+# The read replica on or off in .env (compose_files adds its overlay).
+write_replica_config() {
+  case "$REPLICA" in yes) set_env REPLICA 1 ;; no) set_env REPLICA 0 ;; esac
+}
+
+# After --no-replica: the replica's replication slot would keep WAL on the primary (up
+# to max_slot_wal_keep_size), so it goes. The replica's volume stays until deleted by hand.
+drop_replica_slot() {
+  [[ "$REPLICA" == no ]] || return 0
+  local user db
+  if ((DRY_RUN)); then info "${DIM}would drop the read replica's replication slot${R}"; return 0; fi
+  user="$(get_env POSTGRES_USER)"; db="$(get_env POSTGRES_DB)"
+  if compose exec -T postgres psql -U "${user:-iptv}" -d "${db:-iptv}" -Atc \
+    "SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots WHERE slot_name = 'replica1' AND NOT active" \
+    >> "$LOG_FILE" 2>&1; then
+    ok "Read replica off (its volume postgres-replica-data remains; docs/runbooks/database-replica.md)"
+  else
+    warn "Couldn't drop the replica's replication slot: see docs/runbooks/database-replica.md."
+  fi
+}
+
+# After pulling: when the installer itself changed, the update goes on with the new one,
+# which may know steps this one doesn't. CODE_BEFORE tells it which commit it came from.
+continue_with_new_installer() {
+  local self="${BASH_SOURCE[0]:-}" new="$INSTALL_DIR/scripts/install.sh"
+  ((DRY_RUN)) && return 0
+  [[ -f "$new" ]] || return 0
+  if [[ -f "$self" ]] && cmp -s "$self" "$new"; then return 0; fi
+  info "The installer itself changed: the update goes on with the new one."
+  log "continuing with $new"
+  exec env SMART_IPTV_CONTINUED="${CODE_BEFORE:-unknown}" bash "$new" --update "${ORIG_ARGS[@]}"
+}
+
+# Update the code (unless the previous installer already did, then handed over).
+update_code() {
+  if [[ -n "${SMART_IPTV_CONTINUED:-}" ]]; then
+    CODE_BEFORE="$SMART_IPTV_CONTINUED"
+    [[ "$CODE_BEFORE" =~ ^[0-9a-f]{7,64}$ ]] || CODE_BEFORE=""
+    ok "Code at $(git -C "$INSTALL_DIR" log -1 --format='%h %s' 2>/dev/null)"
+    return 0
+  fi
+  CODE_BEFORE="$(git -C "$INSTALL_DIR" rev-parse HEAD 2>/dev/null || true)"
+  get_code
+  continue_with_new_installer
 }
 
 create_owner() {
@@ -1111,19 +1295,29 @@ finish_setup() {
 
 check_https() {
   ((DRY_RUN)) && return 0
-  local host path url code expected deadline all_ok=1
+  local host path url code expected deadline wait_s=0 all_ok=1
   step "Checking the sites"
+  # A new edge asks Let's Encrypt for its certificate first: no TLS until it arrives.
+  [[ "$ROLE" != edge ]] || wait_s=150
   for host in $(hosts); do
     expected=200
     case "$host" in
+      "$EDGE_DOMAIN") path=/healthz ;;
       "$DOMAIN") path=/health ;;
       api.*) path=/api/v1/health ;;
       media.*) path=/healthz ;;
+      # The edges host answers registered edges only (ADR-0022): 401 means it's up.
+      edges.*) path=/edge/v1/ping expected=401 ;;
       # Monitoring answers only admins signed in through the admin: 401 means it's up.
       grafana.*) path=/api/health expected=401 ;;
       *) path=/ ;;
     esac
-    code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$host:443:127.0.0.1" "https://$host$path" || true)"
+    deadline=$(($(date +%s) + wait_s))
+    while true; do
+      code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$host:443:127.0.0.1" "https://$host$path" || true)"
+      if [[ "$code" == "$expected" ]] || (($(date +%s) >= deadline)); then break; fi
+      sleep 5
+    done
     [[ "$code" == "$expected" ]] || { warn "$host answers $code on this server"; all_ok=0; continue; }
     url="https://$host$path"
     deadline=$(($(date +%s) + 180))
@@ -1185,11 +1379,228 @@ summary() {
     say "                   backup passphrase (shown once): ${B}$BACKUP_PASSPHRASE_SHOWN${R}"
     say "                   also in $BACKUP_PASSPHRASE_FILE (root only): keep a copy away from this server"
   fi
+  if replica_enabled; then
+    say "  Read replica     on: reports read from it; failover: docs/runbooks/database-replica.md"
+  fi
+  say "  Edges            admin → Edges: more media servers (install.sh --edge on each); the"
+  say "                   control plane answers them on https://edges.$DOMAIN"
   if crowdsec_enabled; then
     say "  CrowdSec         on; unban an address: cd $INSTALL_DIR && docker compose $(compose_files) \\"
     say "                   exec crowdsec cscli decisions delete --ip <address>"
   fi
   say ""
+}
+
+# --- A standalone media edge (--edge, ADR-0022, docs/runbooks/add-edge.md) ---------------------
+EDGE_STORAGE="" EDGE_ORIGIN_URL="" EDGE_CORS_ORIGINS="" CODE_BEFORE=""
+
+# json_string NAME JSON / json_list NAME JSON: fields of the ping's flat answer (no jq or
+# Python needed before the packages are installed). Its URLs hold no quotes or brackets.
+json_string() { sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" <<<"$2" | head -n 1; }
+json_list() { sed -n "s/.*\"$1\": *\[\([^]]*\)\].*/\1/p" <<<"$2" | head -n 1 | tr -d ' "'; }
+
+# What the control plane says about this edge (GET /edge/v1/ping with its id and secret):
+# where its media comes from, the S3 origin's URL (no credentials) and the web origins
+# for CORS. The secret reaches curl on stdin, never on a command line.
+edge_ping() {
+  local url="${CONTROL_URL%/}/edge/v1/ping" answer code body problem=""
+  answer="$(printf 'header = "Authorization: Bearer %s"\nheader = "X-Edge-Id: %s"\n' "$EDGE_TOKEN" "$EDGE_ID" |
+    curl -sS --max-time 15 --config - -w '\n%{http_code}' "$url" 2>>"$LOG_FILE" || true)"
+  code="${answer##*$'\n'}"
+  body="${answer%$'\n'*}"
+  case "$code" in
+    200) ;;
+    401) problem="The control plane doesn't know edge $EDGE_ID with this secret, or the edge is disabled: check admin → Edges (rotate the secret if it was lost)." ;;
+    000 | "") problem="No answer from $url: check the address, its DNS and this server's internet access." ;;
+    *) problem="$url answered $code: is it the control plane's edges host (https://edges.<domain>)?" ;;
+  esac
+  if [[ -z "$problem" && "$(json_string edge_id "$body")" != "$EDGE_ID" ]]; then problem="Unexpected answer from $url."; fi
+  if [[ -n "$problem" ]]; then
+    ((DRY_RUN)) || die "$problem"
+    warn "$problem"
+    info "${DIM}dry run: going on as if the edge used the S3 origin${R}"
+    EDGE_STORAGE=origin EDGE_ORIGIN_URL="https://s3.example.com/bucket" EDGE_CORS_ORIGINS=""
+    return 0
+  fi
+  EDGE_STORAGE="$(json_string storage "$body")"
+  EDGE_ORIGIN_URL="$(json_string origin_url "$body")"
+  EDGE_CORS_ORIGINS="$(json_list cors_origins "$body")"
+  case "$EDGE_STORAGE" in
+    origin)
+      [[ "$EDGE_ORIGIN_URL" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?(/[A-Za-z0-9_.~-]+)*/?$ ]] ||
+        die "The control plane has no S3 origin for this edge yet: admin → Settings → Storage (publish to S3, Test), then run this again."
+      ok "Edge $EDGE_ID is registered; it serves the renditions published to the S3 origin" ;;
+    disk) ok "Edge $EDGE_ID is registered; it serves a full copy of the renditions on this server" ;;
+    *) die "Unexpected storage \"$EDGE_STORAGE\" from $url." ;;
+  esac
+}
+
+gather_edge_answers() {
+  local current
+  step "Questions"
+  say "  Add the edge first in admin → Edges (Add edge, kind \"standalone\"): it shows the"
+  say "  edge's id and secret once, and this command with the answers filled in."
+  current="$(get_env EDGE_CONTROL_URL)"
+  ask CONTROL_URL "The control plane's edges address (https://edges.<domain>)" "$current" valid_control_url
+  CONTROL_URL="${CONTROL_URL%/}"
+  ask EDGE_ID "Edge id" "$(get_env EDGE_ID)" valid_edge_id
+  ask EDGE_DOMAIN "This server's name for players (e.g. media2.example.com)" "$(get_env EDGE_DOMAIN)" valid_edge_domain
+  EDGE_DOMAIN="${EDGE_DOMAIN,,}"
+  if [[ -z "$EDGE_TOKEN" && -r "$INSTALL_DIR/secrets/edge_token" ]]; then
+    EDGE_TOKEN="$(head -n 1 "$INSTALL_DIR/secrets/edge_token")"
+  fi
+  while true; do
+    ask_secret EDGE_TOKEN "The edge's secret (hidden; from admin → Edges)"
+    [[ -n "$EDGE_TOKEN" ]] || { ((ASSUME_YES)) && die "Pass the edge's secret in EDGE_TOKEN."; warn "The secret is needed."; continue; }
+    valid_edge_token "$EDGE_TOKEN" && break
+    ((ASSUME_YES)) && die "EDGE_TOKEN isn't an edge secret."
+    EDGE_TOKEN=""
+  done
+  [[ -n "$ADMIN_EMAIL" ]] || ADMIN_EMAIL="$(get_env EDGE_ACME_EMAIL)"
+  ask_optional ADMIN_EMAIL "Email for Let's Encrypt's notices (optional)"
+  [[ -z "$ADMIN_EMAIL" ]] || valid_email "$ADMIN_EMAIL" || die "Invalid email address."
+  current="$(get_env EDGE_CACHE_SIZE)"
+  ask EDGE_CACHE_SIZE "Media cache on this disk" "${current:-50g}" valid_cache_size
+  step "Asking the control plane"
+  edge_ping
+  if [[ "$EDGE_STORAGE" == disk ]]; then
+    current="$(get_env EDGE_MIRROR_DIR)"
+    ask MEDIA_ROOT "Folder with the full copy of the renditions" "${current:-/srv/media/renditions}" valid_dir
+  fi
+}
+
+show_edge_plan() {
+  step "Summary"
+  info "Code:          $INSTALL_DIR ($REPO_URL, $BRANCH)"
+  info "Edge:          $EDGE_ID at https://$EDGE_DOMAIN (Let's Encrypt${ADMIN_EMAIL:+, notices to $ADMIN_EMAIL})"
+  info "Control plane: $CONTROL_URL"
+  if [[ "$EDGE_STORAGE" == origin ]]; then
+    info "Media:         the S3 origin ($EDGE_ORIGIN_URL), cached here up to $EDGE_CACHE_SIZE"
+  else
+    info "Media:         the full copy in $MEDIA_ROOT"
+  fi
+  info "Firewall:      $([[ "$FIREWALL" == yes ]] && echo "ufw: SSH${SSH_FROM:+ from $SSH_FROM}, 80, 443" || echo "unchanged")"
+  docker_ready || info "Docker:        will be installed from download.docker.com"
+  local go=""
+  yes_no go "Go ahead?" yes
+  [[ "$go" == yes ]] || die "Nothing was changed."
+}
+
+# .env (bootstrap only, mode 600) and the secret (secrets/edge_token, mode 600): nothing
+# else secret lives on an edge; its keys arrive on the control channel.
+write_edge_config() {
+  if ((DRY_RUN)); then
+    info "${DIM}would write .env and secrets/edge_token (both mode 600)${R}"
+    return 0
+  fi
+  (
+    umask 077
+    [[ -f "$(env_file)" ]] || : > "$(env_file)"
+    mkdir -p "$INSTALL_DIR/secrets"
+    printf '%s\n' "$EDGE_TOKEN" > "$INSTALL_DIR/secrets/edge_token"
+  )
+  chmod 600 "$(env_file)" "$INSTALL_DIR/secrets/edge_token"
+  set_env ROLE edge
+  set_env EDGE_ID "$EDGE_ID"
+  set_env EDGE_DOMAIN "$EDGE_DOMAIN"
+  set_env EDGE_CONTROL_URL "$CONTROL_URL"
+  set_env EDGE_ACME_EMAIL "$ADMIN_EMAIL"
+  set_env EDGE_CACHE_SIZE "$EDGE_CACHE_SIZE"
+  write_edge_origin
+  set_commit
+  ok "Settings written to $INSTALL_DIR/.env and the secret to secrets/edge_token (mode 600)"
+  mkdir -p "$CONF_DIR"
+  printf 'INSTALL_DIR=%s\n' "$INSTALL_DIR" > "$CONF_DIR/install.conf"
+}
+
+# What the ping said: the media source and CORS (they follow the control plane's settings).
+write_edge_origin() {
+  set_env EDGE_CORS_ORIGINS "$EDGE_CORS_ORIGINS"
+  if [[ "$EDGE_STORAGE" == origin ]]; then
+    set_env EDGE_MODE s3
+    set_env EDGE_ORIGIN_URL "$EDGE_ORIGIN_URL"
+  else
+    set_env EDGE_MODE local
+    set_env EDGE_MIRROR_DIR "$MEDIA_ROOT"
+  fi
+}
+
+# The edge's configuration is mounted from the checkout: when an update changed it, the
+# container starts again to render it (a few seconds without this edge; players retry).
+start_edge() {
+  local recreate=()
+  if [[ "$MODE" == update && -n "$CODE_BEFORE" ]] &&
+    ! git -C "$INSTALL_DIR" diff --quiet "$CODE_BEFORE" HEAD -- streaming/nginx docker/compose.edge.yml 2>/dev/null; then
+    recreate=(--force-recreate)
+  fi
+  run "Starting the edge" compose up -d --wait --wait-timeout 600 --remove-orphans "${recreate[@]}"
+}
+
+edge_summary() {
+  step "Done"
+  say ""
+  if ((DRY_RUN)); then
+    say "  ${B}Dry run finished: nothing was changed.${R} Without --dry-run it would end with:"
+  else
+    say "  ${B}Edge $EDGE_ID is running.${R}"
+  fi
+  say ""
+  say "  Media            https://$EDGE_DOMAIN (players reach it through signed links only)"
+  say "  Control plane    $CONTROL_URL: admin → Edges shows it healthy within a minute;"
+  say "                   press Test there, then give it a weight (canary first, if you like)"
+  say "  Update later     sudo $INSTALL_DIR/scripts/install.sh --update"
+  say "  Change settings  sudo $INSTALL_DIR/scripts/install.sh --reconfigure"
+  say "  New secret       admin → Edges → New secret, then --reconfigure here (it asks for it)"
+  say "  Service status   cd $INSTALL_DIR && docker compose $(compose_files) ps"
+  say "  Install log      $LOG_FILE"
+  say ""
+}
+
+main_edge() {
+  step "Checking this server"
+  check_os
+  if [[ "$MODE" != update ]]; then
+    check_resources
+    if [[ "$MODE" == install ]]; then
+      check_ports
+      check_no_other_install
+    fi
+  fi
+  check_internet
+
+  if [[ "$MODE" == update ]]; then
+    EDGE_DOMAIN="$(get_env EDGE_DOMAIN)" EDGE_ID="$(get_env EDGE_ID)" CONTROL_URL="$(get_env EDGE_CONTROL_URL)"
+    MEDIA_ROOT="$(get_env EDGE_MIRROR_DIR)"
+    step "Updating"
+    install_docker
+    update_code
+    if ((DRY_RUN)); then info "${DIM}would set APP_COMMIT in .env${R}"; else set_commit; fi
+    # The origin or the web origins may have changed on the control plane since.
+    if [[ -r "$INSTALL_DIR/secrets/edge_token" ]]; then
+      EDGE_TOKEN="$(head -n 1 "$INSTALL_DIR/secrets/edge_token")"
+      edge_ping
+      write_edge_origin
+    fi
+    start_edge
+    check_https
+    edge_summary
+    return 0
+  fi
+
+  gather_edge_answers
+  step "Checking DNS"
+  check_dns
+  show_edge_plan
+
+  step "Installing"
+  install_packages
+  install_docker
+  configure_firewall
+  [[ "$MODE" == install ]] && get_code
+  write_edge_config
+  start_edge
+  check_https
+  edge_summary
 }
 
 # --- Modes ------------------------------------------------------------------------------------------
@@ -1209,6 +1620,30 @@ locate_install() {
 }
 
 choose_mode() {
+  if [[ -f "$INSTALL_DIR/.env" && "$(get_env ROLE)" == edge ]]; then
+    ROLE=edge
+    if [[ -z "$MODE" ]]; then
+      info "A Smart IPTV edge ($(get_env EDGE_ID)) is installed in $INSTALL_DIR for $(get_env EDGE_DOMAIN)."
+      if ((ASSUME_YES)); then MODE=update; else
+        local choice=""
+        ask choice "Update it (u), change its settings (s) or quit (q)?" "u"
+        case "${choice,,}" in
+          u | update) MODE=update ;;
+          s | settings | reconfigure) MODE=reconfigure ;;
+          *) die "Nothing was changed." ;;
+        esac
+      fi
+    fi
+    return 0
+  fi
+  if [[ "$ROLE" == edge && -f "$INSTALL_DIR/.env" ]]; then
+    die "$INSTALL_DIR holds the Smart IPTV platform: a standalone edge goes on another server (or --dir)."
+  fi
+  if [[ "$ROLE" == edge ]]; then
+    [[ "$MODE" == update || "$MODE" == reconfigure ]] && die "No edge installation found in $INSTALL_DIR."
+    MODE=install
+    return 0
+  fi
   if [[ -f "$INSTALL_DIR/.env" && -n "$(get_env DOMAIN)" && "$(get_env DOMAIN)" != localhost ]]; then
     if [[ -z "$MODE" ]]; then
       info "Smart IPTV is already installed in $INSTALL_DIR for $(get_env DOMAIN)."
@@ -1229,6 +1664,7 @@ choose_mode() {
 }
 
 main() {
+  ORIG_ARGS=("$@")
   parse_args "$@"
   if ((!DRY_RUN)) && ((EUID == 0)); then
     mkdir -p "$(dirname "$LOG_FILE")" && touch "$LOG_FILE" && chmod 600 "$LOG_FILE"
@@ -1239,7 +1675,8 @@ main() {
   open_terminal
   locate_install
   choose_mode
-  log "mode=$MODE dir=$INSTALL_DIR"
+  log "mode=$MODE role=${ROLE:-platform} dir=$INSTALL_DIR"
+  if [[ "$ROLE" == edge ]]; then main_edge; return 0; fi
 
   step "Checking this server"
   check_os
@@ -1257,14 +1694,15 @@ main() {
     MEDIA_ROOT="$(get_env MEDIA_ROOT)"; MEDIA_ROOT="${MEDIA_ROOT:-/srv/media}"
     step "Updating"
     install_docker
-    restore_point
-    get_code
+    [[ -n "${SMART_IPTV_CONTINUED:-}" ]] || restore_point
+    update_code
     if ((DRY_RUN)); then info "${DIM}would set APP_COMMIT in .env${R}"; else set_commit; fi
     if ((DRY_RUN)); then info "${DIM}would add new .env keys (scripts/secrets.sh)${R}"; else
       (cd "$INSTALL_DIR" && scripts/secrets.sh >> "$LOG_FILE" 2>&1) || die "scripts/secrets.sh failed."
     fi
     write_backup_config
     write_crowdsec_config
+    write_replica_config
     show_passphrase
     # --monitoring / --no-monitoring switch the overlay; otherwise .env decides.
     if [[ -n "$MONITORING" ]]; then
@@ -1274,7 +1712,9 @@ main() {
       info "Monitoring (Grafana, Prometheus, Loki, alerts) is available: add --monitoring to turn it on."
     fi
     info "Monitoring: $(monitoring_enabled && echo "on (grafana.$DOMAIN)" || echo off)"
-    start_stack
+    info "Read replica: $(replica_enabled && echo on || echo off)"
+    update_stack
+    drop_replica_slot
     # A recipient the admin already chose in Settings wins over .env's.
     [[ "$MONITORING" != yes ]] || write_monitoring_settings --if-unset
     write_backup_settings --if-unset
@@ -1299,6 +1739,7 @@ main() {
   show_passphrase
   prepare_media
   start_stack
+  drop_replica_slot
   write_integration_settings
   write_monitoring_settings
   write_backup_settings

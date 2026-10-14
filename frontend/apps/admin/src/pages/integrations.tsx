@@ -3,6 +3,7 @@ import { Card, PageHeader, Skeleton } from "@smart-iptv/ui";
 import { useTranslation } from "react-i18next";
 
 import { QueryError, RequirePermission } from "../components/states";
+import { GeoIpCard } from "../features/integrations/geoip-card";
 import { IntegrationCard } from "../features/integrations/integration-card";
 import { SettingsTabs } from "../features/settings/settings-tabs";
 import { useCan } from "../lib/auth";
@@ -56,6 +57,7 @@ function Integrations() {
           {query.data.map((integration) => (
             <IntegrationCard key={integration.name} integration={integration} canEdit={canEdit} />
           ))}
+          <GeoIpCard canEdit={canEdit} />
         </div>
       )}
     </div>

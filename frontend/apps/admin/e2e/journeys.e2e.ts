@@ -1,5 +1,6 @@
-import { expect, request, test, type Page } from "@playwright/test";
+import { request, type Page } from "@playwright/test";
 
+import { expect, test } from "./fixtures";
 import { env, settled, usePreferences } from "./support";
 
 /*

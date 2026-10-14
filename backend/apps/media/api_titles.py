@@ -28,12 +28,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts import stepup
 from apps.accounts.permissions import HasPermission, Requirements
 from apps.audit import services as audit
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
 from apps.core.stores import cache_redis
+from apps.core.throttling import AdminTmdbThrottle
 from apps.media import tasks, titles
 from apps.media.models import SUBTITLE_MAX_BYTES, AudioTrack
 from apps.media.serializers import (
@@ -86,6 +88,8 @@ class TitleRenditionsView(_TitleView):
 
 
 class TitleRenditionDetailView(_TitleView):
+    step_up_methods = frozenset({"DELETE"})
+
     @extend_schema(
         operation_id="titles_renditions_delete",
         summary="Delete a rendition",
@@ -183,6 +187,8 @@ class TitleTracksView(_TitleView):
 
 
 class TitleTrackDetailView(_TitleView):
+    step_up_methods = frozenset({"DELETE"})
+
     @extend_schema(
         operation_id="titles_tracks_update",
         summary="Edit a track's language, title, default or forced flag",
@@ -293,6 +299,8 @@ class TitleImagePrimaryView(_TitleView):
 
 
 class TitleImageDetailView(_TitleView):
+    step_up_methods = frozenset({"DELETE"})
+
     @extend_schema(
         operation_id="titles_images_delete",
         summary="Delete an image",
@@ -307,6 +315,7 @@ class TitleImageDetailView(_TitleView):
 
 
 class TitleRematchView(_TitleView):
+    throttle_classes = (AdminTmdbThrottle,)
     required_permissions: ClassVar[Requirements] = {"POST": ("library.review", MANAGE)}
 
     @extend_schema(
@@ -368,6 +377,9 @@ class RenditionCleanupView(APIView):
         body = CleanupRequestSerializer(data=request.data)
         body.is_valid(raise_exception=True)
         dry_run = body.validated_data["dry_run"]
+        if not dry_run:
+            # Deleting files: confirm it's you first (ADR-0021); dry runs change nothing.
+            stepup.require(request)
         audit.record(
             "renditions.cleanup",
             actor=acting_user(request),

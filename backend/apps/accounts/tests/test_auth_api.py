@@ -114,13 +114,30 @@ def test_enrolled_admins_need_a_fresh_code_and_codes_are_single_use(admin: User)
 
     second = APIClient()
     response = login(second, "sam@EXAMPLE.com")  # email works too, case-insensitively
-    assert response.json() == {"status": "mfa_required"}
+    assert response.json() == {"status": "mfa_required", "methods": ["totp"]}
     response = second.post(VERIFY, {"code": used_code}, headers=ADMIN)
     assert response.status_code == 400
     assert response.json()["code"] == "MFA_INVALID"
     # The next step's code (within the drift window) is accepted.
     response = second.post(VERIFY, {"code": code_for(admin, step_offset=1)}, headers=ADMIN)
     assert response.status_code == 200
+
+
+def test_the_session_key_changes_after_each_step(admin: User) -> None:
+    """G-03: a session id planted before sign-in is useless after the password step, and
+    the half-authenticated one is replaced again once the second factor is right."""
+    client = APIClient()
+    enrol(client, admin)
+    client.post(LOGOUT, headers=ADMIN)
+    client.get(CSRF, headers=ADMIN)
+    client.session.save()
+    planted = client.cookies[settings.SESSION_COOKIE_NAME].value
+    assert login(client, admin.username).json()["status"] == "mfa_required"
+    half = client.cookies[settings.SESSION_COOKIE_NAME].value
+    assert half != planted
+    response = client.post(VERIFY, {"code": code_for(admin, step_offset=1)}, headers=ADMIN)
+    assert response.status_code == 200
+    assert client.cookies[settings.SESSION_COOKIE_NAME].value not in {planted, half}
 
 
 def test_wrong_codes_are_refused_and_counted(admin: User) -> None:

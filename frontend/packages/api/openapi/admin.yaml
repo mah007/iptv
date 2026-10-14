@@ -384,6 +384,64 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/admins/{id}/reset-mfa:
+    post:
+      operationId: admins_reset_mfa
+      description: |-
+        POST /api/v1/admin/admins/{id}/reset-mfa: remove an admin's authenticator and keys.
+
+        The recovery path for a lost phone or key (ADR-0021): their sessions end, and their
+        next sign-in enrols a new authenticator app. Only owners reset an owner; resetting
+        yourself is refused (use My account → Security, or the host command).
+      summary: Reset an admin's sign-in confirmation (authenticator app and keys)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - admins
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/audit:
     get:
       operationId: audit_list
@@ -1259,6 +1317,16 @@ paths:
           description: Number of results to return per page.
           schema:
             type: integer
+        - in: query
+          name: risk
+          schema:
+            type: string
+            enum:
+              - flagged
+          description: |-
+            flagged: customers with an open anti-sharing flag (ADR-0021).
+
+            * `flagged` - flagged
         - name: search
           required: false
           in: query
@@ -1857,6 +1925,246 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/risk:
+    get:
+      operationId: customers_risk
+      summary: "Sharing signals: the flag, the score now, and where the customer was
+        seen"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskOverview"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/risk/reset-credentials:
+    post:
+      operationId: customers_risk_reset_credentials
+      summary: Reset every IPTV app login of the customer (they make new ones)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetResult"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/risk/review:
+    post:
+      operationId: customers_risk_review
+      summary: Mark the open sharing flag reviewed
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskFlag"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/risk/suspend:
+    post:
+      operationId: customers_risk_suspend
+      summary: Suspend the customer for sharing (playback stops)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/risk/warn:
+    post:
+      operationId: customers_risk_warn
+      summary: Warn the customer that their account looks shared (an email)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/customers/{id}/suspend:
     post:
       operationId: customers_suspend
@@ -2347,6 +2655,495 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/devices/revoke-by-app:
+    post:
+      operationId: devices_revoke_by_app
+      description: |-
+        POST /api/v1/admin/devices/revoke-by-app: revoke every login made for one app (G-26).
+
+        A dry run (the default) only counts. The real run needs a recent confirmation: it
+        can stop thousands of logins at once.
+      summary: Revoke every IPTV login made for one app (vendor breach, public leak)
+      tags:
+        - devices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeByAppRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevokeByAppResult"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/edges:
+    get:
+      operationId: edges_list
+      summary: Edges, their health and load
+      tags:
+        - edges
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EdgeList"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: edges_create
+      summary: Add a standalone edge or a CDN zone
+      tags:
+        - edges
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EdgeWriteRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EdgeCreated"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/edges/{id}:
+    get:
+      operationId: edges_get
+      summary: One edge
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - edges
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Edge"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: edges_update
+      summary: Change an edge
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - edges
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedEdgeWriteRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Edge"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: edges_delete
+      summary: Remove an edge
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - edges
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/edges/{id}/secret:
+    post:
+      operationId: edges_rotate_secret
+      summary: A new secret for a standalone edge (the old one stops working at once)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - edges
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EdgeSecret"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/edges/{id}/test:
+    post:
+      operationId: edges_test
+      summary: "Test an edge end to end: health, a signed probe URL, its report"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - edges
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProbeResult"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/geoip:
+    get:
+      operationId: geoip_status
+      summary: The installed DB-IP Lite databases
+      tags:
+        - geoip
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoIpStatus"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/geoip/lookup:
+    post:
+      operationId: geoip_lookup
+      summary: "Test: what the databases say about an address (yours by default)"
+      tags:
+        - geoip
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeoLookupRequestRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoLookup"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/geoip/update:
+    post:
+      operationId: geoip_update
+      summary: Download this month's DB-IP Lite databases now (on the worker)
+      tags:
+        - geoip
+      security:
+        - sessionAuth: []
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoIpQueued"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
         default:
           description: Error (RFC 9457 problem details).
           content:
@@ -8134,6 +8931,58 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/templates/preview/{token}:
+    get:
+      operationId: templates_preview_document
+      description: |-
+        GET templates/preview/{token}: a rendered preview as its own document.
+
+        The admin shows it in a sandboxed frame. As a separate document it keeps its own
+        policy (inline styles, images from the media edge, no scripts): a `srcdoc` frame
+        would inherit the admin's stricter policy and lose the message's styling (ADR-0021).
+        Only the admin who asked for it can open it, for 10 minutes.
+      summary: A rendered template preview as an HTML document
+      parameters:
+        - in: path
+          name: token
+          schema:
+            type: string
+          required: true
+      tags:
+        - templates
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            text/html:
+              schema:
+                type: string
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/titles/{id}/images:
     get:
       operationId: titles_images_list
@@ -9334,6 +10183,475 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/auth/mfa/webauthn/options:
+    post:
+      operationId: auth_mfa_webauthn_options
+      description: "POST /api/v1/auth/mfa/webauthn/options: the key request for the
+        pending sign-in."
+      summary: Get the security key request that completes the sign-in
+      tags:
+        - auth
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebAuthnOptions"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/mfa/webauthn/verify:
+    post:
+      operationId: auth_mfa_webauthn_verify
+      description: "POST /api/v1/auth/mfa/webauthn/verify: step two with a security
+        key; signs in."
+      summary: Verify the security key and sign in
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebAuthnVerifyRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/step-up:
+    post:
+      operationId: auth_step_up
+      description: POST /api/v1/auth/step-up confirms it's you; DELETE locks sensitive
+        actions again.
+      summary: Confirm it's you (an authenticator code or a security key)
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StepUpRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepUpResult"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: auth_step_up_forget
+      description: POST /api/v1/auth/step-up confirms it's you; DELETE locks sensitive
+        actions again.
+      summary: Lock sensitive actions now
+      tags:
+        - auth
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: Locked.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/step-up/options:
+    post:
+      operationId: auth_step_up_options
+      description: "POST /api/v1/auth/step-up/options: a security key request to confirm
+        it's you."
+      summary: Get a security key request to confirm it's you
+      tags:
+        - auth
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebAuthnOptions"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/webauthn/credentials:
+    get:
+      operationId: auth_webauthn_credentials_list
+      description: "GET/POST /api/v1/auth/webauthn/credentials: the admin's own keys;
+        register one."
+      summary: My security keys and passkeys
+      tags:
+        - auth
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WebAuthnCredential"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: auth_webauthn_credentials_create
+      description: "GET/POST /api/v1/auth/webauthn/credentials: the admin's own keys;
+        register one."
+      summary: Register a security key or passkey (after confirming it's you)
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebAuthnRegisterRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebAuthnCredential"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/webauthn/credentials/{id}:
+    patch:
+      operationId: auth_webauthn_credentials_partial_update
+      description: "PATCH/DELETE /api/v1/auth/webauthn/credentials/{id}: rename or
+        remove one key."
+      summary: Rename a security key
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedWebAuthnRenameRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebAuthnCredential"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: auth_webauthn_credentials_destroy
+      description: "PATCH/DELETE /api/v1/auth/webauthn/credentials/{id}: rename or
+        remove one key."
+      summary: Remove a security key (after confirming it's you)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - auth
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: Removed.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/auth/webauthn/credentials/options:
+    post:
+      operationId: auth_webauthn_credentials_options
+      description: "POST /api/v1/auth/webauthn/credentials/options: the creation request
+        for a new key."
+      summary: Get the request that registers a new security key
+      tags:
+        - auth
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebAuthnOptions"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/branding:
     get:
       operationId: branding_retrieve
@@ -9787,6 +11105,34 @@ components:
         * `iptvnator` - IPTVnator
         * `uhf` - UHF
         * `other` - Other
+    Assessment:
+      type: object
+      properties:
+        score:
+          type: integer
+        flagged:
+          type: boolean
+        signals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Signal"
+        travel:
+          type: array
+          items:
+            $ref: "#/components/schemas/Travel"
+      required:
+        - flagged
+        - score
+        - signals
+        - travel
+    AudienceEnum:
+      enum:
+        - all
+        - canary
+      type: string
+      description: |-
+        * `all` - Everyone
+        * `canary` - Selected customers
     AudioTrack:
       type: object
       properties:
@@ -11088,6 +12434,10 @@ components:
             - "null"
           format: date-time
           readOnly: true
+        risk_flagged:
+          type: boolean
+          readOnly: true
+          default: false
         created_at:
           type: string
           format: date-time
@@ -11103,6 +12453,7 @@ components:
         - max_devices
         - name
         - phone
+        - risk_flagged
         - status
         - username
     DatabaseHealth:
@@ -11335,6 +12686,352 @@ components:
         * `pending` - PENDING
         * `blocked` - BLOCKED
         * `revoked` - REVOKED
+    Edge:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        edge_id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/EdgeKind"
+          readOnly: true
+        storage:
+          allOf:
+            - $ref: "#/components/schemas/StorageEnum"
+          readOnly: true
+        base_url:
+          type: string
+          readOnly: true
+        effective_url:
+          type: string
+          readOnly: true
+        enabled:
+          type: boolean
+          readOnly: true
+        draining:
+          type: boolean
+          readOnly: true
+        weight:
+          type: integer
+          readOnly: true
+        capacity_mbps:
+          type: integer
+          readOnly: true
+        audience:
+          allOf:
+            - $ref: "#/components/schemas/AudienceEnum"
+          readOnly: true
+        canary_user_ids:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        origin_edge_id:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        last_seen_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        connections:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        egress_mbps:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        kids:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        version:
+          type: string
+          readOnly: true
+        has_secret:
+          type: boolean
+          readOnly: true
+        secret_set_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        csp_changed:
+          type: boolean
+          readOnly: true
+      required:
+        - audience
+        - base_url
+        - canary_user_ids
+        - capacity_mbps
+        - connections
+        - created_at
+        - csp_changed
+        - draining
+        - edge_id
+        - effective_url
+        - egress_mbps
+        - enabled
+        - has_secret
+        - id
+        - kids
+        - kind
+        - last_seen_at
+        - name
+        - origin_edge_id
+        - secret_set_at
+        - status
+        - storage
+        - version
+        - weight
+    EdgeCreated:
+      type: object
+      description: A new standalone edge, with its secret (shown once).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        edge_id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/EdgeKind"
+          readOnly: true
+        storage:
+          allOf:
+            - $ref: "#/components/schemas/StorageEnum"
+          readOnly: true
+        base_url:
+          type: string
+          readOnly: true
+        effective_url:
+          type: string
+          readOnly: true
+        enabled:
+          type: boolean
+          readOnly: true
+        draining:
+          type: boolean
+          readOnly: true
+        weight:
+          type: integer
+          readOnly: true
+        capacity_mbps:
+          type: integer
+          readOnly: true
+        audience:
+          allOf:
+            - $ref: "#/components/schemas/AudienceEnum"
+          readOnly: true
+        canary_user_ids:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        origin_edge_id:
+          type:
+            - string
+            - "null"
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        last_seen_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        connections:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        egress_mbps:
+          type:
+            - number
+            - "null"
+          format: double
+          readOnly: true
+        kids:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        version:
+          type: string
+          readOnly: true
+        has_secret:
+          type: boolean
+          readOnly: true
+        secret_set_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        csp_changed:
+          type: boolean
+          readOnly: true
+        secret:
+          type:
+            - string
+            - "null"
+          readOnly: true
+      required:
+        - audience
+        - base_url
+        - canary_user_ids
+        - capacity_mbps
+        - connections
+        - created_at
+        - csp_changed
+        - draining
+        - edge_id
+        - effective_url
+        - egress_mbps
+        - enabled
+        - has_secret
+        - id
+        - kids
+        - kind
+        - last_seen_at
+        - name
+        - origin_edge_id
+        - secret
+        - secret_set_at
+        - status
+        - storage
+        - version
+        - weight
+    EdgeKind:
+      enum:
+        - local
+        - standalone
+        - cdn
+      type: string
+      description: |-
+        * `local` - This server
+        * `standalone` - Standalone edge
+        * `cdn` - CDN pull zone
+    EdgeList:
+      type: object
+      description: The list, plus what the page shows beside it.
+      properties:
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/Edge"
+        signing_kid:
+          type: string
+        s3_enabled:
+          type: boolean
+        cdn_ready:
+          type: boolean
+        edges_host:
+          type: string
+        control_url:
+          type: string
+      required:
+        - cdn_ready
+        - control_url
+        - edges
+        - edges_host
+        - s3_enabled
+        - signing_kid
+    EdgeSecret:
+      type: object
+      properties:
+        secret:
+          type: string
+      required:
+        - secret
+    EdgeWriteKindEnum:
+      enum:
+        - standalone
+        - cdn
+      type: string
+      description: |-
+        * `standalone` - standalone
+        * `cdn` - cdn
+    EdgeWriteRequest:
+      type: object
+      description: Create (every field) or change (any subset) an edge.
+      properties:
+        edge_id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        kind:
+          $ref: "#/components/schemas/EdgeWriteKindEnum"
+        storage:
+          $ref: "#/components/schemas/StorageEnum"
+        base_url:
+          type: string
+          minLength: 1
+          maxLength: 255
+        enabled:
+          type: boolean
+        draining:
+          type: boolean
+        weight:
+          type: integer
+          maximum: 1000
+          minimum: 0
+        capacity_mbps:
+          type: integer
+          maximum: 1000000
+          minimum: 1
+        audience:
+          $ref: "#/components/schemas/AudienceEnum"
+        canary_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 500
+        origin_edge_id:
+          type:
+            - string
+            - "null"
+          format: uuid
     EpgChannel:
       type: object
       properties:
@@ -11590,6 +13287,20 @@ components:
         * `matched` - Matched
         * `review` - Needs review
         * `error` - Error
+    FlagAction:
+      type: object
+      properties:
+        action:
+          type: string
+        at:
+          type: string
+          format: date-time
+        by:
+          type: string
+      required:
+        - action
+        - at
+        - by
     Genre:
       type: object
       properties:
@@ -11613,6 +13324,90 @@ components:
         - name_ar
         - name_en
         - tmdb_id
+    GeoDatabase:
+      type: object
+      properties:
+        installed:
+          type: boolean
+        built_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        updated_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        size:
+          type: integer
+      required:
+        - built_at
+        - installed
+        - size
+        - updated_at
+    GeoDatabases:
+      type: object
+      properties:
+        country:
+          $ref: "#/components/schemas/GeoDatabase"
+        asn:
+          $ref: "#/components/schemas/GeoDatabase"
+      required:
+        - asn
+        - country
+    GeoIpQueued:
+      type: object
+      properties:
+        queued:
+          type: boolean
+      required:
+        - queued
+    GeoIpStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        auto_update:
+          type: boolean
+        databases:
+          $ref: "#/components/schemas/GeoDatabases"
+        attribution:
+          type: string
+          format: uri
+      required:
+        - attribution
+        - auto_update
+        - databases
+        - enabled
+    GeoLookup:
+      type: object
+      properties:
+        ip:
+          type: string
+        country:
+          type: string
+        asn:
+          type:
+            - integer
+            - "null"
+        asn_org:
+          type: string
+        local:
+          type: boolean
+      required:
+        - asn
+        - asn_org
+        - country
+        - ip
+        - local
+    GeoLookupRequestRequest:
+      type: object
+      properties:
+        ip:
+          type: string
+          minLength: 1
+          description: The address to look up; yours when left out.
     GrowthPoint:
       type: object
       properties:
@@ -11872,6 +13667,8 @@ components:
         - stripe
         - moyasar
         - telegram
+        - s3_origin
+        - bunny
       type: string
       description: |-
         * `tmdb` - TMDB
@@ -11880,6 +13677,8 @@ components:
         * `stripe` - STRIPE
         * `moyasar` - MOYASAR
         * `telegram` - TELEGRAM
+        * `s3_origin` - S3_ORIGIN
+        * `bunny` - BUNNY
     IntegrationStatus:
       enum:
         - configured
@@ -12768,6 +14567,12 @@ components:
           type: string
           description: "Only with mfa_setup_required: the content of the authenticator
             QR code."
+        methods:
+          type: array
+          items:
+            type: string
+          description: "With mfa_required: the second factors this admin may use (totp,
+            webauthn)."
       required:
         - status
     LoginStatus:
@@ -12856,8 +14661,11 @@ components:
         * `2160` - 2160p
     Me:
       type: object
-      description: The signed-in admin. `permissions` is what the UI may offer; the
-        API checks again.
+      description: |-
+        The signed-in admin. `permissions` is what the UI may offer; the API checks again.
+
+        The session fields (idle timeout, step-up) come from the context, so every admin sees
+        the right values whatever their permissions (ADR-0021).
       properties:
         id:
           type: string
@@ -12896,16 +14704,41 @@ components:
           items:
             type: string
           readOnly: true
+        idle_timeout_min:
+          type: integer
+          readOnly: true
+        step_up_window_min:
+          type: integer
+          readOnly: true
+        step_up_until:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        mfa_methods:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        webauthn_enrolment_required:
+          type: boolean
+          readOnly: true
       required:
         - email
         - id
+        - idle_timeout_min
         - locale
         - mfa_enabled
+        - mfa_methods
         - name
         - permissions
         - roles
+        - step_up_until
+        - step_up_window_min
         - timezone
         - username
+        - webauthn_enrolment_required
     MediaAudioTrack:
       type: object
       properties:
@@ -14590,6 +16423,51 @@ components:
           type: string
         marketing_opt_in:
           type: boolean
+    PatchedEdgeWriteRequest:
+      type: object
+      description: Create (every field) or change (any subset) an edge.
+      properties:
+        edge_id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        kind:
+          $ref: "#/components/schemas/EdgeWriteKindEnum"
+        storage:
+          $ref: "#/components/schemas/StorageEnum"
+        base_url:
+          type: string
+          minLength: 1
+          maxLength: 255
+        enabled:
+          type: boolean
+        draining:
+          type: boolean
+        weight:
+          type: integer
+          maximum: 1000
+          minimum: 0
+        capacity_mbps:
+          type: integer
+          maximum: 1000000
+          minimum: 1
+        audience:
+          $ref: "#/components/schemas/AudienceEnum"
+        canary_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 500
+        origin_edge_id:
+          type:
+            - string
+            - "null"
+          format: uuid
     PatchedEpgSourceWriteRequest:
       type: object
       description: "JSON or multipart: `url` for a feed, or `file` for an uploaded
@@ -14942,7 +16820,7 @@ components:
             type: string
             minLength: 1
             maxLength: 64
-          maxItems: 25
+          maxItems: 27
     PatchedSeriesUpdateRequest:
       type: object
       description: |-
@@ -15064,6 +16942,13 @@ components:
           type: boolean
         forced:
           type: boolean
+    PatchedWebAuthnRenameRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
     Payment:
       type: object
       properties:
@@ -15638,8 +17523,13 @@ components:
           type: string
         html:
           type: string
+        html_url:
+          type: string
+          description: The HTML version as a document for a sandboxed frame (10 minutes),
+            with its own Content-Security-Policy; empty without HTML.
       required:
         - html
+        - html_url
         - subject
         - text
     PreviewRequestRequest:
@@ -15728,6 +17618,34 @@ components:
         at:
           type: string
       required:
+        - ok
+    ProbeResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProbeStep"
+      required:
+        - ok
+        - steps
+    ProbeStep:
+      type: object
+      properties:
+        name:
+          type: string
+        ok:
+          type: boolean
+        code:
+          type: string
+        detail:
+          type: string
+      required:
+        - code
+        - detail
+        - name
         - ok
     ProcessingPolicy:
       enum:
@@ -16097,6 +18015,13 @@ components:
       required:
         - files
         - outputs
+    ResetResult:
+      type: object
+      properties:
+        logins:
+          type: integer
+      required:
+        - logins
     ResolveRequest:
       type: object
       properties:
@@ -16243,6 +18168,13 @@ components:
       description: |-
         * `movie` - Movie
         * `tv` - Series
+    ReviewRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          default: ""
+          maxLength: 2000
     ReviewStatus:
       enum:
         - open
@@ -16253,6 +18185,118 @@ components:
         * `open` - Open
         * `resolved` - Resolved
         * `skipped` - Skipped
+    RevokeByAppRequest:
+      type: object
+      properties:
+        app_hint:
+          $ref: "#/components/schemas/AppHint"
+        notify:
+          type: boolean
+          default: true
+        dry_run:
+          type: boolean
+          default: true
+          description: Count the devices without revoking them (the default).
+      required:
+        - app_hint
+    RevokeByAppResult:
+      type: object
+      properties:
+        devices:
+          type: integer
+        dry_run:
+          type: boolean
+      required:
+        - devices
+        - dry_run
+    RiskFlag:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          $ref: "#/components/schemas/RiskFlagStatus"
+        score:
+          type: integer
+          readOnly: true
+        assessment:
+          type:
+            - object
+            - "null"
+          additionalProperties: {}
+          readOnly: true
+        opened_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_scored_at:
+          type: string
+          format: date-time
+          readOnly: true
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlagAction"
+        reviewed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        reviewed_by_name:
+          type: string
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+      required:
+        - actions
+        - assessment
+        - id
+        - last_scored_at
+        - note
+        - opened_at
+        - reviewed_at
+        - reviewed_by_name
+        - score
+        - status
+    RiskFlagStatus:
+      enum:
+        - open
+        - reviewed
+      type: string
+      description: |-
+        * `open` - Open
+        * `reviewed` - Reviewed
+    RiskOverview:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        geoip_installed:
+          type: boolean
+        flag:
+          oneOf:
+            - $ref: "#/components/schemas/RiskFlag"
+            - type: "null"
+        assessment:
+          $ref: "#/components/schemas/Assessment"
+        sightings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sighting"
+        attribution_url:
+          type: string
+          format: uri
+      required:
+        - assessment
+        - attribution_url
+        - enabled
+        - flag
+        - geoip_installed
+        - sightings
     Role:
       type: object
       description: A role and its permission codes. The owner role always lists every
@@ -16273,7 +18317,7 @@ components:
           items:
             type: string
             maxLength: 64
-          maxItems: 25
+          maxItems: 27
         is_system:
           type: boolean
           readOnly: true
@@ -16327,7 +18371,7 @@ components:
             type: string
             minLength: 1
             maxLength: 64
-          maxItems: 25
+          maxItems: 27
       required:
         - name
     RunRequestRequest:
@@ -17197,6 +19241,95 @@ components:
         * `database` - DATABASE
         * `environment` - ENVIRONMENT
         * `default` - DEFAULT
+    Sighting:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        network:
+          type: string
+          readOnly: true
+        asn:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        asn_org:
+          type: string
+          readOnly: true
+        country:
+          type: string
+          readOnly: true
+        source:
+          allOf:
+            - $ref: "#/components/schemas/SightingSource"
+          readOnly: true
+        device:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+        device_name:
+          type: string
+          readOnly: true
+        app:
+          type: string
+          readOnly: true
+        first_seen:
+          type: string
+          format: date-time
+          readOnly: true
+        last_seen:
+          type: string
+          format: date-time
+          readOnly: true
+        hits:
+          type: integer
+          readOnly: true
+      required:
+        - app
+        - asn
+        - asn_org
+        - country
+        - device
+        - device_name
+        - first_seen
+        - hits
+        - id
+        - last_seen
+        - network
+        - source
+    SightingSource:
+      enum:
+        - playback
+        - xtream
+        - stream
+        - portal
+      type: string
+      description: |-
+        * `playback` - Playback start
+        * `xtream` - IPTV app sign-in
+        * `stream` - Stream heartbeat
+        * `portal` - Portal sign-in
+    Signal:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: integer
+        limit:
+          type: integer
+        points:
+          type: integer
+      required:
+        - limit
+        - name
+        - points
+        - value
     Snapshots:
       type: object
       properties:
@@ -17263,6 +19396,35 @@ components:
       description: |-
         * `pending` - pending
         * `done` - done
+    StepUpRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          description: An authenticator code (admins).
+          maxLength: 16
+        credential:
+          type: object
+          additionalProperties: {}
+          description: An assertion from one of the admin's security keys.
+    StepUpResult:
+      type: object
+      properties:
+        step_up_until:
+          type: string
+          format: date-time
+          description: Sensitive actions stay unlocked until then.
+      required:
+        - step_up_until
+    StorageEnum:
+      enum:
+        - disk
+        - origin
+      type: string
+      description: |-
+        * `disk` - Its own disk
+        * `origin` - The S3 origin
     StorageUsage:
       type: object
       properties:
@@ -18271,6 +20433,27 @@ components:
         - gpus
         - host
         - queues
+    Travel:
+      type: object
+      properties:
+        from_country:
+          type: string
+        to_country:
+          type: string
+        km:
+          type: integer
+        hours:
+          type: number
+          format: double
+        at:
+          type: string
+          format: date-time
+      required:
+        - at
+        - from_country
+        - hours
+        - km
+        - to_country
     TrialStartRequest:
       type: object
       properties:
@@ -18415,6 +20598,72 @@ components:
         - season
         - title
         - title_ar
+    WebAuthnCredential:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_used_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        multi_device:
+          type: boolean
+          readOnly: true
+        backed_up:
+          type: boolean
+          readOnly: true
+      required:
+        - backed_up
+        - created_at
+        - id
+        - last_used_at
+        - multi_device
+        - name
+    WebAuthnOptions:
+      type: object
+      description: |-
+        PublicKeyCredential{Creation,Request}Options as JSON (base64url for binary fields);
+        the SPA hands it to @simplewebauthn/browser.
+      properties:
+        options:
+          type: object
+          additionalProperties: {}
+      required:
+        - options
+    WebAuthnRegisterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        credential:
+          type: object
+          additionalProperties: {}
+      required:
+        - credential
+        - name
+    WebAuthnVerifyRequest:
+      type: object
+      properties:
+        credential:
+          type: object
+          additionalProperties: {}
+          description: The browser's PublicKeyCredential as JSON (@simplewebauthn/browser).
+      required:
+        - credential
     WebhookEvent:
       type: object
       properties:
@@ -18504,6 +20753,8 @@ components:
         - PAYMENT_PROVIDER_UNAVAILABLE
         - PAYMENT_PROVIDER_ERROR
         - WEBHOOK_INVALID
+        - STEP_UP_REQUIRED
+        - IP_NOT_ALLOWED
       description: Stable machine-readable error code.
     Problem:
       type: object

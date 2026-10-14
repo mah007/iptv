@@ -33,3 +33,4 @@ http:
           - monitoring-strip-identity
           - monitoring-auth
           - secure-headers
+          - monitoring-headers

@@ -1,4 +1,4 @@
-import { useAuthMe, useSettingsList } from "@smart-iptv/api";
+import { useAuthMe } from "@smart-iptv/api";
 import {
   Button,
   Dialog,
@@ -13,7 +13,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useCan } from "../lib/auth";
+import { useMe } from "../lib/auth";
 
 /** The server's default (SESSION_COOKIE_AGE); the security setting overrides it. */
 const DEFAULT_TIMEOUT_MIN = 30;
@@ -32,14 +32,9 @@ function storedActivity(): number {
   }
 }
 
+/** From /auth/me, so admins without settings.view get the configured timeout too (N-fix, ADR-0021). */
 function useTimeoutMinutes(): number {
-  const can = useCan();
-  const settings = useSettingsList({
-    query: { enabled: can("settings.view"), staleTime: 300_000 },
-  });
-  const value = settings.data?.find(
-    (entry) => entry.key === "security.admin_idle_timeout_min",
-  )?.value;
+  const value = useMe()?.idle_timeout_min;
   return typeof value === "number" && value > 0 ? value : DEFAULT_TIMEOUT_MIN;
 }
 

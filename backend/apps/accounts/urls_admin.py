@@ -33,6 +33,11 @@ urlpatterns = [
         api_customer.CustomerPasswordInviteView.as_view(),
         name="admin-customers-password-invite",
     ),
+    path(
+        "devices/revoke-by-app",
+        api.DeviceRevokeByAppView.as_view(),
+        name="admin-devices-revoke-by-app",
+    ),
     path("devices/<uuid:pk>/block", api.DeviceBlockView.as_view(), name="admin-devices-block"),
     path(
         "devices/<uuid:pk>/unblock", api.DeviceUnblockView.as_view(), name="admin-devices-unblock"
@@ -57,6 +62,9 @@ urlpatterns = [
     path("roles/<uuid:pk>", api.RoleDetailView.as_view(), name="admin-roles-detail"),
     path("admins", api.AdminListView.as_view(), name="admin-admins-list"),
     path("admins/<uuid:pk>", api.AdminDetailView.as_view(), name="admin-admins-detail"),
+    path(
+        "admins/<uuid:pk>/reset-mfa", api.AdminResetMfaView.as_view(), name="admin-admins-reset-mfa"
+    ),
     # O1 (ADR-0018): a one-time link into Grafana, Prometheus and Alertmanager.
     path(
         "monitoring/ticket",

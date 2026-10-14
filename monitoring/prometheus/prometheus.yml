@@ -85,6 +85,18 @@ scrape_configs:
         labels:
           instance: postgres
 
+  # The read replica's exporter (M15, ADR-0022; docker/compose.replica.monitoring.yml).
+  # Without a replica the name doesn't resolve: no target, nothing raised. Its
+  # pg_replication_lag_seconds drives PostgresReplicationLag.
+  - job_name: postgres-replica
+    dns_sd_configs:
+      - names: ["postgres-exporter-replica"]
+        type: A
+        port: 9187
+    relabel_configs:
+      - target_label: instance
+        replacement: replica
+
   # Both Valkeys through one exporter (multi-target): instance is redis-state or redis-cache.
   - job_name: redis
     metrics_path: /scrape

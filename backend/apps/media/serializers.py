@@ -7,6 +7,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.catalog.serializers import ImageSerializer
+from apps.core.text import strip_bidi
 from apps.media.models import (
     PRIORITY_MAX,
     PRIORITY_MIN,
@@ -67,7 +68,7 @@ class TranscodeJobSerializer(serializers.ModelSerializer[TranscodeJob]):
         return {
             "id": file.pk,
             "library": file.library.name,
-            "relative_path": file.relative_path,
+            "relative_path": strip_bidi(file.relative_path),
             "duration_ms": file.duration_ms,
         }
 

@@ -29,6 +29,11 @@ class CustomerFilter(filters.FilterSet):
         max_value=MAX_EXPIRING_DAYS,
         help_text="Active customers whose access ends within this many days.",
     )
+    risk = filters.ChoiceFilter(
+        choices=[("flagged", "flagged")],
+        method="filter_risk",
+        help_text="flagged: customers with an open anti-sharing flag (ADR-0021).",
+    )
     ordering = filters.OrderingFilter(
         fields=(
             ("created_at", "created_at"),
@@ -41,7 +46,13 @@ class CustomerFilter(filters.FilterSet):
 
     class Meta:
         model = User
-        fields = ("status", "access_status", "expiring_within_days")
+        fields = ("status", "access_status", "expiring_within_days", "risk")
+
+    def filter_risk(self, queryset: QuerySet[User], name: str, value: str) -> QuerySet[User]:
+        from apps.antisharing.models import FlagStatus, RiskFlag  # noqa: PLC0415
+
+        open_flags = RiskFlag.objects.filter(status=FlagStatus.OPEN).values("user_id")
+        return queryset.filter(pk__in=open_flags) if value == "flagged" else queryset
 
     def filter_access_status(
         self, queryset: QuerySet[User], name: str, value: str

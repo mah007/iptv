@@ -28,6 +28,7 @@ from apps.catalog.serializers_customer import TitleCardSerializer
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.http import client_ip
 from apps.core.schema import problems
+from apps.core.throttling import PlaybackStartThrottle
 from apps.engagement import services
 from apps.engagement.recommend import recommender
 from apps.engagement.serializers import (
@@ -131,6 +132,8 @@ def _tracks(grant: PlaybackGrant) -> tuple[list[dict[str, Any]], list[dict[str, 
 
 
 class PlaybackStartView(CatalogView):
+    throttle_classes = (PlaybackStartThrottle,)
+
     @extend_schema(
         operation_id="playback_start",
         summary="Start playing a movie or an episode in this browser or app",

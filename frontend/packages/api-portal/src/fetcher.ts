@@ -180,6 +180,32 @@ async function parseBody(response: Response): Promise<unknown> {
 }
 
 /**
+ * Step-up (ADR-0021): some actions need a recent confirmation that it's really the
+ * signed-in person. The server answers 403 STEP_UP_REQUIRED; the app registers a
+ * handler that asks (a dialog) and resolves true once confirmed. The request is then
+ * sent once more, so no call site handles it. Concurrent requests share one prompt.
+ */
+export type StepUpHandler = () => Promise<boolean>;
+let stepUpHandler: StepUpHandler | null = null;
+let pendingStepUp: Promise<boolean> | null = null;
+/** Requests already sent again after a confirmation: never prompt twice for one call. */
+const stepUpRetry = new WeakSet<RequestInit>();
+
+export function setStepUpHandler(handler: StepUpHandler | null): void {
+  stepUpHandler = handler;
+}
+
+async function confirmStepUp(): Promise<boolean> {
+  if (stepUpHandler === null) {
+    return false;
+  }
+  pendingStepUp ??= stepUpHandler().finally(() => {
+    pendingStepUp = null;
+  });
+  return pendingStepUp;
+}
+
+/**
  * Orval mutator: performs the request for a generated hook or function.
  * `url` is an absolute path on this origin, e.g. `/api/v1/home`.
  */
@@ -217,7 +243,13 @@ export const apiFetch = async <T>(url: string, options: RequestInit = {}): Promi
   }
 
   if (!response.ok) {
-    throw await toApiError(response);
+    const error = await toApiError(response);
+    if (error.code === "STEP_UP_REQUIRED" && !stepUpRetry.has(options) && (await confirmStepUp())) {
+      const retry: RequestInit = { ...options };
+      stepUpRetry.add(retry);
+      return apiFetch<T>(url, retry);
+    }
+    throw error;
   }
   return (await parseBody(response)) as T;
 };

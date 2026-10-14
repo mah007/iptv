@@ -1,0 +1,10 @@
+# Known vulnerabilities accepted for a while (`make audit`, ADR-0021). Each entry needs the
+# advisory id (or one of its aliases), the package, why it doesn't apply or what we wait
+# for, and an expiry date: an expired entry fails the gate until someone looks again.
+# Prefer upgrading; never accept one on the playback, auth or billing path.
+#
+# [[ignore]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# package = "example"
+# reason = "Only the CLI is affected; we import the library. Fixed upstream in 2.1."
+# expires = 2026-12-31

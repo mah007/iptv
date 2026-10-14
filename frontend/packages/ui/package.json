@@ -11,7 +11,11 @@
     ".": "./src/index.ts",
     "./styles.css": "./src/styles.css",
     "./fonts": "./src/fonts.ts",
-    "./testing": "./src/testing.ts"
+    "./testing": "./src/testing.ts",
+    "./csp": {
+      "types": "./csp/policy.d.ts",
+      "default": "./csp/policy.js"
+    }
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

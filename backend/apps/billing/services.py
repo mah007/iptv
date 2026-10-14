@@ -686,7 +686,17 @@ def apply_result(provider: str, result: PaymentResult) -> Payment | None:
     now = timezone.now()
     match result.outcome:
         case Outcome.SUCCEEDED:
-            _succeed(payment, result, raw, now)
+            if payment.status not in PAID_STATUSES:
+                # The provider's API, not the event, decides (G-29).
+                gateway = get_provider(provider)
+                if gateway is not None and gateway.is_configured():
+                    result = gateway.confirm(result)
+            if result.outcome == Outcome.SUCCEEDED:
+                _succeed(payment, result, raw, now)
+            else:
+                _fail(payment, result, raw)
+        case Outcome.DISPUTED:
+            _dispute(payment, raw)
         case Outcome.FAILED:
             _fail(payment, result, raw)
         case Outcome.CANCELLED:
@@ -779,6 +789,36 @@ def _set_refunded(payment: Payment, refunded: int) -> None:
         invoice.save(update_fields=["refunded_amount", "status", "updated_at"])
 
 
+def _dispute(payment: Payment, raw: dict[str, Any]) -> None:
+    """A chargeback (G-29): the subscription it paid for is suspended at once (playback
+    stops; `resume` undoes it if the dispute is won). Audited; the admins are told."""
+    if payment.status not in PAID_STATUSES:
+        return
+    payment.raw = raw
+    payment.save(update_fields=["raw", "updated_at"])
+    audit.record("payment.dispute", actor=None, target=payment, after=payment_snapshot(payment))
+    subscription = payment.subscription
+    if subscription is not None and subscription.status in (
+        SubscriptionStatus.ACTIVE,
+        SubscriptionStatus.GRACE,
+    ):
+        subscriptions.suspend(subscription, actor=None, reason="payment dispute")
+    logger.warning("payment %s disputed: subscription suspended", payment.pk)
+
+
+def _end_refunded(payment: Payment) -> None:
+    """A full refund made at the provider ends the subscription it paid for (G-29)."""
+    subscription = payment.subscription
+    if (
+        payment.status == PaymentStatus.REFUNDED
+        and subscription is not None
+        and subscription.status in (*CURRENT_STATUSES, SubscriptionStatus.PENDING)
+    ):
+        subscriptions.cancel(
+            subscription, reason=EndReason.REFUNDED, actor=None, note="refunded at the provider"
+        )
+
+
 def _record_provider_refund(payment: Payment, result: PaymentResult, raw: dict[str, Any]) -> None:
     """A refund made in the provider's dashboard: mirror it (never shrink ours)."""
     if payment.status not in PAID_STATUSES or result.refunded_amount is None:
@@ -796,6 +836,7 @@ def _record_provider_refund(payment: Payment, result: PaymentResult, raw: dict[s
         after={**payment_snapshot(payment), "source": "provider"},
     )
     PAYMENTS.labels(payment.provider, payment.status).inc()
+    _end_refunded(payment)
 
 
 def refund(  # noqa: PLR0913 (keyword-only options of one refund)

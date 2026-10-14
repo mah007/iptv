@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.cache import never_cache
@@ -23,7 +25,14 @@ def public_health(request: HttpRequest) -> JsonResponse:
 @never_cache
 @require_GET
 def live(request: HttpRequest) -> JsonResponse:
-    """Internal liveness for container healthchecks: the process is serving."""
+    """Internal liveness for container healthchecks: the process is serving.
+
+    During a rollout (scripts/rollout.sh, ADR-0022) the old replicas are drained first:
+    the file DRAIN_FILE makes this answer 503, Traefik's own health check takes the
+    replica out of rotation within seconds, and only then is it stopped.
+    """
+    if Path(settings.WEB_DRAIN_FILE).exists():
+        return JsonResponse({"status": "draining"}, status=503)
     return JsonResponse({"status": "ok"})
 
 

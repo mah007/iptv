@@ -6,11 +6,14 @@ from rest_framework.response import Response
 
 from apps.catalog.api_customer import CatalogView
 from apps.core.schema import problems
+from apps.core.throttling import SearchThrottle
 from apps.search import services
 from apps.search.serializers import SearchQuerySerializer, SearchResultSerializer
 
 
 class SearchView(CatalogView):
+    throttle_classes = (SearchThrottle,)
+
     @extend_schema(
         operation_id="search",
         summary="Search movies, series, episodes and people (Arabic and English)",

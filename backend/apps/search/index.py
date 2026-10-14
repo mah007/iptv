@@ -23,7 +23,7 @@ from django.utils import timezone
 
 from apps.catalog.models import Credit, CreditRole, Episode, MediaFile, Movie, Series
 from apps.catalog.services import playable_files
-from apps.search.meili import MeiliClient, client
+from apps.search.meili import MeiliClient, client, ensure_search_key
 from apps.search.normalize import normalize
 
 INDEX: Final = "titles"
@@ -195,6 +195,9 @@ def ensure_index(meili: MeiliClient, uid: str | None = None) -> None:
     if not meili.index_exists(uid):
         meili.wait(meili.create_index(uid, "id"))
     meili.wait(meili.update_settings(uid, SETTINGS))
+    if uid == INDEX:
+        # Queries use a search-only key on this index (G-12).
+        ensure_search_key()
     _configured.add(uid)
 
 

@@ -1,6 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
 
-import { env, expectAccessible, settled, usePreferences } from "./support";
+import { expect, test } from "./fixtures";
+import { env, expectAccessible, settled, totpCode, usePreferences } from "./support";
 
 /*
  * Dynamic configuration (ADR-0019): set SMTP to the dev stack's Mailpit on the
@@ -36,11 +37,52 @@ async function clearEmailSettings(page: Page): Promise<void> {
     "email.from_address",
   ];
   const csrf = (await page.context().cookies()).find((cookie) => cookie.name === "csrftoken");
-  const reply = await page.request.patch("/api/v1/admin/settings", {
-    data: { values: Object.fromEntries(keys.map((key) => [key, null])) },
-    headers: { "X-CSRFToken": csrf?.value ?? "" },
-  });
+  const headers = { "X-CSRFToken": csrf?.value ?? "" };
+  const clear = () =>
+    page.request.patch("/api/v1/admin/settings", {
+      data: { values: Object.fromEntries(keys.map((key) => [key, null])) },
+      headers,
+    });
+  let reply = await clear();
+  if (reply.status() === 403) {
+    // Settings need a recent confirmation (ADR-0021): give one, as the dialog would.
+    const confirmed = await page.request.post("/api/v1/auth/step-up", {
+      data: { code: totpCode() },
+      headers,
+    });
+    expect(confirmed.status()).toBe(200);
+    reply = await clear();
+  }
   expect(reply.status()).toBe(200);
+}
+
+/**
+ * Fill the SMTP form and save it. The card replaces its draft whenever newer values
+ * arrive from the server (the refetch after "Move into settings", a background refresh),
+ * so a fill can be undone before Save: fill again until the saved values are these.
+ */
+async function saveSmtp(email: ReturnType<typeof card>, port: string): Promise<void> {
+  const page = email.page();
+  const save = email.getByRole("button", { name: "Save" });
+  const portField = email.getByLabel("SMTP port");
+  await expect(async () => {
+    await email.locator("[data-setting='email.smtp_host']").getByRole("textbox").fill("mailpit");
+    await portField.fill(port);
+    const encryption = email.getByRole("combobox", { name: "Encryption" });
+    if ((await encryption.textContent())?.trim() !== "None") {
+      await encryption.click();
+      await page.getByRole("option", { name: "None" }).click();
+    }
+    await email.getByLabel("Send from").fill("Smart IPTV E2E <e2e@localhost>");
+    // A test uses the saved settings: it waits for Save.
+    await expect(email.getByRole("button", { name: "Send a test email to me" })).toBeDisabled({
+      timeout: 2_000,
+    });
+    await save.click({ timeout: 2_000 });
+    // Saved: nothing left to save, and the server's values are the ones typed in.
+    await expect(save).toBeDisabled({ timeout: 5_000 });
+    await expect(portField).toHaveValue(port, { timeout: 1_000 });
+  }).toPass({ timeout: 45_000 });
 }
 
 test("send a test email through Mailpit from the Integrations page", async ({ page }) => {
@@ -55,26 +97,19 @@ test("send a test email through Mailpit from the Integrations page", async ({ pa
   if ((await move.count()) > 0) {
     await move.click();
     await expect(page.getByText("Email (SMTP): moved into the settings")).toBeVisible();
+    // The card reloads its values once the move is stored; fill the form after that.
+    await expect(move).toHaveCount(0);
   }
-  await host.getByRole("textbox").fill("mailpit");
 
   // A wrong port first: the test explains the failure.
-  await email.getByLabel("SMTP port").fill("2525");
-  await email.getByRole("combobox", { name: "Encryption" }).click();
-  await page.getByRole("option", { name: "None" }).click();
-  await email.getByLabel("Send from").fill("Smart IPTV E2E <e2e@localhost>");
-  // A test uses the saved settings: it waits for Save.
-  await expect(email.getByRole("button", { name: "Send a test email to me" })).toBeDisabled();
-  await email.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Email (SMTP): saved")).toBeVisible();
+  await saveSmtp(email, "2525");
   await email.getByRole("button", { name: "Send a test email to me" }).click();
   const result = email.locator("[data-test-result]");
   await expect(result).toHaveAttribute("data-test-result", "unreachable", { timeout: 30_000 });
   await expect(result).toContainText("The service could not be reached");
 
   // Mailpit's real port: the test email goes out.
-  await email.getByLabel("SMTP port").fill("1025");
-  await email.getByRole("button", { name: "Save" }).click();
+  await saveSmtp(email, "1025");
   await expect(email.getByRole("button", { name: "Send a test email to me" })).toBeEnabled();
   await email.getByRole("button", { name: "Send a test email to me" }).click();
   await expect(result).toHaveAttribute("data-test-result", "ok", { timeout: 30_000 });

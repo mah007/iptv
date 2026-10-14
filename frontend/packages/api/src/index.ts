@@ -2,11 +2,19 @@
 // backend's OpenAPI schema (`make api-client`); the fetcher is written by hand.
 export * from "./generated/admin";
 export * from "./generated/admin.schemas";
-export { ApiError, CSRF_ENDPOINT, apiFetch, isApiError, readCookie } from "./fetcher";
+export {
+  ApiError,
+  CSRF_ENDPOINT,
+  apiFetch,
+  isApiError,
+  readCookie,
+  setStepUpHandler,
+} from "./fetcher";
 export type {
   ApiErrorCode,
   ApiErrorInit,
   ClientErrorCode,
   ErrorType,
+  StepUpHandler,
   FieldErrors,
 } from "./fetcher";

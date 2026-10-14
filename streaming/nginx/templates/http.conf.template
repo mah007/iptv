@@ -6,10 +6,6 @@
 resolver ${EDGE_RESOLVER} valid=${EDGE_RESOLVER_VALID} ipv6=off;
 resolver_timeout 5s;
 
-# The master reads the key file at configuration load and on reload; workers never
-# open it, so it can be readable by root only. Rotation: replace it, then reload.
-js_preload_object edge_keys from ${EDGE_KEYS_FILE};
-
 map "" $edge_id {
     default "${EDGE_ID}";
 }
@@ -18,9 +14,30 @@ map "" $edge_media_root {
     default "${EDGE_MEDIA_ROOT}";
 }
 
-# Django's internal URLconf, which serves /internal/stream-auth from Redis only.
-upstream edge_auth {
-    zone edge_auth_upstream 64k;
-    server ${EDGE_AUTH_UPSTREAM} resolve;
-    keepalive 16;
+# local or s3: token.js maps paths to bucket objects in s3 mode (ADR-0022).
+map "" $edge_mode {
+    default "${EDGE_MODE}";
+}
+
+# The origin a standalone edge reads (reported on its control channel; no credentials).
+map "" $edge_origin_url {
+    default "${EDGE_ORIGIN_URL}";
+}
+
+# G-17 (ADR-0022): after EDGE_RATE_AFTER bytes, a connection gets at most this many bytes
+# per second: a few times the rendition's bitrate, so players buffer ahead and seek
+# freely while a whole film can't be pulled at line rate. 0 means no limit.
+map $edge_log_rendition $edge_rate {
+    default ${EDGE_RATE_LIMIT};
+    uhd ${EDGE_RATE_LIMIT_UHD};
+    hls2160 ${EDGE_RATE_LIMIT_UHD};
+}
+
+map "" $edge_rate_after {
+    default ${EDGE_RATE_AFTER};
+}
+
+# HSTS on a standalone edge's own TLS ("" behind Traefik, which sets its own).
+map "" $edge_hsts {
+    default "${EDGE_HSTS}";
 }

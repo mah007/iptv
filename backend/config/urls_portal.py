@@ -12,10 +12,13 @@ from django.urls import include, path, re_path
 
 from apps.accounts.urls_customer import portal_auth
 from apps.core import errors, views
+from apps.core.security import csp_report
 from config.urls_api import customer_api
 
 urlpatterns = [
     path("api/v1/health", views.public_health, name="portal-health"),
+    # Browsers' Content-Security-Policy violation reports (M14a, ADR-0021).
+    path("api/v1/csp-report", csp_report, name="portal-csp-report"),
     path("api/v1/auth/", include(portal_auth)),
     path("api/v1/", include(customer_api)),
     # Last: unknown API paths answer problem+json 404, also when DEBUG is on.

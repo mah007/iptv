@@ -32,6 +32,8 @@ from django.utils import timezone
 from apps.accounts import credentials as creds
 from apps.accounts import services as account_services
 from apps.accounts.models import Device, User, XtreamCredential
+from apps.antisharing import services as antisharing
+from apps.antisharing.models import SightingSource
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
 from apps.playback import entitlements
@@ -71,18 +73,24 @@ def authenticate(username: str, password: str, *, ip: str | None) -> XtreamAccou
     if not username or not password:
         return None
     counted = ratelimit.failures(username, ip)
-    if counted.blocked:  # the same refusal, without verifying (ratelimit.py)
-        return None
     if "\x00" in username:  # Postgres rejects NUL; spend the same time as any unknown user
-        creds.burn_verify(password)
-        ratelimit.record_failure(username, ip)
+        if not counted.blocked:
+            creds.burn_verify(password)
+            ratelimit.record_failure(username, ip)
         return None
-    login = account_services.authenticate_xtream(username, password)
-    if login is None:
-        ratelimit.record_failure(username, ip)
-        return None
-    if counted.username:
-        ratelimit.clear_username(username)
+    if counted.blocked:
+        # The same refusal, without Argon2 (ratelimit.py), unless this exact login
+        # succeeded within the auth cache's 5 minutes (a household behind a busy NAT).
+        login = account_services.authenticate_xtream(username, password, cached_only=True)
+        if login is None:
+            return None
+    else:
+        login = account_services.authenticate_xtream(username, password)
+        if login is None:
+            ratelimit.record_failure(username, ip)
+            return None
+    if counted.username or counted.username_all:
+        ratelimit.clear_username(username, ip)
     _touch(login.credential, login.device, ip)
     user, device = login.user, login.device
     return account(user, device, entitlements.get(user.pk))
@@ -144,7 +152,9 @@ def locale_of(user: User) -> Locale:
 
 
 def _touch(credential: XtreamCredential, device: Device, ip: str | None) -> None:
-    """Record activity, at most once per TOUCH_INTERVAL_S per device."""
+    """Record activity, at most once per TOUCH_INTERVAL_S per device; and the network for
+    the anti-sharing score, at most once per device and network in that time (ADR-0021)."""
+    antisharing.record(device.user_id, device, ip, SightingSource.XTREAM)
     try:
         first = state_redis().set(f"{_TOUCH_PREFIX}{device.pk}", 1, nx=True, ex=TOUCH_INTERVAL_S)
     except redis.RedisError:

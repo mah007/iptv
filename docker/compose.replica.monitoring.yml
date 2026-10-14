@@ -1,0 +1,27 @@
+# The read replica's exporter, when both the replica and the monitoring overlay are on
+# (M15, ADR-0022). The same least-privilege iptv_monitor role as the primary's exporter:
+# physical replication copies roles. Prometheus finds it by name (job postgres-replica).
+services:
+  postgres-exporter-replica:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1@sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    environment:
+      DATA_SOURCE_URI: postgres-replica:5432/${POSTGRES_DB}?sslmode=disable
+      DATA_SOURCE_USER: iptv_monitor
+      DATA_SOURCE_PASS_FILE: /run/secrets/postgres_monitor_password
+    secrets: [postgres_monitor_password]
+    mem_limit: 64m
+    networks: [monitoring, backend]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    depends_on:
+      postgres-replica: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

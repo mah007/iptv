@@ -10,7 +10,9 @@ Nginx + njs serving `media.<domain>` (SPEC §12). It verifies a signed token on 
 | `nginx/snippets/` | checks and headers shared by both modes |
 | `nginx/templates/` | the deployment-specific parts, rendered from `EDGE_*` |
 | `nginx/docker-entrypoint.d/40-edge-config.sh` | validates `EDGE_*` and the key file, renders the templates |
-| `nginx/njs/token.js` | token verification, log redaction, response headers |
+| `nginx/njs/token.js` | token verification, log redaction, response headers, CDN pull checks |
+| `nginx/njs/s3.js` | S3 mode (ADR-0022): the bucket object for a token (rung ceilings), SigV4 presigned reads |
+| `nginx/njs/control.js` | standalone edges (ADR-0022): the control channel (keys, the origin's read-only key, the CDN secret) |
 | `nginx/njs/check_keys.js` | key file check run by the entrypoint |
 | `tools/sign_token.py` | reference signer, verifier and key tool (stdlib only) |
 | `tests/` | `run.sh` end to end, `vectors.json` shared with the backend, njs unit tests |
@@ -28,7 +30,7 @@ The image is the official `nginx:1.30.5-alpine` (ships njs 1.0.1) with these mou
 | `/run/secrets/media_token_keys.json` | the key file (a Docker secret) |
 | `/srv/media` | the media root, read-only (local mode only) |
 
-It listens on 8080 (plain HTTP; TLS ends at Traefik or the CDN in front). It runs with a read-only root file system if `/etc/nginx/conf.d`, `/var/cache/nginx`, `/run` and `/tmp` are tmpfs, and needs no capabilities beyond `CHOWN`, `SETUID` and `SETGID` (`streaming/tests/run.sh` runs it exactly so). The master process reads the key file as root at start and on reload; without `DAC_OVERRIDE` the file must be readable by root by its mode or owner (Docker secrets are 0444).
+On the control host it listens on 8080 (plain HTTP; TLS ends at Traefik). A standalone edge (`EDGE_TLS=acme|file`) also listens on 8443 with its own certificate. It runs with a read-only root file system if `/etc/nginx/conf.d`, `/var/cache/nginx`, `/run` and `/tmp` are tmpfs, and needs no capabilities beyond `CHOWN`, `SETUID` and `SETGID` (`streaming/tests/run.sh` runs it exactly so). The master process reads the key file as root at start and on reload; without `DAC_OVERRIDE` the file must be readable by root by its mode or owner (Docker secrets are 0444).
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -46,6 +48,25 @@ It listens on 8080 (plain HTTP; TLS ends at Traefik or the CDN in front). It run
 | `EDGE_RESOLVER` | IPv4 nameservers in `/etc/resolv.conf` | DNS for upstream names (Docker: `127.0.0.11`) |
 | `EDGE_RESOLVER_VALID` | `10s` | DNS cache time |
 | `EDGE_REQUEST_ERROR_LOG_LEVEL` | `emerg` | request-scoped error log; lower levels log raw request lines, which hold tokens |
+| `EDGE_AUTH_TOKEN_FILE` | `/run/secrets/edge_auth_token` | G-16: the shared secret sent to the internal stream-auth as `X-Edge-Auth`, when the file exists |
+| `EDGE_ORIGIN_CREDENTIALS_FILE` | none | s3 mode: the origin's read-only key as JSON, for an edge without a control channel |
+| `EDGE_RATE_LIMIT`, `EDGE_RATE_LIMIT_UHD`, `EDGE_RATE_AFTER` | `3m`, `10m`, `16m` | G-17: per-connection bytes/s after a burst; `0` turns it off |
+| `EDGE_CDN` | `off` | `on`: answer CDN pulls on `/c/<title>/<path>` with the origin secret (docs/runbooks/cdn-bunny.md) |
+| `EDGE_CDN_SECRET_FILE` | none | the CDN origin secret, for an edge without a control channel |
+
+A **standalone edge** (ADR-0022, `docker/compose.edge.yml`, docs/runbooks/add-edge.md) adds:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `EDGE_CONTROL_URL` | none | the control plane's edges host, e.g. `https://edges.example.com`: stream-auth and the control channel go there |
+| `EDGE_CONTROL_TOKEN_FILE` | required with it | this edge's bearer secret (`Authorization: Bearer`, with `X-Edge-Id`) |
+| `EDGE_CONTROL_HOST`, `EDGE_CONTROL_CA_FILE` | none | a `Host` override and a private CA (tests and the dev edge) |
+| `EDGE_TLS` | `off` | `acme` (Let's Encrypt through nginx's ACME module, state kept in `/var/lib/nginx-acme`) or `file` |
+| `EDGE_DOMAIN` | required with TLS | its name |
+| `EDGE_ACME_EMAIL`, `EDGE_ACME_DIRECTORY` | none, Let's Encrypt | the ACME contact and directory |
+| `EDGE_TLS_CERT`, `EDGE_TLS_KEY` | required with `file` | a certificate from elsewhere |
+
+It has no key file: its keys, the origin's read-only key and the CDN secret arrive on the control channel (`js_periodic`, every 15 s) and stay in shared memory, so `/healthz` answers 503 until the first poll. Live TV (`EDGE_LIVE_*`) is refused there.
 
 The entrypoint stops the container with a message naming the variable (and never a key) when a value or the key file is invalid. `GET /healthz` answers 200 while the loaded key file is usable.
 
@@ -89,4 +110,10 @@ python3 streaming/tools/sign_token.py sign --keys new.json --session <32 hex> \
 bash streaming/tests/run.sh
 ```
 
-It checks the vectors against both implementations (Python reference and njs, plus 600 fuzz cases), then runs both edge modes against a stub of stream-auth and of an S3 origin, and finally checks the captured logs. It uses standalone containers named `prework-*` on `127.0.0.1:18080-18082`, removed on exit. `tests/make_vectors.py` regenerates `tests/vectors.json`. The backend's M7 signer and stream-auth verifier must pass the same file.
+(`make edge-test`, part of `make ci`.) It checks the vectors against both implementations (Python reference and njs, plus 600 fuzz cases) and the SigV4 vectors (AWS's example included). Then it runs every edge against a stub of stream-auth, the control plane and a private S3 origin that checks presigned reads:
+- local disk mode with live TV and CDN pulls;
+- S3 origin mode;
+- a standalone edge with its own TLS, its control channel, key rotation without a reload, G-17's rate, a kick across hosts, and CDN pulls;
+- the same edge with Let's Encrypt (`EDGE_TLS=acme`) against Pebble, Let's Encrypt's test server: issuance, and the same certificate after a restart.
+
+Finally it checks the captured logs. It uses standalone containers named `prework-*` on `127.0.0.1:18080-18086`, removed on exit. `tests/make_vectors.py` regenerates `tests/vectors.json`. The backend's M7 signer and stream-auth verifier must pass the same file.

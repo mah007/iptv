@@ -5,3 +5,8 @@ packages:
 # safeguard). esbuild's postinstall only swaps in a binary pnpm already installs.
 allowBuilds:
   esbuild: false
+# Smart IPTV (ADR-0021): sonner injects its stylesheet without a CSP nonce; the patch
+# gives it the page's nonce, so style-src stays strict. Re-check on every sonner upgrade
+# (pnpm refuses to install if the patch no longer applies).
+patchedDependencies:
+  sonner@2.0.8: patches/sonner@2.0.8.patch

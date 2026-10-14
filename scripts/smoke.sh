@@ -37,6 +37,26 @@ expect() {
   failures=$((failures + 1))
 }
 
+# expect_header URL HEADER TEXT [html]: the response header must contain TEXT; "html"
+# asks for a page as a browser does (the dev servers only add the CSP to pages).
+expect_header() {
+  local url="$1" name="$2" want="$3" accept="*/*" got="" waited=0
+  [[ "${4:-}" == "html" ]] && accept="text/html"
+  while :; do
+    got="$(curl -s -o /dev/null -D - -H "Accept: $accept" --max-time 10 "$url" \
+      | tr -d '\r' | grep -i "^$name:" | head -n1 || true)"
+    if [[ "$got" == *"$want"* ]]; then
+      printf '  ok    %s: …%s… %s\n' "$name" "$want" "$url"
+      return 0
+    fi
+    [[ "$waited" -ge "$deadline_s" ]] && break
+    sleep 1
+    waited=$((waited + 1))
+  done
+  printf '  FAIL  %s has no %s containing %s (got: %s)\n' "$url" "$name" "$want" "${got:-nothing}"
+  failures=$((failures + 1))
+}
+
 echo "Public routes:"
 expect 200 "http://api.$domain$base_port/"
 expect 200 "http://api.$domain$base_port/api/v1/health"
@@ -66,6 +86,27 @@ expect 404 "http://media.$domain$base_port/images/missing.webp"
 expect 403 "http://media.$domain$base_port/v/not-a-token/compat.mp4"
 echo "Unknown hosts are refused:"
 expect 404 "http://unknown.$domain$base_port/"
+echo "Security headers (ADR-0021):"
+expect_header "http://admin.$domain$base_port/" content-security-policy "script-src 'self' 'nonce-" html
+expect_header "http://admin.$domain$base_port/" permissions-policy "publickey-credentials-get=(self)" html
+expect_header "http://app.$domain$base_port/" content-security-policy "frame-ancestors 'none'" html
+expect_header "http://app.$domain$base_port/" cross-origin-opener-policy "same-origin" html
+expect_header "http://api.$domain$base_port/api/v1/health" content-security-policy "default-src 'none'"
+expect_header "http://admin.$domain$base_port/api/v1/health" referrer-policy "same-origin"
+expect_header "http://tv.$domain$base_port/health" referrer-policy "no-referrer"
+expect_header "http://api.$domain$base_port/api/v1/health" x-content-type-options "nosniff"
+expect_header "http://media.$domain$base_port/healthz" x-content-type-options "nosniff"
+echo "Admin sign-in is rate limited per address (ADR-0021):"
+limited="$(for _ in $(seq 1 40); do
+  curl -s -o /dev/null -w '%{http_code}\n' --max-time 10 "http://admin.$domain$base_port/api/v1/auth/me" &
+done | grep -c '^429$' || true)"
+wait
+if [[ "$limited" -gt 0 ]]; then
+  printf '  ok    %s of 40 quick requests refused with 429\n' "$limited"
+else
+  printf '  FAIL  40 quick admin sign-in requests, none refused with 429\n'
+  failures=$((failures + 1))
+fi
 
 echo "Readiness and metrics (inside the Docker network):"
 compose=(docker compose --project-directory . -f docker/compose.yml -f docker/compose.dev.yml)

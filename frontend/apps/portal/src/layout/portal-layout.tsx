@@ -4,6 +4,7 @@ import { Clapperboard, Heart, House, Search, Tv, UserRound } from "lucide-react"
 import { useEffect, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 
+import { StepUpDialog } from "../features/auth/step-up-dialog";
 import { AccountMenu } from "./account-menu";
 import { BrandLockup } from "./brand";
 import { SupportContacts } from "./support-contacts";
@@ -113,10 +114,16 @@ export function PortalLayout() {
       >
         <RenewBanner state={access} />
         <Outlet />
-        <footer className="mx-auto max-w-[1800px] px-4 pt-10 sm:px-6 lg:px-10">
+        <footer className="mx-auto grid max-w-[1800px] gap-2 px-4 pt-10 text-center text-xs text-muted-foreground sm:px-6 lg:px-10">
           <SupportContacts />
+          <p>
+            <Link to="/about" className="underline-offset-4 hover:text-foreground hover:underline">
+              {t("about.link")}
+            </Link>
+          </p>
         </footer>
       </main>
+      <StepUpDialog />
       <nav
         aria-label={t("nav.label")}
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"

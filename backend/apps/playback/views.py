@@ -23,7 +23,8 @@ from django.http import HttpRequest, HttpResponse
 from django.views.decorators.http import require_safe
 from redis.exceptions import RedisError
 
-from apps.playback import concurrency, tokens
+from apps.antisharing import streams
+from apps.playback import concurrency, edge_auth, tokens
 from apps.playback.tokens import Verdict
 
 logger = structlog.get_logger(__name__)
@@ -83,8 +84,21 @@ def _bytes(request: HttpRequest) -> int:
     return min(int(value), _MAX_BYTES)
 
 
-@require_safe
-async def stream_auth(request: HttpRequest) -> HttpResponse:
+#: An edge Test (apps.edges.probe) marks its synthetic session here for a minute, so the
+#: probe URL passes stream-auth without a playback session, slot or record.
+PROBE_PREFIX = "edges:probe:"
+
+
+async def _is_probe(session: str) -> bool:
+    client, _script = concurrency.async_state()
+    return bool(await client.exists(PROBE_PREFIX + session))
+
+
+async def authorize(  # noqa: PLR0911 (one answer per verdict)
+    request: HttpRequest, *, client_ip: str, edge: str
+) -> HttpResponse:
+    """stream-auth's decision for the token in X-Original-URI (shared by the internal
+    endpoint and the edges host's, which have already established who `edge` is)."""
     target = split_original_uri(request.headers.get("X-Original-URI", ""))
     if target is None:
         return _deny("invalid")
@@ -95,7 +109,6 @@ async def stream_auth(request: HttpRequest) -> HttpResponse:
         logger.error("stream_auth.keys_unusable", error=str(exc))
         return _unavailable()
     now = _clock()
-    client_ip = _client_ip(request)
     try:
         claims = tokens.verify(keyset, token, now=int(now), client_ip=client_ip or None, tail=tail)
     except tokens.TokenError as exc:
@@ -106,9 +119,15 @@ async def stream_auth(request: HttpRequest) -> HttpResponse:
             claims.session,
             now=now,
             ip=client_ip,
-            edge=_edge_id(request),
+            edge=edge,
             bytes_sent=_bytes(request),
         )
+        if (
+            not result.allowed
+            and result.reason == "session_ended"
+            and await _is_probe(claims.session)
+        ):
+            return HttpResponse(status=204)
     except RedisError:
         logger.exception("stream_auth.redis_unavailable")
         return _unavailable()
@@ -119,4 +138,17 @@ async def stream_auth(request: HttpRequest) -> HttpResponse:
             session=claims.session[: tokens.SESSION_LOG_PREFIX],
         )
         return _deny(result.reason)
+    # The networks a session's segments come from: an anti-sharing signal (G-18).
+    await streams.note_network(claims.session, client_ip)
     return HttpResponse(status=204)
+
+
+@require_safe
+async def stream_auth(request: HttpRequest) -> HttpResponse:
+    """The internal endpoint: the local edge and the live relay, on the internal network.
+
+    Callers prove they are one of them with the shared `X-Edge-Auth` secret (G-16)."""
+    if not edge_auth.authenticated(request):
+        logger.warning("stream_auth.caller_refused")
+        return _deny("invalid")
+    return await authorize(request, client_ip=_client_ip(request), edge=_edge_id(request))

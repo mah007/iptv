@@ -85,7 +85,8 @@ def walk(library_path: str, subpath: str = "") -> Iterator[FoundFile]:
     """Every video file under the library (or under `subpath` inside it), sorted by path.
 
     Hidden files and folders and NAS system folders are skipped; symlinked folders are
-    not followed. A `subpath` naming a file yields just that file when it is a video.
+    not followed, and a file whose real path leaves the library is skipped (G-07). A
+    `subpath` naming a file yields just that file when it is a video.
     """
     base = Path(library_path)
     start = library_file(library_path, subpath) if subpath else base
@@ -110,7 +111,20 @@ def walk(library_path: str, subpath: str = "") -> Iterator[FoundFile]:
                 yield found
 
 
+def _inside(base: Path, path: Path) -> bool:
+    """Whether `path`, symlinks resolved, is still inside the library (G-07): a link to a
+    file elsewhere on the server is never scanned, probed or served."""
+    try:
+        resolved = path.resolve(strict=True)
+        root = base.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return False
+    return root in resolved.parents
+
+
 def _found(base: Path, path: Path) -> FoundFile | None:
+    if not _inside(base, path):
+        return None
     try:
         stat = path.stat()
     except OSError:

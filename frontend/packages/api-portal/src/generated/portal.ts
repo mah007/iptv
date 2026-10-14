@@ -30,6 +30,7 @@ import type {
   Collection,
   CustomerLoginRequest,
   CustomerMe,
+  CustomerStepUpRequest,
   EpisodeDetail,
   FavoriteAdded,
   ForgotPasswordRequest,
@@ -67,6 +68,7 @@ import type {
   SeasonDetail,
   SeriesDetail,
   SeriesListParams,
+  StepUpResult,
   StopReportRequest,
   TitleCard,
   TitleRefRequest,
@@ -577,6 +579,178 @@ export const useAuthPasswordReset = <TError = ErrorType<Problem>, TContext = unk
   TContext
 > => {
   return useMutation(getAuthPasswordResetMutationOptions(options), queryClient);
+};
+
+export const getAuthStepUpUrl = () => {
+  return `/api/v1/auth/step-up`;
+};
+
+/**
+ * Adding a TV app or a new TV app login needs a confirmation within security.customer_step_up_window_min; signing in counts as one.
+ * @summary Confirm it's you with your password
+ */
+export const authStepUp = async (
+  customerStepUpRequest: CustomerStepUpRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<StepUpResult> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<StepUpResult>(getAuthStepUpUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(customerStepUpRequest),
+  });
+};
+
+export const getAuthStepUpMutationKey = () => ["authStepUp"] as const;
+
+export const getAuthStepUpMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authStepUp>>,
+    TError,
+    AuthStepUpMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authStepUp>>,
+  TError,
+  AuthStepUpMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAuthStepUpMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authStepUp>>,
+    AuthStepUpMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return authStepUp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthStepUpMutationResult = NonNullable<Awaited<ReturnType<typeof authStepUp>>>;
+export type AuthStepUpMutationBody = CustomerStepUpRequest;
+export type AuthStepUpMutationError = ErrorType<Problem>;
+export type AuthStepUpMutationVariables = { data: CustomerStepUpRequest };
+
+/**
+ * @summary Confirm it's you with your password
+ */
+export const useAuthStepUp = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authStepUp>>,
+      TError,
+      AuthStepUpMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authStepUp>>,
+  TError,
+  AuthStepUpMutationVariables,
+  TContext
+> => {
+  return useMutation(getAuthStepUpMutationOptions(options), queryClient);
+};
+
+export const getAuthStepUpForgetUrl = () => {
+  return `/api/v1/auth/step-up`;
+};
+
+/**
+ * POST /api/v1/auth/step-up: the password again (G-31); DELETE locks again.
+ * @summary Lock adding TV apps until the next confirmation
+ */
+export const authStepUpForget = async (options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+  return apiFetch<void>(getAuthStepUpForgetUrl(), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getAuthStepUpForgetMutationKey = () => ["authStepUpForget"] as const;
+
+export const getAuthStepUpForgetMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authStepUpForget>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof authStepUpForget>>, TError, void, TContext> => {
+  const mutationKey = getAuthStepUpForgetMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof authStepUpForget>>, void> = () => {
+    return authStepUpForget(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthStepUpForgetMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authStepUpForget>>
+>;
+
+export type AuthStepUpForgetMutationError = ErrorType<Problem>;
+
+/**
+ * @summary Lock adding TV apps until the next confirmation
+ */
+export const useAuthStepUpForget = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authStepUpForget>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof authStepUpForget>>, TError, void, TContext> => {
+  return useMutation(getAuthStepUpForgetMutationOptions(options), queryClient);
 };
 
 export const getBrandingRetrieveUrl = () => {

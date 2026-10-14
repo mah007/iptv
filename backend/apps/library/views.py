@@ -99,6 +99,7 @@ class LibraryDetailView(APIView):
         "PATCH": "library.manage",
         "DELETE": "library.manage",
     }
+    step_up_methods = frozenset({"DELETE"})
 
     @extend_schema(
         operation_id="libraries_retrieve",

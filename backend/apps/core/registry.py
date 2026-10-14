@@ -376,6 +376,35 @@ def network_list(value: Any) -> None:
 # --- end H2 ---
 
 
+# --- Application security (M14a, ADR-0021) ---
+_CSP_ORIGIN = re.compile(
+    r"https?://(?:\*\.)?[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(?::[0-9]{1,5})?"
+)
+
+
+def origin_list(value: Any) -> None:
+    """Web origins separated by commas (https://cdn.example.com, https://*.example.net);
+    empty: none. Strict, because the list goes into the portal's and the admin's
+    Content-Security-Policy header."""
+    for part in (item.strip() for item in str(value).split(",")):
+        if part and not _CSP_ORIGIN.fullmatch(part):
+            msg = f"{part} is not an origin such as https://cdn.example.com."
+            raise ValidationError(msg, code="invalid")
+
+
+# --- end M14a ---
+
+
+# --- Scale and CDN (M15, ADR-0022) ---
+_S3_ENDPOINT = re.compile(
+    r"https?://[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(?::[0-9]{1,5})?/?"
+)
+s3_endpoint = _optional(
+    _pattern(_S3_ENDPOINT, "Enter the service's address, e.g. https://s3.example.com.")
+)
+# --- end M15 ---
+
+
 GROUPS: tuple[str, ...] = (
     "branding",
     "xtream",
@@ -392,6 +421,13 @@ GROUPS: tuple[str, ...] = (
     "notifications",
     "backups",
     "privacy",
+    "geoip",
+    "antisharing",
+    # M15 (ADR-0022)
+    "edges",
+    "storage",
+    "cdn",
+    "database",
 )
 
 _K = SettingKind
@@ -817,6 +853,146 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "Addresses and networks CrowdSec never blocks, separated by commas, e.g. your "
                "office's 203.0.113.0/24.", "security", network_list),
     # --- end H2 ---
+    # --- Application security (M14a, ADR-0021) ---
+    SettingDef("security.admin_step_up_window_min", _K.INT, 5,
+               "Minutes an admin's confirmation (an authenticator code or a security key) "
+               "unlocks sensitive actions such as settings, roles, refunds and deletions.",
+               "security", min_value=1, max_value=60),
+    SettingDef("security.customer_step_up_window_min", _K.INT, 10,
+               "Minutes a customer's password confirmation unlocks adding a TV app or a new "
+               "TV app login.", "security", min_value=1, max_value=120),
+    SettingDef("security.webauthn_required_for", _K.STR, "none",
+               "Which admins must sign in with a security key or passkey instead of an "
+               "authenticator code: none, owners, or owners and admins.", "security",
+               choices=("none", "owners", "admins")),
+    SettingDef("security.admin_ip_allowlist", _K.STR, "",
+               "Only these addresses and networks may use the admin, separated by commas "
+               "(empty: any). Your current address must be in the list.", "security",
+               network_list),
+    SettingDef("security.csp_extra_media_origins", _K.STR, "",
+               "Extra media and CDN origins the admin and the portal may load media and "
+               "images from, separated by commas. Applies after the next update or restart.",
+               "security", origin_list),
+    SettingDef("security.rate_search_per_minute", _K.INT, 60,
+               "Searches one customer may run per minute.", "security", min_value=5,
+               max_value=1000),
+    SettingDef("security.rate_playback_start_per_minute", _K.INT, 30,
+               "Playback starts one customer may request per minute.", "security",
+               min_value=5, max_value=600),
+    SettingDef("security.rate_device_credentials_per_hour", _K.INT, 10,
+               "TV app logins one customer may create or renew per hour.", "security",
+               min_value=1, max_value=100),
+    SettingDef("security.rate_checkout_per_hour", _K.INT, 10,
+               "Checkouts one customer may start per hour.", "security", min_value=1,
+               max_value=100),
+    SettingDef("security.rate_admin_tmdb_search_per_minute", _K.INT, 30,
+               "Manual TMDB searches and re-matches one admin may run per minute.",
+               "security", min_value=5, max_value=600),
+    SettingDef("security.rate_backup_runs_per_hour", _K.INT, 6,
+               "Backups, restore drills and destination checks one admin may start per hour.",
+               "security", min_value=1, max_value=60),
+    SettingDef("geoip.enabled", _K.BOOL, True,
+               "Look up the country and network (ASN) of client addresses with DB-IP Lite.",
+               "geoip"),
+    SettingDef("geoip.auto_update", _K.BOOL, True,
+               "Download the new DB-IP Lite country and ASN databases each month.", "geoip"),
+    SettingDef("geoip.unknown_country_policy", _K.STR, "deny",
+               "When country rules allow only some countries and an address's country is "
+               "unknown: deny or allow playback. Local network addresses are always allowed.",
+               "geoip", choices=("deny", "allow")),
+    SettingDef("antisharing.enabled", _K.BOOL, True,
+               "Score each customer's sign-ins and streams for signs of credential sharing. "
+               "Flags never lock an account.", "antisharing"),
+    SettingDef("antisharing.max_asns_1h", _K.INT, 2,
+               "Networks (ASNs) one customer may use within an hour before it counts as a "
+               "sharing signal.", "antisharing", min_value=1, max_value=50),
+    SettingDef("antisharing.max_asns_24h", _K.INT, 3,
+               "Networks (ASNs) one customer may use within 24 hours before it counts as a "
+               "sharing signal.", "antisharing", min_value=1, max_value=100),
+    SettingDef("antisharing.max_countries_24h", _K.INT, 1,
+               "Countries one customer may appear from within 24 hours before it counts as a "
+               "sharing signal.", "antisharing", min_value=1, max_value=20),
+    SettingDef("antisharing.max_networks_per_credential_1h", _K.INT, 2,
+               "Networks one TV app login may be used from within an hour (changes within "
+               "one provider don't count).", "antisharing", min_value=1, max_value=50),
+    SettingDef("antisharing.travel_speed_kmh", _K.INT, 900,
+               "Faster apparent travel between two countries counts as impossible travel, in "
+               "km/h.", "antisharing", min_value=100, max_value=5000),
+    SettingDef("antisharing.travel_min_km", _K.INT, 500,
+               "Countries closer than this, in km, never count as impossible travel.",
+               "antisharing", min_value=0, max_value=5000),
+    SettingDef("antisharing.flag_score", _K.INT, 4,
+               "Score at which a customer is flagged for review.", "antisharing",
+               min_value=1, max_value=100),
+    SettingDef("antisharing.notify_admins", _K.BOOL, True,
+               "Tell the admins (alert recipients and Telegram) when a customer is flagged.",
+               "antisharing"),
+    SettingDef("privacy.antisharing_retention_days", _K.INT, 90,
+               "Days the networks and countries seen per customer (anti-sharing evidence) "
+               "are kept.", "privacy", min_value=7, max_value=3650),
+    # --- end M14a ---
+    # --- Scale and CDN (M15, ADR-0022) ---
+    SettingDef("edges.stale_after_s", _K.INT, 60,
+               "An edge that hasn't reported for this long, in seconds, gets no new "
+               "sessions (standalone edges report every 15 s).", "edges", min_value=20,
+               max_value=600),
+    SettingDef("edges.max_utilisation_pct", _K.INT, 90,
+               "An edge sending more than this share of its capacity gets no new sessions, "
+               "in percent.", "edges", min_value=10, max_value=100),
+    SettingDef("storage.s3_enabled", _K.BOOL, False,
+               "Publish the transcoded renditions to an S3-compatible bucket, the origin of "
+               "standalone edges and CDNs. Local disk stays the primary copy.", "storage"),
+    SettingDef("storage.s3_endpoint", _K.STR, "",
+               "The bucket service's address, e.g. https://<account>.r2.cloudflarestorage.com "
+               "or https://s3.us-west-004.backblazeb2.com.", "storage", s3_endpoint),
+    SettingDef("storage.s3_region", _K.STR, "",
+               "The bucket's region (auto for Cloudflare R2; empty means us-east-1).",
+               "storage", s3_region),
+    SettingDef("storage.s3_bucket", _K.STR, "", "The bucket's name (private).", "storage",
+               s3_bucket),
+    SettingDef("storage.s3_prefix", _K.STR, "renditions", "Folder inside the bucket.",
+               "storage", s3_prefix),
+    SettingDef("storage.s3_path_style", _K.BOOL, True,
+               "Address the bucket by path (R2, B2, SeaweedFS) instead of by host name.",
+               "storage"),
+    SettingDef("storage.s3_access_key", _K.STR, "",
+               "The publisher's access key id (read and write on the bucket).", "storage",
+               s3_credential, sensitive=True),
+    SettingDef("storage.s3_secret_key", _K.STR, "", "The publisher's secret access key.",
+               "storage", s3_credential, sensitive=True),
+    SettingDef("storage.s3_edge_access_key", _K.STR, "",
+               "The edges' access key id: read-only on the bucket (sent to standalone edges "
+               "over their authenticated control channel).", "storage", s3_credential,
+               sensitive=True),
+    SettingDef("storage.s3_edge_secret_key", _K.STR, "", "The edges' secret access key.",
+               "storage", s3_credential, sensitive=True),
+    SettingDef("storage.publish_sources", _K.BOOL, True,
+               "Also publish direct-play originals (they can be large); without them those "
+               "titles play from this server only.", "storage"),
+    SettingDef("storage.publish_mbps", _K.INT, 0,
+               "Upload speed limit for publishing, in Mbit/s (0: no limit).", "storage",
+               min_value=0, max_value=100000),
+    SettingDef("storage.old_generation_hours", _K.INT, 8,
+               "Hours a replaced copy stays in the bucket for players still using it (longer "
+               "than the longest playback URL lifetime).", "storage", min_value=7,
+               max_value=168),
+    SettingDef("cdn.bunny_token_key", _K.STR, "",
+               "The Bunny pull zone's token authentication key (Security, Token "
+               "authentication); CDN edges are used only when it is set.", "cdn",
+               s3_credential, sensitive=True),
+    SettingDef("cdn.origin_secret", _K.STR, "",
+               "The value Bunny sends in the X-Origin-Auth header on its pulls (an edge rule "
+               "in the pull zone); our edges serve CDN pulls only with it.", "cdn",
+               s3_credential, sensitive=True),
+    SettingDef("cdn.bunny_ip_binding", _K.BOOL, False,
+               "Sign the viewer's address into Bunny's tokens (IPv6 by its /64).", "cdn"),
+    SettingDef("database.replica_reads", _K.BOOL, True,
+               "Send reporting reads (dashboard charts, billing figures, the storage report) "
+               "to the read replica when one is installed.", "database"),
+    SettingDef("database.replica_max_lag_s", _K.INT, 30,
+               "The replica is used only while it is at most this many seconds behind.",
+               "database", min_value=1, max_value=3600),
+    # --- end M15 ---
 )  # fmt: skip
 
 

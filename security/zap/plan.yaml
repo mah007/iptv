@@ -1,0 +1,137 @@
+# ZAP baseline for the dev stack (`make zap`, ADR-0021): ZAP's Automation Framework in the
+# zap-bare image, passive rules only. It requests the public pages and API endpoints of
+# every host, spiders what it finds, and fails on any Low-or-higher alert the filters
+# below don't explain. Hosts come from ZAP_BASE (e.g. localhost:8080).
+env:
+  contexts:
+    - name: smart-iptv
+      urls:
+        - http://admin.${ZAP_BASE}/
+        - http://app.${ZAP_BASE}/
+        - http://api.${ZAP_BASE}/
+        - http://tv.${ZAP_BASE}/health
+      includePaths:
+        - http://(admin|app|api|tv|media)\.${ZAP_BASE_RE}(/.*)?
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  - type: passiveScan-config
+    parameters:
+      maxAlertsPerRule: 10
+      scanOnlyInScope: true
+      enableTags: false
+
+  # Accepted findings, each with its reason. Keep this list short; fix before filtering.
+  - type: alertFilter
+    alertFilters:
+      # 10049 Storable and Cacheable Content (informational by nature): public assets and
+      # the branding endpoint are meant to be cached.
+      - ruleId: 10049
+        newRisk: Info
+      # 10027 Information Disclosure - Suspicious Comments: Vite's dev bundles keep library
+      # comments ("select", "from", "user"...); production bundles are minified.
+      - ruleId: 10027
+        newRisk: Info
+      # 10109 Modern Web Application: the SPAs are JavaScript apps, as intended.
+      - ruleId: 10109
+        newRisk: Info
+      # 10104 User Agent Fuzzer: informational.
+      - ruleId: 10104
+        newRisk: Info
+      # 10015 Re-examine Cache-control Directives: an informational hint on public pages.
+      - ruleId: 10015
+        newRisk: Info
+      # 90004 Insufficient Site Isolation Against Spectre (missing COEP/CORP on API
+      # responses): the API answers JSON to same-origin callers only (CORS is off) and
+      # embeds nothing; COEP would break the trailer frame and TMDB images in the SPAs.
+      - ruleId: 90004
+        newRisk: Info
+      # 10096 Timestamp Disclosure: Xtream's contract returns Unix timestamps as strings.
+      - ruleId: 10096
+        newRisk: Info
+      # 10094 Base64 Disclosure: CSP nonces and Vite's module ids look like base64.
+      - ruleId: 10094
+        newRisk: Info
+      # 10098 Cross-Domain Misconfiguration on the media edge: "Access-Control-Allow-Origin: *"
+      # is deliberate (ADR-0017): web IPTV players follow the Xtream redirect and send
+      # `Origin: null`; no cookies are involved, the signed URL is the only credential.
+      - ruleId: 10098
+        url: http://media\..*
+        urlRegex: true
+        newRisk: Info
+      # 10055-3 CSP notices: "report-uri is deprecated in favour of report-to". Both are sent
+      # on purpose: browsers that know report-to ignore report-uri, and Firefox still only
+      # reports to report-uri. Other CSP findings (missing directives...) still fail.
+      - ruleId: 10055-3
+        newRisk: Info
+      # 10010 Cookie No HttpOnly Flag on csrftoken: the SPAs read it to send X-CSRFToken
+      # (Django's double-submit CSRF); the session cookie itself is HttpOnly.
+      - ruleId: 10010
+        parameter: csrftoken
+        newRisk: Info
+
+  # Fixed requests: pages and endpoints the spider can't reach (the SPAs render in JS).
+  - type: requestor
+    parameters:
+      user: ""
+    requests:
+      - url: http://admin.${ZAP_BASE}/
+      - url: http://admin.${ZAP_BASE}/login
+      - url: http://admin.${ZAP_BASE}/api/v1/auth/csrf
+      - url: http://admin.${ZAP_BASE}/api/v1/auth/me
+      - url: http://admin.${ZAP_BASE}/api/v1/admin/customers
+      - url: http://admin.${ZAP_BASE}/api/v1/branding
+      - url: http://app.${ZAP_BASE}/
+      - url: http://app.${ZAP_BASE}/login
+      - url: http://app.${ZAP_BASE}/about
+      - url: http://app.${ZAP_BASE}/api/v1/me
+      - url: http://app.${ZAP_BASE}/api/v1/catalog/home
+      - url: http://api.${ZAP_BASE}/
+      - url: http://api.${ZAP_BASE}/api/v1/health
+      - url: http://api.${ZAP_BASE}/api/v1/branding
+      - url: http://api.${ZAP_BASE}/api/v1/no-such-endpoint
+      - url: http://tv.${ZAP_BASE}/health
+      - url: http://tv.${ZAP_BASE}/player_api.php
+      - url: http://tv.${ZAP_BASE}/player_api.php?username=zap&password=zap-not-a-login
+      - url: http://tv.${ZAP_BASE}/get.php?username=zap&password=zap-not-a-login&type=m3u_plus
+      - url: http://tv.${ZAP_BASE}/xmltv.php?username=zap&password=zap-not-a-login
+      - url: http://media.${ZAP_BASE}/healthz
+      - url: http://media.${ZAP_BASE}/v/not-a-token/compat.mp4
+
+  - type: spider
+    parameters:
+      context: smart-iptv
+      maxDuration: 1
+      maxDepth: 3
+      maxChildren: 20
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 3
+
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: /zap/wrk/out
+      reportFile: zap-report.html
+      reportTitle: Smart IPTV ZAP baseline
+    risks: [high, medium, low, info]
+
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: /zap/wrk/out
+      reportFile: zap-report.json
+    risks: [high, medium, low, info]
+
+  # Any Low, Medium or High alert left after the filters fails `make zap`.
+  - type: exitStatus
+    parameters:
+      errorLevel: Low
+      warnLevel: Informational
+      okExitValue: 0
+      warnExitValue: 0
+      errorExitValue: 1

@@ -26,6 +26,8 @@ import json
 import random
 import re
 import secrets
+import socket
+import ssl
 import subprocess
 import sys
 import time
@@ -34,6 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+from urllib.request import urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 
@@ -79,6 +82,10 @@ PLAYLIST = "max-age=60"
 # Live TV (ADR-0017): a channel key (the token's title) and its files on the live volume.
 CHANNEL = "0192f3a4-b5c6-7d8e-9f00-1122334455bb"
 LIVE_SEGMENT = "live/1759800000.ts"
+# S3 origin mode (ADR-0022): rung folders as the publisher names them in the bucket.
+S3_RUNGS = ("v0-h1080", "v1-h720", "v3-h360")
+PROBE_BODY = b"smart-iptv edge probe\n"
+EDGE_ID_CONTROL = "edge-test-control"
 ARCHIVE_SEGMENT = "archive/20261004/12/1759579200000-4000.ts"
 
 
@@ -240,6 +247,20 @@ def write_media(media: Path) -> None:
     )
     (root / "hls" / "v720" / "init.mp4").write_bytes(rng.randbytes(1500))
     (root / "hls" / "v720" / "seg_00001.m4s").write_bytes(rng.randbytes(300_000))
+    # The S3 origin's layout (ADR-0022): rungs once, named by their height; a capped
+    # presentation's master names them; shared subtitles and thumbnails.
+    for rung in S3_RUNGS:
+        (root / "hls" / rung).mkdir(parents=True, exist_ok=True)
+        (root / "hls" / rung / "seg_00001.m4s").write_bytes(rng.randbytes(50_000))
+    (root / "hls" / "a0").mkdir(parents=True, exist_ok=True)
+    (root / "hls" / "a0" / "index.m3u8").write_text("#EXTM3U\n#EXT-X-ENDLIST\n")
+    (root / "hls720").mkdir(parents=True, exist_ok=True)
+    (root / "hls720" / "master.m3u8").write_text("#EXTM3U\nv1-h720/index.m3u8\n")
+    (root / "subs").mkdir(parents=True, exist_ok=True)
+    (root / "subs" / "x1.ara.vtt").write_text("WEBVTT\n")
+    # The edges' Test object (apps.edges.probe).
+    (media / "edgeprobe").mkdir(parents=True, exist_ok=True)
+    (media / "edgeprobe" / "probe.txt").write_bytes(PROBE_BODY)
 
 
 def write_live(live: Path) -> None:
@@ -374,6 +395,23 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     keys.chmod(0o644)  # read by nginx's master in the container (the test keys are throwaway)
     write_media(work / "media")
     write_live(work / "live")
+    # A standalone edge's secrets (ADR-0022): the origin's read-only key, the edge's bearer.
+    creds = {
+        "access_key": "EDGETEST" + secrets.token_hex(6).upper(),
+        "secret_key": secrets.token_urlsafe(30),
+        "region": "us-east-1",
+    }
+    (work / "origin-creds.json").write_text(json.dumps(creds))
+    (work / "origin-creds.json").chmod(0o644)
+    edge_secret = secrets.token_urlsafe(32)
+    (work / "edge_token").write_text(edge_secret + "\n")
+    (work / "edge_token").chmod(0o644)
+    # The CDN origin secret a pull zone sends (a file on the local edge, the control
+    # channel on the standalone one).
+    cdn_secret = secrets.token_urlsafe(32)
+    (work / "cdn_secret").write_text(cdn_secret + "\n")
+    (work / "cdn_secret").chmod(0o644)
+    Work(work).remember(creds["secret_key"], edge_secret, cdn_secret)
     rng = random.Random(args.seed)
     fuzz_keys = st.KeySet(st.Key("k2", bytes(range(32))), st.Key("k1", bytes(range(1, 33))))
     data = fuzz(fuzz_keys, 1767225000, rng, args.count)
@@ -572,6 +610,60 @@ def check_hls(c: Checks, edge: str, work: Work, token: str, label: str) -> None:
             resp.all("Cache-Control") == [cache],
             resp.all("Cache-Control"),
         )
+
+
+Fetch = Callable[[str, str, dict[str, str] | None], Response]
+
+
+def check_cdn(c: Checks, fetch: Fetch, work: Work, *, mode: str) -> None:
+    """CDN pulls (ADR-0022): /c/<title>/<path> with the zone's origin secret, nothing else;
+    the same mapping as a token's (the path's first folder is the rendition)."""
+    secret = (work.root / "cdn_secret").read_text().strip()
+    good = {"X-Origin-Auth": secret}
+    wrong = {"X-Origin-Auth": secret[:-1] + ("A" if secret[-1] != "A" else "B")}
+    path = f"/c/{TITLE}/compat.mp4"
+    check_denied(
+        c, f"CDN pull without the origin secret ({mode})", fetch("GET", path, None), 403, None
+    )
+    check_denied(c, f"CDN pull with a wrong secret ({mode})", fetch("GET", path, wrong), 403, None)
+    resp = fetch("GET", path, {**good, "Range": "bytes=0-99"})
+    c.check(
+        f"CDN pull with the secret ({mode}): the file's bytes",
+        resp.status == 206 and resp.body == work.file("compat.mp4")[:100],
+        resp.status,
+    )
+    c.check(
+        f"CDN pull ({mode}): cacheable for a year",
+        resp.all("Cache-Control") == [IMMUTABLE],
+        resp.all("Cache-Control"),
+    )
+    resp = fetch("GET", f"/c/{TITLE}/hls/master.m3u8", good)
+    c.check(
+        f"CDN pull of a playlist ({mode}): 200, max-age=60",
+        resp.status == 200 and resp.all("Cache-Control") == [PLAYLIST],
+        (resp.status, resp.all("Cache-Control")),
+    )
+    resp = fetch("POST", path, good)
+    c.check(f"CDN pull ({mode}): POST 405", resp.status == 405, resp.status)
+    resp = fetch("GET", f"/c/{TITLE}/../../etc/passwd", good)
+    c.check(
+        f"CDN pull ({mode}): dot-dot gives 404, no file",
+        resp.status == 404 and b"root:" not in resp.body,
+        resp.status,
+    )
+    resp = fetch("GET", f"/c/{TITLE}/hls/missing.m3u8", good)
+    c.check(f"CDN pull ({mode}): a missing file is 404", resp.status == 404, resp.status)
+    if mode == "s3":
+        resp = fetch("GET", f"/c/{TITLE}/hls720/v1-h720/seg_00001.m4s", good)
+        c.check(
+            "CDN pull of a capped rung within its ceiling: hls/'s bytes",
+            resp.status == 200 and resp.body == work.file("hls/v1-h720/seg_00001.m4s"),
+            resp.status,
+        )
+        resp = fetch("GET", f"/c/{TITLE}/hls720/v0-h1080/seg_00001.m4s", good)
+        check_denied(c, "CDN pull of a rung above the ceiling", resp, 404, None)
+        resp = fetch("GET", f"/c/{TITLE}/hls720/v0-h1080/seg_00001.m4s", None)
+        check_denied(c, "the same without the secret", resp, 403, None)
 
 
 def auth_calls(control: str, session: str) -> dict[str, Any]:
@@ -819,6 +911,9 @@ def run_local(args: argparse.Namespace) -> int:
     c.check("Xtream path on the media host: 404", resp.status == 404, resp.status)
     resp = request(edge, "GET", f"/{XTREAM_USER}/{XTREAM_PASSWORD}/123")
     c.check("other path: 404", resp.status == 404, resp.status)
+    check_cdn(
+        c, lambda method, path, headers: request(edge, method, path, headers), work, mode="local"
+    )
     return c.finish()
 
 
@@ -954,6 +1049,12 @@ def run_s3(args: argparse.Namespace) -> int:
     resp = request(edge, "GET", f"/v/{kicked}/hls/master.m3u8")
     check_denied(c, "kicked session", resp, 403, "kicked")
 
+    check_s3_mapping(c, edge, control, work)
+    unsigned = [r["path"] for r in origin_requests(control) if not r["signed"]]
+    c.check(
+        "every origin read was presigned with the edges' key (G-44)", not unsigned, unsigned[:5]
+    )
+
     config = subprocess.run(
         ["docker", "exec", args.container, "nginx", "-T"],
         capture_output=True,
@@ -968,6 +1069,285 @@ def run_s3(args: argparse.Namespace) -> int:
         "cache key = object + slice range", "proxy_cache_key $edge_object$slice_range;" in config
     )
     c.check("proxy_cache_valid 200 206 30d", "proxy_cache_valid 200 206 30d;" in config)
+    return c.finish()
+
+
+def check_s3_mapping(c: Checks, edge: str, control: str, work: Work) -> None:
+    """The bucket layout (ADR-0022): a capped presentation reaches the rungs that fit its
+    ceiling under hls/, and only those; shared folders and the probe object."""
+    capped = work.token(rendition="hls720")
+    for name, tail, obj in [
+        ("capped master", "hls720/master.m3u8", "hls720/master.m3u8"),
+        ("rung within the ceiling", "hls720/v1-h720/seg_00001.m4s", "hls/v1-h720/seg_00001.m4s"),
+        ("lower rung", "hls720/v3-h360/seg_00001.m4s", "hls/v3-h360/seg_00001.m4s"),
+        ("audio rendition", "hls720/a0/index.m3u8", "hls/a0/index.m3u8"),
+        ("shared subtitles", "hls720/subs/x1.ara.vtt", "subs/x1.ara.vtt"),
+    ]:
+        resp = request(edge, "GET", f"/v/{capped}/{tail}")
+        c.check(
+            f"S3 {name}: 200 with {obj}'s bytes",
+            resp.status == 200 and resp.body == work.file(obj),
+            resp.status,
+        )
+    reads = {r["path"] for r in origin_requests(control)}
+    c.check(
+        "the rung is read once, from hls/ (no copy per presentation)",
+        f"/origin/{TITLE}/hls/v1-h720/seg_00001.m4s" in reads
+        and f"/origin/{TITLE}/hls720/v1-h720/seg_00001.m4s" not in reads,
+        sorted(r for r in reads if "v1-h720" in r),
+    )
+    resp = request(edge, "GET", f"/v/{capped}/hls720/v0-h1080/seg_00001.m4s")
+    check_denied(c, "S3 rung above the ceiling", resp, 403, "invalid")
+    resp = request(edge, "GET", f"/v/{capped}/hls720/v0/seg_00001.m4s")
+    check_denied(c, "S3 rung without its height", resp, 403, "invalid")
+    before = len(origin_requests(control))
+    resp = request(edge, "GET", f"/v/{capped}/hls720/master.m3u8")
+    c.check(
+        "S3 playlist again within a minute: from the edge's cache",
+        resp.status == 200 and len(origin_requests(control)) == before,
+        len(origin_requests(control)) - before,
+    )
+    c.check(
+        "S3 playlist: max-age=60 for players",
+        resp.all("Cache-Control") == [PLAYLIST],
+        resp.all("Cache-Control"),
+    )
+    probe = work.token(rendition="probe", title="edgeprobe")
+    resp = request(edge, "GET", f"/v/{probe}/probe.txt")
+    c.check("the edges' probe object", resp.status == 200 and resp.body == PROBE_BODY, resp.status)
+
+
+# --------------------------------------------------------------------- standalone edge
+
+
+class _TLSConnection(http.client.HTTPSConnection):
+    """HTTPS to an address with another name for SNI and certificate checks."""
+
+    def __init__(self, host: str, port: int, server_name: str, context: ssl.SSLContext) -> None:
+        super().__init__(host, port, context=context, timeout=30)
+        self.server_name = server_name
+
+    def connect(self) -> None:
+        sock = socket.create_connection((self.host, self.port), self.timeout)
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.server_name)  # type: ignore[attr-defined]
+
+
+def request_tls(
+    base: str, method: str, path: str, *, ca: Path, server_name: str,
+    headers: dict[str, str] | None = None,
+) -> Response:  # fmt: skip
+    url = urlsplit(base)
+    context = ssl.create_default_context(cafile=str(ca))
+    conn = _TLSConnection(url.hostname or "127.0.0.1", url.port or 443, server_name, context)
+    try:
+        conn.putrequest(method, path, skip_accept_encoding=True)
+        for name, value in (headers or {}).items():
+            conn.putheader(name, value)
+        conn.endheaders()
+        resp = conn.getresponse()
+        return Response(resp.status, resp.getheaders(), resp.read())
+    finally:
+        conn.close()
+
+
+def polls(control: str) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = control_json(control, "/__control/polls")["polls"]
+    return found
+
+
+def wait_for(predicate: Callable[[], bool], timeout: float) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(0.5)
+    return predicate()
+
+
+def run_control(args: argparse.Namespace) -> int:
+    """A standalone edge (ADR-0022): its own TLS, the control channel over TLS (keys and the
+    origin's read-only key), stream-auth on the edges host with its bearer, a key
+    rotation picked up without a reload, and G-17's per-connection rate."""
+    c = Checks(f"standalone edge ({args.edge})")
+    edge, plain, control, ca = args.edge, args.plain, args.control, args.ca
+    work = Work(args.work)
+    name = "edge.test"
+
+    def tls(path: str, headers: dict[str, str] | None = None) -> Response:
+        return request_tls(edge, "GET", path, ca=ca, server_name=name, headers=headers)
+
+    healthy = wait_for(lambda: request(plain, "GET", "/healthz").status == 200, 30)
+    c.check("healthy once the first poll brought the keys", healthy)
+    reported = wait_for(
+        lambda: any(p["body"].get("kids") == ["k2", "k1"] for p in polls(control)), 30
+    )
+    c.check(
+        "its polls report the key ids it holds",
+        reported,
+        [p["body"].get("kids") for p in polls(control)][-3:],
+    )
+    last = polls(control)[-1] if polls(control) else {"headers": {}, "body": {}}
+    c.check("polls name the edge", last["headers"].get("x-edge-id") == EDGE_ID_CONTROL)
+    c.check(
+        "polls report connections and the byte counter",
+        isinstance(last["body"].get("connections", {}).get("active"), int)
+        and isinstance(last["body"].get("tx_bytes"), int),
+        last["body"],
+    )
+    resp = tls("/healthz")
+    c.check("its own TLS: /healthz over https", resp.status == 200, resp.status)
+    c.check(
+        "HSTS on its own TLS",
+        resp.get("Strict-Transport-Security") == "max-age=31536000",
+        resp.all("Strict-Transport-Security"),
+    )
+    resp = request(plain, "GET", "/v/x/y.mp4")
+    c.check(
+        "plain http redirects to https",
+        resp.status == 301 and resp.get("Location") == f"https://{name}/v/x/y.mp4",
+        (resp.status, resp.get("Location")),
+    )
+
+    control_post(control, "/__control/reset")
+    data = work.file("compat.mp4")
+    token = work.token(rendition="compat")
+    resp = tls(f"/v/{token}/compat.mp4", {"X-Forwarded-For": CLIENT_V4})
+    c.check(
+        "a signed URL over TLS: the whole file from the private origin",
+        resp.status == 200 and sha(resp.body) == sha(data),
+        resp.status,
+    )
+    reads = origin_requests(control)
+    c.check(
+        "origin reads presigned with the key from the control channel",
+        bool(reads) and all(r["signed"] for r in reads),
+        [r["signed"] for r in reads],
+    )
+    calls = auth_calls(control, session_of(token))
+    seen = calls.get("last") or {}
+    c.check("stream-auth on the edges host was asked", calls.get("count", 0) >= 1, calls)
+    c.check(
+        "stream-auth carries the edge's id and the client address",
+        seen.get("x-edge-id") == EDGE_ID_CONTROL and bool(seen.get("x-edge-client-ip")),
+        sorted(seen),
+    )
+    c.check(
+        "the client's forwarding header isn't trusted", seen.get("x-edge-client-ip") != CLIENT_V4
+    )
+
+    started = time.monotonic()
+    resp = tls(f"/v/{work.token(rendition='compat')}/compat.mp4")
+    elapsed = time.monotonic() - started
+    c.check(
+        "G-17: after 2 MB a connection gets 4 MB/s (9 MB in >= 1.5 s)",
+        resp.status == 200 and elapsed >= 1.5,
+        round(elapsed, 2),
+    )
+
+    kicked = work.token(rendition="compat")
+    control_post(control, f"/__control/kick?session={session_of(kicked)}")
+    resp = tls(f"/v/{kicked}/compat.mp4", {"Range": "bytes=0-99"})
+    check_denied(c, "a kick bites across hosts", resp, 403, "kicked")
+    resp = tls(f"/v/{work.foreign(tamper_signature(token))}/compat.mp4")
+    check_denied(c, "a tampered signature on a standalone edge", resp, 403, "invalid")
+
+    # A rotation: the control plane hands out k3 (k2 previous); the edge picks it up on
+    # its next poll, without a reload, and reports it.
+    rotated = st.rotate(work.keys, kid="k3")
+    body = st.keyset_json(rotated).encode()
+    response = http.client.HTTPConnection(
+        urlsplit(control).hostname or "", urlsplit(control).port or 80
+    )
+    response.request(
+        "POST", "/__control/keys", body=body, headers={"Content-Type": "application/json"}
+    )
+    c.check("the control plane rotated", response.getresponse().status == 204)
+    stored = json.loads(body)
+    work.remember(stored["current"]["secret"])
+    picked = wait_for(
+        lambda: any(p["body"].get("kids") == ["k3", "k2"] for p in polls(control)), 30
+    )
+    c.check("the edge reports the new key within a poll or two", picked)
+    fresh = st.sign(
+        rotated, session=secrets.token_hex(16), title=TITLE, rendition="compat",
+        exp=int(time.time()) + 600,
+    )  # fmt: skip
+    resp = tls(f"/v/{fresh}/compat.mp4", {"Range": "bytes=0-99"})
+    c.check("a token signed with the new key plays", resp.status == 206, resp.status)
+    old = work.token(rendition="compat", kid="k1")
+    resp = tls(f"/v/{old}/compat.mp4", {"Range": "bytes=0-99"})
+    check_denied(c, "a token of the retired key", resp, 403, "invalid")
+
+    # CDN pulls, with the origin secret from the control channel.
+    def pull(method: str, path: str, headers: dict[str, str] | None) -> Response:
+        return request_tls(edge, method, path, ca=ca, server_name=name, headers=headers)
+
+    check_cdn(c, pull, work, mode="s3")
+    return c.finish()
+
+
+def peer_certificate(base: str, ca: Path, server_name: str) -> dict[str, Any] | None:
+    """The edge's certificate as verified against `ca` for `server_name`, or None."""
+    url = urlsplit(base)
+    context = ssl.create_default_context(cafile=str(ca))
+    try:
+        with (
+            socket.create_connection((url.hostname or "127.0.0.1", url.port or 443), 5) as sock,
+            context.wrap_socket(sock, server_hostname=server_name) as tls,
+        ):
+            return tls.getpeercert()
+    except (OSError, ssl.SSLError):
+        return None
+
+
+def run_acme(args: argparse.Namespace) -> int:
+    """A standalone edge with EDGE_TLS=acme (ADR-0022): nginx's ACME module gets its
+    certificate from Pebble, Let's Encrypt's test server, keeps it in the state folder
+    and serves it again after a restart without asking for another."""
+    c = Checks(f"standalone edge with ACME ({args.edge})")
+    name = "edge.test"
+    mgmt = ssl.create_default_context(cafile=str(args.pebble_ca))
+    mgmt.check_hostname = False  # Pebble's own test certificate names localhost and pebble
+    root = args.work / "tls" / "pebble-root.pem"
+    issued: dict[str, Any] | None = None
+    deadline = time.monotonic() + 120
+    while time.monotonic() < deadline:
+        try:
+            with urlopen(f"{args.mgmt}/roots/0", context=mgmt, timeout=5) as response:  # noqa: S310 (local test server)
+                root.write_bytes(response.read())
+        except OSError:
+            time.sleep(1)
+            continue
+        issued = peer_certificate(args.edge, root, name)
+        if issued is not None:
+            break
+        time.sleep(2)
+    c.check(
+        "a certificate from the ACME server, valid for edge.test, within 2 minutes",
+        issued is not None,
+    )
+    issuer = dict(item[0] for item in (issued or {}).get("issuer", ()))
+    c.check("issued by the ACME server's CA", "Pebble" in issuer.get("commonName", ""), issuer)
+    resp = request_tls(args.edge, "GET", "/healthz", ca=root, server_name=name)
+    c.check("/healthz over the issued certificate", resp.status == 200, resp.status)
+    c.check(
+        "HSTS on it",
+        resp.get("Strict-Transport-Security") == "max-age=31536000",
+        resp.all("Strict-Transport-Security"),
+    )
+    serial = (issued or {}).get("serialNumber")
+    subprocess.run(["docker", "restart", args.container], check=True, capture_output=True)
+    again = None
+    deadline = time.monotonic() + 60
+    while again is None and time.monotonic() < deadline:
+        again = peer_certificate(args.edge, root, name)
+        if again is None:
+            time.sleep(1)
+    c.check(
+        "after a restart, the same certificate from the state folder (no new order)",
+        again is not None and again.get("serialNumber") == serial,
+        (serial, (again or {}).get("serialNumber")),
+    )
     return c.finish()
 
 
@@ -1019,8 +1399,15 @@ def run_live(args: argparse.Namespace) -> int:
     c.check("the relay saw two requests", len(relayed) == 2, len(relayed))
     if relayed:
         headers = relayed[0]["headers"]
-        c.check("relay: X-Original-URI is the token URI", headers.get("x-original-uri", "").startswith(f"/v/{live}/"))
-        c.check("relay: X-Real-IP is the client", headers.get("x-real-ip") == CLIENT_V4, headers.get("x-real-ip"))
+        c.check(
+            "relay: X-Original-URI is the token URI",
+            headers.get("x-original-uri", "").startswith(f"/v/{live}/"),
+        )
+        c.check(
+            "relay: X-Real-IP is the client",
+            headers.get("x-real-ip") == CLIENT_V4,
+            headers.get("x-real-ip"),
+        )
         c.check(
             "relay: no client cookie, authorization or forwarding header",
             not {"cookie", "authorization", "x-forwarded-for"} & set(headers),
@@ -1043,7 +1430,9 @@ def run_live(args: argparse.Namespace) -> int:
 
     # Scope: each token reaches only its own root and rendition.
     vod = work.token(rendition="compat")
-    check_denied(c, "VOD token for live.ts", request(args.edge, "GET", f"/v/{vod}/live.ts"), 403, "invalid")
+    check_denied(
+        c, "VOD token for live.ts", request(args.edge, "GET", f"/v/{vod}/live.ts"), 403, "invalid"
+    )
     vod_live = work.token(rendition="compat", title=CHANNEL)
     check_denied(
         c, "VOD rendition on a channel's segment",
@@ -1201,6 +1590,20 @@ def main(argv: list[str] | None = None) -> int:
         sub.add_argument("--work", type=Path, required=True)
         sub.add_argument("--auth-ttl", type=float, default=3.0, help="EDGE_AUTH_CACHE_TTL, seconds")
         sub.add_argument("--container", default="prework-edge-s3")
+    standalone = step("control", run_control)
+    standalone.add_argument("--edge", required=True, help="https://127.0.0.1:<port>")
+    standalone.add_argument("--plain", required=True, help="http://127.0.0.1:<port>")
+    standalone.add_argument("--control", required=True)
+    standalone.add_argument("--work", type=Path, required=True)
+    standalone.add_argument("--ca", type=Path, required=True)
+    acme = step("acme", run_acme)
+    acme.add_argument("--edge", required=True, help="https://127.0.0.1:<port>")
+    acme.add_argument(
+        "--mgmt", required=True, help="Pebble's management API, https://127.0.0.1:<port>"
+    )
+    acme.add_argument("--pebble-ca", type=Path, required=True, help="the CA of Pebble's own TLS")
+    acme.add_argument("--work", type=Path, required=True)
+    acme.add_argument("--container", default="prework-edge-acme")
     logs = step("logs", run_logs)
     logs.add_argument("--work", type=Path, required=True)
     logs.add_argument("files", nargs="+")

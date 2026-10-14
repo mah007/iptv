@@ -43,7 +43,7 @@ services:
 
   worker:
     <<: *app-dev
-    command: ["watchfiles", "--filter", "python", "celery -A config worker --queues default,scan,metadata,images,notify --concurrency 2 --loglevel INFO", "/app"]
+    command: ["watchfiles", "--filter", "python", "celery -A config worker --queues default,scan,metadata,images,notify,publish --concurrency 2 --loglevel INFO", "/app"]
 
   watcher:
     <<: *app-dev

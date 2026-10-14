@@ -1,0 +1,21 @@
+
+# A standalone edge (ADR-0022): stream-auth and the control channel on the control
+# plane's edges host, over TLS, with this edge's bearer secret.
+upstream edge_auth {
+    zone edge_auth_upstream 64k;
+    server ${EDGE_CONTROL_HOSTPORT} resolve;
+    keepalive 16;
+}
+
+map "" $edge_control_url {
+    default "${EDGE_CONTROL_URL}";
+}
+
+# Host header of control-plane requests ("" uses the URL's host).
+map "" $edge_control_host {
+    default "${EDGE_CONTROL_HOST}";
+}
+
+# What the control channel fetches: the key set, the origin's read-only key and the CDN
+# origin secret (control.js). Shared memory: gone at a restart, fetched again at once.
+js_shared_dict_zone zone=edge_ctl:1m;

@@ -149,6 +149,14 @@ def webhook_payloads(now: datetime) -> dict[str, int]:
     return {"webhook_payloads_emptied": emptied}
 
 
+def antisharing_sightings(now: datetime) -> dict[str, int]:
+    """Anti-sharing evidence (networks and countries per customer; M14a, ADR-0021)."""
+    from apps.antisharing.models import Sighting  # noqa: PLC0415
+
+    cutoff = now - _days("privacy.antisharing_retention_days")
+    return {"sightings_deleted": delete_in_batches(Sighting.objects.filter(last_seen__lt=cutoff))}
+
+
 def django_sessions() -> dict[str, int]:
     from django.contrib.sessions.models import Session  # noqa: PLC0415
 
@@ -175,6 +183,7 @@ STEPS: Final[tuple[Callable[[datetime], dict[str, int]], ...]] = (
     webhook_payloads,
     _audit,
     _django_sessions,
+    antisharing_sightings,
 )
 
 

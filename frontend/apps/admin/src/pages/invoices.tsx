@@ -1,7 +1,6 @@
 import {
   InvoiceStatus,
   getInvoicesDocumentUrl,
-  useInvoicesDocument,
   useInvoicesList,
   useInvoicesRetrieve,
   type Invoice,
@@ -139,11 +138,9 @@ function InvoiceSheet({ id, onClose }: { id: string | undefined; onClose: () => 
   const format = useFormatters();
   const [locale, setLocale] = useState<"en" | "ar">(i18n.language === "ar" ? "ar" : "en");
   const query = useInvoicesRetrieve(id ?? "", { query: { enabled: id !== undefined } });
-  const preview = useInvoicesDocument(
-    id ?? "",
-    { locale },
-    { query: { enabled: id !== undefined } },
-  );
+  // A document of its own, with its own Content-Security-Policy (inline styles, no
+  // scripts): a srcdoc frame would inherit the admin's stricter policy (ADR-0021).
+  const previewUrl = id === undefined ? undefined : getInvoicesDocumentUrl(id, { locale });
   const invoice = query.data;
   return (
     <Sheet
@@ -302,16 +299,15 @@ function InvoiceSheet({ id, onClose }: { id: string | undefined; onClose: () => 
                     locale === "ar" ? t("invoices.detail.arabic") : t("invoices.detail.english")
                   }
                 >
-                  {preview.isPending ? (
+                  {previewUrl === undefined ? (
                     <Skeleton className="h-96 w-full" />
-                  ) : preview.isError ? (
-                    <QueryError error={preview.error} />
                   ) : (
                     // No scripts and no same-origin access: the document is only shown.
                     <iframe
+                      key={previewUrl}
                       title={t("invoices.detail.preview")}
                       sandbox=""
-                      srcDoc={preview.data}
+                      src={previewUrl}
                       className="h-[32rem] w-full rounded-input border border-border bg-white"
                     />
                   )}

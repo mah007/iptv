@@ -120,6 +120,7 @@ class IntegrationListView(APIView):
 class IntegrationTestView(APIView):
     permission_classes = (HasPermission,)
     required_permissions: ClassVar[Requirements] = {"POST": "settings.edit"}
+    step_up_methods = frozenset({"POST"})
 
     @extend_schema(
         operation_id="integrations_test",

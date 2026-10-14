@@ -1,0 +1,7 @@
+
+# Django's internal URLconf, which serves /internal/stream-auth from Redis only.
+upstream edge_auth {
+    zone edge_auth_upstream 64k;
+    server ${EDGE_AUTH_UPSTREAM} resolve;
+    keepalive 16;
+}

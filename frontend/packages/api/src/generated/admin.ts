@@ -60,10 +60,19 @@ import type {
   Device,
   DeviceBlockRequest,
   DeviceCreateRequest,
+  Edge,
+  EdgeCreated,
+  EdgeList,
+  EdgeSecret,
+  EdgeWriteRequest,
   EpgChannel,
   EpgSource,
   EpgSourceWriteRequest,
   ExtendRequest,
+  GeoIpQueued,
+  GeoIpStatus,
+  GeoLookup,
+  GeoLookupRequestRequest,
   Health,
   ImageAddRequest,
   Integration,
@@ -132,6 +141,7 @@ import type {
   PatchedCategoryWriteRequest,
   PatchedCollectionWriteRequest,
   PatchedCustomerProfileRequest,
+  PatchedEdgeWriteRequest,
   PatchedEpgSourceWriteRequest,
   PatchedLibraryWriteRequest,
   PatchedLiveChannelWriteRequest,
@@ -143,6 +153,7 @@ import type {
   PatchedSettingRequest,
   PatchedSettingsBulkRequest,
   PatchedTrackUpdateRequest,
+  PatchedWebAuthnRenameRequest,
   PaymentDetail,
   PaymentsListParams,
   Permission,
@@ -152,6 +163,7 @@ import type {
   Preview,
   PreviewRequestRequest,
   PriorityRequest,
+  ProbeResult,
   Problem,
   Programme,
   Queued,
@@ -162,9 +174,15 @@ import type {
   ReorderRequest,
   ReprocessRequest,
   ReprocessResult,
+  ResetResult,
   ResolveRequest,
   Review,
   ReviewQueueListParams,
+  ReviewRequest,
+  RevokeByAppRequest,
+  RevokeByAppResult,
+  RiskFlag,
+  RiskOverview,
   Role,
   RoleRequest,
   RunRequestRequest,
@@ -181,6 +199,8 @@ import type {
   SourceTestQueued,
   SourceTestRequestRequest,
   SourceTestResult,
+  StepUpRequest,
+  StepUpResult,
   StorageUsage,
   Subscription,
   SubscriptionCreateRequest,
@@ -202,6 +222,10 @@ import type {
   TranscodeJobsStreamParams,
   TrialStartRequest,
   Unmatched,
+  WebAuthnCredential,
+  WebAuthnOptions,
+  WebAuthnRegisterRequest,
+  WebAuthnVerifyRequest,
 } from "./admin.schemas";
 
 import { apiFetch } from "../fetcher";
@@ -1016,6 +1040,94 @@ export const useAdminsUpdate = <TError = ErrorType<Problem>, TContext = unknown>
   TContext
 > => {
   return useMutation(getAdminsUpdateMutationOptions(options), queryClient);
+};
+
+export const getAdminsResetMfaUrl = (id: string) => {
+  return `/api/v1/admin/admins/${encodeURIComponent(String(id))}/reset-mfa`;
+};
+
+/**
+ * POST /api/v1/admin/admins/{id}/reset-mfa: remove an admin's authenticator and keys.
+ *
+ * The recovery path for a lost phone or key (ADR-0021): their sessions end, and their
+ * next sign-in enrols a new authenticator app. Only owners reset an owner; resetting
+ * yourself is refused (use My account → Security, or the host command).
+ * @summary Reset an admin's sign-in confirmation (authenticator app and keys)
+ */
+export const adminsResetMfa = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Admin> => {
+  return apiFetch<Admin>(getAdminsResetMfaUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAdminsResetMfaMutationKey = () => ["adminsResetMfa"] as const;
+
+export const getAdminsResetMfaMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminsResetMfa>>,
+    TError,
+    AdminsResetMfaMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminsResetMfa>>,
+  TError,
+  AdminsResetMfaMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAdminsResetMfaMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminsResetMfa>>,
+    AdminsResetMfaMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return adminsResetMfa(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminsResetMfaMutationResult = NonNullable<Awaited<ReturnType<typeof adminsResetMfa>>>;
+
+export type AdminsResetMfaMutationError = ErrorType<Problem>;
+export type AdminsResetMfaMutationVariables = { id: string };
+
+/**
+ * @summary Reset an admin's sign-in confirmation (authenticator app and keys)
+ */
+export const useAdminsResetMfa = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof adminsResetMfa>>,
+      TError,
+      AdminsResetMfaMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof adminsResetMfa>>,
+  TError,
+  AdminsResetMfaMutationVariables,
+  TContext
+> => {
+  return useMutation(getAdminsResetMfaMutationOptions(options), queryClient);
 };
 
 export const getAuditListUrl = (params?: AuditListParams) => {
@@ -4039,6 +4151,493 @@ export const useCustomersReactivate = <TError = ErrorType<Problem>, TContext = u
   return useMutation(getCustomersReactivateMutationOptions(options), queryClient);
 };
 
+export const getCustomersRiskUrl = (id: string) => {
+  return `/api/v1/admin/customers/${encodeURIComponent(String(id))}/risk`;
+};
+
+/**
+ * @summary Sharing signals: the flag, the score now, and where the customer was seen
+ */
+export const customersRisk = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<RiskOverview> => {
+  return apiFetch<RiskOverview>(getCustomersRiskUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getCustomersRiskQueryKey = (id: string) => {
+  return [`/api/v1/admin/customers/${id}/risk`] as const;
+};
+
+export const getCustomersRiskQueryOptions = <
+  TData = Awaited<ReturnType<typeof customersRisk>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersRisk>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getCustomersRiskQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof customersRisk>>> = ({ signal }) =>
+    customersRisk(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof customersRisk>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type CustomersRiskQueryResult = NonNullable<Awaited<ReturnType<typeof customersRisk>>>;
+export type CustomersRiskQueryError = ErrorType<Problem>;
+
+export function useCustomersRisk<
+  TData = Awaited<ReturnType<typeof customersRisk>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersRisk>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof customersRisk>>,
+          TError,
+          Awaited<ReturnType<typeof customersRisk>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useCustomersRisk<
+  TData = Awaited<ReturnType<typeof customersRisk>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersRisk>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof customersRisk>>,
+          TError,
+          Awaited<ReturnType<typeof customersRisk>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useCustomersRisk<
+  TData = Awaited<ReturnType<typeof customersRisk>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersRisk>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Sharing signals: the flag, the score now, and where the customer was seen
+ */
+
+export function useCustomersRisk<
+  TData = Awaited<ReturnType<typeof customersRisk>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof customersRisk>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getCustomersRiskQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getCustomersRiskResetCredentialsUrl = (id: string) => {
+  return `/api/v1/admin/customers/${encodeURIComponent(String(id))}/risk/reset-credentials`;
+};
+
+/**
+ * @summary Reset every IPTV app login of the customer (they make new ones)
+ */
+export const customersRiskResetCredentials = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ResetResult> => {
+  return apiFetch<ResetResult>(getCustomersRiskResetCredentialsUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCustomersRiskResetCredentialsMutationKey = () =>
+  ["customersRiskResetCredentials"] as const;
+
+export const getCustomersRiskResetCredentialsMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof customersRiskResetCredentials>>,
+    TError,
+    CustomersRiskResetCredentialsMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof customersRiskResetCredentials>>,
+  TError,
+  CustomersRiskResetCredentialsMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCustomersRiskResetCredentialsMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof customersRiskResetCredentials>>,
+    CustomersRiskResetCredentialsMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return customersRiskResetCredentials(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CustomersRiskResetCredentialsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof customersRiskResetCredentials>>
+>;
+
+export type CustomersRiskResetCredentialsMutationError = ErrorType<Problem>;
+export type CustomersRiskResetCredentialsMutationVariables = { id: string };
+
+/**
+ * @summary Reset every IPTV app login of the customer (they make new ones)
+ */
+export const useCustomersRiskResetCredentials = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof customersRiskResetCredentials>>,
+      TError,
+      CustomersRiskResetCredentialsMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof customersRiskResetCredentials>>,
+  TError,
+  CustomersRiskResetCredentialsMutationVariables,
+  TContext
+> => {
+  return useMutation(getCustomersRiskResetCredentialsMutationOptions(options), queryClient);
+};
+
+export const getCustomersRiskReviewUrl = (id: string) => {
+  return `/api/v1/admin/customers/${encodeURIComponent(String(id))}/risk/review`;
+};
+
+/**
+ * @summary Mark the open sharing flag reviewed
+ */
+export const customersRiskReview = async (
+  id: string,
+  reviewRequest?: ReviewRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<RiskFlag> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<RiskFlag>(getCustomersRiskReviewUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(reviewRequest),
+  });
+};
+
+export const getCustomersRiskReviewMutationKey = () => ["customersRiskReview"] as const;
+
+export const getCustomersRiskReviewMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof customersRiskReview>>,
+    TError,
+    CustomersRiskReviewMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof customersRiskReview>>,
+  TError,
+  CustomersRiskReviewMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCustomersRiskReviewMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof customersRiskReview>>,
+    CustomersRiskReviewMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return customersRiskReview(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CustomersRiskReviewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof customersRiskReview>>
+>;
+export type CustomersRiskReviewMutationBody = ReviewRequest | undefined;
+export type CustomersRiskReviewMutationError = ErrorType<Problem>;
+export type CustomersRiskReviewMutationVariables = { id: string; data?: ReviewRequest };
+
+/**
+ * @summary Mark the open sharing flag reviewed
+ */
+export const useCustomersRiskReview = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof customersRiskReview>>,
+      TError,
+      CustomersRiskReviewMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof customersRiskReview>>,
+  TError,
+  CustomersRiskReviewMutationVariables,
+  TContext
+> => {
+  return useMutation(getCustomersRiskReviewMutationOptions(options), queryClient);
+};
+
+export const getCustomersRiskSuspendUrl = (id: string) => {
+  return `/api/v1/admin/customers/${encodeURIComponent(String(id))}/risk/suspend`;
+};
+
+/**
+ * @summary Suspend the customer for sharing (playback stops)
+ */
+export const customersRiskSuspend = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getCustomersRiskSuspendUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCustomersRiskSuspendMutationKey = () => ["customersRiskSuspend"] as const;
+
+export const getCustomersRiskSuspendMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof customersRiskSuspend>>,
+    TError,
+    CustomersRiskSuspendMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof customersRiskSuspend>>,
+  TError,
+  CustomersRiskSuspendMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCustomersRiskSuspendMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof customersRiskSuspend>>,
+    CustomersRiskSuspendMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return customersRiskSuspend(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CustomersRiskSuspendMutationResult = NonNullable<
+  Awaited<ReturnType<typeof customersRiskSuspend>>
+>;
+
+export type CustomersRiskSuspendMutationError = ErrorType<Problem>;
+export type CustomersRiskSuspendMutationVariables = { id: string };
+
+/**
+ * @summary Suspend the customer for sharing (playback stops)
+ */
+export const useCustomersRiskSuspend = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof customersRiskSuspend>>,
+      TError,
+      CustomersRiskSuspendMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof customersRiskSuspend>>,
+  TError,
+  CustomersRiskSuspendMutationVariables,
+  TContext
+> => {
+  return useMutation(getCustomersRiskSuspendMutationOptions(options), queryClient);
+};
+
+export const getCustomersRiskWarnUrl = (id: string) => {
+  return `/api/v1/admin/customers/${encodeURIComponent(String(id))}/risk/warn`;
+};
+
+/**
+ * @summary Warn the customer that their account looks shared (an email)
+ */
+export const customersRiskWarn = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getCustomersRiskWarnUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCustomersRiskWarnMutationKey = () => ["customersRiskWarn"] as const;
+
+export const getCustomersRiskWarnMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof customersRiskWarn>>,
+    TError,
+    CustomersRiskWarnMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof customersRiskWarn>>,
+  TError,
+  CustomersRiskWarnMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCustomersRiskWarnMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof customersRiskWarn>>,
+    CustomersRiskWarnMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return customersRiskWarn(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CustomersRiskWarnMutationResult = NonNullable<
+  Awaited<ReturnType<typeof customersRiskWarn>>
+>;
+
+export type CustomersRiskWarnMutationError = ErrorType<Problem>;
+export type CustomersRiskWarnMutationVariables = { id: string };
+
+/**
+ * @summary Warn the customer that their account looks shared (an email)
+ */
+export const useCustomersRiskWarn = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof customersRiskWarn>>,
+      TError,
+      CustomersRiskWarnMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof customersRiskWarn>>,
+  TError,
+  CustomersRiskWarnMutationVariables,
+  TContext
+> => {
+  return useMutation(getCustomersRiskWarnMutationOptions(options), queryClient);
+};
+
 export const getCustomersSuspendUrl = (id: string) => {
   return `/api/v1/admin/customers/${encodeURIComponent(String(id))}/suspend`;
 };
@@ -5097,6 +5696,1084 @@ export const useDevicesUnblock = <TError = ErrorType<Problem>, TContext = unknow
   TContext
 > => {
   return useMutation(getDevicesUnblockMutationOptions(options), queryClient);
+};
+
+export const getDevicesRevokeByAppUrl = () => {
+  return `/api/v1/admin/devices/revoke-by-app`;
+};
+
+/**
+ * POST /api/v1/admin/devices/revoke-by-app: revoke every login made for one app (G-26).
+ *
+ * A dry run (the default) only counts. The real run needs a recent confirmation: it
+ * can stop thousands of logins at once.
+ * @summary Revoke every IPTV login made for one app (vendor breach, public leak)
+ */
+export const devicesRevokeByApp = async (
+  revokeByAppRequest: RevokeByAppRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<RevokeByAppResult> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<RevokeByAppResult>(getDevicesRevokeByAppUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(revokeByAppRequest),
+  });
+};
+
+export const getDevicesRevokeByAppMutationKey = () => ["devicesRevokeByApp"] as const;
+
+export const getDevicesRevokeByAppMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof devicesRevokeByApp>>,
+    TError,
+    DevicesRevokeByAppMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof devicesRevokeByApp>>,
+  TError,
+  DevicesRevokeByAppMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDevicesRevokeByAppMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof devicesRevokeByApp>>,
+    DevicesRevokeByAppMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return devicesRevokeByApp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DevicesRevokeByAppMutationResult = NonNullable<
+  Awaited<ReturnType<typeof devicesRevokeByApp>>
+>;
+export type DevicesRevokeByAppMutationBody = RevokeByAppRequest;
+export type DevicesRevokeByAppMutationError = ErrorType<Problem>;
+export type DevicesRevokeByAppMutationVariables = { data: RevokeByAppRequest };
+
+/**
+ * @summary Revoke every IPTV login made for one app (vendor breach, public leak)
+ */
+export const useDevicesRevokeByApp = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof devicesRevokeByApp>>,
+      TError,
+      DevicesRevokeByAppMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof devicesRevokeByApp>>,
+  TError,
+  DevicesRevokeByAppMutationVariables,
+  TContext
+> => {
+  return useMutation(getDevicesRevokeByAppMutationOptions(options), queryClient);
+};
+
+export const getEdgesListUrl = () => {
+  return `/api/v1/admin/edges`;
+};
+
+/**
+ * @summary Edges, their health and load
+ */
+export const edgesList = async (options?: Parameters<typeof apiFetch>[1]): Promise<EdgeList> => {
+  return apiFetch<EdgeList>(getEdgesListUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getEdgesListQueryKey = () => {
+  return [`/api/v1/admin/edges`] as const;
+};
+
+export const getEdgesListQueryOptions = <
+  TData = Awaited<ReturnType<typeof edgesList>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesList>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getEdgesListQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof edgesList>>> = ({ signal }) =>
+    edgesList({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof edgesList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type EdgesListQueryResult = NonNullable<Awaited<ReturnType<typeof edgesList>>>;
+export type EdgesListQueryError = ErrorType<Problem>;
+
+export function useEdgesList<
+  TData = Awaited<ReturnType<typeof edgesList>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof edgesList>>,
+          TError,
+          Awaited<ReturnType<typeof edgesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useEdgesList<
+  TData = Awaited<ReturnType<typeof edgesList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof edgesList>>,
+          TError,
+          Awaited<ReturnType<typeof edgesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useEdgesList<
+  TData = Awaited<ReturnType<typeof edgesList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Edges, their health and load
+ */
+
+export function useEdgesList<
+  TData = Awaited<ReturnType<typeof edgesList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getEdgesListQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getEdgesCreateUrl = () => {
+  return `/api/v1/admin/edges`;
+};
+
+/**
+ * @summary Add a standalone edge or a CDN zone
+ */
+export const edgesCreate = async (
+  edgeWriteRequest?: EdgeWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<EdgeCreated> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<EdgeCreated>(getEdgesCreateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(edgeWriteRequest),
+  });
+};
+
+export const getEdgesCreateMutationKey = () => ["edgesCreate"] as const;
+
+export const getEdgesCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof edgesCreate>>,
+    TError,
+    EdgesCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof edgesCreate>>,
+  TError,
+  EdgesCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getEdgesCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof edgesCreate>>,
+    EdgesCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return edgesCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EdgesCreateMutationResult = NonNullable<Awaited<ReturnType<typeof edgesCreate>>>;
+export type EdgesCreateMutationBody = EdgeWriteRequest | undefined;
+export type EdgesCreateMutationError = ErrorType<Problem>;
+export type EdgesCreateMutationVariables = { data?: EdgeWriteRequest };
+
+/**
+ * @summary Add a standalone edge or a CDN zone
+ */
+export const useEdgesCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof edgesCreate>>,
+      TError,
+      EdgesCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof edgesCreate>>,
+  TError,
+  EdgesCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getEdgesCreateMutationOptions(options), queryClient);
+};
+
+export const getEdgesGetUrl = (id: string) => {
+  return `/api/v1/admin/edges/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One edge
+ */
+export const edgesGet = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Edge> => {
+  return apiFetch<Edge>(getEdgesGetUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getEdgesGetQueryKey = (id: string) => {
+  return [`/api/v1/admin/edges/${id}`] as const;
+};
+
+export const getEdgesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof edgesGet>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesGet>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getEdgesGetQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof edgesGet>>> = ({ signal }) =>
+    edgesGet(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof edgesGet>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type EdgesGetQueryResult = NonNullable<Awaited<ReturnType<typeof edgesGet>>>;
+export type EdgesGetQueryError = ErrorType<Problem>;
+
+export function useEdgesGet<
+  TData = Awaited<ReturnType<typeof edgesGet>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesGet>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof edgesGet>>,
+          TError,
+          Awaited<ReturnType<typeof edgesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useEdgesGet<
+  TData = Awaited<ReturnType<typeof edgesGet>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesGet>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof edgesGet>>,
+          TError,
+          Awaited<ReturnType<typeof edgesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useEdgesGet<
+  TData = Awaited<ReturnType<typeof edgesGet>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesGet>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One edge
+ */
+
+export function useEdgesGet<
+  TData = Awaited<ReturnType<typeof edgesGet>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof edgesGet>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getEdgesGetQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getEdgesUpdateUrl = (id: string) => {
+  return `/api/v1/admin/edges/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Change an edge
+ */
+export const edgesUpdate = async (
+  id: string,
+  patchedEdgeWriteRequest?: PatchedEdgeWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Edge> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<Edge>(getEdgesUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedEdgeWriteRequest),
+  });
+};
+
+export const getEdgesUpdateMutationKey = () => ["edgesUpdate"] as const;
+
+export const getEdgesUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof edgesUpdate>>,
+    TError,
+    EdgesUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof edgesUpdate>>,
+  TError,
+  EdgesUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getEdgesUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof edgesUpdate>>,
+    EdgesUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return edgesUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EdgesUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof edgesUpdate>>>;
+export type EdgesUpdateMutationBody = PatchedEdgeWriteRequest | undefined;
+export type EdgesUpdateMutationError = ErrorType<Problem>;
+export type EdgesUpdateMutationVariables = { id: string; data?: PatchedEdgeWriteRequest };
+
+/**
+ * @summary Change an edge
+ */
+export const useEdgesUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof edgesUpdate>>,
+      TError,
+      EdgesUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof edgesUpdate>>,
+  TError,
+  EdgesUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getEdgesUpdateMutationOptions(options), queryClient);
+};
+
+export const getEdgesDeleteUrl = (id: string) => {
+  return `/api/v1/admin/edges/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Remove an edge
+ */
+export const edgesDelete = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getEdgesDeleteUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getEdgesDeleteMutationKey = () => ["edgesDelete"] as const;
+
+export const getEdgesDeleteMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof edgesDelete>>,
+    TError,
+    EdgesDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof edgesDelete>>,
+  TError,
+  EdgesDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getEdgesDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof edgesDelete>>,
+    EdgesDeleteMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return edgesDelete(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EdgesDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof edgesDelete>>>;
+
+export type EdgesDeleteMutationError = ErrorType<Problem>;
+export type EdgesDeleteMutationVariables = { id: string };
+
+/**
+ * @summary Remove an edge
+ */
+export const useEdgesDelete = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof edgesDelete>>,
+      TError,
+      EdgesDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof edgesDelete>>,
+  TError,
+  EdgesDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getEdgesDeleteMutationOptions(options), queryClient);
+};
+
+export const getEdgesRotateSecretUrl = (id: string) => {
+  return `/api/v1/admin/edges/${encodeURIComponent(String(id))}/secret`;
+};
+
+/**
+ * @summary A new secret for a standalone edge (the old one stops working at once)
+ */
+export const edgesRotateSecret = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<EdgeSecret> => {
+  return apiFetch<EdgeSecret>(getEdgesRotateSecretUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getEdgesRotateSecretMutationKey = () => ["edgesRotateSecret"] as const;
+
+export const getEdgesRotateSecretMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof edgesRotateSecret>>,
+    TError,
+    EdgesRotateSecretMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof edgesRotateSecret>>,
+  TError,
+  EdgesRotateSecretMutationVariables,
+  TContext
+> => {
+  const mutationKey = getEdgesRotateSecretMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof edgesRotateSecret>>,
+    EdgesRotateSecretMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return edgesRotateSecret(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EdgesRotateSecretMutationResult = NonNullable<
+  Awaited<ReturnType<typeof edgesRotateSecret>>
+>;
+
+export type EdgesRotateSecretMutationError = ErrorType<Problem>;
+export type EdgesRotateSecretMutationVariables = { id: string };
+
+/**
+ * @summary A new secret for a standalone edge (the old one stops working at once)
+ */
+export const useEdgesRotateSecret = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof edgesRotateSecret>>,
+      TError,
+      EdgesRotateSecretMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof edgesRotateSecret>>,
+  TError,
+  EdgesRotateSecretMutationVariables,
+  TContext
+> => {
+  return useMutation(getEdgesRotateSecretMutationOptions(options), queryClient);
+};
+
+export const getEdgesTestUrl = (id: string) => {
+  return `/api/v1/admin/edges/${encodeURIComponent(String(id))}/test`;
+};
+
+/**
+ * @summary Test an edge end to end: health, a signed probe URL, its report
+ */
+export const edgesTest = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ProbeResult> => {
+  return apiFetch<ProbeResult>(getEdgesTestUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getEdgesTestMutationKey = () => ["edgesTest"] as const;
+
+export const getEdgesTestMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof edgesTest>>,
+    TError,
+    EdgesTestMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof edgesTest>>,
+  TError,
+  EdgesTestMutationVariables,
+  TContext
+> => {
+  const mutationKey = getEdgesTestMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof edgesTest>>,
+    EdgesTestMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return edgesTest(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EdgesTestMutationResult = NonNullable<Awaited<ReturnType<typeof edgesTest>>>;
+
+export type EdgesTestMutationError = ErrorType<Problem>;
+export type EdgesTestMutationVariables = { id: string };
+
+/**
+ * @summary Test an edge end to end: health, a signed probe URL, its report
+ */
+export const useEdgesTest = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof edgesTest>>,
+      TError,
+      EdgesTestMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof edgesTest>>,
+  TError,
+  EdgesTestMutationVariables,
+  TContext
+> => {
+  return useMutation(getEdgesTestMutationOptions(options), queryClient);
+};
+
+export const getGeoipStatusUrl = () => {
+  return `/api/v1/admin/geoip`;
+};
+
+/**
+ * @summary The installed DB-IP Lite databases
+ */
+export const geoipStatus = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<GeoIpStatus> => {
+  return apiFetch<GeoIpStatus>(getGeoipStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGeoipStatusQueryKey = () => {
+  return [`/api/v1/admin/geoip`] as const;
+};
+
+export const getGeoipStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof geoipStatus>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof geoipStatus>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGeoipStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof geoipStatus>>> = ({ signal }) =>
+    geoipStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof geoipStatus>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GeoipStatusQueryResult = NonNullable<Awaited<ReturnType<typeof geoipStatus>>>;
+export type GeoipStatusQueryError = ErrorType<Problem>;
+
+export function useGeoipStatus<
+  TData = Awaited<ReturnType<typeof geoipStatus>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof geoipStatus>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof geoipStatus>>,
+          TError,
+          Awaited<ReturnType<typeof geoipStatus>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGeoipStatus<
+  TData = Awaited<ReturnType<typeof geoipStatus>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof geoipStatus>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof geoipStatus>>,
+          TError,
+          Awaited<ReturnType<typeof geoipStatus>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGeoipStatus<
+  TData = Awaited<ReturnType<typeof geoipStatus>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof geoipStatus>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The installed DB-IP Lite databases
+ */
+
+export function useGeoipStatus<
+  TData = Awaited<ReturnType<typeof geoipStatus>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof geoipStatus>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGeoipStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getGeoipLookupUrl = () => {
+  return `/api/v1/admin/geoip/lookup`;
+};
+
+/**
+ * @summary Test: what the databases say about an address (yours by default)
+ */
+export const geoipLookup = async (
+  geoLookupRequestRequest?: GeoLookupRequestRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<GeoLookup> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<GeoLookup>(getGeoipLookupUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(geoLookupRequestRequest),
+  });
+};
+
+export const getGeoipLookupMutationKey = () => ["geoipLookup"] as const;
+
+export const getGeoipLookupMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof geoipLookup>>,
+    TError,
+    GeoipLookupMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof geoipLookup>>,
+  TError,
+  GeoipLookupMutationVariables,
+  TContext
+> => {
+  const mutationKey = getGeoipLookupMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof geoipLookup>>,
+    GeoipLookupMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return geoipLookup(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GeoipLookupMutationResult = NonNullable<Awaited<ReturnType<typeof geoipLookup>>>;
+export type GeoipLookupMutationBody = GeoLookupRequestRequest | undefined;
+export type GeoipLookupMutationError = ErrorType<Problem>;
+export type GeoipLookupMutationVariables = { data?: GeoLookupRequestRequest };
+
+/**
+ * @summary Test: what the databases say about an address (yours by default)
+ */
+export const useGeoipLookup = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof geoipLookup>>,
+      TError,
+      GeoipLookupMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof geoipLookup>>,
+  TError,
+  GeoipLookupMutationVariables,
+  TContext
+> => {
+  return useMutation(getGeoipLookupMutationOptions(options), queryClient);
+};
+
+export const getGeoipUpdateUrl = () => {
+  return `/api/v1/admin/geoip/update`;
+};
+
+/**
+ * @summary Download this month's DB-IP Lite databases now (on the worker)
+ */
+export const geoipUpdate = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<GeoIpQueued> => {
+  return apiFetch<GeoIpQueued>(getGeoipUpdateUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getGeoipUpdateMutationKey = () => ["geoipUpdate"] as const;
+
+export const getGeoipUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof geoipUpdate>>, TError, void, TContext>;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof geoipUpdate>>, TError, void, TContext> => {
+  const mutationKey = getGeoipUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof geoipUpdate>>, void> = () => {
+    return geoipUpdate(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GeoipUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof geoipUpdate>>>;
+
+export type GeoipUpdateMutationError = ErrorType<Problem>;
+
+/**
+ * @summary Download this month's DB-IP Lite databases now (on the worker)
+ */
+export const useGeoipUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof geoipUpdate>>, TError, void, TContext>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof geoipUpdate>>, TError, void, TContext> => {
+  return useMutation(getGeoipUpdateMutationOptions(options), queryClient);
 };
 
 export const getSystemHealthUrl = () => {
@@ -16949,6 +18626,149 @@ export const useTemplatesPreview = <TError = ErrorType<Problem>, TContext = unkn
   return useMutation(getTemplatesPreviewMutationOptions(options), queryClient);
 };
 
+export const getTemplatesPreviewDocumentUrl = (token: string) => {
+  return `/api/v1/admin/templates/preview/${encodeURIComponent(String(token))}`;
+};
+
+/**
+ * GET templates/preview/{token}: a rendered preview as its own document.
+ *
+ * The admin shows it in a sandboxed frame. As a separate document it keeps its own
+ * policy (inline styles, images from the media edge, no scripts): a `srcdoc` frame
+ * would inherit the admin's stricter policy and lose the message's styling (ADR-0021).
+ * Only the admin who asked for it can open it, for 10 minutes.
+ * @summary A rendered template preview as an HTML document
+ */
+export const templatesPreviewDocument = async (
+  token: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<string> => {
+  return apiFetch<string>(getTemplatesPreviewDocumentUrl(token), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getTemplatesPreviewDocumentQueryKey = (token: string) => {
+  return [`/api/v1/admin/templates/preview/${token}`] as const;
+};
+
+export const getTemplatesPreviewDocumentQueryOptions = <
+  TData = Awaited<ReturnType<typeof templatesPreviewDocument>>,
+  TError = ErrorType<Problem>,
+>(
+  token: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof templatesPreviewDocument>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getTemplatesPreviewDocumentQueryKey(token);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof templatesPreviewDocument>>> = ({
+    signal,
+  }) => templatesPreviewDocument(token, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: token !== null && token !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof templatesPreviewDocument>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type TemplatesPreviewDocumentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof templatesPreviewDocument>>
+>;
+export type TemplatesPreviewDocumentQueryError = ErrorType<Problem>;
+
+export function useTemplatesPreviewDocument<
+  TData = Awaited<ReturnType<typeof templatesPreviewDocument>>,
+  TError = ErrorType<Problem>,
+>(
+  token: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof templatesPreviewDocument>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof templatesPreviewDocument>>,
+          TError,
+          Awaited<ReturnType<typeof templatesPreviewDocument>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTemplatesPreviewDocument<
+  TData = Awaited<ReturnType<typeof templatesPreviewDocument>>,
+  TError = ErrorType<Problem>,
+>(
+  token: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof templatesPreviewDocument>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof templatesPreviewDocument>>,
+          TError,
+          Awaited<ReturnType<typeof templatesPreviewDocument>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTemplatesPreviewDocument<
+  TData = Awaited<ReturnType<typeof templatesPreviewDocument>>,
+  TError = ErrorType<Problem>,
+>(
+  token: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof templatesPreviewDocument>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary A rendered template preview as an HTML document
+ */
+
+export function useTemplatesPreviewDocument<
+  TData = Awaited<ReturnType<typeof templatesPreviewDocument>>,
+  TError = ErrorType<Problem>,
+>(
+  token: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof templatesPreviewDocument>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getTemplatesPreviewDocumentQueryOptions(token, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 export const getTitlesImagesListUrl = (id: string) => {
   return `/api/v1/admin/titles/${encodeURIComponent(String(id))}/images`;
 };
@@ -19264,6 +21084,957 @@ export const useAuthMfaVerify = <TError = ErrorType<Problem>, TContext = unknown
   TContext
 > => {
   return useMutation(getAuthMfaVerifyMutationOptions(options), queryClient);
+};
+
+export const getAuthMfaWebauthnOptionsUrl = () => {
+  return `/api/v1/auth/mfa/webauthn/options`;
+};
+
+/**
+ * POST /api/v1/auth/mfa/webauthn/options: the key request for the pending sign-in.
+ * @summary Get the security key request that completes the sign-in
+ */
+export const authMfaWebauthnOptions = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<WebAuthnOptions> => {
+  return apiFetch<WebAuthnOptions>(getAuthMfaWebauthnOptionsUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAuthMfaWebauthnOptionsMutationKey = () => ["authMfaWebauthnOptions"] as const;
+
+export const getAuthMfaWebauthnOptionsMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authMfaWebauthnOptions>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authMfaWebauthnOptions>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getAuthMfaWebauthnOptionsMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authMfaWebauthnOptions>>,
+    void
+  > = () => {
+    return authMfaWebauthnOptions(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthMfaWebauthnOptionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authMfaWebauthnOptions>>
+>;
+
+export type AuthMfaWebauthnOptionsMutationError = ErrorType<Problem>;
+
+/**
+ * @summary Get the security key request that completes the sign-in
+ */
+export const useAuthMfaWebauthnOptions = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authMfaWebauthnOptions>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authMfaWebauthnOptions>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getAuthMfaWebauthnOptionsMutationOptions(options), queryClient);
+};
+
+export const getAuthMfaWebauthnVerifyUrl = () => {
+  return `/api/v1/auth/mfa/webauthn/verify`;
+};
+
+/**
+ * POST /api/v1/auth/mfa/webauthn/verify: step two with a security key; signs in.
+ * @summary Verify the security key and sign in
+ */
+export const authMfaWebauthnVerify = async (
+  webAuthnVerifyRequest: WebAuthnVerifyRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Me> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<Me>(getAuthMfaWebauthnVerifyUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(webAuthnVerifyRequest),
+  });
+};
+
+export const getAuthMfaWebauthnVerifyMutationKey = () => ["authMfaWebauthnVerify"] as const;
+
+export const getAuthMfaWebauthnVerifyMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authMfaWebauthnVerify>>,
+    TError,
+    AuthMfaWebauthnVerifyMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authMfaWebauthnVerify>>,
+  TError,
+  AuthMfaWebauthnVerifyMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAuthMfaWebauthnVerifyMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authMfaWebauthnVerify>>,
+    AuthMfaWebauthnVerifyMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return authMfaWebauthnVerify(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthMfaWebauthnVerifyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authMfaWebauthnVerify>>
+>;
+export type AuthMfaWebauthnVerifyMutationBody = WebAuthnVerifyRequest;
+export type AuthMfaWebauthnVerifyMutationError = ErrorType<Problem>;
+export type AuthMfaWebauthnVerifyMutationVariables = { data: WebAuthnVerifyRequest };
+
+/**
+ * @summary Verify the security key and sign in
+ */
+export const useAuthMfaWebauthnVerify = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authMfaWebauthnVerify>>,
+      TError,
+      AuthMfaWebauthnVerifyMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authMfaWebauthnVerify>>,
+  TError,
+  AuthMfaWebauthnVerifyMutationVariables,
+  TContext
+> => {
+  return useMutation(getAuthMfaWebauthnVerifyMutationOptions(options), queryClient);
+};
+
+export const getAuthStepUpUrl = () => {
+  return `/api/v1/auth/step-up`;
+};
+
+/**
+ * POST /api/v1/auth/step-up confirms it's you; DELETE locks sensitive actions again.
+ * @summary Confirm it's you (an authenticator code or a security key)
+ */
+export const authStepUp = async (
+  stepUpRequest?: StepUpRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<StepUpResult> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<StepUpResult>(getAuthStepUpUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(stepUpRequest),
+  });
+};
+
+export const getAuthStepUpMutationKey = () => ["authStepUp"] as const;
+
+export const getAuthStepUpMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authStepUp>>,
+    TError,
+    AuthStepUpMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authStepUp>>,
+  TError,
+  AuthStepUpMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAuthStepUpMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authStepUp>>,
+    AuthStepUpMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return authStepUp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthStepUpMutationResult = NonNullable<Awaited<ReturnType<typeof authStepUp>>>;
+export type AuthStepUpMutationBody = StepUpRequest | undefined;
+export type AuthStepUpMutationError = ErrorType<Problem>;
+export type AuthStepUpMutationVariables = { data?: StepUpRequest };
+
+/**
+ * @summary Confirm it's you (an authenticator code or a security key)
+ */
+export const useAuthStepUp = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authStepUp>>,
+      TError,
+      AuthStepUpMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authStepUp>>,
+  TError,
+  AuthStepUpMutationVariables,
+  TContext
+> => {
+  return useMutation(getAuthStepUpMutationOptions(options), queryClient);
+};
+
+export const getAuthStepUpForgetUrl = () => {
+  return `/api/v1/auth/step-up`;
+};
+
+/**
+ * POST /api/v1/auth/step-up confirms it's you; DELETE locks sensitive actions again.
+ * @summary Lock sensitive actions now
+ */
+export const authStepUpForget = async (options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+  return apiFetch<void>(getAuthStepUpForgetUrl(), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getAuthStepUpForgetMutationKey = () => ["authStepUpForget"] as const;
+
+export const getAuthStepUpForgetMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authStepUpForget>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof authStepUpForget>>, TError, void, TContext> => {
+  const mutationKey = getAuthStepUpForgetMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof authStepUpForget>>, void> = () => {
+    return authStepUpForget(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthStepUpForgetMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authStepUpForget>>
+>;
+
+export type AuthStepUpForgetMutationError = ErrorType<Problem>;
+
+/**
+ * @summary Lock sensitive actions now
+ */
+export const useAuthStepUpForget = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authStepUpForget>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof authStepUpForget>>, TError, void, TContext> => {
+  return useMutation(getAuthStepUpForgetMutationOptions(options), queryClient);
+};
+
+export const getAuthStepUpOptionsUrl = () => {
+  return `/api/v1/auth/step-up/options`;
+};
+
+/**
+ * POST /api/v1/auth/step-up/options: a security key request to confirm it's you.
+ * @summary Get a security key request to confirm it's you
+ */
+export const authStepUpOptions = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<WebAuthnOptions> => {
+  return apiFetch<WebAuthnOptions>(getAuthStepUpOptionsUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAuthStepUpOptionsMutationKey = () => ["authStepUpOptions"] as const;
+
+export const getAuthStepUpOptionsMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authStepUpOptions>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof authStepUpOptions>>, TError, void, TContext> => {
+  const mutationKey = getAuthStepUpOptionsMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof authStepUpOptions>>, void> = () => {
+    return authStepUpOptions(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthStepUpOptionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authStepUpOptions>>
+>;
+
+export type AuthStepUpOptionsMutationError = ErrorType<Problem>;
+
+/**
+ * @summary Get a security key request to confirm it's you
+ */
+export const useAuthStepUpOptions = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authStepUpOptions>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof authStepUpOptions>>, TError, void, TContext> => {
+  return useMutation(getAuthStepUpOptionsMutationOptions(options), queryClient);
+};
+
+export const getAuthWebauthnCredentialsListUrl = () => {
+  return `/api/v1/auth/webauthn/credentials`;
+};
+
+/**
+ * GET/POST /api/v1/auth/webauthn/credentials: the admin's own keys; register one.
+ * @summary My security keys and passkeys
+ */
+export const authWebauthnCredentialsList = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<WebAuthnCredential[]> => {
+  return apiFetch<WebAuthnCredential[]>(getAuthWebauthnCredentialsListUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getAuthWebauthnCredentialsListQueryKey = () => {
+  return [`/api/v1/auth/webauthn/credentials`] as const;
+};
+
+export const getAuthWebauthnCredentialsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof authWebauthnCredentialsList>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof authWebauthnCredentialsList>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getAuthWebauthnCredentialsListQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof authWebauthnCredentialsList>>> = ({
+    signal,
+  }) => authWebauthnCredentialsList({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof authWebauthnCredentialsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type AuthWebauthnCredentialsListQueryResult = NonNullable<
+  Awaited<ReturnType<typeof authWebauthnCredentialsList>>
+>;
+export type AuthWebauthnCredentialsListQueryError = ErrorType<Problem>;
+
+export function useAuthWebauthnCredentialsList<
+  TData = Awaited<ReturnType<typeof authWebauthnCredentialsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof authWebauthnCredentialsList>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authWebauthnCredentialsList>>,
+          TError,
+          Awaited<ReturnType<typeof authWebauthnCredentialsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useAuthWebauthnCredentialsList<
+  TData = Awaited<ReturnType<typeof authWebauthnCredentialsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof authWebauthnCredentialsList>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof authWebauthnCredentialsList>>,
+          TError,
+          Awaited<ReturnType<typeof authWebauthnCredentialsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useAuthWebauthnCredentialsList<
+  TData = Awaited<ReturnType<typeof authWebauthnCredentialsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof authWebauthnCredentialsList>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary My security keys and passkeys
+ */
+
+export function useAuthWebauthnCredentialsList<
+  TData = Awaited<ReturnType<typeof authWebauthnCredentialsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof authWebauthnCredentialsList>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getAuthWebauthnCredentialsListQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getAuthWebauthnCredentialsCreateUrl = () => {
+  return `/api/v1/auth/webauthn/credentials`;
+};
+
+/**
+ * GET/POST /api/v1/auth/webauthn/credentials: the admin's own keys; register one.
+ * @summary Register a security key or passkey (after confirming it's you)
+ */
+export const authWebauthnCredentialsCreate = async (
+  webAuthnRegisterRequest: WebAuthnRegisterRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<WebAuthnCredential> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<WebAuthnCredential>(getAuthWebauthnCredentialsCreateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(webAuthnRegisterRequest),
+  });
+};
+
+export const getAuthWebauthnCredentialsCreateMutationKey = () =>
+  ["authWebauthnCredentialsCreate"] as const;
+
+export const getAuthWebauthnCredentialsCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authWebauthnCredentialsCreate>>,
+    TError,
+    AuthWebauthnCredentialsCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authWebauthnCredentialsCreate>>,
+  TError,
+  AuthWebauthnCredentialsCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAuthWebauthnCredentialsCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authWebauthnCredentialsCreate>>,
+    AuthWebauthnCredentialsCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return authWebauthnCredentialsCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthWebauthnCredentialsCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authWebauthnCredentialsCreate>>
+>;
+export type AuthWebauthnCredentialsCreateMutationBody = WebAuthnRegisterRequest;
+export type AuthWebauthnCredentialsCreateMutationError = ErrorType<Problem>;
+export type AuthWebauthnCredentialsCreateMutationVariables = { data: WebAuthnRegisterRequest };
+
+/**
+ * @summary Register a security key or passkey (after confirming it's you)
+ */
+export const useAuthWebauthnCredentialsCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authWebauthnCredentialsCreate>>,
+      TError,
+      AuthWebauthnCredentialsCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authWebauthnCredentialsCreate>>,
+  TError,
+  AuthWebauthnCredentialsCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getAuthWebauthnCredentialsCreateMutationOptions(options), queryClient);
+};
+
+export const getAuthWebauthnCredentialsPartialUpdateUrl = (id: string) => {
+  return `/api/v1/auth/webauthn/credentials/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * PATCH/DELETE /api/v1/auth/webauthn/credentials/{id}: rename or remove one key.
+ * @summary Rename a security key
+ */
+export const authWebauthnCredentialsPartialUpdate = async (
+  id: string,
+  patchedWebAuthnRenameRequest?: PatchedWebAuthnRenameRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<WebAuthnCredential> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<WebAuthnCredential>(getAuthWebauthnCredentialsPartialUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedWebAuthnRenameRequest),
+  });
+};
+
+export const getAuthWebauthnCredentialsPartialUpdateMutationKey = () =>
+  ["authWebauthnCredentialsPartialUpdate"] as const;
+
+export const getAuthWebauthnCredentialsPartialUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authWebauthnCredentialsPartialUpdate>>,
+    TError,
+    AuthWebauthnCredentialsPartialUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authWebauthnCredentialsPartialUpdate>>,
+  TError,
+  AuthWebauthnCredentialsPartialUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAuthWebauthnCredentialsPartialUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authWebauthnCredentialsPartialUpdate>>,
+    AuthWebauthnCredentialsPartialUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return authWebauthnCredentialsPartialUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthWebauthnCredentialsPartialUpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authWebauthnCredentialsPartialUpdate>>
+>;
+export type AuthWebauthnCredentialsPartialUpdateMutationBody =
+  PatchedWebAuthnRenameRequest | undefined;
+export type AuthWebauthnCredentialsPartialUpdateMutationError = ErrorType<Problem>;
+export type AuthWebauthnCredentialsPartialUpdateMutationVariables = {
+  id: string;
+  data?: PatchedWebAuthnRenameRequest;
+};
+
+/**
+ * @summary Rename a security key
+ */
+export const useAuthWebauthnCredentialsPartialUpdate = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authWebauthnCredentialsPartialUpdate>>,
+      TError,
+      AuthWebauthnCredentialsPartialUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authWebauthnCredentialsPartialUpdate>>,
+  TError,
+  AuthWebauthnCredentialsPartialUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getAuthWebauthnCredentialsPartialUpdateMutationOptions(options), queryClient);
+};
+
+export const getAuthWebauthnCredentialsDestroyUrl = (id: string) => {
+  return `/api/v1/auth/webauthn/credentials/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * PATCH/DELETE /api/v1/auth/webauthn/credentials/{id}: rename or remove one key.
+ * @summary Remove a security key (after confirming it's you)
+ */
+export const authWebauthnCredentialsDestroy = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getAuthWebauthnCredentialsDestroyUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getAuthWebauthnCredentialsDestroyMutationKey = () =>
+  ["authWebauthnCredentialsDestroy"] as const;
+
+export const getAuthWebauthnCredentialsDestroyMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authWebauthnCredentialsDestroy>>,
+    TError,
+    AuthWebauthnCredentialsDestroyMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authWebauthnCredentialsDestroy>>,
+  TError,
+  AuthWebauthnCredentialsDestroyMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAuthWebauthnCredentialsDestroyMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authWebauthnCredentialsDestroy>>,
+    AuthWebauthnCredentialsDestroyMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return authWebauthnCredentialsDestroy(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthWebauthnCredentialsDestroyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authWebauthnCredentialsDestroy>>
+>;
+
+export type AuthWebauthnCredentialsDestroyMutationError = ErrorType<Problem>;
+export type AuthWebauthnCredentialsDestroyMutationVariables = { id: string };
+
+/**
+ * @summary Remove a security key (after confirming it's you)
+ */
+export const useAuthWebauthnCredentialsDestroy = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authWebauthnCredentialsDestroy>>,
+      TError,
+      AuthWebauthnCredentialsDestroyMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authWebauthnCredentialsDestroy>>,
+  TError,
+  AuthWebauthnCredentialsDestroyMutationVariables,
+  TContext
+> => {
+  return useMutation(getAuthWebauthnCredentialsDestroyMutationOptions(options), queryClient);
+};
+
+export const getAuthWebauthnCredentialsOptionsUrl = () => {
+  return `/api/v1/auth/webauthn/credentials/options`;
+};
+
+/**
+ * POST /api/v1/auth/webauthn/credentials/options: the creation request for a new key.
+ * @summary Get the request that registers a new security key
+ */
+export const authWebauthnCredentialsOptions = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<WebAuthnOptions> => {
+  return apiFetch<WebAuthnOptions>(getAuthWebauthnCredentialsOptionsUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAuthWebauthnCredentialsOptionsMutationKey = () =>
+  ["authWebauthnCredentialsOptions"] as const;
+
+export const getAuthWebauthnCredentialsOptionsMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authWebauthnCredentialsOptions>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authWebauthnCredentialsOptions>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getAuthWebauthnCredentialsOptionsMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authWebauthnCredentialsOptions>>,
+    void
+  > = () => {
+    return authWebauthnCredentialsOptions(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthWebauthnCredentialsOptionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authWebauthnCredentialsOptions>>
+>;
+
+export type AuthWebauthnCredentialsOptionsMutationError = ErrorType<Problem>;
+
+/**
+ * @summary Get the request that registers a new security key
+ */
+export const useAuthWebauthnCredentialsOptions = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authWebauthnCredentialsOptions>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authWebauthnCredentialsOptions>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getAuthWebauthnCredentialsOptionsMutationOptions(options), queryClient);
 };
 
 export const getBrandingRetrieveUrl = () => {

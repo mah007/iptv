@@ -451,6 +451,14 @@ export interface CustomerMe {
   readonly access: CustomerAccessSummary | null;
 }
 
+export interface CustomerStepUpRequest {
+  /**
+   * @minLength 1
+   * @maxLength 1024
+   */
+  password: string;
+}
+
 /**
  * * `progressive` - Progressive
  * * `segmented` - Segmented (HLS)
@@ -1198,6 +1206,11 @@ export interface SeriesDetail {
   readonly next_episode: NextEpisode | null;
 }
 
+export interface StepUpResult {
+  /** Sensitive actions stay unlocked until then. */
+  step_up_until: string;
+}
+
 export interface StopReportRequest {
   /**
    * @minimum 0
@@ -1255,6 +1268,8 @@ export const ErrorCode = {
   PAYMENT_PROVIDER_UNAVAILABLE: "PAYMENT_PROVIDER_UNAVAILABLE",
   PAYMENT_PROVIDER_ERROR: "PAYMENT_PROVIDER_ERROR",
   WEBHOOK_INVALID: "WEBHOOK_INVALID",
+  STEP_UP_REQUIRED: "STEP_UP_REQUIRED",
+  IP_NOT_ALLOWED: "IP_NOT_ALLOWED",
 } as const;
 
 /**

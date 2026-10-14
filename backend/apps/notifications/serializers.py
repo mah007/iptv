@@ -89,3 +89,8 @@ class PreviewSerializer(serializers.Serializer[Any]):
     subject = serializers.CharField()
     text = serializers.CharField()
     html = serializers.CharField()
+    html_url = serializers.CharField(
+        allow_blank=True,
+        help_text="The HTML version as a document for a sandboxed frame (10 minutes), with "
+        "its own Content-Security-Policy; empty without HTML.",
+    )

@@ -36,6 +36,27 @@ What each alert of the monitoring overlay means and what to do (ADR-0018). Every
 **Check:** `dc ps nginx-stream`, `dc logs --tail 100 nginx-stream` (a bad key file stops it at start).
 **Do:** `dc up -d nginx-stream`. If it doesn't stay up, check `secrets/media_token_keys.json` (it must exist and be valid JSON) and the last change to `streaming/nginx/`.
 
+### EdgeDown
+**Means:** an edge on the admin's **Edges** page (a standalone edge on another host, or a CDN zone's origin edge) hasn't reported for 2 minutes, or doesn't hold the current signing key (ADR-0022). The local edge has its own alert, `MediaEdgeDown`.
+**Users notice:** new sessions go to the other edges (or the local one), so usually nothing. Sessions already playing from that edge fail when their next request does.
+**Check:**
+- admin → **Edges**: the edge's status (*down*, *stale*, *keys outdated*) and **Test**, which runs every step (health, media, report, origin key).
+- On the edge's host: `cd /opt/iptv && docker compose -f docker/compose.edge.yml ps`, then `logs --tail 100 edge`.
+- Can it reach `https://edges.<domain>` (DNS, firewall)? A 401 in its log means its secret was rotated: run `install.sh --reconfigure` there with the new one.
+**Do:**
+- Restart it on its host: `docker compose -f docker/compose.edge.yml up -d`.
+- If it can't be fixed quickly, set it **Draining** or **disable** it on the Edges page so nothing is sent to it.
+- *Keys outdated* after a rotation clears at its next poll. If it doesn't, the edge isn't polling.
+
+### EdgeOverCapacity
+**Means:** an edge's reported egress has been over 80% of the capacity set for it on the Edges page for 10 minutes. Above `edges.max_utilisation_pct` (90%) it takes no new sessions.
+**Users notice:** nothing yet. If every edge is full, new sessions fall back to the local edge, whose uplink then fills (`EdgeEgressHigh`).
+**Check:** the Edges page (egress and connections per edge); the **Edges** dashboard. Is the capacity right for that host's uplink?
+**Do:**
+- Correct the capacity if it is wrong.
+- Shift weight to edges with room, or add an edge (`install.sh --edge`, [add-edge.md](add-edge.md)).
+- Look for one session pulling a lot (admin → **Live sessions**).
+
 ## Data stores
 
 ### RedisStateEvictions
@@ -63,9 +84,17 @@ What each alert of the monitoring overlay means and what to do (ADR-0018). Every
 **Do:** free disk if needed, then `dc up -d postgres`. If only the exporter fails: `dc up -d --force-recreate postgres-monitor-init postgres-exporter`.
 
 ### PostgresReplicationLag
-**Means:** a PostgreSQL replica is over 30 seconds behind. A single server has no replica, so this only fires once one exists (M15).
-**Check:** the replica's logs and its network to the primary.
-**Do:** reads that need fresh data should use the primary until the replica catches up.
+**Means:** the read replica (`install.sh --replica`, ADR-0022) has been over 30 seconds behind the primary for 5 minutes. Without a replica this never fires.
+**Users notice:** nothing. Reports read from the primary again once the lag passes `database.replica_max_lag_s` (Settings → Database).
+**Check:**
+- Is replay paused (`SELECT pg_get_wal_replay_pause_state()` on the replica)?
+- Is it streaming (`dc logs --tail 50 postgres-replica`)?
+- Is the host short of disk or I/O?
+
+  The steps are in [database-replica.md](database-replica.md#when-it-falls-behind-postgresreplicationlag).
+**Do:**
+- Resume replay if it was paused.
+- If the primary has already recycled the WAL the replica needs ("requested WAL segment has already been removed"), [re-seed it](database-replica.md#re-seed-the-replica).
 
 ### MeilisearchUnhealthy
 **Means:** Meilisearch has failed its health check for 2 minutes.
@@ -204,6 +233,15 @@ Procedures: [backups.md](backups.md). Without the monitoring overlay, Django sen
 **Means:** PostgreSQL failed to archive its last WAL segment and keeps retrying. Point-in-time recovery has stopped, and unarchived WAL piles up on the database's disk until it fills.
 **Check:** `dc logs --tail 100 postgres | grep -i archive`; space where backups are kept (`df -h`); is `/var/backups/smart-iptv` (BACKUP_DIR) mounted and writable?
 **Do:** free or add space, then confirm the alert clears within minutes. If archiving cannot be fixed quickly, switch backups off in Settings → Backups: PostgreSQL then releases WAL instead of keeping it (point-in-time recovery stops until you switch them on again and a new full backup runs).
+
+## Security (ADR-0021)
+These two come from Django to the alert recipients and Telegram, not from Prometheus, so they also arrive without the monitoring overlay.
+
+### GeoIpDatabaseMissing
+IP geolocation is on, but the DB-IP country database has been missing for an hour: country rules can't place public addresses (`geoip.unknown_country_policy` decides), and the sharing score sees no countries or providers. Check **Settings → Integrations → IP geolocation**, press **Update now**, and read the worker's log (`dc logs worker | grep geoip`). The worker needs outbound HTTPS to `download.db-ip.com`. It resolves itself when the database is back; to stop using geolocation, turn `geoip.enabled` off.
+
+### SharingSuspected
+A customer's sharing score reached `antisharing.flag_score`. Nothing was blocked. Follow [leaked-credential.md](leaked-credential.md#sharing-flags).
 
 ## Meta
 

@@ -3,6 +3,7 @@ import {
   getAdminsListQueryKey,
   getRolesListQueryKey,
   useAdminsCreate,
+  useAdminsResetMfa,
   useAdminsUpdate,
   useRolesList,
   type Admin,
@@ -13,6 +14,7 @@ import {
   Alert,
   Button,
   Checkbox,
+  ConfirmDialog,
   CopyField,
   Dialog,
   DialogContent,
@@ -414,6 +416,44 @@ function EditAdminForm({
   );
 }
 
+/** The recovery path for a lost phone or key (ADR-0021): their next sign-in enrols again. */
+function ResetMfaSection({ admin }: { admin: Admin }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const reset = useAdminsResetMfa();
+  const name = admin.name || admin.username;
+  return (
+    <div className="grid gap-2 border-t border-border pt-4">
+      <p className="text-ui font-medium text-foreground">{t("admins.resetMfa.title")}</p>
+      <p className="text-xs text-muted-foreground">{t("admins.resetMfa.help")}</p>
+      <div>
+        <ConfirmDialog
+          tone="danger"
+          title={t("admins.resetMfa.confirmTitle", { name })}
+          description={t("admins.resetMfa.confirmDescription")}
+          confirmLabel={t("admins.resetMfa.confirm")}
+          cancelLabel={t("common.cancel")}
+          onConfirm={async () => {
+            try {
+              await reset.mutateAsync({ id: admin.id });
+              void queryClient.invalidateQueries({ queryKey: getAdminsListQueryKey() });
+              toast.success(t("admins.resetMfa.done", { name }));
+            } catch (error) {
+              notifyError(t, error);
+              throw error;
+            }
+          }}
+          trigger={
+            <Button type="button" variant="secondary" size="sm">
+              {t("admins.resetMfa.action")}
+            </Button>
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
 export function EditAdminDialog({
   admin,
   self,
@@ -439,6 +479,7 @@ export function EditAdminDialog({
           <DialogDescription>{t("admins.edit.description")}</DialogDescription>
         </DialogHeader>
         {admin ? <EditAdminForm key={admin.id} admin={admin} self={self} onDone={onClose} /> : null}
+        {admin && !self ? <ResetMfaSection admin={admin} /> : null}
       </DialogContent>
     </Dialog>
   );

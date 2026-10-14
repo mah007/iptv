@@ -26,7 +26,7 @@ Versions were checked on 2026-10-03 with `.claude/skills/dep-check` (PyPI, npm, 
 | uv | 0.12.22 | — | Apache-2.0/MIT | |
 
 ### Backend (locked in `backend/uv.lock`)
-`django 5.2.17`, `celery 5.6.3`, `kombu 5.6.2`, `redis 6.4.0`, `psycopg 3.3.6` (LGPL, used unmodified), `uvicorn 0.54.0`, `uvicorn-worker 0.4.0`, `gunicorn 26.2.0`.
+`django 5.2.17`, `celery 5.6.3`, `kombu 5.6.2`, `redis 6.4.0`, `psycopg 3.3.6` (LGPL, used unmodified) with `psycopg-pool 3.3.3` (LGPL, unmodified; web's connection pool, M15), `uvicorn 0.54.0`, `uvicorn-worker 0.4.0`, `gunicorn 26.2.0`.
 
 Dev only: `pytest 9.1.1`, `pytest-django 4.14.0`, `pytest-cov 7.1.0`, `ruff 0.16.10`, `mypy 1.19.1`, `django-stubs 5.2.9`, `celery-types 0.26.0`, `watchfiles 1.3.0`.
 
@@ -40,6 +40,10 @@ Dev only: `pytest 9.1.1`, `pytest-django 4.14.0`, `pytest-cov 7.1.0`, `ruff 0.16
 - **TypeScript 6.0.3, not 7.x and not 5.x.** TypeScript 7 (the native compiler) is out, but typescript-eslint supports only `<6.1`. 6.0 is the newest release the lint toolchain supports. Revisit when typescript-eslint supports 7.
 
 ### Supply chain
+- M15 tools, run as separate containers and pinned by digest where they are used (ADR-0022):
+  - SeaweedFS 4.48 (Apache-2.0, the dev S3 origin, `docker/compose.s3-dev.yml`);
+  - Pebble 2.10.1 (MPL-2.0, Let's Encrypt's test server, `streaming/tests/run.sh`);
+  - Locust 2.46.6 (MIT, `loadtests/run_load.py`).
 - Trivy 0.75.0 runs from `aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa` (`TRIVY_IMAGE` in the Makefile; `make scan`, part of the `make ci` gate). Update both together.
 - The licence gate (`scripts/license_gate.py`, `make licenses`) checks production dependencies of both stacks, and fails on GPL/AGPL/SSPL/BUSL/non-commercial or unknown licences, and on an empty input.
 - Production images apply distro security updates at build time. The app image removes pip, whose vendored packages were the only Trivy findings.

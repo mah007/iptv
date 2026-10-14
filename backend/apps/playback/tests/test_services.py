@@ -288,7 +288,8 @@ def test_device_of_another_user_is_a_programming_error(
         ((AccessRuleType.CIDR_DENY, "203.0.113.0/24", False), "::ffff:203.0.113.9", None,
          Denial.IP_BLOCKED),
         ((AccessRuleType.COUNTRY_DENY, "EG", True), "203.0.113.7", "eg", Denial.GEO_BLOCKED),
-        ((AccessRuleType.COUNTRY_ALLOW, "SA", False), "203.0.113.7", None, Denial.GEO_BLOCKED),
+        # A public address of unknown country meets allow-only rules: denied by default.
+        ((AccessRuleType.COUNTRY_ALLOW, "SA", False), "81.2.69.142", None, Denial.GEO_BLOCKED),
         ((AccessRuleType.COUNTRY_ALLOW, "SA", True), "203.0.113.7", "AE", Denial.GEO_BLOCKED),
     ],
 )  # fmt: skip
@@ -484,3 +485,40 @@ def test_a_lapsed_session_of_the_device_ends_when_it_starts_another_title(
     assert records.read_record(first.session_key) is None
     assert state_redis().get(concurrency.kick_key(first.session_key)) == b"replaced"
     assert second.session.ended_at is None
+
+
+# --- Country rules from DB-IP Lite (N1, ADR-0021) ---------------------------------------
+
+
+@pytest.fixture
+def located(geoip_dir: Any) -> None:
+    from apps.core.tests import geoip_data  # noqa: PLC0415
+
+    geoip_data.install(geoip_dir)
+
+
+def test_countries_come_from_the_client_address(
+    customer: User, make_title: TitleFactory, located: None
+) -> None:
+    AccessRule.objects.create(type=AccessRuleType.COUNTRY_ALLOW, value="SA")
+    AccessRule.objects.create(type=AccessRuleType.COUNTRY_DENY, value="EG")
+    entitlements.refresh(customer.pk)
+    grant = start(customer, make_title(), client_ip="77.31.4.5")
+    row = PlaybackSession.objects.get(session_key=grant.session_key)
+    assert (row.country, row.asn) == ("SA", 25019)
+    assert denial(customer, make_title(), client_ip="41.32.1.9") is Denial.GEO_BLOCKED
+    assert denial(customer, make_title(), client_ip="81.2.69.142") is Denial.GEO_BLOCKED
+
+
+def test_unknown_countries_follow_the_policy_and_the_lan_passes(
+    customer: User, make_title: TitleFactory, located: None
+) -> None:
+    from apps.core.services import set_setting  # noqa: PLC0415
+
+    AccessRule.objects.create(type=AccessRuleType.COUNTRY_ALLOW, value="SA")
+    entitlements.refresh(customer.pk)
+    unknown = "93.184.216.34"  # public, not in the test database
+    assert denial(customer, make_title(), client_ip=unknown) is Denial.GEO_BLOCKED
+    assert start(customer, make_title(), client_ip="192.168.1.20").url  # the operator's LAN
+    set_setting("geoip.unknown_country_policy", "allow", actor=None)
+    assert start(customer, make_title(), client_ip=unknown).url

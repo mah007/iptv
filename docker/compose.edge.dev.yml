@@ -1,0 +1,35 @@
+# A standalone edge on the development machine (M15, ADR-0022): the same edge as
+# docker/compose.edge.yml, as project smart-iptv-edge, joined to the dev stack's edge
+# network. Plain HTTP on 127.0.0.1:18090 (no public name for Let's Encrypt), stream-auth
+# and the control channel through the dev Traefik as edges.<DOMAIN>, and the dev
+# SeaweedFS as its S3 origin. `make edge-dev` starts it; see the Makefile.
+services:
+  edge:
+    environment:
+      EDGE_ID: ${EDGE_ID:-dev-edge}
+      EDGE_DOMAIN: ${EDGE_DOMAIN:-edge.localhost}
+      EDGE_TLS: "off"
+      EDGE_CONTROL_URL: http://traefik
+      EDGE_CONTROL_HOST: edges.${DOMAIN:-localhost}
+      EDGE_ORIGIN_URL: ${EDGE_ORIGIN_URL:-http://seaweedfs:8333/media/renditions}
+      EDGE_MEDIA_CACHE_SIZE: 2g
+      EDGE_CORS_ORIGINS: "*"
+      EDGE_RESOLVER: 127.0.0.11
+    ports: !override
+      - "127.0.0.1:18090:8080"
+    tmpfs: [/run, /tmp, /etc/nginx/conf.d, /var/cache/nginx]
+    volumes: !override
+      - ./streaming/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./streaming/nginx:/etc/nginx/edge:ro
+      - ./streaming/nginx/docker-entrypoint.d/40-edge-config.sh:/docker-entrypoint.d/40-edge-config.sh:ro
+    networks: [devstack]
+    mem_limit: 256m
+
+secrets:
+  edge_token:
+    file: ./secrets/dev-edge/edge_token
+
+networks:
+  devstack:
+    name: smart-iptv-edge
+    external: true

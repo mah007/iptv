@@ -331,13 +331,13 @@ def keyring() -> KeySet:
         stat = os.stat(path)
     except OSError as exc:
         raise KeySetError(f"cannot read key file: {exc.strerror}") from None
-    signature = (str(path), stat.st_mtime_ns, stat.st_size)
+    stamp = (str(path), stat.st_mtime_ns, stat.st_size)
     cached = _ring
-    if cached is not None and cached[0] == signature:
+    if cached is not None and cached[0] == stamp:
         return cached[1]
     with _ring_lock:
         keyset = load_keyset(path)
-        _ring = (signature, keyset)
+        _ring = (stamp, keyset)
     return keyset
 
 

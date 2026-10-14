@@ -78,6 +78,8 @@ class Outcome(StrEnum):
     FAILED = "failed"
     CANCELLED = "cancelled"
     REFUNDED = "refunded"
+    #: The customer disputed the charge with their bank (a chargeback; G-29).
+    DISPUTED = "disputed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +128,14 @@ class PaymentProvider(ABC):
 
     @abstractmethod
     def refund(self, payment: Payment, amount: int) -> RefundResult: ...
+
+    def confirm(self, result: PaymentResult) -> PaymentResult:
+        """Ask the provider's API about a payment a webhook says succeeded (G-29).
+
+        The answer replaces the event's own amount and currency, so a forged or replayed
+        event can't activate anything the provider doesn't confirm. Raises ProviderError
+        when the provider can't be reached (the webhook fails and the provider retries)."""
+        return result
 
     def cancel_recurring(self, subscription: Subscription) -> None:
         """Nothing to cancel: every checkout is a one-off payment."""
