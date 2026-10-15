@@ -1,6 +1,6 @@
 import {
-  AccessStatus,
   CustomersListRisk,
+  CustomersListSubscriptionStatus,
   UserStatus,
   useCustomersList,
   type CustomerSummary,
@@ -44,7 +44,7 @@ const route = getRouteApi("/app/customers");
 const helper = createDataTableColumnHelper<CustomerSummary>();
 
 function useColumns() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const format = useFormatters();
   return useMemo(
     () =>
@@ -90,13 +90,28 @@ function useColumns() {
             </span>
           ),
         }),
-        helper.accessor("access_status", {
-          id: "access_status",
+        helper.accessor("subscription_status", {
+          id: "subscription_status",
           header: t("customers.columns.access"),
           enableSorting: false,
-          cell: ({ getValue }) => <StatusBadge status={getValue()} />,
+          cell: ({ row }) => {
+            const customer = row.original;
+            const plan = customer.subscription_plan;
+            return (
+              <div className="grid justify-items-start gap-0.5">
+                <StatusBadge status={customer.subscription_status} />
+                <span className="text-xs text-muted-foreground">
+                  {plan
+                    ? i18n.language === "ar"
+                      ? plan.name_ar
+                      : plan.name_en
+                    : t(`customers.sources.${customer.status_source}`)}
+                </span>
+              </div>
+            );
+          },
         }),
-        helper.accessor("expires_at", {
+        helper.accessor("ends_at", {
           id: "expires_at",
           header: t("customers.columns.expires"),
           cell: ({ getValue }) => <ExpiryText expiresAt={getValue()} />,
@@ -136,7 +151,7 @@ function useColumns() {
           cell: ({ getValue }) => <RelativeTime value={getValue()} />,
         }),
       ]),
-    [t, format],
+    [t, i18n.language, format],
   );
 }
 
@@ -144,7 +159,7 @@ function apiParams(search: CustomersSearch): CustomersListParams {
   const { pageSize } = paginationFromSearch(search);
   return compact({
     search: search.q,
-    access_status: search.access,
+    subscription_status: search.access,
     status: search.status,
     expiring_within_days: search.expiring,
     risk: search.risk,
@@ -292,7 +307,7 @@ function Customers() {
                 <FacetFilter
                   single
                   title={t("customers.filters.access")}
-                  options={Object.values(AccessStatus).map((value) => ({
+                  options={Object.values(CustomersListSubscriptionStatus).map((value) => ({
                     value,
                     label: t(`ui:status.${value}`),
                   }))}

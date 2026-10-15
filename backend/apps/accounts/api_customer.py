@@ -33,7 +33,11 @@ from apps.accounts.customer_auth import (
 from apps.accounts.customer_tokens import AccessGrant, TokenPair
 from apps.accounts.models import Device, User
 from apps.accounts.permissions import HasPermission, Requirements
-from apps.accounts.serializers import CustomerStepUpSerializer, StepUpResultSerializer
+from apps.accounts.serializers import (
+    CustomerStepUpSerializer,
+    PasswordChangeSerializer,
+    StepUpResultSerializer,
+)
 from apps.accounts.serializers_customer import (
     AppLoginSerializer,
     AppSignInSerializer,
@@ -308,6 +312,29 @@ class CustomerStepUpView(CustomerView):
     )
     def delete(self, request: Request) -> Response:
         stepup.forget(request)
+        return Response(status=204)
+
+
+class MyPasswordView(CustomerView):
+    """POST me/password (ADR-0023): change my password with the current one; my other
+    sign-ins end (portal sessions, app sign-ins and their playback). TV logins keep
+    working: they have their own passwords."""
+
+    @extend_schema(
+        operation_id="me_password_change",
+        summary="Change my password; my other sign-ins end",
+        request=PasswordChangeSerializer,
+        responses={204: OpenApiResponse(description="Changed."), **problems(400, 401, 403, 429)},
+    )
+    def post(self, request: Request) -> Response:
+        payload = PasswordChangeSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        customer_auth.change_password(
+            request,
+            customer_of(request),
+            current=payload.validated_data["current_password"],
+            new=payload.validated_data["new_password"],
+        )
         return Response(status=204)
 
 

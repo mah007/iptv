@@ -9,7 +9,7 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router";
 
-import { AuthLayout } from "./layout/auth-layout";
+import { AuthLayout, DocumentLayout } from "./layout/auth-layout";
 import { PortalLayout } from "./layout/portal-layout";
 import { isSignedOutError, meQueryOptions } from "./lib/auth";
 import { NotFoundPage } from "./pages/not-found";
@@ -17,6 +17,8 @@ import { PageSkeleton } from "./pages/page-skeleton";
 import { RootErrorPage, RouteErrorPage } from "./pages/route-error";
 import {
   parseBrowseSearch,
+  parseLiveSearch,
+  parseLiveWatchSearch,
   parseLoginSearch,
   parseResetSearch,
   parseSearchSearch,
@@ -95,6 +97,12 @@ const seriesRoute = createRoute({
   validateSearch: parseSeriesSearch,
   component: lazyRouteComponent(() => import("./pages/title-detail"), "SeriesDetailPage"),
 });
+const liveRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/live",
+  validateSearch: parseLiveSearch,
+  component: lazyRouteComponent(() => import("./pages/live"), "LivePage"),
+});
 const collectionRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/collections/$slug",
@@ -156,6 +164,12 @@ const watchSeriesRoute = createRoute({
   validateSearch: parseWatchSearch,
   component: lazyRouteComponent(() => import("./pages/watch"), "WatchSeriesPage"),
 });
+const watchLiveRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/watch/live/$channelId",
+  validateSearch: parseLiveWatchSearch,
+  component: lazyRouteComponent(() => import("./pages/watch"), "WatchLivePage"),
+});
 
 /** Sign-in and password screens, outside the signed-in area. */
 const authRoute = createRoute({
@@ -188,6 +202,23 @@ const aboutRoute = createRoute({
   component: lazyRouteComponent(() => import("./pages/about"), "AboutPage"),
 });
 
+/** Public documents, wider than the sign-in card: the privacy policy and terms (ADR-0023). */
+const documentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "document",
+  component: DocumentLayout,
+});
+const privacyRoute = createRoute({
+  getParentRoute: () => documentRoute,
+  path: "/privacy",
+  component: lazyRouteComponent(() => import("./pages/legal"), "PrivacyPage"),
+});
+const termsRoute = createRoute({
+  getParentRoute: () => documentRoute,
+  path: "/terms",
+  component: lazyRouteComponent(() => import("./pages/legal"), "TermsPage"),
+});
+
 export const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     shellRoute.addChildren([
@@ -196,6 +227,7 @@ export const routeTree = rootRoute.addChildren([
       movieRoute,
       seriesListRoute,
       seriesRoute,
+      liveRoute,
       collectionRoute,
       personRoute,
       searchRoute,
@@ -208,8 +240,10 @@ export const routeTree = rootRoute.addChildren([
     ]),
     watchMovieRoute,
     watchSeriesRoute,
+    watchLiveRoute,
   ]),
   authRoute.addChildren([loginRoute, forgotRoute, resetRoute, aboutRoute]),
+  documentRoute.addChildren([privacyRoute, termsRoute]),
 ]);
 
 export function createAppRouter({

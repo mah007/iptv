@@ -222,13 +222,16 @@
     "paid": "Paid",
     "partially_refunded": "Partly refunded",
     "refunded": "Refunded",
-    "void": "Void"
+    "void": "Void",
+    "none": "No access"
   },
   "attribution": {
     "tmdb": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
     "tmdbLogo": "The Movie Database (TMDB)",
     "dbip": "IP Geolocation by DB-IP",
     "dbipLicence": "Country and network data: DB-IP Lite, licensed under CC BY 4.0.",
-    "naturalEarth": "Country locations for travel checks: Natural Earth (public domain)."
+    "naturalEarth": "Country locations for travel checks: Natural Earth (public domain).",
+    "tvdb": "Metadata provided by TheTVDB. Please consider adding missing information or subscribing.",
+    "tvdbShort": "Metadata provided by TheTVDB"
   }
 }

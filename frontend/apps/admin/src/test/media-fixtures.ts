@@ -342,6 +342,7 @@ export function review(overrides: Partial<Review> = {}): Review {
       candidate(),
       candidate({ id: 624860, title: "The Matrix Resurrections", year: 2021, score: 0.88 }),
     ],
+    chosen_provider: "",
     chosen_provider_id: null,
     decided_by: "",
     decided_at: null,

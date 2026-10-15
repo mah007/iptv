@@ -33,7 +33,7 @@ describe("admin shell", () => {
           .getAllByRole("link")
           .filter((link) => link.getAttribute("data-slot") === "sidebar-item")
           .map((link) => link.textContent),
-      ).toEqual(["Dashboard", "Live sessions", "Customers", "Access rules"]);
+      ).toEqual(["Dashboard", "Live sessions", "Customers", "Devices", "Access rules"]);
     });
     expect(within(nav).getByRole("link", { name: "Dashboard" }).getAttribute("aria-current")).toBe(
       "page",

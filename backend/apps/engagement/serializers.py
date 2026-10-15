@@ -6,6 +6,7 @@ from typing import Any
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.accounts.models import AppHint, DeviceKind
 from apps.catalog.serializers_customer import (
     PLAYING_TYPE_CHOICES,
     THUMB_CHOICES,
@@ -16,6 +17,7 @@ from apps.catalog.serializers_customer import (
     TitleCardSerializer,
 )
 from apps.engagement.services import WatchItem
+from apps.playback.models import TitleKind
 
 
 class TitleRefSerializer(serializers.Serializer[Any]):
@@ -26,7 +28,30 @@ class TitleRefSerializer(serializers.Serializer[Any]):
 # --- Playback ---------------------------------------------------------------------------------
 
 
-class PlaybackStartSerializer(TitleRefSerializer):
+#: What `playback/start` plays (ADR-0023 adds live channels and catch-up windows).
+PLAYBACK_TITLE_TYPES = (
+    ("movie", "Movie"),
+    ("series", "Series"),
+    ("live", "Live channel"),
+    ("catchup", "Catch-up"),
+)
+
+
+class PlaybackStartSerializer(serializers.Serializer[Any]):
+    title_type = serializers.ChoiceField(choices=PLAYBACK_TITLE_TYPES)
+    title_id = serializers.UUIDField(help_text="A movie, a series, or a live channel.")
+    start = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+        help_text="Catch-up: where the window starts (a recorded programme's start).",
+    )
+    duration_min = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+        max_value=24 * 60,
+        help_text="Catch-up: how long the window is, at most live.timeshift_max_minutes.",
+    )
     episode_id = serializers.UUIDField(
         required=False,
         allow_null=True,
@@ -66,8 +91,11 @@ class PlaybackGrantSerializer(serializers.Serializer[Any]):
     """A started stream: open `url` in the player and report progress to `session_id`."""
 
     session_id = serializers.UUIDField(help_text="For playback/{id}/progress and /stop.")
-    title_type = serializers.ChoiceField(choices=PLAYING_TYPE_CHOICES)
-    title_id = serializers.UUIDField(help_text="The movie or the episode playing.")
+    title_type = serializers.ChoiceField(choices=TitleKind.choices)
+    title_id = serializers.UUIDField(help_text="The movie, the episode or the channel playing.")
+    live = serializers.BooleanField(
+        help_text="A live channel: no duration, no resume, no progress reports (ADR-0023)."
+    )
     episode = PlaybackEpisodeSerializer(allow_null=True)
     delivery = serializers.ChoiceField(
         choices=(("progressive", "Progressive"), ("segmented", "Segmented (HLS)"))
@@ -84,6 +112,27 @@ class PlaybackGrantSerializer(serializers.Serializer[Any]):
     thumbnails_url = serializers.URLField(
         allow_null=True, help_text="Seek-bar previews (WebVTT sprite map), when available."
     )
+
+
+class StreamDeviceSerializer(serializers.Serializer[Any]):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    kind = serializers.ChoiceField(choices=DeviceKind.choices)
+    app_hint = serializers.ChoiceField(choices=AppHint.choices)
+
+
+class MyStreamSerializer(serializers.Serializer[Any]):
+    """One of my streams playing now (ADR-0023): stop it to free its slot."""
+
+    id = serializers.UUIDField(source="pk")
+    title_kind = serializers.ChoiceField(choices=TitleKind.choices)
+    title_id = serializers.UUIDField()
+    title_name = serializers.CharField(allow_blank=True)
+    device = StreamDeviceSerializer(allow_null=True)
+    current = serializers.BooleanField(help_text="Playing on the device of this request.")
+    country = serializers.CharField(allow_blank=True)
+    started_at = serializers.DateTimeField()
+    last_seen = serializers.DateTimeField(source="last_heartbeat_at")
 
 
 class ProgressReportSerializer(serializers.Serializer[Any]):

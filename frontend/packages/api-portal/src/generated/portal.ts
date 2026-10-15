@@ -37,6 +37,11 @@ import type {
   Genre,
   GenresListParams,
   Home,
+  LegalPage,
+  LegalRetrieveParams,
+  LiveChannelsGuideParams,
+  LiveGuide,
+  LiveListing,
   MeInvoiceDocumentParams,
   MeInvoicesParams,
   MovieDetail,
@@ -45,10 +50,12 @@ import type {
   MyDevice,
   MyDeviceCreateRequest,
   MyIssuedCredential,
+  MyStream,
   MySubscription,
   PaginatedCustomerInvoiceList,
   PaginatedTitleCardList,
   PaginatedWatchItemList,
+  PasswordChangeRequest,
   PatchedCustomerMeUpdateRequest,
   PatchedMyDeviceUpdateRequest,
   PersonDetail,
@@ -2044,6 +2051,408 @@ export function useHomeRetrieve<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+export const getLegalRetrieveUrl = (document: string, params?: LegalRetrieveParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/legal/${encodeURIComponent(String(document))}?${stringifiedParams}`
+    : `/api/v1/legal/${encodeURIComponent(String(document))}`;
+};
+
+/**
+ * Public: the privacy policy and terms are readable before signing in.
+ * @summary The privacy policy or the terms of service, in English or Arabic
+ */
+export const legalRetrieve = async (
+  document: string,
+  params?: LegalRetrieveParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LegalPage> => {
+  return apiFetch<LegalPage>(getLegalRetrieveUrl(document, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLegalRetrieveQueryKey = (document: string, params?: LegalRetrieveParams) => {
+  return [`/api/v1/legal/${document}`, ...(params ? [params] : [])] as const;
+};
+
+export const getLegalRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof legalRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  document: string,
+  params?: LegalRetrieveParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof legalRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLegalRetrieveQueryKey(document, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof legalRetrieve>>> = ({ signal }) =>
+    legalRetrieve(document, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: document !== null && document !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof legalRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type LegalRetrieveQueryResult = NonNullable<Awaited<ReturnType<typeof legalRetrieve>>>;
+export type LegalRetrieveQueryError = ErrorType<Problem>;
+
+export function useLegalRetrieve<
+  TData = Awaited<ReturnType<typeof legalRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  document: string,
+  params: undefined | LegalRetrieveParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof legalRetrieve>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof legalRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof legalRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLegalRetrieve<
+  TData = Awaited<ReturnType<typeof legalRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  document: string,
+  params?: LegalRetrieveParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof legalRetrieve>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof legalRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof legalRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLegalRetrieve<
+  TData = Awaited<ReturnType<typeof legalRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  document: string,
+  params?: LegalRetrieveParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof legalRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The privacy policy or the terms of service, in English or Arabic
+ */
+
+export function useLegalRetrieve<
+  TData = Awaited<ReturnType<typeof legalRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  document: string,
+  params?: LegalRetrieveParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof legalRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLegalRetrieveQueryOptions(document, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveChannelsListUrl = () => {
+  return `/api/v1/live/channels`;
+};
+
+/**
+ * A customer endpoint answering in the request's language.
+ * @summary Live channels I may watch, by group, with what's on now and next
+ */
+export const liveChannelsList = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveListing> => {
+  return apiFetch<LiveListing>(getLiveChannelsListUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveChannelsListQueryKey = () => {
+  return [`/api/v1/live/channels`] as const;
+};
+
+export const getLiveChannelsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveChannelsListQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveChannelsList>>> = ({ signal }) =>
+    liveChannelsList({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof liveChannelsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LiveChannelsListQueryResult = NonNullable<Awaited<ReturnType<typeof liveChannelsList>>>;
+export type LiveChannelsListQueryError = ErrorType<Problem>;
+
+export function useLiveChannelsList<
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsList>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsList<
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsList>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsList<
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Live channels I may watch, by group, with what's on now and next
+ */
+
+export function useLiveChannelsList<
+  TData = Awaited<ReturnType<typeof liveChannelsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveChannelsListQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLiveChannelsGuideUrl = (id: string, params?: LiveChannelsGuideParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/live/channels/${encodeURIComponent(String(id))}/guide?${stringifiedParams}`
+    : `/api/v1/live/channels/${encodeURIComponent(String(id))}/guide`;
+};
+
+/**
+ * A customer endpoint answering in the request's language.
+ * @summary One channel's guide; recorded programmes can be watched again
+ */
+export const liveChannelsGuide = async (
+  id: string,
+  params?: LiveChannelsGuideParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<LiveGuide> => {
+  return apiFetch<LiveGuide>(getLiveChannelsGuideUrl(id, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLiveChannelsGuideQueryKey = (id: string, params?: LiveChannelsGuideParams) => {
+  return [`/api/v1/live/channels/${id}/guide`, ...(params ? [params] : [])] as const;
+};
+
+export const getLiveChannelsGuideQueryOptions = <
+  TData = Awaited<ReturnType<typeof liveChannelsGuide>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: LiveChannelsGuideParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsGuide>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLiveChannelsGuideQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof liveChannelsGuide>>> = ({ signal }) =>
+    liveChannelsGuide(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof liveChannelsGuide>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type LiveChannelsGuideQueryResult = NonNullable<
+  Awaited<ReturnType<typeof liveChannelsGuide>>
+>;
+export type LiveChannelsGuideQueryError = ErrorType<Problem>;
+
+export function useLiveChannelsGuide<
+  TData = Awaited<ReturnType<typeof liveChannelsGuide>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params: undefined | LiveChannelsGuideParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsGuide>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsGuide>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsGuide>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsGuide<
+  TData = Awaited<ReturnType<typeof liveChannelsGuide>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: LiveChannelsGuideParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsGuide>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof liveChannelsGuide>>,
+          TError,
+          Awaited<ReturnType<typeof liveChannelsGuide>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLiveChannelsGuide<
+  TData = Awaited<ReturnType<typeof liveChannelsGuide>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: LiveChannelsGuideParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsGuide>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One channel's guide; recorded programmes can be watched again
+ */
+
+export function useLiveChannelsGuide<
+  TData = Awaited<ReturnType<typeof liveChannelsGuide>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  params?: LiveChannelsGuideParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof liveChannelsGuide>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLiveChannelsGuideQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 export const getMeRetrieveUrl = () => {
   return `/api/v1/me`;
 };
@@ -3059,6 +3468,313 @@ export function useMeInvoiceDocument<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export const getMePasswordChangeUrl = () => {
+  return `/api/v1/me/password`;
+};
+
+/**
+ * POST me/password (ADR-0023): change my password with the current one; my other
+ * sign-ins end (portal sessions, app sign-ins and their playback). TV logins keep
+ * working: they have their own passwords.
+ * @summary Change my password; my other sign-ins end
+ */
+export const mePasswordChange = async (
+  passwordChangeRequest: PasswordChangeRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<void>(getMePasswordChangeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(passwordChangeRequest),
+  });
+};
+
+export const getMePasswordChangeMutationKey = () => ["mePasswordChange"] as const;
+
+export const getMePasswordChangeMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mePasswordChange>>,
+    TError,
+    MePasswordChangeMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mePasswordChange>>,
+  TError,
+  MePasswordChangeMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMePasswordChangeMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mePasswordChange>>,
+    MePasswordChangeMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mePasswordChange(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MePasswordChangeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mePasswordChange>>
+>;
+export type MePasswordChangeMutationBody = PasswordChangeRequest;
+export type MePasswordChangeMutationError = ErrorType<Problem>;
+export type MePasswordChangeMutationVariables = { data: PasswordChangeRequest };
+
+/**
+ * @summary Change my password; my other sign-ins end
+ */
+export const useMePasswordChange = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof mePasswordChange>>,
+      TError,
+      MePasswordChangeMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof mePasswordChange>>,
+  TError,
+  MePasswordChangeMutationVariables,
+  TContext
+> => {
+  return useMutation(getMePasswordChangeMutationOptions(options), queryClient);
+};
+
+export const getMeStreamsListUrl = () => {
+  return `/api/v1/me/streams`;
+};
+
+/**
+ * On CONCURRENCY_LIMIT the player offers to stop one of these and play here.
+ * @summary My streams playing now, on every device
+ */
+export const meStreamsList = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<MyStream[]> => {
+  return apiFetch<MyStream[]>(getMeStreamsListUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getMeStreamsListQueryKey = () => {
+  return [`/api/v1/me/streams`] as const;
+};
+
+export const getMeStreamsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof meStreamsList>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof meStreamsList>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMeStreamsListQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof meStreamsList>>> = ({ signal }) =>
+    meStreamsList({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof meStreamsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type MeStreamsListQueryResult = NonNullable<Awaited<ReturnType<typeof meStreamsList>>>;
+export type MeStreamsListQueryError = ErrorType<Problem>;
+
+export function useMeStreamsList<
+  TData = Awaited<ReturnType<typeof meStreamsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof meStreamsList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof meStreamsList>>,
+          TError,
+          Awaited<ReturnType<typeof meStreamsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMeStreamsList<
+  TData = Awaited<ReturnType<typeof meStreamsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof meStreamsList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof meStreamsList>>,
+          TError,
+          Awaited<ReturnType<typeof meStreamsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMeStreamsList<
+  TData = Awaited<ReturnType<typeof meStreamsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof meStreamsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary My streams playing now, on every device
+ */
+
+export function useMeStreamsList<
+  TData = Awaited<ReturnType<typeof meStreamsList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof meStreamsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getMeStreamsListQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getMeStreamsStopUrl = (id: string) => {
+  return `/api/v1/me/streams/${encodeURIComponent(String(id))}/stop`;
+};
+
+/**
+ * A customer endpoint answering in the request's language.
+ * @summary Stop one of my streams: its device's playback stops and its slot is free
+ */
+export const meStreamsStop = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getMeStreamsStopUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getMeStreamsStopMutationKey = () => ["meStreamsStop"] as const;
+
+export const getMeStreamsStopMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof meStreamsStop>>,
+    TError,
+    MeStreamsStopMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof meStreamsStop>>,
+  TError,
+  MeStreamsStopMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMeStreamsStopMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof meStreamsStop>>,
+    MeStreamsStopMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return meStreamsStop(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MeStreamsStopMutationResult = NonNullable<Awaited<ReturnType<typeof meStreamsStop>>>;
+
+export type MeStreamsStopMutationError = ErrorType<Problem>;
+export type MeStreamsStopMutationVariables = { id: string };
+
+/**
+ * @summary Stop one of my streams: its device's playback stops and its slot is free
+ */
+export const useMeStreamsStop = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof meStreamsStop>>,
+      TError,
+      MeStreamsStopMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof meStreamsStop>>,
+  TError,
+  MeStreamsStopMutationVariables,
+  TContext
+> => {
+  return useMutation(getMeStreamsStopMutationOptions(options), queryClient);
+};
 
 export const getMeSubscriptionUrl = () => {
   return `/api/v1/me/subscription`;

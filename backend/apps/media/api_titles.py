@@ -336,6 +336,7 @@ class TitleRematchView(_TitleView):
         result = titles.rematch(
             title,
             tmdb_id=body.validated_data.get("tmdb_id"),
+            tvdb_id=body.validated_data.get("tvdb_id"),
             kind=body.validated_data.get("kind"),
             actor=acting_user(request),
             ip=client_ip(request),

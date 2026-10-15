@@ -1,0 +1,61 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-written TheTVDB v4 response for tests (ADR-0023); not TheTVDB data."
+  },
+  "status": "success",
+  "data": {
+    "series": {
+      "id": 9100001,
+      "name": "The Lantern Keepers"
+    },
+    "episodes": [
+      {
+        "id": 9500102,
+        "seriesId": 9100001,
+        "name": "Oil and Wick",
+        "aired": "2021-04-20",
+        "runtime": 42,
+        "overview": "A rival opens next door.",
+        "image": "https://artworks.thetvdb.com/banners/v4/episodes/9100001/9500102-640x360.jpg",
+        "number": 1,
+        "absoluteNumber": 2,
+        "seasonNumber": 1,
+        "year": "2021"
+      },
+      {
+        "id": 9500101,
+        "seriesId": 9100001,
+        "name": "The Shop",
+        "aired": "2021-04-13",
+        "runtime": 42,
+        "overview": "The siblings return to Jeddah.",
+        "image": "https://artworks.thetvdb.com/banners/v4/episodes/9100001/9500101-640x360.jpg",
+        "number": 2,
+        "absoluteNumber": 1,
+        "seasonNumber": 1,
+        "year": "2021"
+      },
+      {
+        "id": 9500103,
+        "seriesId": 9100001,
+        "name": "Ramadan Nights",
+        "aired": "2021-04-27",
+        "runtime": 42,
+        "overview": "The busiest month begins.",
+        "image": "https://artworks.thetvdb.com/banners/v4/episodes/9100001/9500103-640x360.jpg",
+        "number": 3,
+        "absoluteNumber": 3,
+        "seasonNumber": 1,
+        "year": "2021"
+      }
+    ]
+  },
+  "links": {
+    "prev": null,
+    "self": "page=0",
+    "next": null,
+    "total_items": 3,
+    "page_size": 500
+  }
+}

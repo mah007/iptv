@@ -14,10 +14,13 @@ from apps.dashboard.health import Status
 class KpisSerializer(serializers.Serializer[Any]):
     customers_total = serializers.IntegerField(help_text="Every customer account.")
     customers_active = serializers.IntegerField(
-        help_text="Active accounts whose access has not ended."
+        help_text="Customers whose governing subscription (else access profile) is active."
     )
-    customers_expired = serializers.IntegerField(help_text="Active accounts whose access ended.")
-    customers_suspended = serializers.IntegerField(help_text="Suspended accounts.")
+    customers_grace = serializers.IntegerField(
+        help_text="Customers in their subscription's grace period (still watching)."
+    )
+    customers_expired = serializers.IntegerField(help_text="Customers whose access ended.")
+    customers_suspended = serializers.IntegerField(help_text="Suspended accounts or subscriptions.")
     expiring_7d = serializers.IntegerField(help_text="Active access ending within 7 days.")
     devices_total = serializers.IntegerField(help_text="Devices that are not revoked.")
     devices_blocked = serializers.IntegerField(help_text="Blocked devices (not revoked).")

@@ -19,6 +19,7 @@ urlpatterns = [
         name="auth-mfa-webauthn-verify",
     ),
     path("step-up", api_auth.StepUpView.as_view(), name="auth-step-up"),
+    path("password", api_auth.PasswordChangeView.as_view(), name="auth-password-change"),
     path("step-up/options", api_auth.StepUpOptionsView.as_view(), name="auth-step-up-options"),
     path(
         "webauthn/credentials",

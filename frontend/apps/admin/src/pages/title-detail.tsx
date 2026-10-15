@@ -10,7 +10,9 @@ import {
   useSeriesRetrieve,
   useSeriesUpdate,
   type MediaFile,
+  type EpisodeOrderingEnum,
   type PatchedMovieUpdateRequest,
+  type PatchedSeriesUpdateRequest,
   type Season,
   type SeriesDetail,
 } from "@smart-iptv/api";
@@ -37,12 +39,18 @@ import {
   RelativeTime,
   Skeleton,
   StatusBadge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  TvdbAttribution,
   toast,
   useFormatters,
 } from "@smart-iptv/ui";
@@ -59,7 +67,7 @@ import {
   Repeat,
   Star,
 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError, RequirePermission } from "../components/states";
@@ -355,7 +363,64 @@ function OverviewCard({ title }: { title: TitleDetail }) {
   );
 }
 
-function DetailsCard({ title, kind }: { title: TitleDetail; kind: TitleKind }) {
+const TVDB_ORDERS: readonly EpisodeOrderingEnum[] = ["tvdb_aired", "tvdb_dvd"];
+
+type TitlePatch = PatchedMovieUpdateRequest | PatchedSeriesUpdateRequest;
+
+/** A TheTVDB series' episode order (ADR-0023): editable when it was built from TheTVDB. */
+function OrderingItem({
+  series,
+  onSave,
+}: {
+  series: SeriesDetail;
+  onSave: ((patch: TitlePatch) => Promise<unknown>) | null;
+}) {
+  const { t } = useTranslation();
+  const field = useId();
+  const editable = onSave !== null && series.metadata_source === "tvdb";
+  return (
+    <DescriptionItem label={<label htmlFor={field}>{t("titles.detail.ordering")}</label>}>
+      {editable ? (
+        <Select
+          value={series.episode_ordering}
+          onValueChange={(value) => {
+            void onSave({ episode_ordering: value as EpisodeOrderingEnum }).then(
+              () => {
+                toast.success(t("titles.detail.orderingSaved"));
+              },
+              (error: unknown) => {
+                notifyError(t, error);
+              },
+            );
+          }}
+        >
+          <SelectTrigger id={field} className="h-8 w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TVDB_ORDERS.map((value) => (
+              <SelectItem key={value} value={value}>
+                {t(`titles.orderings.${value}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <span id={field}>{t(`titles.orderings.${series.episode_ordering}`)}</span>
+      )}
+    </DescriptionItem>
+  );
+}
+
+function DetailsCard({
+  title,
+  kind,
+  onSave,
+}: {
+  title: TitleDetail;
+  kind: TitleKind;
+  onSave: ((patch: TitlePatch) => Promise<unknown>) | null;
+}) {
   const { t } = useTranslation();
   const format = useFormatters();
   const released = "release_date" in title ? title.release_date : title.first_air_date;
@@ -380,6 +445,16 @@ function DetailsCard({ title, kind }: { title: TitleDetail; kind: TitleKind }) {
               </span>
             )}
           </DescriptionItem>
+          {"tvdb_id" in title ? (
+            <DescriptionItem label={t("titles.detail.tvdb")}>
+              {title.tvdb_id === null ? null : (
+                <span className="font-mono text-ui tabular-nums" dir="ltr">
+                  {title.tvdb_id}
+                </span>
+              )}
+            </DescriptionItem>
+          ) : null}
+          {"episode_ordering" in title ? <OrderingItem series={title} onSave={onSave} /> : null}
           <DescriptionItem label={t("titles.detail.xtreamId")}>
             <span className="font-mono text-ui tabular-nums" dir="ltr">
               {title.xc_id}
@@ -413,6 +488,7 @@ function DetailsCard({ title, kind }: { title: TitleDetail; kind: TitleKind }) {
             ) : null}
           </DescriptionItem>
         </DescriptionList>
+        {title.metadata_source === "tvdb" ? <TvdbAttribution short className="mt-4 block" /> : null}
       </CardContent>
     </Card>
   );
@@ -530,7 +606,7 @@ function TitleView({
 }: {
   title: TitleDetail;
   kind: TitleKind;
-  onSave: (patch: PatchedMovieUpdateRequest) => Promise<unknown>;
+  onSave: (patch: TitlePatch) => Promise<unknown>;
   onRefresh: () => void;
   refreshing: boolean;
   saving: boolean;
@@ -614,7 +690,7 @@ function TitleView({
       <Hero title={title} />
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <OverviewCard title={title} />
-        <DetailsCard title={title} kind={kind} />
+        <DetailsCard title={title} kind={kind} onSave={manage ? onSave : null} />
       </div>
       {"seasons" in title ? (
         <SeasonsCard series={title} />

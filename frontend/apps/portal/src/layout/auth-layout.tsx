@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { BrandLockup } from "./brand";
+import { LegalLinks } from "./legal-links";
 import { SupportContacts } from "./support-contacts";
 
 /** Full-page frame for screens outside the signed-in area: sign-in, passwords, 404, fatal errors. */
@@ -35,8 +36,18 @@ export function CenteredLayout({
             {t("about.link")}
           </Link>
         </p>
+        <LegalLinks />
       </footer>
     </div>
+  );
+}
+
+/** Route layout for /privacy and /terms: the same frame, wide enough to read. */
+export function DocumentLayout() {
+  return (
+    <CenteredLayout className="max-w-3xl">
+      <Outlet />
+    </CenteredLayout>
   );
 }
 

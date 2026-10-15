@@ -116,11 +116,16 @@ function KpiTiles({ series }: { series: Timeseries | undefined }) {
       icon: <UserCheck />,
       value: (data) => data.customers_active,
       detail: (data) =>
-        data.customers_total > 0
-          ? t("dashboard.kpis.activeShare", {
-              share: format.percent(data.customers_active / data.customers_total),
+        data.customers_grace > 0
+          ? t("dashboard.kpis.inGrace", {
+              count: data.customers_grace,
+              formatted: format.number(data.customers_grace),
             })
-          : "",
+          : data.customers_total > 0
+            ? t("dashboard.kpis.activeShare", {
+                share: format.percent(data.customers_active / data.customers_total),
+              })
+            : "",
       link: can("customers.view")
         ? (className, children) => (
             <Link to="/customers" search={{ access: "active" }} className={className}>

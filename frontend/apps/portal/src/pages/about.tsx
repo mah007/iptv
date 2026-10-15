@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { useBranding } from "../layout/brand";
+import { LegalLinks } from "../layout/legal-links";
 import { usePageTitle } from "../lib/page-title";
 
 /** About: the service and the credits its data's licences ask for (SPEC §1.3; ADR-0021). */
@@ -21,6 +22,10 @@ export function AboutPage() {
       <section className="grid gap-3 rounded-card border border-border bg-card p-5">
         <h2 className="text-sm font-semibold text-foreground">{t("about.credits")}</h2>
         <Attributions />
+      </section>
+      <section className="grid gap-2">
+        <h2 className="text-sm font-semibold text-foreground">{t("legal.title")}</h2>
+        <LegalLinks className="justify-start text-sm text-primary" />
       </section>
       <Link
         to="/"

@@ -51,6 +51,20 @@ export function parseWatchSearch(raw: Record<string, unknown>) {
   });
 }
 
+/** /live?group=<id>: one live group's channels. */
+export function parseLiveSearch(raw: Record<string, unknown>) {
+  return compact({ group: stringParam(raw.group) });
+}
+
+/** /watch/live/$id?start=<ISO>&duration=<minutes>: a recorded programme (catch-up). */
+export function parseLiveWatchSearch(raw: Record<string, unknown>) {
+  const start = stringParam(raw.start);
+  return compact({
+    start: start !== undefined && !Number.isNaN(Date.parse(start)) ? start : undefined,
+    duration: intParam(raw.duration, 1, 1440),
+  });
+}
+
 /** /account/subscription?checkout=done after a payment provider sends the customer back. */
 export function parseSubscriptionSearch(raw: Record<string, unknown>) {
   return compact({ checkout: enumParam(raw.checkout, ["done", "cancelled"] as const) });

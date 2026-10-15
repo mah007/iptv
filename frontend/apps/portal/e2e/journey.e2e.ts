@@ -1,7 +1,4 @@
-import AxeBuilder from "@axe-core/playwright";
-import { type Page } from "@playwright/test";
-
-import { expect, test } from "./fixtures";
+import { expect, expectAccessible, login, password, signIn, test } from "./fixtures";
 
 /*
  * A customer's evening (SPEC §15): sign in, look around, search in Arabic,
@@ -10,20 +7,6 @@ import { expect, test } from "./fixtures";
  * with a fresh password in E2E_PORTAL_USER / E2E_PORTAL_PASS, with an empty
  * history, and needs the sample media ready (make media-ready).
  */
-
-const login = process.env.E2E_PORTAL_USER ?? "";
-const password = process.env.E2E_PORTAL_PASS ?? "";
-
-/** WCAG 2.2 AA checks on what is on screen; the page must have none. */
-async function expectAccessible(page: Page, name: string): Promise<void> {
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .analyze();
-  const problems = results.violations.map(
-    (violation) => `${violation.id} (${String(violation.nodes.length)}): ${violation.help}`,
-  );
-  expect(problems, `accessibility problems on ${name}`).toEqual([]);
-}
 
 test.beforeAll(() => {
   if (!login || !password) {
@@ -127,15 +110,6 @@ test("sign in, search in Arabic, play The Matrix, continue watching, sign out", 
   });
 });
 
-/** Signs in through the form (any language: the fields are found by their input purpose). */
-async function signIn(page: Page): Promise<void> {
-  await page.goto("/login");
-  await page.locator('input[autocomplete="username"]').fill(login);
-  await page.locator('input[autocomplete="current-password"]').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await expect(page).toHaveURL(/\/$/u);
-}
-
 for (const { language, theme } of [
   { language: "ar", theme: "light" },
   { language: "en", theme: "dark" },
@@ -157,6 +131,7 @@ for (const { language, theme } of [
       "/",
       "/movies",
       "/series",
+      "/live",
       "/search?q=matrix",
       "/my-list",
       "/history",
@@ -165,6 +140,8 @@ for (const { language, theme } of [
       "/account/subscription",
       "/plans",
       "/about",
+      "/privacy",
+      "/terms",
     ];
     for (const path of pages) {
       await page.goto(path);

@@ -164,6 +164,13 @@ _EVENTS: tuple[EventDef, ...] = (
         ("app",),
         {"app": "IBO Player"},
     ),
+    # --- Q1 (ADR-0023) ---
+    EventDef(
+        "password_changed",
+        "The account's password was changed while signed in (customers and admins).",
+        ("changed_at",),
+        {"changed_at": "2026-10-16 21:00"},
+    ),
 )
 EVENTS: Final = MappingProxyType({event.key: event for event in _EVENTS})
 #: Events whose message carries a secret (a password link): sent at once by
@@ -508,6 +515,28 @@ _DEFAULTS.update(
             '<a href="{{ portal_url }}">البوابة</a> في قسم الأجهزة وتطبيقات التلفزيون.</p><p>'
             + _FOOTER_AR
             + "</p>",
+        ),
+    }
+)
+_DEFAULTS.update(
+    {
+        ("password_changed", "en"): DefaultTemplate(
+            "Your {{ service_name }} password was changed",
+            "Hello {{ name }},\n\nYour password was changed on {{ changed_at }}, and every "
+            "other sign-in was ended. If you didn't do this, reset your password now and tell "
+            "us.\n\n" + _FOOTER_EN,
+            "<p>Hello {{ name }},</p><p>Your password was changed on "
+            "<strong>{{ changed_at }}</strong>, and every other sign-in was ended. If you "
+            "didn't do this, reset your password now and tell us.</p><p>" + _FOOTER_EN + "</p>",
+        ),
+        ("password_changed", "ar"): DefaultTemplate(
+            "تم تغيير كلمة مرور حسابك في {{ service_name }}",
+            "مرحباً {{ name }}،\n\nتم تغيير كلمة مرورك في {{ changed_at }}، وأُنهيت كل "
+            "جلسات الدخول الأخرى. إن لم تكن أنت من فعل ذلك فأعد تعيين كلمة المرور الآن وأخبرنا."
+            "\n\n" + _FOOTER_AR,
+            "<p>مرحباً {{ name }}،</p><p>تم تغيير كلمة مرورك في <strong>{{ changed_at }}</strong>، "
+            "وأُنهيت كل جلسات الدخول الأخرى. إن لم تكن أنت من فعل ذلك فأعد تعيين كلمة المرور الآن "
+            "وأخبرنا.</p><p>" + _FOOTER_AR + "</p>",
         ),
     }
 )

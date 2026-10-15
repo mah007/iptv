@@ -29,7 +29,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Check, CreditCard, Landmark, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
 import { localDescription, localName } from "../lib/local-name";
 import { usePageTitle } from "../lib/page-title";
@@ -279,8 +279,25 @@ function CheckoutDialog({
             ))}
           </div>
         )}
+        {result === null ? <AcceptTerms /> : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Paying or starting a trial accepts the terms (ADR-0023); they open in a new tab. */
+function AcceptTerms() {
+  const link = "font-medium text-primary underline underline-offset-4";
+  return (
+    <p className="text-xs text-muted-foreground">
+      <Trans
+        i18nKey="plans.acceptTerms"
+        components={{
+          terms: <Link to="/terms" target="_blank" className={link} />,
+          privacy: <Link to="/privacy" target="_blank" className={link} />,
+        }}
+      />
+    </p>
   );
 }
 

@@ -6,6 +6,7 @@ progressive file or a directory named after its token rendition:
 
 ```
 <asset>/compat.mp4                compat MP4                    token rendition `compat`
+<asset>/compat720.mp4             compat MP4 capped at 720p     `compat720` (ADR-0023)
 <asset>/source.<ext>              symlink to the library file   `source`
 <asset>/uhd.<ext>                 UHD version (or a source link) `uhd`
 <asset>/hls/master.m3u8           SDR ladder, every rung        `hls`
@@ -83,6 +84,11 @@ def presentation(ceiling: int | None = None) -> str:
     """The directory (and token rendition) of an HLS presentation: `hls` for the full
     SDR ladder, `hls<ceiling>` for a capped or UHD one."""
     return HLS if ceiling is None else f"{HLS}{ceiling}"
+
+
+def capped_compat(ceiling: int) -> str:
+    """The file stem (and token rendition) of the compat MP4 capped at `ceiling`."""
+    return f"{COMPAT}{ceiling}"
 
 
 def rung_dir(position: int) -> str:

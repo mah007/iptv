@@ -3,8 +3,10 @@ as (`make e2e-portal`, frontend/apps/portal/e2e). DEBUG only; idempotent.
 
 The username and password come from E2E_PORTAL_USER and E2E_PORTAL_PASS (the Makefile
 makes a fresh password for every run) and are never printed. The customer has an
-open-ended access profile for every category, three streams at once and 1080p, so the
-journey can play whatever the sample media holds. Failed sign-ins of earlier runs are
+open-ended access profile for every category, live TV and 1080p, so the journey can
+play whatever the sample media and the live test channel hold, and one stream at a
+time, so the "stop the other stream" journey meets the limit (ADR-0023); streams an
+earlier run left open are stopped. Failed sign-ins of earlier runs are
 cleared, and the customer's watch history, favourites and ratings are emptied, so
 "continue watching" shows only what this run played. TV logins left by an earlier run
 that stopped halfway are revoked, so the device limit leaves room for this run's.
@@ -22,15 +24,18 @@ from apps.accounts import services
 from apps.accounts.models import Device, DeviceKind, User, UserStatus
 from apps.engagement.models import Favorite, Rating, WatchProgress
 from apps.playback import entitlements
+from apps.playback.concurrency import KickReason
+from apps.playback.services import stop_user_sessions
 
 CUSTOMER_NAME = "Portal end-to-end checks"
 ACCESS = {
     "expires_at": None,
-    "max_streams": 3,
+    "max_streams": 1,
     "max_devices": 2,
     "max_quality": 1080,
     "allow_movies": True,
     "allow_series": True,
+    "allow_live": True,
 }
 
 
@@ -76,6 +81,7 @@ class Command(BaseCommand):
             )
             for device in leftovers:
                 services.revoke_device(device, actor=None)
+            stop_user_sessions(user.pk, KickReason.STOPPED)
             entitlements.schedule_refresh(user.pk)
         axes_reset(username=username)
         self.stdout.write(f"{'Created' if created else 'Updated'} the portal customer {username}.")

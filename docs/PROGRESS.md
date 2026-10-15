@@ -5,20 +5,72 @@
 | M1 Infrastructure & repo | Done | `m1-done` |
 | M2 Backend foundation | Done | `m2-done` |
 | M3 Accounts, plans, subscriptions | Done: plans, `activate()`, grace/expiry jobs, renewal property tests, invoices, payments, notifications ([ADR-0012](adr/0012-billing-subscriptions-and-notifications.md)) | `m3-done` |
-| M4 Library scanner, M5 Metadata | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)); live TMDB on the server since 2026-10-04 | `m4-done` (M5 waits for TheTVDB) |
+| M4 Library scanner, M5 Metadata | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)); live TMDB on the server since 2026-10-04; the TheTVDB fallback in Q1 ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md)) | `m4-done`; M5 ready for `m5-done` |
 | M6 Catalog & search | Done: customer catalog API, collections, home rows, Meilisearch with the Arabic normaliser and fallback, engagement ([ADR-0013](adr/0013-customer-api.md)) | `m6-done` |
 | M7 Direct-play streaming | Done ([ADR-0007](adr/0007-media-token-and-edge.md), [ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)) | `m7-done` |
 | M8 Transcoding | Done: compat MP4, HLS fMP4 ladder with per-plan ceilings, UHD/HDR, trickplay, subtitles (cp1256-safe), retention ([ADR-0014](adr/0014-hls-uhd-subtitles-thumbnails.md)); GPU ladder benchmarks pending | — |
 | M9 Xtream API | Done ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)) | `m9-done` |
-| M11 Admin UI | Done: every §8 page that has an API, billing pages, collections, storage, title media panels, live views with a polling fallback; `make e2e-admin` with axe ([ADR-0015](adr/0015-admin-ui.md)) | — |
-| M11b Customer portal | Done: portal UI with the Shaka player, progress and resume, account, devices and TV apps, checkout; `make e2e-portal` with axe ([ADR-0016](adr/0016-customer-portal.md)); provider sandboxes pending keys | — |
-| M12 Live TV & EPG | Done: licensed channels and groups, XMLTV import (partitioned guide), live and EPG Xtream actions, `xmltv.php`, live M3U, `/live`, short and `/timeshift` URLs, packager and relay behind the edge, catch-up with an admin-set disk budget, ErsatzTV and MediaMTX sync, optional MediaMTX ingest, admin Live TV and EPG pages; G-11 and G-13 closed ([ADR-0017](adr/0017-live-tv-and-epg.md)); portal live TV is a follow-up | — |
+| M11 Admin UI | Done: every §8 page that has an API, billing pages, collections, storage, title media panels, live views with a polling fallback; `make e2e-admin` with axe ([ADR-0015](adr/0015-admin-ui.md)); Devices, Lockouts, subscription status, field codes and the own-password card in Q1 ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md)) | ready for `m11-done` |
+| M11b Customer portal | Done: portal UI with the Shaka player, progress and resume, account, devices and TV apps, checkout; `make e2e-portal` with axe ([ADR-0016](adr/0016-customer-portal.md)); live TV, my streams, my password and legal pages in Q1; provider sandboxes pending keys | — |
+| M12 Live TV & EPG | Done: licensed channels and groups, XMLTV import (partitioned guide), live and EPG Xtream actions, `xmltv.php`, live M3U, `/live`, short and `/timeshift` URLs, packager and relay behind the edge, catch-up with an admin-set disk budget, ErsatzTV and MediaMTX sync, optional MediaMTX ingest, admin Live TV and EPG pages; G-11 and G-13 closed ([ADR-0017](adr/0017-live-tv-and-epg.md)); portal live TV and MediaMTX sign-ins through Django in Q1 | — |
 | M13 Monitoring & logging | Done: opt-in overlay (Prometheus 3.13 LTS, Grafana, Loki, Alloy, Alertmanager, exporters), 7 dashboards, 27 alerts delivered by Django per the admin's settings with an Alertmanager fallback, admin-only Grafana through the admin's sign-in, Loki redaction tested in `make ci`, dev fire drill passed ([ADR-0018](adr/0018-observability.md)); production fire drill waits for SMTP or Telegram | — |
 | CFG Dynamic configuration | Done: secret settings encrypted at rest with the `.env` fallback and its source shown, Integrations page (TMDB, TheTVDB, SMTP, Stripe, Moyasar, Telegram) with server-side Tests, System page, branding (logos, contacts, language, time zone) in both apps, emails and invoices, Alertmanager's fallback fetched from Django, installer writes settings instead of `.env` ([ADR-0019](adr/0019-dynamic-configuration.md)) | — |
 | M14b Operations security & backups | Done: pgBackRest with continuous WAL archiving and restic (local, optional S3), weekly restore drill with alerts, admin Backups page, point-in-time restore and restore points before updates, personal-data retention jobs, app database role and Valkey users, socket proxies, every container capability-dropped, read-only and digest-pinned (`make hardening-test`), CrowdSec with a Traefik bouncer switched from the admin, TLS options, ufw policy, `scripts/rotate-keys.sh`, seven runbooks; G-35 to G-39 and G-41 to G-43 closed ([ADR-0020](adr/0020-operations-security-and-backups.md)) | — |
 | M14a Application security | Done: strict nonce CSP on both SPAs and per-host headers, admin security keys and passkeys (WebAuthn) with an optional per-role requirement, step-up for sensitive actions (admins: code or key; customers: password before TV logins), idle timeout from `/auth/me`, admin IP allowlist, sharing detection with DB-IP Lite (scores, flags, evidence, warn/reset/suspend), per-account and progressive Xtream rate limits, *revoke by app*, payment confirmation and disputes, `make semgrep`/`audit`/`zap` in `make ci`, Renovate config, threat model v2 with a status for every gap ([ADR-0021](adr/0021-application-security.md)) | — |
 | M15 Scale & CDN | Done: the Edges page and per-session selection, standalone edges (`install.sh --edge`, own Let's Encrypt TLS, control channel, stream-auth over TLS), the private S3 origin (our SigV4, generations, height-tagged rungs), Bunny token auth (verified against vectors only), the read replica with a rehearsed failover, zero-downtime updates (`scripts/rollout.sh`, `make deploy`), load tests at 100/500/1,000 (5,000 extrapolated) and a web connection pool; G-44 fixed, G-17 fixed in part ([ADR-0022](adr/0022-scale-edges-origin-replica-and-rollouts.md)) | — |
+| Q1 Follow-ups | Done: TheTVDB fallback, admin Devices and Lockouts, subscription status, own passwords, my streams, portal live TV and catch-up, legal pages, MediaMTX sign-ins in the admin, capped MP4s for capped plans, the settings-cache healer ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md)) | — |
 | M10 client matrix (needs the owner's devices) | Planned | — |
+
+## Q1: follow-ups (2026-10-16)
+
+### Done ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md))
+- **TheTVDB fallback (closes M5):**
+  - our own v4 client (`apps/metadata/tvdb/`): sign-in with key and optional PIN, token reuse and one re-sign-in on 401, search, extended series with translations, paged episodes per ordering, artworks, remote ids; the shared Redis rate limit and response cache, retries with `Retry-After`, the metric with `provider="tvdb"`;
+  - synthetic offline fixtures (`apps/metadata/fixtures/tvdb/`, marked as such) and `manage.py record_tvdb_fixtures`;
+  - matching: TMDB first; TheTVDB only when TMDB has no confident series. A series naming its TMDB id is matched there; otherwise it is built from TheTVDB (ids on series, seasons, episodes and people, aired order, images, genres mapped to TMDB's);
+  - reviews carry each candidate's provider; resolve, search and rematch take `provider=tvdb`; the title page's ordering and TheTVDB id;
+  - the credit "Metadata provided by TheTVDB" on TheTVDB-sourced titles (portal, admin) and on About.
+- **Admin (closes M11):**
+  - **Devices** page: every customer's devices, filters in the URL, bulk block, unblock and revoke (`devices.manage`, ≤ 500, audited);
+  - **Lockouts** page and a card on the customer's Security tab: sign-in lockouts, second-factor and step-up counters, TV-login and address pauses; unlock with step-up (`lockouts.view`/`lockouts.manage`, migration `accounts/0008`; an admin's lockout needs `admins.manage`);
+  - `subscription_status` with its source and end date in the customers list (filter `access`), and customers in grace on the dashboard;
+  - stable codes on library, catalog and settings errors (registry validators included), translated;
+  - **Sign-in and security → Password**: current password plus step-up; other sessions end; an email confirms.
+- **Customer API and portal:** `me/streams` and stop (the player's "Stop it and play here" on `CONCURRENCY_LIMIT`), `me/password`, `eta_s` on `TITLE_PREPARING` with an automatic retry, one web device per browser (`siptv_wd` cookie) and the nightly retirement of web devices idle for `security.web_device_idle_days`, nullable rating values.
+- **Live TV in the portal:** `live/channels` (now and next, three queries) and `live/channels/{id}/guide`; `playback/start` with `live` and `catchup`; the Live page (groups, cards, guide drawer, **Watch from the start**) and the player's live mode with grant renewal; channels a browser can't decode point to TV apps; the Live link only for plans with live TV.
+- **Legal pages:** `legal.*` settings with the `text` widget (preview, template warning), en/ar templates with PDPL references and placeholders, the public `legal/{privacy|terms}` API, the Markdown subset renderer in `@smart-iptv/ui`, `/privacy` and `/terms` linked from both footers, About and the checkout.
+- **MediaMTX sign-ins through Django:** `authMethod: http` in production, `/internal/mediamtx-auth` (token, actions, loopback publishing, readers from the Docker networks, 401/403, throttle, metric), `live.ingest_*` settings with the old `MEDIAMTX_*` values as fallback, the **Live ingest** Integrations card with a Test, `MEDIAMTX_AUTH_TOKEN` in `.env.example`, `make mediamtx-test` in `make ci`.
+- **Capped compat MP4s by remux** (`library.capped_compat_mp4`, `auto`): `compat720.mp4`/`compat480.mp4` from the ladder's rung, AAC audio and text subtitles, for the ceilings plans use; queued after the ladder and hourly; playback, publisher, scope links, cleanup and reprocess know them (migration `media/0004`); `make compat-live` checks a 720p account's `.mp4` through to the edge.
+- **Settings-cache healer:** a fingerprint beside the cached values, checked every minute; `iptv_settings_cache_heals_total`.
+- **Docs:** ADR-0023, the live-tv runbook (sign-ins), CLAUDE.md (the fixture line corrected, `make mediamtx-test`, compat-live), README.
+
+### Evidence (dev stack, lane 2)
+- **Backend (lane 2):** 3,369 tests passed at 93.27% coverage in one full run; `make lint` (Ruff, `makemigrations --check`, ESLint, Prettier) and `make typecheck` (mypy, tsc) clean. New suites: the TheTVDB client and fallback, devices and lockouts, password changes, my streams and web devices, live channels and live/catch-up starts, the legal API, MediaMTX sign-ins and the ingest Test, the cache healer, capped MP4s on real ffmpeg (a 480p plan's `compat480.mp4` from the 360p rung with both subtitles) and their planning.
+- **Vitest:** ui 164, admin 189, portal 66 (fresh containers); ESLint, Prettier and tsc clean (`make lint`, `make typecheck`); `make api-client-check` up to date.
+- **`make compat`** 161 passed. **`make compat-live`** 212 passed, among them the 720p account's `.mp4` redirecting to `compat720.mp4` and the edge serving an MP4 (four remux jobs ran first, seconds each).
+- **`make mediamtx-test`** passed in 16 s (seven checks: the read user on the API, wrong passwords refused, the publish user kept off the API and off reading, publishing with the right user, reading it back with ffprobe, callers without MediaMTX's token refused).
+- **`make hardening-test`** passed (36 services with the live ingest overlay); **`make semgrep`** clean; ShellCheck clean on `scripts/mediamtx_test.sh`.
+- **`make e2e-admin`:** 130 passed, 1 skipped (the monitoring overlay is off): `/devices` and `/lockouts` with axe and at 390 px, blocking and unblocking a device, a TV login paused by 30 failed sign-ins and unlocked from Lockouts, a wrong current password refused, every new setting translated.
+- **`make e2e-portal`:** 7 passed: the existing journeys (the Live page, `/privacy` and `/terms` added to the axe sweep at 390 px in both languages), the Test Pattern played live for more than 5 s with the LIVE mark and no seek bar, two minutes of catch-up from the archive, a second browser refused with `CONCURRENCY_LIMIT` then **Stop it and play here**, and a password change and back. No CSP violation.
+
+### For the production server
+`install.sh --update` covers everything:
+- migrations `catalog/0005`, `accounts/0008` and `media/0004` (backward compatible);
+- `secrets.sh` appends `MEDIAMTX_AUTH_TOKEN`; a server with `LIVE_INGEST=1` restarts MediaMTX with HTTP sign-ins, and its encoders keep working with the `.env` users until they are moved into **Settings → Integrations → Live ingest**;
+- with a 720p or 480p plan, capped MP4 remuxes for existing titles are queued by the hourly task (seconds each, CPU queue);
+- browsers get the web-device cookie on their next play; old web devices retire after 30 idle days.
+
+By hand afterwards: save a TheTVDB key in Settings → Integrations if wanted (the fallback stays off without it), have the privacy policy and terms reviewed (Settings → Legal pages), and give the support role's admins the new Lockouts permissions if a custom role should have them.
+
+### Tags
+M5 (the TheTVDB fallback) and M11 (Devices, Lockouts, subscription status, field codes, own password) meet their acceptance now: ready for `m5-done` and `m11-done` once committed.
+
+### Still open
+- Real TheTVDB responses: none recorded until a key is available (fixtures are synthetic, built from the published v4 schema).
+- TheTVDB's DVD or absolute ordering for series matched on TMDB (only TheTVDB-sourced series use TheTVDB's order).
+- A capped MP4 gets subtitles added later only when it is reprocessed.
+- The legal texts are templates for a lawyer to review.
+- Xtream `status_of` during grace (an ADR-0012 follow-up, outside Q1).
 
 ## M14a and M15 deployed (2026-10-14)
 

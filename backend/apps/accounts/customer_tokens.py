@@ -230,11 +230,27 @@ def revoke_family(family: str) -> UUID | None:
     return UUID(raw.decode()) if raw else None
 
 
-def revoke_user(user_id: UUID | str) -> list[UUID]:
-    """End every family of the user (password reset, account disabled); their devices."""
+def revoke_user(user_id: UUID | str, *, keep: str | None = None) -> list[UUID]:
+    """End every family of the user (password reset or change, account disabled) but
+    `keep` (the app changing its own password); returns the ended families' devices."""
     families = [
         raw.decode() for raw in cast("set[bytes]", state_redis().smembers(_user_key(user_id)))
     ]
-    devices = [device for family in families if (device := revoke_family(family)) is not None]
-    state_redis().delete(_user_key(user_id))
+    ended = [family for family in families if family != keep]
+    devices = [device for family in ended if (device := revoke_family(family)) is not None]
+    if keep is not None and keep in families:
+        if ended:
+            state_redis().srem(_user_key(user_id), *ended)
+    else:
+        state_redis().delete(_user_key(user_id))
+    return devices
+
+
+def live_devices(user_id: UUID | str) -> set[UUID]:
+    """The app devices of the user's live token families (`expire_idle_devices`)."""
+    devices: set[UUID] = set()
+    for raw in cast("set[bytes]", state_redis().smembers(_user_key(user_id))):
+        device = cast("bytes | None", state_redis().hget(_family_key(raw.decode()), "d"))
+        if device:
+            devices.add(UUID(device.decode()))
     return devices

@@ -5,7 +5,9 @@ Used by the Xtream play URLs (`/movie|/series/{u}/{p}/{xc_id}.{ext}`) and the po
 API. A title is playable when it is `ready` (an episode: its series is); its
 renditions are the ready ones of its active files (ADR-0010, ADR-0014):
 
-- the progressive compat MP4 or direct-play source (what IPTV apps get);
+- the progressive compat MP4 or direct-play source (what IPTV apps get), and the
+  compat MP4s capped at 720p or 480p (`compat720`, `compat480`; ADR-0023), so an
+  IPTV app on a capped plan still gets an MP4;
 - every HLS presentation, each with its quality ceiling as its height: the full SDR
   ladder (`hls`), the capped ones (`hls720`, `hls480`) and the one with the UHD rung
   (`hls2160`), so `start_playback`'s quality check picks the tallest the plan allows.
@@ -35,9 +37,17 @@ _KINDS = {
     RenditionKind.SOURCE: Kind.SOURCE,
     RenditionKind.HLS_MASTER: Kind.HLS,
     RenditionKind.UHD: Kind.UHD,
+    RenditionKind.COMPAT_CAPPED: Kind.COMPAT,
 }
 #: What a title offers by default, and as its separate UHD version.
-_DEFAULT_KINDS = (RenditionKind.COMPAT_MP4, RenditionKind.SOURCE, RenditionKind.HLS_MASTER)
+_DEFAULT_KINDS = (
+    RenditionKind.COMPAT_MP4,
+    RenditionKind.SOURCE,
+    RenditionKind.HLS_MASTER,
+    RenditionKind.COMPAT_CAPPED,
+)
+#: Kinds whose rows are told apart by name, which is also their token rendition.
+_NAMED = (RenditionKind.HLS_MASTER, RenditionKind.COMPAT_CAPPED)
 _UHD_KINDS = (RenditionKind.UHD,)
 
 
@@ -155,7 +165,7 @@ def _build(  # noqa: PLR0913 (the title's playback facts)
     seen: set[tuple[str, str, str]] = set()
     for row in renditions:
         rendition_kind = _KINDS[RenditionKind(row["kind"])]
-        presentation = row["name"] if rendition_kind is Kind.HLS else ""
+        presentation = row["name"] if RenditionKind(row["kind"]) in _NAMED else ""
         identity = (row["storage_key"], row["kind"], presentation)
         if identity in seen:
             continue

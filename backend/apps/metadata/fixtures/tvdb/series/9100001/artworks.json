@@ -1,0 +1,48 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-written TheTVDB v4 response for tests (ADR-0023); not TheTVDB data."
+  },
+  "status": "success",
+  "data": {
+    "id": 9100001,
+    "artworks": [
+      {
+        "id": 1,
+        "image": "https://artworks.thetvdb.com/banners/v4/series/9100001/posters/lantern-680x1000.jpg",
+        "language": "eng",
+        "type": 2,
+        "score": 10,
+        "width": 680,
+        "height": 1000
+      },
+      {
+        "id": 2,
+        "image": "https://artworks.thetvdb.com/banners/v4/series/9100001/posters/lantern-ar-680x1000.jpg",
+        "language": "ara",
+        "type": 2,
+        "score": 8,
+        "width": 680,
+        "height": 1000
+      },
+      {
+        "id": 3,
+        "image": "https://artworks.thetvdb.com/banners/v4/series/9100001/backgrounds/lantern-1920x1080.jpg",
+        "language": null,
+        "type": 3,
+        "score": 9,
+        "width": 1920,
+        "height": 1080
+      },
+      {
+        "id": 4,
+        "image": "https://artworks.thetvdb.com/banners/v4/series/9100001/clearlogo/lantern-800x310.png",
+        "language": "eng",
+        "type": 23,
+        "score": 5,
+        "width": 800,
+        "height": 310
+      }
+    ]
+  }
+}

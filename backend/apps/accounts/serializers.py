@@ -16,6 +16,8 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.auth import LoginStatus, second_factors
+from apps.accounts.governing import GoverningStatus, StatusSource
+from apps.accounts.lockouts import LockoutKind
 from apps.accounts.models import (
     AccessRule,
     AccessRuleType,
@@ -109,6 +111,17 @@ class WebAuthnVerifySerializer(serializers.Serializer[Any]):
     credential = serializers.DictField(
         child=serializers.JSONField(),
         help_text="The browser's PublicKeyCredential as JSON (@simplewebauthn/browser).",
+    )
+
+
+class PasswordChangeSerializer(serializers.Serializer[Any]):
+    """My new password (ADR-0023): the current one proves it's still me."""
+
+    current_password = serializers.CharField(
+        max_length=256, write_only=True, trim_whitespace=False, style={"input_type": "password"}
+    )
+    new_password = serializers.CharField(
+        max_length=256, write_only=True, trim_whitespace=False, style={"input_type": "password"}
     )
 
 
@@ -272,6 +285,83 @@ class DeviceSerializer(serializers.ModelSerializer[Device]):
             return device.credential.username
         except XtreamCredential.DoesNotExist:
             return None
+
+
+class DeviceCustomerSerializer(serializers.ModelSerializer[User]):
+    class Meta:
+        model = User
+        fields = ("id", "username", "name")
+        read_only_fields = fields
+
+
+class DeviceListItemSerializer(DeviceSerializer):
+    """A device on the admin's Devices page, with its customer (ADR-0023)."""
+
+    customer = DeviceCustomerSerializer(source="user", read_only=True)
+    credential_last_used_at = serializers.SerializerMethodField(method_name="last_used_of")
+
+    class Meta(DeviceSerializer.Meta):
+        fields: tuple[str, ...] = (  # type: ignore[assignment]
+            *DeviceSerializer.Meta.fields,
+            "customer",
+            "credential_last_used_at",
+        )
+        read_only_fields = fields  # type: ignore[assignment]
+
+    @extend_schema_field(serializers.DateTimeField(allow_null=True))
+    def last_used_of(self, device: Device) -> datetime | None:
+        try:
+            return device.credential.last_used_at
+        except XtreamCredential.DoesNotExist:
+            return None
+
+
+DEVICE_ACTIONS = (
+    ("block", "Block"),
+    ("unblock", "Unblock"),
+    ("approve", "Approve"),
+    ("revoke", "Revoke"),
+)
+
+
+class DeviceBulkSerializer(serializers.Serializer[Any]):
+    ids = serializers.ListField(
+        child=serializers.UUIDField(), min_length=1, max_length=500, allow_empty=False
+    )
+    action = serializers.ChoiceField(choices=DEVICE_ACTIONS)
+    reason = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+
+
+class DeviceBulkResultSerializer(serializers.Serializer[Any]):
+    changed = serializers.IntegerField()
+    skipped = serializers.IntegerField()
+
+
+# --- Lockouts (ADR-0023) --------------------------------------------------------------------
+
+
+class LockoutAccountSerializer(serializers.ModelSerializer[User]):
+    class Meta:
+        model = User
+        fields = ("id", "username", "name", "is_staff")
+        read_only_fields = fields
+
+
+class LockoutSerializer(serializers.Serializer[Any]):
+    id = serializers.CharField(help_text="Opaque: pass it back to unlock.")
+    kind = serializers.ChoiceField(choices=enum_choices(LockoutKind))
+    failures = serializers.IntegerField(help_text="Failures counted (strikes, for an address).")
+    until = serializers.DateTimeField(allow_null=True)
+    login = serializers.CharField(allow_blank=True, help_text="As typed; empty when unknown.")
+    ip = serializers.CharField(allow_blank=True)
+    network = serializers.CharField(
+        allow_blank=True, help_text='A TV login\'s network; "*" for every network.'
+    )
+    account = LockoutAccountSerializer(allow_null=True)
+
+
+class LockoutUnlockSerializer(serializers.Serializer[Any]):
+    id = serializers.CharField(max_length=300)
 
 
 def xtream_username_field() -> serializers.CharField:
@@ -446,7 +536,27 @@ class CustomerCreateSerializer(CustomerProfileSerializer):
         fields = ("username", *CustomerProfileSerializer.Meta.fields, "access", "device")
 
 
+class PlanNameSerializer(serializers.Serializer[Any]):
+    name_en = serializers.CharField()
+    name_ar = serializers.CharField()
+
+
 class CustomerSummarySerializer(serializers.ModelSerializer[User]):
+    subscription_status = serializers.ChoiceField(
+        source="governing_status",
+        read_only=True,
+        choices=enum_choices(GoverningStatus),
+        help_text="The governing status: the current or last subscription's, from its "
+        "dates, else the access profile's (ADR-0023).",
+    )
+    status_source = serializers.ChoiceField(read_only=True, choices=enum_choices(StatusSource))
+    subscription_plan = serializers.SerializerMethodField(method_name="plan_of")
+    ends_at = serializers.DateTimeField(
+        source="effective_ends",
+        read_only=True,
+        allow_null=True,
+        help_text="The governing subscription's end, else the access profile's.",
+    )
     access_status = serializers.SerializerMethodField(method_name="access_status_of")
     expires_at = serializers.SerializerMethodField(method_name="expires_at_of")
     max_devices = serializers.SerializerMethodField(method_name="max_devices_of")
@@ -463,6 +573,10 @@ class CustomerSummarySerializer(serializers.ModelSerializer[User]):
             "email",
             "phone",
             "status",
+            "subscription_status",
+            "status_source",
+            "subscription_plan",
+            "ends_at",
             "access_status",
             "expires_at",
             "max_devices",
@@ -472,6 +586,13 @@ class CustomerSummarySerializer(serializers.ModelSerializer[User]):
             "created_at",
         )
         read_only_fields = fields
+
+    @extend_schema_field(PlanNameSerializer(allow_null=True))
+    def plan_of(self, user: User) -> dict[str, str] | None:
+        name_en = getattr(user, "gov_plan_en", None)
+        if name_en is None:
+            return None
+        return {"name_en": name_en, "name_ar": getattr(user, "gov_plan_ar", None) or name_en}
 
     @extend_schema_field(serializers.ChoiceField(choices=enum_choices(EntitlementStatus)))
     def access_status_of(self, user: User) -> str:

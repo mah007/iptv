@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 
 import { parseAccessRulesSearch } from "./features/access-rules/search";
+import { parseDevicesSearch } from "./features/devices/search";
 import { parseAdminsSearch } from "./features/admins/search";
 import {
   parseInvoicesSearch,
@@ -210,6 +211,18 @@ const collectionsRoute = createRoute({
   path: "/collections",
   component: lazyRouteComponent(() => import("./pages/collections"), "CollectionsPage"),
 });
+/** Q1 (ADR-0023): every customer's devices, and who is locked out. */
+const devicesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/devices",
+  validateSearch: parseDevicesSearch,
+  component: lazyRouteComponent(() => import("./pages/devices"), "DevicesPage"),
+});
+const lockoutsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/lockouts",
+  component: lazyRouteComponent(() => import("./pages/lockouts"), "LockoutsPage"),
+});
 const accessRulesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/access-rules",
@@ -319,6 +332,8 @@ export const routeTree = rootRoute.addChildren([
     templatesRoute,
     collectionsRoute,
     accessRulesRoute,
+    devicesRoute,
+    lockoutsRoute,
     healthRoute,
     monitoringRoute,
     backupsRoute,

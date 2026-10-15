@@ -1,25 +1,19 @@
 # MediaMTX for production ingest (ADR-0017, docs/runbooks/live-tv.md): the operator's own
 # encoders, cameras and OBS publish here; the live packager reads the streams over RTSP
-# inside the backend network. Users and passwords come from .env through MTX_* overrides
-# in docker/compose.mediamtx.yml (MEDIAMTX_PUBLISH_* and MEDIAMTX_READ_*).
+# inside the backend network.
+#
+# Sign-ins (ADR-0023): MediaMTX asks Django about every publish, read and API call
+# (POST /internal/mediamtx-auth on the backend network). The users and passwords are admin
+# settings (Settings -> Integrations -> Live ingest; the MEDIAMTX_* values of .env until
+# they are moved in). docker/compose.mediamtx.yml sets the address, with
+# MEDIAMTX_AUTH_TOKEN as MediaMTX's own password, through MTX_AUTHHTTPADDRESS.
 logLevel: warn
 logDestinations: [stdout]
 
-authMethod: internal
-authInternalUsers:
-  # 0: publishers (encoders, cameras, OBS), from any address.
-  - user: publisher
-    pass: change-me
-    ips: []
-    permissions:
-      - action: publish
-  # 1: the live packager and the admin's "Sync from MediaMTX", from the Docker networks.
-  - user: reader
-    pass: change-me
-    ips: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
-    permissions:
-      - action: read
-      - action: api
+authMethod: http
+authHTTPAddress: http://web:8000/internal/mediamtx-auth
+# Nothing is exempt: the API, too, needs the read user.
+authHTTPExclude: []
 
 api: yes
 apiAddress: :9997

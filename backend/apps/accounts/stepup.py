@@ -51,6 +51,8 @@ _SESSION_PREFIX: Final = "stepup:session:"
 FAIL_LIMIT: Final = 5
 FAIL_WINDOW_S: Final = 900
 _FAIL_PREFIX: Final = "stepup:fail:"
+#: The redis-state prefix of failed confirmations (the Lockouts page reads it).
+FAIL_PREFIX: Final = _FAIL_PREFIX
 
 
 def window_s(user: User) -> int:

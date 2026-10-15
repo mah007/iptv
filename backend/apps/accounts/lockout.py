@@ -43,7 +43,12 @@ def _failures(request: HttpRequest | None) -> int:
 
 def cool_off(request: HttpRequest | None) -> timedelta:
     """AXES_COOLOFF_TIME: the base period, doubled per failure past the limit, capped."""
-    excess = max(0, _failures(request) - int(settings.AXES_FAILURE_LIMIT))
+    return cool_off_for(_failures(request))
+
+
+def cool_off_for(failures: int) -> timedelta:
+    """The cool-off after `failures` failures (also how long a lockout listed lasts)."""
+    excess = max(0, failures - int(settings.AXES_FAILURE_LIMIT))
     # Doubling past 2**7 base periods is already beyond the cap.
     period = COOL_OFF_BASE * (1 << min(excess, 7))
     return min(period, COOL_OFF_MAX)

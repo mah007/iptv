@@ -18,7 +18,7 @@ only by `get_secret`, never returned by the API and audited without values.
 
 import logging
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -30,6 +30,7 @@ from django.conf import settings as django_settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import QuerySet
 
 from apps.accounts import crypto
 from apps.accounts.models import User
@@ -37,6 +38,7 @@ from apps.audit import services as audit
 from apps.audit.services import AuditTarget
 from apps.core import registry
 from apps.core.ids import uuid7
+from apps.core.metrics import SETTINGS_CACHE_HEALS
 from apps.core.models import Setting
 from apps.core.registry import SettingDef, SettingKind, SettingValue
 
@@ -76,10 +78,14 @@ class SensitiveSettingError(TypeError):
 
 
 class SettingsValidationError(ValidationError):
-    """Some values of a bulk change are invalid; `errors` maps each key to its messages."""
+    """Some values of a bulk change are invalid; `errors` maps each key to its messages and
+    `codes` to their stable codes, one per message (ADR-0015, ADR-0023)."""
 
-    def __init__(self, errors: Mapping[str, list[str]]) -> None:
+    def __init__(
+        self, errors: Mapping[str, list[str]], codes: Mapping[str, list[str]] | None = None
+    ) -> None:
         self.errors = dict(errors)
+        self.codes = {key: list((codes or {}).get(key, ())) for key in self.errors}
         first = next(iter(self.errors.values()))
         super().__init__(first[0] if first else "Invalid settings.", code="invalid")
 
@@ -157,6 +163,18 @@ def _values_key(version: str) -> str:
     return f"settings:values:v2:{version}"
 
 
+def _fingerprint_key(version: str) -> str:
+    return f"settings:fingerprint:{version}"
+
+
+def _fingerprint(rows: Iterable[tuple[str, datetime]]) -> str:
+    """What the stored overrides were when loaded: every key and when it last changed."""
+    digest = sha256()
+    for key, updated_at in sorted(rows):
+        digest.update(f"{key}={updated_at.isoformat()};".encode())
+    return digest.hexdigest()[:32]
+
+
 def _stored(definition: SettingDef | None, value: object, ciphertext: str) -> Stored:
     if definition is not None and definition.sensitive:
         if value is None:
@@ -165,10 +183,22 @@ def _stored(definition: SettingDef | None, value: object, ciphertext: str) -> St
     return (_PLAIN, value)
 
 
-def _load_overrides() -> Overrides:
+def _override_rows() -> QuerySet[Setting]:
     keys = [definition.key for definition in registry.definitions()]
-    rows = Setting.objects.filter(key__in=keys).values_list("key", "value", "ciphertext")
-    return {key: _stored(registry.REGISTRY.get(key), value, cipher) for key, value, cipher in rows}
+    return Setting.objects.filter(key__in=keys)
+
+
+def _load_overrides_and_fingerprint() -> tuple[Overrides, str]:
+    rows = list(_override_rows().values_list("key", "value", "ciphertext", "updated_at"))
+    overrides = {
+        key: _stored(registry.REGISTRY.get(key), value, cipher)
+        for key, value, cipher, _updated in rows
+    }
+    return overrides, _fingerprint((key, updated) for key, _value, _cipher, updated in rows)
+
+
+def _load_overrides() -> Overrides:
+    return _load_overrides_and_fingerprint()[0]
 
 
 def _cached_overrides() -> Overrides:
@@ -186,8 +216,9 @@ def _cached_overrides() -> Overrides:
             return memo[1]
         overrides: Overrides | None = cache.get(_values_key(version))
         if overrides is None:
-            overrides = _load_overrides()
+            overrides, fingerprint = _load_overrides_and_fingerprint()
             cache.set(_values_key(version), overrides, timeout=SETTINGS_VALUES_TTL_S)
+            cache.set(_fingerprint_key(version), fingerprint, timeout=SETTINGS_VALUES_TTL_S)
     except redis.RedisError:
         logger.warning("settings cache unavailable; reading from the database")
         return _load_overrides()
@@ -281,6 +312,26 @@ def bump_settings_version() -> None:
         cache.set(SETTINGS_VERSION_KEY, uuid7().hex, timeout=None)
     except redis.RedisError:
         logger.exception("could not bump the settings version; other processes keep old values")
+
+
+def heal_settings_cache() -> bool:
+    """Start a new settings version when the cached values no longer match the database
+    (a version bump that failed, ADR-0023): True when it did. One small query; the beat
+    runs it every minute, so a missed bump heals within a minute instead of never."""
+    try:
+        version = cache.get(SETTINGS_VERSION_KEY)
+        cached = cache.get(_fingerprint_key(version)) if version is not None else None
+    except redis.RedisError:
+        return False
+    if cached is None:
+        return False  # nothing cached for this version yet: the next read loads it
+    current = _fingerprint(_override_rows().values_list("key", "updated_at"))
+    if current == cached:
+        return False
+    logger.warning("settings.cache_stale: starting a new settings version")
+    SETTINGS_CACHE_HEALS.inc()
+    bump_settings_version()
+    return True
 
 
 def reset_settings_cache() -> None:
@@ -476,6 +527,7 @@ def set_settings(
     """
     planned: list[tuple[SettingDef, SettingValue | None]] = []
     errors: dict[str, list[str]] = {}
+    codes: dict[str, list[str]] = {}
     for key, value in changes.items():
         definition = registry.get_definition(key)
         if value is None:
@@ -485,8 +537,9 @@ def set_settings(
             planned.append((definition, definition.clean(value)))
         except ValidationError as exc:
             errors[key] = exc.messages
+            codes[key] = [error.code or "invalid" for error in exc.error_list]
     if errors:
-        raise SettingsValidationError(errors)
+        raise SettingsValidationError(errors, codes)
     with transaction.atomic():
         return [
             _reset(definition, actor=actor, ip=ip)

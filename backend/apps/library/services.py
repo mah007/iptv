@@ -32,7 +32,7 @@ from apps.audit import services as audit
 from apps.catalog.models import FileState, MediaFile, Movie, Series
 from apps.catalog.services import refresh_status_of_files
 from apps.catalog.signals import notify_catalog_changed
-from apps.core.errors import ErrorCode, ProblemError
+from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.metrics import SCAN_FILES
 from apps.core.stores import state_redis
 from apps.library import storage
@@ -87,17 +87,24 @@ def _category_ids(library: Library) -> list[UUID]:
 def _check_path(path: str, *, exclude: UUID | None = None) -> str:
     try:
         resolved = storage.validate_library_path(path)
-    except Exception as exc:  # django ValidationError: one message
+    except Exception as exc:  # django ValidationError: one message, with its code
         message = getattr(exc, "messages", [str(exc)])[0]
+        code = f"path_{getattr(exc, 'code', None) or 'invalid'}"
         raise ProblemError(
-            ErrorCode.VALIDATION_ERROR, message, field_errors={"path": [message]}
+            ErrorCode.VALIDATION_ERROR,
+            message,
+            field_errors={"path": [field_error(message, code=code)]},
         ) from None
     libraries = Library.objects.exclude(pk=exclude) if exclude else Library.objects.all()
     others = libraries.values_list("name", "path")
     for name, other in others:
         if storage.overlaps(resolved, other):
             message = f"Overlaps the library {name} ({other})."
-            raise ProblemError(ErrorCode.CONFLICT, message, field_errors={"path": [message]})
+            raise ProblemError(
+                ErrorCode.CONFLICT,
+                message,
+                field_errors={"path": [field_error(message, code="path_overlaps")]},
+            )
     return resolved
 
 
@@ -110,7 +117,9 @@ def create_library(data: Mapping[str, Any], *, actor: User | None, ip: str | Non
             raise ProblemError(
                 ErrorCode.CONFLICT,
                 "A library with this name exists.",
-                field_errors={"name": ["Already used by another library."]},
+                field_errors={
+                    "name": [field_error("Already used by another library.", code="name_taken")]
+                },
             )
         library = Library.objects.create(**values)
         library.default_categories.set(categories)
@@ -136,7 +145,9 @@ def update_library(
             raise ProblemError(
                 ErrorCode.CONFLICT,
                 "A library with this name exists.",
-                field_errors={"name": ["Already used by another library."]},
+                field_errors={
+                    "name": [field_error("Already used by another library.", code="name_taken")]
+                },
             )
         for name, value in values.items():
             setattr(library, name, value)

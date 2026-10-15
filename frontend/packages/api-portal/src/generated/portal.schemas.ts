@@ -677,6 +677,84 @@ export interface KnownFor {
   character: string;
 }
 
+/**
+ * * `privacy` - privacy
+ * * `terms` - terms
+ */
+export type LegalDocument = (typeof LegalDocument)[keyof typeof LegalDocument];
+
+export const LegalDocument = {
+  privacy: "privacy",
+  terms: "terms",
+} as const;
+
+export interface LegalPage {
+  document: LegalDocument;
+  /** en or ar. */
+  language: string;
+  /** Markdown: headings, paragraphs, lists, bold, links. */
+  body: string;
+  /**
+   * When an admin last changed it; null for the template.
+   * @nullable
+   */
+  updated_at: string | null;
+}
+
+export interface Programme {
+  /** Stable across guide imports. */
+  id: string;
+  title: string;
+  description: string;
+  start: string;
+  stop: string;
+  /** Recorded: it can be watched again now. */
+  catchup: boolean;
+}
+
+export interface LiveChannel {
+  id: string;
+  /** The channel's number in IPTV apps. */
+  number: number;
+  name: string;
+  /** @nullable */
+  logo_url: string | null;
+  group_id: string;
+  /** 0: no catch-up. */
+  catchup_days: number;
+  /**
+   * The oldest moment recorded, when catch-up records.
+   * @nullable
+   */
+  archive_from: string | null;
+  /** False when its codecs need a TV app (a browser can't decode them). */
+  web_playable: boolean;
+  now: Programme | null;
+  next: Programme | null;
+}
+
+export interface LiveGroup {
+  id: string;
+  name: string;
+}
+
+export interface LiveGuide {
+  channel: LiveChannel;
+  programmes: Programme[];
+}
+
+export interface LiveListing {
+  groups: LiveGroup[];
+  channels: LiveChannel[];
+}
+
+export type MetadataProvider = (typeof MetadataProvider)[keyof typeof MetadataProvider];
+
+export const MetadataProvider = {
+  tmdb: "tmdb",
+  tvdb: "tvdb",
+} as const;
+
 export interface PersonBrief {
   id: string;
   readonly name: string;
@@ -708,11 +786,16 @@ export const Thumb = {
 } as const;
 
 /**
+ * @nullable
+ */
+export type NullEnum = null;
+
+/**
  * The signed-in customer's relation to the title.
  */
 export interface ViewerState {
   favorite: boolean;
-  rating: Thumb;
+  rating: Thumb | NullEnum;
   progress: Progress | null;
 }
 
@@ -752,6 +835,8 @@ export interface MovieDetail {
   readonly tracks: TrackLanguages;
   readonly viewer: ViewerState;
   readonly similar: readonly TitleCard[];
+  /** Whose metadata the page shows, for the credit its licence asks for: TMDB, or TheTVDB for a series built from it (ADR-0023). */
+  readonly attribution: MetadataProvider;
   /** @nullable */
   release_date: string | null;
 }
@@ -818,6 +903,44 @@ export interface MyIssuedCredential {
 }
 
 /**
+ * * `movie` - Movie
+ * * `episode` - Episode
+ * * `live` - Live channel
+ * * `catchup` - Catch-up
+ */
+export type PlaybackKind = (typeof PlaybackKind)[keyof typeof PlaybackKind];
+
+export const PlaybackKind = {
+  movie: "movie",
+  episode: "episode",
+  live: "live",
+  catchup: "catchup",
+} as const;
+
+export interface StreamDevice {
+  id: string;
+  name: string;
+  kind: DeviceKind;
+  app_hint: AppHint;
+}
+
+/**
+ * One of my streams playing now (ADR-0023): stop it to free its slot.
+ */
+export interface MyStream {
+  id: string;
+  title_kind: PlaybackKind;
+  title_id: string;
+  title_name: string;
+  device: StreamDevice | null;
+  /** Playing on the device of this request. */
+  current: boolean;
+  country: string;
+  started_at: string;
+  last_seen: string;
+}
+
+/**
  * The customer's subscription: the current one, a waiting one, or the last that ended.
  */
 export interface MySubscription {
@@ -867,6 +990,22 @@ export interface PaginatedWatchItemList {
   /** @nullable */
   previous: string | null;
   results: WatchItem[];
+}
+
+/**
+ * My new password (ADR-0023): the current one proves it's still me.
+ */
+export interface PasswordChangeRequest {
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  current_password: string;
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  new_password: string;
 }
 
 /**
@@ -928,9 +1067,11 @@ export interface SubtitleTrack {
 export interface PlaybackGrant {
   /** For playback/{id}/progress and /stop. */
   session_id: string;
-  title_type: PlayingType;
-  /** The movie or the episode playing. */
+  title_type: PlaybackKind;
+  /** The movie, the episode or the channel playing. */
   title_id: string;
+  /** A live channel: no duration, no resume, no progress reports (ADR-0023). */
+  live: boolean;
   episode: PlaybackEpisode | null;
   delivery: DeliveryEnum;
   /** The signed edge URL of the stream. */
@@ -955,6 +1096,21 @@ export interface PlaybackGrant {
 }
 
 /**
+ * * `movie` - Movie
+ * * `series` - Series
+ * * `live` - Live channel
+ * * `catchup` - Catch-up
+ */
+export type PlaybackTitleType = (typeof PlaybackTitleType)[keyof typeof PlaybackTitleType];
+
+export const PlaybackTitleType = {
+  movie: "movie",
+  series: "series",
+  live: "live",
+  catchup: "catchup",
+} as const;
+
+/**
  * * `hls` - HLS
  * * `mp4` - Progressive MP4
  */
@@ -966,8 +1122,21 @@ export const PreferEnum = {
 } as const;
 
 export interface PlaybackStartRequest {
-  title_type: TitleType;
+  title_type: PlaybackTitleType;
+  /** A movie, a series, or a live channel. */
   title_id: string;
+  /**
+   * Catch-up: where the window starts (a recorded programme's start).
+   * @nullable
+   */
+  start?: string | null;
+  /**
+   * Catch-up: how long the window is, at most live.timeshift_max_minutes.
+   * @minimum 1
+   * @maximum 1440
+   * @nullable
+   */
+  duration_min?: number | null;
   /**
    * For a series: the episode. Without it, the episode in progress or the next one (series_retrieve's next_episode).
    * @nullable
@@ -979,7 +1148,7 @@ export interface PlaybackStartRequest {
    * * `hls` - HLS
    * * `mp4` - Progressive MP4
    */
-  prefer?: PreferEnum;
+  prefer?: PreferEnum | NullEnum;
 }
 
 /**
@@ -1055,7 +1224,7 @@ export interface Rating {
    * * `up` - Up
    * * `down` - Down
    */
-  value: Thumb;
+  value: Thumb | NullEnum;
 }
 
 export interface RatingRequest {
@@ -1067,7 +1236,7 @@ export interface RatingRequest {
    * * `up` - Up
    * * `down` - Down
    */
-  value: Thumb;
+  value: Thumb | NullEnum;
 }
 
 export interface Recommendations {
@@ -1198,6 +1367,8 @@ export interface SeriesDetail {
   readonly tracks: TrackLanguages;
   readonly viewer: ViewerState;
   readonly similar: readonly TitleCard[];
+  /** Whose metadata the page shows, for the credit its licence asks for: TMDB, or TheTVDB for a series built from it (ADR-0023). */
+  readonly attribution: MetadataProvider;
   /** @nullable */
   first_air_date: string | null;
   /** @nullable */
@@ -1296,6 +1467,11 @@ export interface Problem {
   field_errors?: ProblemFieldErrors;
   /** A stable code per message of field_errors (same keys, same order): DRF's validation codes (required, max_length, invalid, unique, ...) or the API's own (username_taken, password_length, ...). Clients translate the codes and fall back to the messages. */
   field_error_codes?: ProblemFieldErrorCodes;
+  /**
+   * TITLE_PREPARING: about how many seconds until the title plays, when known (a running job's estimate, else from the file's length).
+   * @nullable
+   */
+  eta_s?: number | null;
 }
 
 export type CategoriesListParams = {
@@ -1319,6 +1495,31 @@ export const GenresListKind = {
   movie: "movie",
   series: "series",
 } as const;
+
+export type LegalRetrieveParams = {
+  /**
+   * The language (default: the service's default language).
+   */
+  lang?: LegalRetrieveLang;
+};
+
+export type LegalRetrieveLang = (typeof LegalRetrieveLang)[keyof typeof LegalRetrieveLang];
+
+export const LegalRetrieveLang = {
+  ar: "ar",
+  en: "en",
+} as const;
+
+export type LiveChannelsGuideParams = {
+  /**
+   * Start (default: 6 hours ago).
+   */
+  from?: string;
+  /**
+   * End (default: a day ahead).
+   */
+  to?: string;
+};
 
 export type MeInvoicesParams = {
   /**

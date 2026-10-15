@@ -226,6 +226,13 @@ export {
 } from "./components/device-icon";
 export { LiveIndicator, type LiveIndicatorProps } from "./components/live-indicator";
 export {
+  Markdown,
+  parseMarkdown,
+  renderInline,
+  type MarkdownBlock,
+  type MarkdownProps,
+} from "./components/markdown";
+export {
   PosterCard,
   PosterCardSkeleton,
   PosterGrid,
@@ -263,7 +270,12 @@ export {
 // Helpers
 export { copyToClipboard } from "./lib/clipboard";
 export { cspNonce, installCspNonce } from "./lib/csp-nonce";
-export { Attributions, DbipAttribution, TmdbAttribution } from "./components/attributions";
+export {
+  Attributions,
+  DbipAttribution,
+  TmdbAttribution,
+  TvdbAttribution,
+} from "./components/attributions";
 export { cn } from "./lib/cn";
 export {
   createFormatters,

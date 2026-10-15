@@ -7,6 +7,7 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
+from apps.accounts.management.commands import e2e_portal_account
 from apps.accounts.models import Device, DeviceKind, User
 from apps.catalog.tests.builders import Builder, build, clean_stores
 from apps.engagement.models import Favorite, WatchProgress
@@ -34,7 +35,8 @@ def test_creates_then_resets_a_customer(
     user = User.objects.get(username="e2e-portal")
     assert not user.is_staff
     assert user.check_password(SECRET)
-    assert user.access.max_streams == 3
+    assert user.access.max_streams == 1  # the "stop the other stream" journey (ADR-0023)
+    assert user.access.allow_live
     assert user.access.expires_at is None
 
     movie = build.movie("Watched")
@@ -62,6 +64,18 @@ def test_revokes_tv_logins_left_by_an_earlier_run(
     assert not Device.objects.filter(
         user=user, kind=DeviceKind.XTREAM, revoked_at__isnull=True
     ).exists()
+
+
+def test_stops_streams_left_open_by_an_earlier_run(
+    settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.DEBUG = True
+    stopped: list[object] = []
+    monkeypatch.setattr(
+        e2e_portal_account, "stop_user_sessions", lambda user_id, reason: stopped.append(user_id)
+    )
+    run(monkeypatch)
+    assert stopped == [User.objects.get(username="e2e-portal").pk]
 
 
 def test_refuses_without_debug_or_credentials(

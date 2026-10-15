@@ -330,7 +330,7 @@ class ReviewResolveView(AdminView):
 
     @extend_schema(
         operation_id="review_queue_resolve",
-        summary="Match the file to the chosen TMDB movie or series",
+        summary="Match the file to the chosen TMDB movie or series (or TheTVDB series)",
         request=ResolveSerializer,
         responses={200: ReviewSerializer, **problems(400, 401, 403, 404, 409)},
     )
@@ -340,9 +340,11 @@ class ReviewResolveView(AdminView):
         review = get_object_or_404(review_queryset(), pk=pk)
         payload = ResolveSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
+        tvdb_id = payload.validated_data.get("tvdb_id")
         metadata.resolve_review(
             review,
-            payload.validated_data["tmdb_id"],
+            tvdb_id or payload.validated_data["tmdb_id"],
+            provider="tvdb" if tvdb_id else "tmdb",
             kind=payload.validated_data.get("kind"),
             actor=acting_user(request),
             ip=client_ip(request),
@@ -373,7 +375,7 @@ class MetadataSearchView(AdminView):
 
     @extend_schema(
         operation_id="metadata_search",
-        summary="Search TMDB (or the fixtures) for manual matching",
+        summary="Search TMDB (or the fixtures), or TheTVDB for series, for manual matching",
         parameters=[SearchQuerySerializer],
         responses={200: CandidateSerializer(many=True), **problems(400, 401, 403)},
     )
@@ -386,6 +388,7 @@ class MetadataSearchView(AdminView):
             query.validated_data["kind"],
             query.validated_data["query"],
             query.validated_data.get("year"),
+            provider=query.validated_data["provider"],
         )
         results = [
             {**item, "poster_url": metadata.poster_preview_url(item.get("poster_path"))}

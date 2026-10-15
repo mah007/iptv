@@ -71,6 +71,14 @@ def problem_components() -> dict[str, Any]:
                     ),
                     "additionalProperties": {"type": "array", "items": {"type": "string"}},
                 },
+                # ADR-0023: an RFC 9457 extension member of TITLE_PREPARING.
+                "eta_s": {
+                    "type": ["integer", "null"],
+                    "description": (
+                        "TITLE_PREPARING: about how many seconds until the title plays, when "
+                        "known (a running job's estimate, else from the file's length)."
+                    ),
+                },
             },
             "required": ["type", "title", "status", "code", "detail"],
         },

@@ -29,6 +29,7 @@ from apps.catalog.models import (
     Season,
     Series,
 )
+from apps.catalog.serializers import PROVIDER_CHOICES
 from apps.catalog.services import media_url
 
 POSTER_SIZES: Final = ("w500", "w185", "original")
@@ -263,6 +264,14 @@ class TitleDetailFields(TitleCardSerializer):
     tracks = serializers.SerializerMethodField()
     viewer = serializers.SerializerMethodField()
     similar = serializers.SerializerMethodField()
+    attribution = serializers.SerializerMethodField(
+        help_text="Whose metadata the page shows, for the credit its licence asks for: "
+        "TMDB, or TheTVDB for a series built from it (ADR-0023)."
+    )
+
+    @extend_schema_field(serializers.ChoiceField(choices=PROVIDER_CHOICES))
+    def get_attribution(self, title: Movie | Series) -> str:
+        return "tvdb" if title.metadata_source == "tvdb" else "tmdb"
 
     def get_overview(self, title: Movie | Series) -> str:
         return self.text(title, "overview")

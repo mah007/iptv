@@ -141,8 +141,11 @@ class ProblemError(exceptions.APIException):
         *,
         status: int | None = None,
         field_errors: Mapping[str, Sequence[str]] | None = None,
+        extensions: Mapping[str, Any] | None = None,
     ) -> None:
         self.problem_code = code
+        #: RFC 9457 extension members, e.g. TITLE_PREPARING's `eta_s` (ADR-0023).
+        self.extensions = dict(extensions or {})
         self.status_code = status if status is not None else default_status(code)
         self.field_errors: FieldErrors = {
             name: [str(message) for message in messages]
@@ -190,9 +193,11 @@ class Problem:
     field_errors: FieldErrors = field(default_factory=dict)
     headers: dict[str, str] = field(default_factory=dict)
     field_error_codes: FieldErrors = field(default_factory=dict)
+    extensions: dict[str, Any] = field(default_factory=dict)
 
     def body(self) -> dict[str, Any]:
         body: dict[str, Any] = {
+            **self.extensions,
             "type": problem_type(self.code),
             "title": title_for(self.code),
             "status": self.status,
@@ -308,6 +313,7 @@ def _api_exception_problem(exc: exceptions.APIException) -> Problem:
             exc.field_errors,
             headers,
             field_error_codes=exc.field_error_codes,
+            extensions=dict(getattr(exc, "extensions", {}) or {}),
         )
     if isinstance(exc, exceptions.ValidationError):
         return _validation_problem(

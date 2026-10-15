@@ -36,7 +36,13 @@ from uuid import UUID
 import redis
 import structlog
 from django.conf import settings
-from django.contrib.auth import authenticate, login, logout, user_logged_in
+from django.contrib.auth import (
+    authenticate,
+    login,
+    logout,
+    update_session_auth_hash,
+    user_logged_in,
+)
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.exceptions import ValidationError
@@ -51,7 +57,7 @@ from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
-from apps.accounts import customer_tokens, services, stepup
+from apps.accounts import customer_tokens, passwords, services, stepup
 from apps.accounts.customer_tokens import AccessGrant, RefreshOutcome, TokenPair
 from apps.accounts.lockout import LOGIN_USERNAME_ATTR
 from apps.accounts.models import Device, DeviceKind, User, UserStatus
@@ -72,6 +78,12 @@ BEARER_REALM: Final = 'Bearer realm="api"'
 MODEL_BACKEND: Final = "django.contrib.auth.backends.ModelBackend"
 #: The session's browser device (created at its first playback).
 SESSION_DEVICE_KEY: Final = "_customer_web_device"
+#: A signed, host-only cookie naming this browser's web device, so later sign-ins in the
+#: same browser reuse it instead of adding one per sign-in (ADR-0023).
+WEB_DEVICE_COOKIE: Final = "siptv_wd"
+_WEB_DEVICE_SALT: Final = "apps.accounts.customer_auth.web_device"
+#: Browsers keep a cookie for 400 days at most.
+WEB_DEVICE_COOKIE_MAX_AGE_S: Final = 400 * 86400
 #: The portal page that sets a password from a link (`?uid=&token=`).
 PASSWORD_PAGE: Final = "/reset-password"  # noqa: S105 (a page path)
 RATE_WINDOW_S: Final = 900
@@ -306,13 +318,17 @@ def portal_login(request: HttpRequest, login_value: str, password: str) -> User:
 
 
 def portal_logout(request: HttpRequest) -> None:
-    """End the session and retire its browser device (its playback stops)."""
+    """End the session and stop its browser's playback. The browser's device stays (a later
+    sign-in in this browser reuses it); `expire_idle_devices` retires it once unused."""
+    from apps.playback.concurrency import KickReason  # noqa: PLC0415 (playback builds on us)
+    from apps.playback.services import stop_device_sessions  # noqa: PLC0415
+
     user = getattr(request, "user", None)
     device_id = request.session.get(SESSION_DEVICE_KEY) if hasattr(request, "session") else None
     if isinstance(user, User) and user.is_authenticated and device_id:
         device = Device.objects.filter(pk=device_id, user=user, kind=DeviceKind.WEB).first()
         if device is not None:
-            services.revoke_device(device, actor=user, ip=client_ip(request))
+            stop_device_sessions(device.pk, KickReason.STOPPED)
     logout(request)
 
 
@@ -387,10 +403,54 @@ def app_logout(request: HttpRequest, user: User, grant: AccessGrant) -> None:
     _retire_device(device_id or grant.device_id, actor=user, ip=client_ip(request))
 
 
-def end_app_sign_ins(user: User) -> None:
-    """Revoke every token family of the user and retire their app devices."""
-    for device_id in customer_tokens.revoke_user(user.pk):
+def end_app_sign_ins(user: User, *, keep_family: str | None = None) -> None:
+    """Revoke every token family of the user (but `keep_family`) and retire their app
+    devices."""
+    for device_id in customer_tokens.revoke_user(user.pk, keep=keep_family):
         _retire_device(device_id, actor=None, ip=None)
+
+
+def change_password(request: Request, user: User, *, current: str, new: str) -> None:
+    """The signed-in customer changes their password (ADR-0023). The current password is
+    the confirmation (failures count like a failed confirmation and in django-axes). Every
+    other sign-in ends: the other portal sessions (the session hash follows the password),
+    the other app sign-ins, and the playback of the other browsers and apps. TV logins
+    are separate credentials and keep working."""
+    from apps.playback.concurrency import KickReason  # noqa: PLC0415 (playback builds on us)
+    from apps.playback.services import open_sessions, stop_sessions  # noqa: PLC0415
+
+    wait = stepup.blocked(user)
+    if wait:
+        raise stepup.too_many(wait)
+    raw = request._request
+    setattr(raw, LOGIN_USERNAME_ATTR, user.username)
+    confirmed = authenticate(raw, username=user.username, password=current)
+    if getattr(raw, "axes_locked_out", False):
+        raise ProblemError(
+            ErrorCode.ACCOUNT_LOCKED, "Too many failed sign-in attempts. Try again later."
+        )
+    if not isinstance(confirmed, User) or confirmed.pk != user.pk:
+        stepup.count_failure(user)
+        raise passwords.wrong_current()
+    passwords.check_new_password(user, current, new)
+    grant = request.auth if isinstance(request.auth, AccessGrant) else None
+    here = current_device_id(request)
+    with transaction.atomic():
+        user.set_password(new)
+        user.save(update_fields=["password", "updated_at"])
+        audit.record("customer.password_change", actor=user, target=user, ip=client_ip(request))
+        passwords.notify_changed(user)
+        others = open_sessions().filter(
+            user=user, device__kind__in=(DeviceKind.WEB, DeviceKind.APP)
+        )
+        if here is not None:
+            others = others.exclude(device_id=here)
+        stop_sessions(list(others), KickReason.STOPPED)
+        keep = grant.family if grant is not None else None
+        transaction.on_commit(lambda: end_app_sign_ins(user, keep_family=keep))
+    if grant is None:
+        update_session_auth_hash(raw, user)
+    stepup.elevate(request, user)
 
 
 # --- The device a request plays on ------------------------------------------------------------
@@ -425,9 +485,52 @@ def browser_name(user_agent: str) -> str:
     return browser or system or "Web browser"
 
 
+def _remembered_web_device(request: Request, user: User) -> Device | None:
+    """This browser's device from an earlier sign-in (the signed cookie), if still live."""
+    try:
+        raw = request._request.get_signed_cookie(
+            WEB_DEVICE_COOKIE, default=None, salt=_WEB_DEVICE_SALT
+        )
+        device_id = UUID(raw) if raw else None
+    except ValueError:  # a tampered or unreadable cookie: ignore it
+        return None
+    if device_id is None:
+        return None
+    return Device.objects.filter(
+        pk=device_id, user=user, kind=DeviceKind.WEB, revoked_at__isnull=True
+    ).first()
+
+
+def remember_web_device(response: Any, request: Request, device: Device) -> None:
+    """Name this browser's web device in a signed, host-only, HttpOnly cookie."""
+    if device.kind != DeviceKind.WEB or isinstance(request.auth, AccessGrant):
+        return
+    response.set_signed_cookie(
+        WEB_DEVICE_COOKIE,
+        str(device.pk),
+        salt=_WEB_DEVICE_SALT,
+        max_age=WEB_DEVICE_COOKIE_MAX_AGE_S,
+        httponly=True,
+        secure=request._request.is_secure(),
+        samesite="Lax",
+    )
+
+
+def current_device_id(request: Request) -> UUID | None:
+    """The device this request plays on, without creating one (`me/streams`)."""
+    if isinstance(request.auth, AccessGrant):
+        return request.auth.device_id
+    raw = request._request.session.get(SESSION_DEVICE_KEY)
+    try:
+        return UUID(str(raw)) if raw else None
+    except ValueError:
+        return None
+
+
 def device_for(request: Request, user: User) -> Device:
     """The device this request plays on: the token's `app` device on api.<domain>, else
-    the session's browser device, created at the session's first playback."""
+    the browser's web device: the session's, else the one this browser used before (its
+    cookie), else a new one at the session's first playback (ADR-0013, ADR-0023)."""
     ip = client_ip(request)
     now = timezone.now()
     if isinstance(request.auth, AccessGrant):
@@ -443,14 +546,16 @@ def device_for(request: Request, user: User) -> Device:
             else None
         )
         if device is None or device.revoked_at is not None:
-            agent = request.META.get("HTTP_USER_AGENT", "")
-            device = Device.objects.create(
-                user=user,
-                kind=DeviceKind.WEB,
-                name=browser_name(agent),
-                approved=True,
-                first_seen=now,
-            )
+            device = _remembered_web_device(request, user)
+            if device is None:
+                agent = request.META.get("HTTP_USER_AGENT", "")
+                device = Device.objects.create(
+                    user=user,
+                    kind=DeviceKind.WEB,
+                    name=browser_name(agent),
+                    approved=True,
+                    first_seen=now,
+                )
             session[SESSION_DEVICE_KEY] = str(device.pk)
     Device.objects.filter(pk=device.pk).update(last_seen=now, last_ip=ip, updated_at=now)
     return device

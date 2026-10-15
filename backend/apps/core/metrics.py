@@ -82,6 +82,15 @@ CONCURRENCY_REJECTIONS = Counter(
     "iptv_concurrency_rejections", "Playback starts refused by the stream limit."
 )
 KICKS = Counter("iptv_kicks", "Sessions ended by the platform, by reason.", ("reason",))
+SETTINGS_CACHE_HEALS = Counter(
+    "iptv_settings_cache_heals",
+    "Settings caches found stale (a missed version bump) and reset (ADR-0023).",
+)
+LIVE_INGEST_AUTH = Counter(
+    "iptv_live_ingest_auth",
+    "MediaMTX sign-in decisions (ADR-0023) by action and result.",
+    ("action", "result"),
+)
 # Observed by RequestLogMiddleware on the tv host; `action` comes from a fixed set
 # (apps.core.middleware.xtream_action), so the label stays bounded.
 XTREAM_REQUESTS = Counter(

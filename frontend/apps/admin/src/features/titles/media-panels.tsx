@@ -13,6 +13,7 @@ import {
   useTitlesImagesList,
   useTitlesImagesPrimary,
   useTitlesRematch,
+  type RematchRequest,
   useTitlesRenditionsDelete,
   useTitlesRenditionsList,
   useTitlesReprocess,
@@ -1083,17 +1084,27 @@ export function RematchDialog({
   const id = useId();
   const queryClient = useQueryClient();
   const rematch = useTitlesRematch();
+  const providerField = useId();
   const [text, setText] = useState(initialQuery);
+  const [chosenProvider, setProvider] = useState<"tmdb" | "tvdb">("tmdb");
   const search = useDeferredValue(text.trim());
   const providerKind = kind === "movie" ? "movie" : "tv";
+  // TheTVDB is the TV fallback (ADR-0023): series only.
+  const provider = kind === "series" ? chosenProvider : "tmdb";
   const results = useMetadataSearch(
-    { kind: providerKind, query: search },
+    { kind: providerKind, query: search, provider },
     { query: { enabled: open && search.length >= 2 } },
   );
 
-  function run(tmdbId: number | null): void {
+  function run(target: { provider: "tmdb" | "tvdb"; id: number } | null): void {
+    const data: RematchRequest =
+      target === null
+        ? {}
+        : target.provider === "tvdb"
+          ? { tvdb_id: target.id, kind: providerKind }
+          : { tmdb_id: target.id, kind: providerKind };
     rematch.mutate(
-      { id: titleId, data: tmdbId === null ? {} : { tmdb_id: tmdbId, kind: providerKind } },
+      { id: titleId, data },
       {
         onSuccess: (result) => {
           toast.success(
@@ -1118,17 +1129,38 @@ export function RematchDialog({
           <DialogTitle>{t("titleMedia.rematch.title")}</DialogTitle>
           <DialogDescription>{t("titleMedia.rematch.description")}</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-1.5">
-          <Label htmlFor={id}>{t("titleMedia.rematch.search")}</Label>
-          <Input
-            id={id}
-            type="search"
-            dir="auto"
-            value={text}
-            onChange={(event) => {
-              setText(event.target.value);
-            }}
-          />
+        <div className="flex flex-wrap items-end gap-3">
+          {kind === "series" ? (
+            <div className="grid gap-1.5">
+              <Label htmlFor={providerField}>{t("titleMedia.rematch.provider")}</Label>
+              <Select
+                value={provider}
+                onValueChange={(value) => {
+                  setProvider(value === "tvdb" ? "tvdb" : "tmdb");
+                }}
+              >
+                <SelectTrigger id={providerField} className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tmdb">{t("titleMedia.rematch.providers.tmdb")}</SelectItem>
+                  <SelectItem value="tvdb">{t("titleMedia.rematch.providers.tvdb")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          <div className="grid min-w-48 flex-1 gap-1.5">
+            <Label htmlFor={id}>{t("titleMedia.rematch.search")}</Label>
+            <Input
+              id={id}
+              type="search"
+              dir="auto"
+              value={text}
+              onChange={(event) => {
+                setText(event.target.value);
+              }}
+            />
+          </div>
         </div>
         <div className="max-h-80 overflow-y-auto">
           {results.isFetching ? (
@@ -1139,15 +1171,17 @@ export function RematchDialog({
             <ul className="grid gap-2">
               {(results.data ?? []).map((candidate) => (
                 <li
-                  key={candidate.id}
+                  key={`${candidate.provider}-${String(candidate.id)}`}
                   className="flex items-center gap-3 rounded-input border border-border p-2"
                 >
                   <span className="grid min-w-0 flex-1">
                     <bdi className="truncate font-medium text-foreground">{candidate.title}</bdi>
                     <span className="text-xs text-muted-foreground" dir="ltr">
                       {candidate.year === null
-                        ? t("titleMedia.rematch.tmdbId", { id: candidate.id })
-                        : t("titleMedia.rematch.candidate", {
+                        ? t(`titleMedia.rematch.providerId.${candidate.provider}`, {
+                            id: candidate.id,
+                          })
+                        : t(`titleMedia.rematch.candidateOf.${candidate.provider}`, {
                             year: candidate.year,
                             id: candidate.id,
                           })}
@@ -1158,7 +1192,7 @@ export function RematchDialog({
                     variant="secondary"
                     disabled={rematch.isPending}
                     onClick={() => {
-                      run(candidate.id);
+                      run({ provider: candidate.provider, id: candidate.id });
                     }}
                   >
                     <Repeat aria-hidden="true" />

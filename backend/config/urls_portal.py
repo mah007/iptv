@@ -38,7 +38,13 @@ SPECTACULAR_SETTINGS = {
         "PlayingType": "apps.catalog.serializers_customer.PLAYING_TYPE_CHOICES",
         "Thumb": "apps.catalog.serializers_customer.THUMB_CHOICES",
         "SearchResultType": "apps.search.serializers.RESULT_TYPE_CHOICES",
+        # Q1 (ADR-0023): what playback/start plays, and what plays (live and catch-up too).
+        "PlaybackTitleType": "apps.engagement.serializers.PLAYBACK_TITLE_TYPES",
+        "PlaybackKind": "apps.playback.models.TitleKind",
     },
+    # Nullable choices (a rating cleared with null, `prefer` left out) are typed as such
+    # in the portal's client (ADR-0016's follow-up, ADR-0023).
+    "ENUM_ADD_EXPLICIT_BLANK_NULL_CHOICE": True,
     "TITLE": "Smart IPTV Customer API",
     "DESCRIPTION": "Same-origin API of the customer portal (app.<domain>/api/v1): session "
     "cookie plus CSRF. Apps use the same routes on api.<domain>/api/v1 with bearer tokens "

@@ -37,3 +37,18 @@ def test_requires_both_variables(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XC_PASS", "whatever-1234")
     with pytest.raises(CommandError):
         call_command("xtream_contract_account")
+
+
+def test_a_capped_account_for_the_capped_mp4_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XC_USER", "compat-check-720")
+    monkeypatch.setenv("XC_PASS", "capped-password-1")
+    out = io.StringIO()
+    call_command(
+        "xtream_contract_account", "--max-quality", "720", "--wait-capped", "1", stdout=out
+    )
+    assert "Capped compat MP4s ready for [720]." in out.getvalue()  # nothing to make here
+    login = account_services.authenticate_xtream("compat-check-720", "capped-password-1")
+    assert login is not None
+    access = CustomerAccess.objects.get(user=login.user)
+    assert (access.max_quality, access.max_streams) == (720, 3)
+    assert login.user.email == "xtream-contract-720@example.com"

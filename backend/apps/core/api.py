@@ -10,10 +10,10 @@
 Secret values are never returned. Every write needs `settings.edit`.
 """
 
-from typing import Any, ClassVar, Final, NoReturn
+from typing import Any, ClassVar, Final, NoReturn, cast
 
 from django.core.exceptions import ValidationError
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny
@@ -22,7 +22,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import HasPermission, Requirements
-from apps.core import branding, services
+from apps.core import branding, legal, services
 from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.http import acting_user, client_ip
 from apps.core.registry import UnknownSettingError, get_definition
@@ -116,7 +116,14 @@ class SettingListView(APIView):
                 ErrorCode.VALIDATION_ERROR,
                 exc.messages[0],
                 field_errors={
-                    f"values.{key}": [field_error(m, code="invalid") for m in messages]
+                    f"values.{key}": [
+                        field_error(message, code=code)
+                        for message, code in zip(
+                            messages,
+                            [*exc.codes.get(key, []), *["invalid"] * len(messages)],
+                            strict=False,
+                        )
+                    ]
                     for key, messages in exc.errors.items()
                 },
             ) from None
@@ -269,5 +276,56 @@ class BrandingView(APIView):
     )
     def get(self, request: Request) -> Response:
         response = Response(BrandingSerializer(branding.public_branding()).data)
+        response["Cache-Control"] = "public, max-age=60"
+        return response
+
+
+# --- Legal pages (Q1, ADR-0023) ---------------------------------------------------------------
+
+
+class LegalPageSerializer(serializers.Serializer[Any]):
+    document = serializers.ChoiceField(choices=legal.DOCUMENTS)
+    language = serializers.CharField(help_text="en or ar.")
+    body = serializers.CharField(help_text="Markdown: headings, paragraphs, lists, bold, links.")
+    updated_at = serializers.DateTimeField(
+        allow_null=True, help_text="When an admin last changed it; null for the template."
+    )
+
+
+class LegalPageView(APIView):
+    """Public: the privacy policy and terms are readable before signing in."""
+
+    authentication_classes = ()
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        operation_id="legal_retrieve",
+        summary="The privacy policy or the terms of service, in English or Arabic",
+        auth=[],
+        parameters=[
+            OpenApiParameter(
+                "lang",
+                str,
+                enum=list(legal.LANGUAGES),
+                description="The language (default: the service's default language).",
+            )
+        ],
+        responses={200: LegalPageSerializer, **problems(404)},
+    )
+    def get(self, request: Request, document: str) -> Response:
+        if document not in legal.DOCUMENTS:
+            raise ProblemError(ErrorCode.NOT_FOUND, "No such page.")
+        asked = request.query_params.get("lang", "")
+        default = str(services.get_setting("branding.default_language"))
+        chosen = next((item for item in (asked, default) if item in legal.LANGUAGES), "en")
+        language = cast("legal.Language", chosen)
+        found = legal.page(cast("legal.Document", document), language)
+        body = {
+            "document": found.document,
+            "language": found.language,
+            "body": found.body,
+            "updated_at": found.updated_at,
+        }
+        response = Response(LegalPageSerializer(body).data)
         response["Cache-Control"] = "public, max-age=60"
         return response

@@ -59,7 +59,10 @@ import type {
   DashboardActivityParams,
   Device,
   DeviceBlockRequest,
+  DeviceBulkRequest,
+  DeviceBulkResult,
   DeviceCreateRequest,
+  DevicesListParams,
   Edge,
   EdgeCreated,
   EdgeList,
@@ -95,6 +98,9 @@ import type {
   LiveIntegrationWriteRequest,
   LiveIntegrationsListParams,
   LiveOverview,
+  Lockout,
+  LockoutUnlockRequest,
+  LockoutsListParams,
   LoginRequest,
   LoginResponse,
   LogoRequest,
@@ -122,6 +128,7 @@ import type {
   PaginatedCollectionList,
   PaginatedCustomerSummaryList,
   PaginatedDeviceList,
+  PaginatedDeviceListItemList,
   PaginatedInvoiceList,
   PaginatedLibraryList,
   PaginatedLiveChannelList,
@@ -135,6 +142,7 @@ import type {
   PaginatedSubscriptionList,
   PaginatedTranscodeJobList,
   PaginatedWatchHistoryList,
+  PasswordChangeRequest,
   PasswordInvitation,
   PatchedAccessProfileRequest,
   PatchedAdminUpdateRequest,
@@ -5229,6 +5237,141 @@ export function useDashboardTimeseries<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+export const getDevicesListUrl = (params?: DevicesListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/devices?${stringifiedParams}`
+    : `/api/v1/admin/devices`;
+};
+
+/**
+ * GET /api/v1/admin/devices (SPEC §8.2 Customers → Devices; ADR-0023): one query per
+ * page with the customer and the credential joined.
+ * @summary Every customer's devices, with filters (the Devices page)
+ */
+export const devicesList = async (
+  params?: DevicesListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedDeviceListItemList> => {
+  return apiFetch<PaginatedDeviceListItemList>(getDevicesListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getDevicesListQueryKey = (params?: DevicesListParams) => {
+  return [`/api/v1/admin/devices`, ...(params ? [params] : [])] as const;
+};
+
+export const getDevicesListQueryOptions = <
+  TData = Awaited<ReturnType<typeof devicesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: DevicesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof devicesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getDevicesListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof devicesList>>> = ({ signal }) =>
+    devicesList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof devicesList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type DevicesListQueryResult = NonNullable<Awaited<ReturnType<typeof devicesList>>>;
+export type DevicesListQueryError = ErrorType<Problem>;
+
+export function useDevicesList<
+  TData = Awaited<ReturnType<typeof devicesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | DevicesListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof devicesList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof devicesList>>,
+          TError,
+          Awaited<ReturnType<typeof devicesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useDevicesList<
+  TData = Awaited<ReturnType<typeof devicesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: DevicesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof devicesList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof devicesList>>,
+          TError,
+          Awaited<ReturnType<typeof devicesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useDevicesList<
+  TData = Awaited<ReturnType<typeof devicesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: DevicesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof devicesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Every customer's devices, with filters (the Devices page)
+ */
+
+export function useDevicesList<
+  TData = Awaited<ReturnType<typeof devicesList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: DevicesListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof devicesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getDevicesListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 export const getDevicesApproveUrl = (id: string) => {
   return `/api/v1/admin/devices/${encodeURIComponent(String(id))}/approve`;
 };
@@ -5696,6 +5839,112 @@ export const useDevicesUnblock = <TError = ErrorType<Problem>, TContext = unknow
   TContext
 > => {
   return useMutation(getDevicesUnblockMutationOptions(options), queryClient);
+};
+
+export const getDevicesBulkUrl = () => {
+  return `/api/v1/admin/devices/bulk`;
+};
+
+/**
+ * Block, unblock, approve or revoke many devices at once. Protective (block, revoke)
+ * or the customer's own setting back (unblock, approve): no confirmation (ADR-0021).
+ * @summary Change several devices at once; each change is audited
+ */
+export const devicesBulk = async (
+  deviceBulkRequest: DeviceBulkRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<DeviceBulkResult> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<DeviceBulkResult>(getDevicesBulkUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(deviceBulkRequest),
+  });
+};
+
+export const getDevicesBulkMutationKey = () => ["devicesBulk"] as const;
+
+export const getDevicesBulkMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof devicesBulk>>,
+    TError,
+    DevicesBulkMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof devicesBulk>>,
+  TError,
+  DevicesBulkMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDevicesBulkMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof devicesBulk>>,
+    DevicesBulkMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return devicesBulk(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DevicesBulkMutationResult = NonNullable<Awaited<ReturnType<typeof devicesBulk>>>;
+export type DevicesBulkMutationBody = DeviceBulkRequest;
+export type DevicesBulkMutationError = ErrorType<Problem>;
+export type DevicesBulkMutationVariables = { data: DeviceBulkRequest };
+
+/**
+ * @summary Change several devices at once; each change is audited
+ */
+export const useDevicesBulk = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof devicesBulk>>,
+      TError,
+      DevicesBulkMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof devicesBulk>>,
+  TError,
+  DevicesBulkMutationVariables,
+  TContext
+> => {
+  return useMutation(getDevicesBulkMutationOptions(options), queryClient);
 };
 
 export const getDevicesRevokeByAppUrl = () => {
@@ -11179,6 +11428,246 @@ export function useLiveSourceTestResult<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+export const getLockoutsListUrl = (params?: LockoutsListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/lockouts?${stringifiedParams}`
+    : `/api/v1/admin/lockouts`;
+};
+
+/**
+ * Sign-ins (admins, portal, apps), second factors, confirmations, TV logins and TV sign-in addresses; `customer` limits it to one customer.
+ * @summary Who is locked out of signing in right now, and why
+ */
+export const lockoutsList = async (
+  params?: LockoutsListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Lockout[]> => {
+  return apiFetch<Lockout[]>(getLockoutsListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLockoutsListQueryKey = (params?: LockoutsListParams) => {
+  return [`/api/v1/admin/lockouts`, ...(params ? [params] : [])] as const;
+};
+
+export const getLockoutsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof lockoutsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LockoutsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof lockoutsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLockoutsListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof lockoutsList>>> = ({ signal }) =>
+    lockoutsList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof lockoutsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LockoutsListQueryResult = NonNullable<Awaited<ReturnType<typeof lockoutsList>>>;
+export type LockoutsListQueryError = ErrorType<Problem>;
+
+export function useLockoutsList<
+  TData = Awaited<ReturnType<typeof lockoutsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | LockoutsListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof lockoutsList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof lockoutsList>>,
+          TError,
+          Awaited<ReturnType<typeof lockoutsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLockoutsList<
+  TData = Awaited<ReturnType<typeof lockoutsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LockoutsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof lockoutsList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof lockoutsList>>,
+          TError,
+          Awaited<ReturnType<typeof lockoutsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLockoutsList<
+  TData = Awaited<ReturnType<typeof lockoutsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LockoutsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof lockoutsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Who is locked out of signing in right now, and why
+ */
+
+export function useLockoutsList<
+  TData = Awaited<ReturnType<typeof lockoutsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: LockoutsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof lockoutsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLockoutsListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getLockoutsUnlockUrl = () => {
+  return `/api/v1/admin/lockouts/unlock`;
+};
+
+/**
+ * Lifting a lockout lifts a protection: it needs a recent confirmation (ADR-0021),
+ * and an admin's account needs `admins.manage` as well.
+ * @summary Unlock one sign-in, second factor, confirmation, TV login or address
+ */
+export const lockoutsUnlock = async (
+  lockoutUnlockRequest: LockoutUnlockRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<void>(getLockoutsUnlockUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(lockoutUnlockRequest),
+  });
+};
+
+export const getLockoutsUnlockMutationKey = () => ["lockoutsUnlock"] as const;
+
+export const getLockoutsUnlockMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof lockoutsUnlock>>,
+    TError,
+    LockoutsUnlockMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof lockoutsUnlock>>,
+  TError,
+  LockoutsUnlockMutationVariables,
+  TContext
+> => {
+  const mutationKey = getLockoutsUnlockMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof lockoutsUnlock>>,
+    LockoutsUnlockMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return lockoutsUnlock(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LockoutsUnlockMutationResult = NonNullable<Awaited<ReturnType<typeof lockoutsUnlock>>>;
+export type LockoutsUnlockMutationBody = LockoutUnlockRequest;
+export type LockoutsUnlockMutationError = ErrorType<Problem>;
+export type LockoutsUnlockMutationVariables = { data: LockoutUnlockRequest };
+
+/**
+ * @summary Unlock one sign-in, second factor, confirmation, TV login or address
+ */
+export const useLockoutsUnlock = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof lockoutsUnlock>>,
+      TError,
+      LockoutsUnlockMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof lockoutsUnlock>>,
+  TError,
+  LockoutsUnlockMutationVariables,
+  TContext
+> => {
+  return useMutation(getLockoutsUnlockMutationOptions(options), queryClient);
+};
+
 export const getMetadataSearchUrl = (params: MetadataSearchParams) => {
   const normalizedParams = new URLSearchParams();
 
@@ -11196,7 +11685,7 @@ export const getMetadataSearchUrl = (params: MetadataSearchParams) => {
 };
 
 /**
- * @summary Search TMDB (or the fixtures) for manual matching
+ * @summary Search TMDB (or the fixtures), or TheTVDB for series, for manual matching
  */
 export const metadataSearch = async (
   params: MetadataSearchParams,
@@ -11289,7 +11778,7 @@ export function useMetadataSearch<
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
- * @summary Search TMDB (or the fixtures) for manual matching
+ * @summary Search TMDB (or the fixtures), or TheTVDB for series, for manual matching
  */
 
 export function useMetadataSearch<
@@ -14298,11 +14787,11 @@ export const getReviewQueueResolveUrl = (id: string) => {
 };
 
 /**
- * @summary Match the file to the chosen TMDB movie or series
+ * @summary Match the file to the chosen TMDB movie or series (or TheTVDB series)
  */
 export const reviewQueueResolve = async (
   id: string,
-  resolveRequest: ResolveRequest,
+  resolveRequest?: ResolveRequest,
   options?: Parameters<typeof apiFetch>[1],
 ): Promise<Review> => {
   const getHeaders = (
@@ -14373,12 +14862,12 @@ export const getReviewQueueResolveMutationOptions = <
 export type ReviewQueueResolveMutationResult = NonNullable<
   Awaited<ReturnType<typeof reviewQueueResolve>>
 >;
-export type ReviewQueueResolveMutationBody = ResolveRequest;
+export type ReviewQueueResolveMutationBody = ResolveRequest | undefined;
 export type ReviewQueueResolveMutationError = ErrorType<Problem>;
-export type ReviewQueueResolveMutationVariables = { id: string; data: ResolveRequest };
+export type ReviewQueueResolveMutationVariables = { id: string; data?: ResolveRequest };
 
 /**
- * @summary Match the file to the chosen TMDB movie or series
+ * @summary Match the file to the chosen TMDB movie or series (or TheTVDB series)
  */
 export const useReviewQueueResolve = <TError = ErrorType<Problem>, TContext = unknown>(
   options?: {
@@ -21273,6 +21762,115 @@ export const useAuthMfaWebauthnVerify = <TError = ErrorType<Problem>, TContext =
   TContext
 > => {
   return useMutation(getAuthMfaWebauthnVerifyMutationOptions(options), queryClient);
+};
+
+export const getAuthPasswordChangeUrl = () => {
+  return `/api/v1/auth/password`;
+};
+
+/**
+ * POST /api/v1/auth/password: change my own password (Q1, ADR-0023). It needs the
+ * current password and a recent confirmation (a code or a key: never the password
+ * alone, ADR-0021); every other session of mine ends.
+ * @summary Change my password; my other sessions end
+ */
+export const authPasswordChange = async (
+  passwordChangeRequest: PasswordChangeRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<void>(getAuthPasswordChangeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(passwordChangeRequest),
+  });
+};
+
+export const getAuthPasswordChangeMutationKey = () => ["authPasswordChange"] as const;
+
+export const getAuthPasswordChangeMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authPasswordChange>>,
+    TError,
+    AuthPasswordChangeMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authPasswordChange>>,
+  TError,
+  AuthPasswordChangeMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAuthPasswordChangeMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authPasswordChange>>,
+    AuthPasswordChangeMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return authPasswordChange(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthPasswordChangeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authPasswordChange>>
+>;
+export type AuthPasswordChangeMutationBody = PasswordChangeRequest;
+export type AuthPasswordChangeMutationError = ErrorType<Problem>;
+export type AuthPasswordChangeMutationVariables = { data: PasswordChangeRequest };
+
+/**
+ * @summary Change my password; my other sessions end
+ */
+export const useAuthPasswordChange = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof authPasswordChange>>,
+      TError,
+      AuthPasswordChangeMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof authPasswordChange>>,
+  TError,
+  AuthPasswordChangeMutationVariables,
+  TContext
+> => {
+  return useMutation(getAuthPasswordChangeMutationOptions(options), queryClient);
 };
 
 export const getAuthStepUpUrl = () => {

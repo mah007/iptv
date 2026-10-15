@@ -182,6 +182,7 @@ export interface AccessRuleCreateRequest {
  * * `uhd` - UHD version
  * * `thumbnails` - Thumbnails
  * * `subtitles` - Subtitles
+ * * `compat_capped` - Capped compat MP4
  */
 export type TranscodeProfile = (typeof TranscodeProfile)[keyof typeof TranscodeProfile];
 
@@ -191,6 +192,7 @@ export const TranscodeProfile = {
   uhd: "uhd",
   thumbnails: "thumbnails",
   subtitles: "subtitles",
+  compat_capped: "compat_capped",
 } as const;
 
 /**
@@ -694,6 +696,17 @@ export interface BulkEnableRequest {
 }
 
 /**
+ * * `tmdb` - TMDB
+ * * `tvdb` - TheTVDB
+ */
+export type MetadataProvider = (typeof MetadataProvider)[keyof typeof MetadataProvider];
+
+export const MetadataProvider = {
+  tmdb: "tmdb",
+  tvdb: "tvdb",
+} as const;
+
+/**
  * * `movie` - Movie
  * * `tv` - Series
  */
@@ -705,9 +718,15 @@ export const ReviewKind = {
 } as const;
 
 export interface Candidate {
-  provider: string;
+  /**
+   * Whose id `id` is: TMDB, or TheTVDB for the TV fallback (ADR-0023).
+   *
+   * * `tmdb` - TMDB
+   * * `tvdb` - TheTVDB
+   */
+  provider: MetadataProvider;
   kind: ReviewKind;
-  /** The TMDB id. */
+  /** The provider's id. */
   id: number;
   title: string;
   /** @nullable */
@@ -719,7 +738,7 @@ export interface Candidate {
   popularity: number;
   overview: string;
   /**
-   * A TMDB thumbnail; null in fixture mode.
+   * A TMDB thumbnail or TheTVDB artwork; null in TMDB fixture mode.
    * @nullable
    */
   poster_url: string | null;
@@ -1252,6 +1271,43 @@ export interface CustomerRef {
   readonly phone: string;
 }
 
+/**
+ * * `active` - ACTIVE
+ * * `grace` - GRACE
+ * * `expired` - EXPIRED
+ * * `suspended` - SUSPENDED
+ * * `disabled` - DISABLED
+ * * `none` - NONE
+ */
+export type GoverningStatus = (typeof GoverningStatus)[keyof typeof GoverningStatus];
+
+export const GoverningStatus = {
+  active: "active",
+  grace: "grace",
+  expired: "expired",
+  suspended: "suspended",
+  disabled: "disabled",
+  none: "none",
+} as const;
+
+/**
+ * * `subscription` - SUBSCRIPTION
+ * * `profile` - PROFILE
+ * * `none` - NONE
+ */
+export type StatusSource = (typeof StatusSource)[keyof typeof StatusSource];
+
+export const StatusSource = {
+  subscription: "subscription",
+  profile: "profile",
+  none: "none",
+} as const;
+
+export interface PlanName {
+  name_en: string;
+  name_ar: string;
+}
+
 export interface CustomerSummary {
   readonly id: string;
   /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
@@ -1260,6 +1316,24 @@ export interface CustomerSummary {
   readonly email: string;
   readonly phone: string;
   readonly status: UserStatus;
+  /**
+   * The governing status: the current or last subscription's, from its dates, else the access profile's (ADR-0023).
+   *
+   * * `active` - ACTIVE
+   * * `grace` - GRACE
+   * * `expired` - EXPIRED
+   * * `suspended` - SUSPENDED
+   * * `disabled` - DISABLED
+   * * `none` - NONE
+   */
+  readonly subscription_status: GoverningStatus;
+  readonly status_source: StatusSource;
+  readonly subscription_plan: PlanName | null;
+  /**
+   * The governing subscription's end, else the access profile's.
+   * @nullable
+   */
+  readonly ends_at: string | null;
   readonly access_status: AccessStatus;
   /** @nullable */
   readonly expires_at: string | null;
@@ -1310,6 +1384,73 @@ export interface DayPoint {
 export interface DeviceBlockRequest {
   /** @maxLength 200 */
   reason?: string;
+}
+
+/**
+ * * `block` - Block
+ * * `unblock` - Unblock
+ * * `approve` - Approve
+ * * `revoke` - Revoke
+ */
+export type DeviceBulkAction = (typeof DeviceBulkAction)[keyof typeof DeviceBulkAction];
+
+export const DeviceBulkAction = {
+  block: "block",
+  unblock: "unblock",
+  approve: "approve",
+  revoke: "revoke",
+} as const;
+
+export interface DeviceBulkRequest {
+  /**
+   * @minItems 1
+   * @maxItems 500
+   */
+  ids: string[];
+  action: DeviceBulkAction;
+  /** @maxLength 200 */
+  reason?: string;
+}
+
+export interface DeviceBulkResult {
+  changed: number;
+  skipped: number;
+}
+
+export interface DeviceCustomer {
+  readonly id: string;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly username: string;
+  readonly name: string;
+}
+
+/**
+ * A device on the admin's Devices page, with its customer (ADR-0023).
+ */
+export interface DeviceListItem {
+  readonly id: string;
+  readonly kind: DeviceKind;
+  readonly name: string;
+  readonly app_hint: AppHint;
+  readonly status: DeviceStatus;
+  readonly approved: boolean;
+  readonly blocked: boolean;
+  readonly blocked_reason: string;
+  /** @nullable */
+  readonly revoked_at: string | null;
+  /** @nullable */
+  readonly xtream_username: string | null;
+  /** @nullable */
+  readonly first_seen: string | null;
+  /** @nullable */
+  readonly last_seen: string | null;
+  /** @nullable */
+  readonly last_ip: string | null;
+  readonly last_country: string;
+  readonly created_at: string;
+  readonly customer: DeviceCustomer;
+  /** @nullable */
+  readonly credential_last_used_at: string | null;
 }
 
 /**
@@ -1894,6 +2035,7 @@ export interface ImageAlternative {
  * * `telegram` - TELEGRAM
  * * `s3_origin` - S3_ORIGIN
  * * `bunny` - BUNNY
+ * * `live_ingest` - LIVE_INGEST
  */
 export type IntegrationName = (typeof IntegrationName)[keyof typeof IntegrationName];
 
@@ -1906,6 +2048,7 @@ export const IntegrationName = {
   telegram: "telegram",
   s3_origin: "s3_origin",
   bunny: "bunny",
+  live_ingest: "live_ingest",
 } as const;
 
 /**
@@ -2150,11 +2293,13 @@ export interface KeyRotation {
 export interface Kpis {
   /** Every customer account. */
   customers_total: number;
-  /** Active accounts whose access has not ended. */
+  /** Customers whose governing subscription (else access profile) is active. */
   customers_active: number;
-  /** Active accounts whose access ended. */
+  /** Customers in their subscription's grace period (still watching). */
+  customers_grace: number;
+  /** Customers whose access ended. */
   customers_expired: number;
-  /** Suspended accounts. */
+  /** Suspended accounts or subscriptions. */
   customers_suspended: number;
   /** Active access ending within 7 days. */
   expiring_7d: number;
@@ -2485,6 +2630,56 @@ export interface LiveOverview {
   viewers: number;
 }
 
+/**
+ * * `sign_in` - SIGN_IN
+ * * `second_factor` - SECOND_FACTOR
+ * * `confirmation` - CONFIRMATION
+ * * `xtream_login` - XTREAM_LOGIN
+ * * `xtream_address` - XTREAM_ADDRESS
+ */
+export type LockoutKind = (typeof LockoutKind)[keyof typeof LockoutKind];
+
+export const LockoutKind = {
+  sign_in: "sign_in",
+  second_factor: "second_factor",
+  confirmation: "confirmation",
+  xtream_login: "xtream_login",
+  xtream_address: "xtream_address",
+} as const;
+
+export interface LockoutAccount {
+  readonly id: string;
+  /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
+  readonly username: string;
+  readonly name: string;
+  /** Designates whether the user can log into this admin site. */
+  readonly is_staff: boolean;
+}
+
+export interface Lockout {
+  /** Opaque: pass it back to unlock. */
+  id: string;
+  kind: LockoutKind;
+  /** Failures counted (strikes, for an address). */
+  failures: number;
+  /** @nullable */
+  until: string | null;
+  /** As typed; empty when unknown. */
+  login: string;
+  ip: string;
+  /** A TV login's network; "*" for every network. */
+  network: string;
+  account: LockoutAccount | null;
+}
+
+export interface LockoutUnlockRequest {
+  /**
+   * @minLength 1
+   * @maxLength 300
+   */
+  id: string;
+}
+
 export interface LoginRequest {
   /**
    * Username or email address.
@@ -2677,6 +2872,7 @@ export interface MediaSubtitleTrack {
  * * `tmdb` - TMDB
  * * `synthetic` - Synthetic fixtures
  * * `manual` - Manual
+ * * `tvdb` - TheTVDB
  */
 export type MetadataSource = (typeof MetadataSource)[keyof typeof MetadataSource];
 
@@ -2684,6 +2880,7 @@ export const MetadataSource = {
   tmdb: "tmdb",
   synthetic: "synthetic",
   manual: "manual",
+  tvdb: "tvdb",
 } as const;
 
 export interface MfaVerifyRequest {
@@ -2978,6 +3175,15 @@ export interface PaginatedDeviceList {
   results: Device[];
 }
 
+export interface PaginatedDeviceListItemList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: DeviceListItem[];
+}
+
 export interface PaginatedInvoiceList {
   count: number;
   /** @nullable */
@@ -3196,6 +3402,7 @@ export interface Review {
   readonly media_file: ReviewFile;
   readonly parse_result: Parse | null;
   readonly candidates: readonly Candidate[];
+  readonly chosen_provider: string;
   /** @nullable */
   readonly chosen_provider_id: number | null;
   /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
@@ -3509,6 +3716,22 @@ export interface PaginatedWatchHistoryList {
   /** @nullable */
   previous: string | null;
   results: WatchHistory[];
+}
+
+/**
+ * My new password (ADR-0023): the current one proves it's still me.
+ */
+export interface PasswordChangeRequest {
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  current_password: string;
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  new_password: string;
 }
 
 /**
@@ -3975,7 +4198,7 @@ export interface PatchedRoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 27
+   * @maxItems 29
    * @items.minLength 1
    * @items.maxLength 64
    */
@@ -4041,6 +4264,14 @@ export interface PatchedSeriesUpdateRequest {
    * @nullable
    */
   episode_run_time?: number | null;
+  /**
+   * TheTVDB's aired or DVD order, for a series built from TheTVDB (ADR-0023).
+   *
+   * * `tmdb_default` - TMDB default
+   * * `tvdb_aired` - TVDB aired
+   * * `tvdb_dvd` - TVDB DVD
+   */
+  episode_ordering?: EpisodeOrderingEnum;
 }
 
 /**
@@ -4351,6 +4582,11 @@ export interface RematchRequest {
    * @minimum 1
    */
   tmdb_id?: number;
+  /**
+   * A TheTVDB series instead of a TMDB id (series only; ADR-0023).
+   * @minimum 1
+   */
+  tvdb_id?: number;
   kind?: RematchKindEnum;
 }
 
@@ -4367,6 +4603,7 @@ export interface RematchResult {
  * * `hls_master` - HLS master
  * * `uhd` - UHD
  * * `thumbnails` - Thumbnails
+ * * `compat_capped` - Capped compat MP4
  */
 export type RenditionKind = (typeof RenditionKind)[keyof typeof RenditionKind];
 
@@ -4377,6 +4614,7 @@ export const RenditionKind = {
   hls_master: "hls_master",
   uhd: "uhd",
   thumbnails: "thumbnails",
+  compat_capped: "compat_capped",
 } as const;
 
 /**
@@ -4442,7 +4680,12 @@ export interface ResetResult {
 
 export interface ResolveRequest {
   /** @minimum 1 */
-  tmdb_id: number;
+  tmdb_id?: number;
+  /**
+   * A TheTVDB series instead of a TMDB title (series only; ADR-0023).
+   * @minimum 1
+   */
+  tvdb_id?: number;
   /**
    * Override the review's kind (a file that is a movie, not an episode).
    *
@@ -4551,7 +4794,7 @@ export interface Role {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 27
+   * @maxItems 29
    * @items.maxLength 64
    */
   permissions?: string[];
@@ -4573,7 +4816,7 @@ export interface RoleRequest {
   /** @maxLength 200 */
   description?: string;
   /**
-   * @maxItems 27
+   * @maxItems 29
    * @items.minLength 1
    * @items.maxLength 64
    */
@@ -5181,6 +5424,11 @@ export interface Problem {
   field_errors?: ProblemFieldErrors;
   /** A stable code per message of field_errors (same keys, same order): DRF's validation codes (required, max_length, invalid, unique, ...) or the API's own (username_taken, password_length, ...). Clients translate the codes and fall back to the messages. */
   field_error_codes?: ProblemFieldErrorCodes;
+  /**
+   * TITLE_PREPARING: about how many seconds until the title plays, when known (a running job's estimate, else from the file's length).
+   * @nullable
+   */
+  eta_s?: number | null;
 }
 
 export type AccessRulesListParams = {
@@ -5354,7 +5602,7 @@ export type CustomersListParams = {
    */
   access_status?: CustomersListAccessStatus;
   /**
-   * Active customers whose access ends within this many days.
+   * Active customers whose subscription (else access profile) ends within this many days.
    */
   expiring_within_days?: number;
   /**
@@ -5396,6 +5644,17 @@ export type CustomersListParams = {
    * * `disabled` - Disabled
    */
   status?: CustomersListStatus;
+  /**
+   * The governing status: the subscription's from its dates, else the access profile's (ADR-0023).
+   *
+   * * `active` - ACTIVE
+   * * `grace` - GRACE
+   * * `expired` - EXPIRED
+   * * `suspended` - SUSPENDED
+   * * `disabled` - DISABLED
+   * * `none` - NONE
+   */
+  subscription_status?: CustomersListSubscriptionStatus;
 };
 
 export type CustomersListAccessStatus =
@@ -5436,6 +5695,18 @@ export const CustomersListStatus = {
   suspended: "suspended",
 } as const;
 
+export type CustomersListSubscriptionStatus =
+  (typeof CustomersListSubscriptionStatus)[keyof typeof CustomersListSubscriptionStatus];
+
+export const CustomersListSubscriptionStatus = {
+  active: "active",
+  disabled: "disabled",
+  expired: "expired",
+  grace: "grace",
+  none: "none",
+  suspended: "suspended",
+} as const;
+
 export type CustomersDevicesListParams = {
   /**
    * A page number within the paginated result set.
@@ -5472,6 +5743,108 @@ export type DashboardActivityParams = {
    */
   page_size?: number;
 };
+
+export type DevicesListParams = {
+  /**
+   * * `smarters` - IPTV Smarters
+   * * `tivimate` - TiviMate
+   * * `ibo` - IBO Player
+   * * `xciptv` - XCIPTV
+   * * `ott_navigator` - OTT Navigator
+   * * `smartone` - SmartOne
+   * * `iptvnator` - IPTVnator
+   * * `uhf` - UHF
+   * * `other` - Other
+   */
+  app_hint?: DevicesListAppHint;
+  country?: string;
+  customer?: string;
+  /**
+   * * `xtream` - IPTV app (Xtream)
+   * * `web` - Web player
+   * * `app` - Mobile app
+   */
+  kind?: DevicesListKind;
+  /**
+   * Sort key; prefix with - for descending. Default: last seen first.
+   *
+   * * `last_seen` - Last seen
+   * * `-last_seen` - Last seen (descending)
+   * * `created_at` - Created at
+   * * `-created_at` - Created at (descending)
+   * * `name` - Name
+   * * `-name` - Name (descending)
+   */
+  ordering?: DevicesListOrderingItem[];
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * A search term.
+   */
+  search?: string;
+  /**
+   * Devices seen within this many days.
+   */
+  seen_within_days?: number;
+  /**
+   * active, pending (waiting for approval), blocked or revoked.
+   *
+   * * `active` - active
+   * * `pending` - pending
+   * * `blocked` - blocked
+   * * `revoked` - revoked
+   */
+  status?: DevicesListStatus;
+};
+
+export type DevicesListAppHint = (typeof DevicesListAppHint)[keyof typeof DevicesListAppHint];
+
+export const DevicesListAppHint = {
+  ibo: "ibo",
+  iptvnator: "iptvnator",
+  other: "other",
+  ott_navigator: "ott_navigator",
+  smarters: "smarters",
+  smartone: "smartone",
+  tivimate: "tivimate",
+  uhf: "uhf",
+  xciptv: "xciptv",
+} as const;
+
+export type DevicesListKind = (typeof DevicesListKind)[keyof typeof DevicesListKind];
+
+export const DevicesListKind = {
+  app: "app",
+  web: "web",
+  xtream: "xtream",
+} as const;
+
+export type DevicesListOrderingItem =
+  (typeof DevicesListOrderingItem)[keyof typeof DevicesListOrderingItem];
+
+export const DevicesListOrderingItem = {
+  "-created_at": "-created_at",
+  "-last_seen": "-last_seen",
+  "-name": "-name",
+  created_at: "created_at",
+  last_seen: "last_seen",
+  name: "name",
+} as const;
+
+export type DevicesListStatus = (typeof DevicesListStatus)[keyof typeof DevicesListStatus];
+
+export const DevicesListStatus = {
+  active: "active",
+  blocked: "blocked",
+  pending: "pending",
+  revoked: "revoked",
+} as const;
 
 export type InvoicesListParams = {
   /**
@@ -5625,6 +5998,10 @@ export type LiveIntegrationsListParams = {
   search?: string;
 };
 
+export type LockoutsListParams = {
+  customer?: string;
+};
+
 export type MetadataSearchParams = {
   /**
    * * `movie` - Movie
@@ -5632,6 +6009,14 @@ export type MetadataSearchParams = {
    * @minLength 1
    */
   kind: MetadataSearchKind;
+  /**
+   * TheTVDB searches series only, when its key is set (ADR-0023).
+   *
+   * * `tmdb` - TMDB
+   * * `tvdb` - TheTVDB
+   * @minLength 1
+   */
+  provider?: MetadataSearchProvider;
   /**
    * @minLength 1
    * @maxLength 200
@@ -5651,6 +6036,14 @@ export const MetadataSearchKind = {
   tv: "tv",
 } as const;
 
+export type MetadataSearchProvider =
+  (typeof MetadataSearchProvider)[keyof typeof MetadataSearchProvider];
+
+export const MetadataSearchProvider = {
+  tmdb: "tmdb",
+  tvdb: "tvdb",
+} as const;
+
 export type MoviesListParams = {
   category?: string;
   featured?: boolean;
@@ -5662,6 +6055,7 @@ export type MoviesListParams = {
    * * `tmdb` - TMDB
    * * `synthetic` - Synthetic fixtures
    * * `manual` - Manual
+   * * `tvdb` - TheTVDB
    */
   metadata_source?: MoviesListMetadataSource;
   /**
@@ -5704,6 +6098,7 @@ export const MoviesListMetadataSource = {
   manual: "manual",
   synthetic: "synthetic",
   tmdb: "tmdb",
+  tvdb: "tvdb",
 } as const;
 
 export type MoviesListStatusItem = (typeof MoviesListStatusItem)[keyof typeof MoviesListStatusItem];
@@ -5941,6 +6336,7 @@ export type SeriesListParams = {
    * * `tmdb` - TMDB
    * * `synthetic` - Synthetic fixtures
    * * `manual` - Manual
+   * * `tvdb` - TheTVDB
    */
   metadata_source?: SeriesListMetadataSource;
   /**
@@ -5983,6 +6379,7 @@ export const SeriesListMetadataSource = {
   manual: "manual",
   synthetic: "synthetic",
   tmdb: "tmdb",
+  tvdb: "tvdb",
 } as const;
 
 export type SeriesListStatusItem = (typeof SeriesListStatusItem)[keyof typeof SeriesListStatusItem];

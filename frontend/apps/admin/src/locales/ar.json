@@ -48,7 +48,9 @@
     "integrations": "التكاملات",
     "system": "النظام",
     "backups": "النسخ الاحتياطي",
-    "edges": "خوادم البث"
+    "edges": "خوادم البث",
+    "devices": "الأجهزة",
+    "lockouts": "حالات القفل"
   },
   "layout": {
     "skipToContent": "الانتقال إلى المحتوى",
@@ -117,7 +119,13 @@
       "streamUsers_two": "عميلان يشاهدان",
       "streamUsers_few": "{{formatted}} عملاء يشاهدون",
       "streamUsers_many": "{{formatted}} عميلًا يشاهدون",
-      "streamUsers_other": "{{formatted}} عميل يشاهدون"
+      "streamUsers_other": "{{formatted}} عميل يشاهدون",
+      "inGrace_zero": "لا أحد في فترة السماح",
+      "inGrace_one": "و{{formatted}} في فترة السماح",
+      "inGrace_two": "و{{formatted}} في فترة السماح",
+      "inGrace_few": "و{{formatted}} في فترة السماح",
+      "inGrace_many": "و{{formatted}} في فترة السماح",
+      "inGrace_other": "و{{formatted}} في فترة السماح"
     },
     "expiringSoon": "ينتهي قريبًا",
     "newest": "أحدث العملاء",
@@ -401,7 +409,12 @@
       "confirm": "إعادة التفعيل",
       "done": "أُعيد تفعيل العميل"
     },
-    "riskFlagged": "مشاركة محتملة"
+    "riskFlagged": "مشاركة محتملة",
+    "sources": {
+      "subscription": "اشتراك",
+      "profile": "ملف الوصول",
+      "none": "بلا اشتراك"
+    }
   },
   "credential": {
     "server": "عنوان الخادم",
@@ -936,6 +949,10 @@
       "antisharing": {
         "title": "كشف المشاركة",
         "description": "متى توحي شبكات العميل ودوله بأن حسابه مشترك."
+      },
+      "legal": {
+        "title": "الصفحات القانونية",
+        "description": "سياسة الخصوصية وشروط الخدمة التي يقرؤها العملاء في البوابة وعند الدفع."
       }
     },
     "keys": {
@@ -1077,6 +1094,10 @@
         "transcode_job_timeout_h": {
           "label": "حد زمن التحويل (س)",
           "description": "يُوقف التحويل إذا استغرق أكثر من هذا العدد من الساعات."
+        },
+        "capped_compat_mp4": {
+          "label": "ملفات MP4 محدودة الجودة لتطبيقات IPTV",
+          "description": "ملف MP4 بجودة 720p أو 480p يُعاد تغليفه من سلّم الجودات (ثوانٍ لكل عمل دون ترميز)، لتحصل تطبيقات IPTV في الباقات المحدودة على ملف MP4. تلقائي: الحدود التي تستخدمها الباقات فقط."
         }
       },
       "metadata": {
@@ -1123,6 +1144,10 @@
         "tvdb_pin": {
           "label": "رمز اشتراك TheTVDB",
           "description": "فقط للمفاتيح المدعومة من المستخدمين."
+        },
+        "tvdb_rate_limit_per_s": {
+          "label": "طلبات TheTVDB في الثانية",
+          "description": "يتشاركها كل العمّال."
         }
       },
       "billing": {
@@ -1289,6 +1314,10 @@
         "rate_backup_runs_per_hour": {
           "label": "النسخ الاحتياطية في الساعة",
           "description": "النسخ الاحتياطية وتدريبات الاستعادة وفحوص الوجهة التي يمكن للمدير الواحد بدؤها في الساعة."
+        },
+        "web_device_idle_days": {
+          "label": "إزالة المتصفحات غير المستخدمة بعد (أيام)",
+          "description": "يُزال من قائمة أجهزة العميل كل متصفح لم يُستخدم طوال هذه المدة. يحتفظ المتصفح نفسه بجهاز واحد عبر عمليات الدخول."
         }
       },
       "features": {
@@ -1345,6 +1374,30 @@
         "archive_max_gb": {
           "label": "حد أرشيف المشاهدة اللاحقة",
           "description": "المساحة التي يستخدمها أرشيف المشاهدة اللاحقة لكل القنوات، بالغيغابايت. بعدها تُحذف أقدم الساعات المسجلة أولًا."
+        },
+        "ingest_publish_user": {
+          "label": "مستخدم النشر للبث الوارد",
+          "description": "المستخدم الذي تنشر به أجهزة الترميز والكاميرات وOBS ‏(rtmp://user:password@host/path)."
+        },
+        "ingest_publish_password": {
+          "label": "كلمة مرور النشر للبث الوارد",
+          "description": "من 8 إلى 200 حرف دون مسافات؛ وتغييرها يوقف أجهزة الترميز عند اتصالها التالي."
+        },
+        "ingest_read_user": {
+          "label": "مستخدم القراءة للبث الوارد",
+          "description": "المستخدم الذي يقرأ به مُجهّز البث المباشر البثوث الواردة، من شبكات Docker فقط."
+        },
+        "ingest_read_password": {
+          "label": "كلمة مرور القراءة للبث الوارد",
+          "description": "استخدمها في عناوين مصادر القنوات ‏(rtsp://reader:password@mediamtx:8554/path)."
+        },
+        "ingest_auth_max_failures": {
+          "label": "محاولات الدخول الفاشلة للبث الوارد قبل الإيقاف",
+          "description": "عدد محاولات الدخول الفاشلة من عنوان واحد قبل رفضه للمدة أدناه."
+        },
+        "ingest_auth_block_minutes": {
+          "label": "مدة إيقاف الدخول للبث الوارد (بالدقائق)",
+          "description": "مدة رفض العنوان الذي تجاوز عدد محاولات الدخول الفاشلة."
         }
       },
       "monitoring": {
@@ -1684,6 +1737,24 @@
           "label": "إبلاغ المديرين",
           "description": "إبلاغ المديرين (مستلمو التنبيهات وتيليجرام) عند تعليم عميل."
         }
+      },
+      "legal": {
+        "privacy_en": {
+          "label": "سياسة الخصوصية (بالإنجليزية)",
+          "description": "بصيغة Markdown. تُملأ {service} و{support_email} و{support_phone} و{seller_address} من إعدادات الهوية والفوترة."
+        },
+        "privacy_ar": {
+          "label": "سياسة الخصوصية (بالعربية)",
+          "description": "بصيغة Markdown، مع العناصر البديلة نفسها."
+        },
+        "terms_en": {
+          "label": "شروط الخدمة (بالإنجليزية)",
+          "description": "بصيغة Markdown، مع العناصر البديلة نفسها."
+        },
+        "terms_ar": {
+          "label": "شروط الخدمة (بالعربية)",
+          "description": "بصيغة Markdown، مع العناصر البديلة نفسها."
+        }
       }
     },
     "choices": {
@@ -1697,7 +1768,9 @@
       "owners": "المالكون",
       "admins": "المالكون والمديرون",
       "deny": "رفض",
-      "allow": "سماح"
+      "allow": "سماح",
+      "auto": "تلقائي",
+      "off": "متوقف"
     },
     "tabs": {
       "label": "صفحات الإعدادات",
@@ -1752,6 +1825,10 @@
       "uploaded": "رُفع؛ سيظهر خلال ثوانٍ.",
       "slow": "يتأخر ظهور الشعار؛ تحقّق بعد دقيقة.",
       "tooLarge": "الصورة كبيرة جدًا (2 ميغابايت كحد أقصى)."
+    },
+    "text": {
+      "template": "نص نموذجي: راجِعه مع محامٍ قبل الإطلاق.",
+      "preview": "معاينة"
     }
   },
   "notFound": {
@@ -2008,7 +2085,8 @@
     "sources": {
       "tmdb": "TMDB",
       "synthetic": "عينات دون اتصال",
-      "manual": "يدوي"
+      "manual": "يدوي",
+      "tvdb": "TheTVDB"
     },
     "detail": {
       "edit": "تعديل",
@@ -2033,7 +2111,10 @@
       "refreshed": "آخر تحديث",
       "locked": "الحقول المقفلة",
       "posterOf": "ملصق {{title}}",
-      "categories": "التصنيفات"
+      "categories": "التصنيفات",
+      "tvdb": "TheTVDB",
+      "ordering": "ترتيب الحلقات",
+      "orderingSaved": "تغيّر ترتيب الحلقات. يُجلب المسلسل من جديد."
     },
     "files": {
       "title": "الملفات",
@@ -2080,6 +2161,11 @@
       "titleRequired": "أدخل العنوان بالإنجليزية.",
       "tooLong": "النص طويل جدًا.",
       "year": "أدخل سنة بين 1870 و2200، أو اتركها فارغة."
+    },
+    "orderings": {
+      "tmdb_default": "TMDB",
+      "tvdb_aired": "ترتيب العرض في TheTVDB",
+      "tvdb_dvd": "ترتيب DVD في TheTVDB"
     }
   },
   "review": {
@@ -2119,9 +2205,8 @@
       "runtime": "المدة",
       "popularity": "الشعبية"
     },
-    "tmdbId": "TMDB {{id}}",
     "candidates": "المرشحون ({{number}})",
-    "noCandidates": "لا يوجد مرشحون. ابحث في TMDB أو أدخل معرّفًا أدناه.",
+    "noCandidates": "لا يوجد مرشحون. ابحث في TMDB (أو TheTVDB للمسلسلات)، أو أدخل معرّفًا أدناه.",
     "file": {
       "title": "ما يقوله الملف",
       "parsedTitle": "العنوان المستخرج",
@@ -2133,13 +2218,17 @@
     },
     "manual": {
       "title": "مطابقة يدوية",
-      "description": "ابحث في TMDB، أو أدخل معرّف TMDB للعنوان الصحيح.",
+      "description": "ابحث في TMDB، أو في TheTVDB للمسلسلات، أو أدخل معرّف العنوان الصحيح.",
       "kind": "النوع",
-      "tmdbId": "معرّف TMDB",
       "match": "مطابقة",
-      "search": "البحث في TMDB",
+      "search": "بحث",
       "searchButton": "بحث",
-      "noResults": "لم يُعثر على شيء. جرّب تهجئة أخرى أو العنوان الأصلي."
+      "noResults": "لم يُعثر على شيء. جرّب تهجئة أخرى أو العنوان الأصلي.",
+      "provider": "المصدر",
+      "providerIdLabel": {
+        "tmdb": "معرّف TMDB",
+        "tvdb": "معرّف TheTVDB"
+      }
     },
     "empty": {
       "open": {
@@ -2164,6 +2253,14 @@
       "skip": "تخطي هذا الملف",
       "next": "الملف التالي",
       "previous": "الملف السابق"
+    },
+    "providers": {
+      "tmdb": "TMDB",
+      "tvdb": "TheTVDB"
+    },
+    "providerId": {
+      "tmdb": "TMDB {{id}}",
+      "tvdb": "TheTVDB {{id}}"
     }
   },
   "categories": {
@@ -2362,7 +2459,67 @@
     "rights_required": "تحتاج القنوات صاحب حقوق قبل تفعيلها.",
     "invalid_cron": "أدخل خمسة حقول cron.",
     "invalid_url": "أدخل رابطًا صحيحًا.",
-    "credentials_in_url": "ضع بيانات الدخول في حقولها، لا في الرابط."
+    "credentials_in_url": "ضع بيانات الدخول في حقولها، لا في الرابط.",
+    "provider_not_found": "لا يملك المصدر عنوانًا بهذا المعرّف.",
+    "tvdb_series_only": "يطابق TheTVDB المسلسلات فقط.",
+    "one_provider": "اختر عنوانًا من TMDB أو من TheTVDB، لا كليهما.",
+    "placement_episode_not_found": "لا يملك المصدر هذا الموسم أو الحلقة: تحقّق من الأرقام في اسم الملف.",
+    "placement_numbering": "لا يحوي اسم الملف رقمي الموسم والحلقة.",
+    "placement_classification": "حدّد هل الملف فيلم أم حلقة.",
+    "invalid_type": "أدخل قيمة من النوع الصحيح.",
+    "invalid_color": "أدخل اللون بالصيغة ‎#RRGGBB.",
+    "invalid_currency": "أدخل رمز عملة ISO 4217، مثل SAR.",
+    "invalid_email": "أدخل بريدًا إلكترونيًا صحيحًا.",
+    "invalid_invoice_prefix": "استخدم من 1 إلى 10 أحرف لاتينية كبيرة أو أرقام.",
+    "invalid_vat_number": "استخدم من 5 إلى 20 حرفًا أو رقمًا.",
+    "invalid_telegram_token": "أدخل رمز البوت الذي أعطاك إياه ‎@BotFather، مثل ‎123456789:AA…",
+    "invalid_telegram_chat": "أدخل معرّف المحادثة، رقم مثل ‎-1001234567890.",
+    "invalid_host": "أدخل اسم خادم أو عنوانه، مثل smtp.example.com.",
+    "invalid_tmdb_token": "الصق رمز القراءة لواجهة TMDB (نص طويل يبدأ بـ eyJ).",
+    "invalid_tmdb_key": "مفتاح واجهة TMDB من 32 حرفًا ورقمًا.",
+    "invalid_language_tag": "استخدم وسم لغة مثل en-US.",
+    "invalid_tvdb_key": "الصق مفتاح الواجهة الذي أعطاه TheTVDB لمشروعك.",
+    "invalid_tvdb_pin": "استخدم حروف الرقم السري وأرقامه.",
+    "invalid_stripe_key": "يبدأ مفتاح Stripe السري بـ sk_test_ أو sk_live_ أو rk_test_ أو rk_live_.",
+    "invalid_stripe_webhook_secret": "يبدأ سر توقيع إشعارات Stripe بـ whsec_.",
+    "invalid_moyasar_key": "يبدأ مفتاح ميسّر السري بـ sk_test_ أو sk_live_.",
+    "invalid_webhook_token": "استخدم من 8 إلى 200 حرف بلا مسافات.",
+    "invalid_logo": "ارفع الشعار؛ يُضبط اسمه المخزّن تلقائيًا.",
+    "invalid_sender": "أدخل عنوانًا، أو اسمًا وعنوانًا: \"Smart IPTV <no-reply@example.com>\".",
+    "invalid_time": "أدخل الوقت بصيغة HH:MM (24 ساعة)، مثل 03:30.",
+    "invalid_bucket": "أدخل اسم حاوية التخزين، مثل my-backups.",
+    "invalid_prefix": "استخدم حروفًا وأرقامًا ونقاطًا وشرطات وشرطات مائلة.",
+    "invalid_region": "أدخل المنطقة، مثل eu-central-1.",
+    "invalid_key": "الصق المفتاح كما أعطاك إياه المزوّد تمامًا.",
+    "invalid_genre_map": "أدخل كائن JSON يربط معرّفات أنواع TMDB بمعرّفات الفئات، مثل {\"28\": \"action\"}.",
+    "invalid_network": "أحد المدخلات ليس عنوان IP أو شبكة (مثل 203.0.113.0/24).",
+    "invalid_origin": "أحد المدخلات ليس مصدرًا مثل https://cdn.example.com.",
+    "no_server_config": "لا تحوي إعدادات الخادم قيمة لهذا الإعداد.",
+    "too_large": "الملف كبير جدًا.",
+    "unsupported_format": "استخدم صورة PNG أو JPEG أو WebP.",
+    "not_an_image_setting": "هذا الإعداد لا يأخذ صورة.",
+    "allowlist_excludes_you": "أضف العنوان الذي تستخدمه الآن أولًا، وإلا فستمنع نفسك من الدخول.",
+    "path_missing": "هذا المجلد غير موجود.",
+    "path_outside_root": "يجب أن تكون المكتبات مجلدات داخل مجلد الوسائط.",
+    "path_root": "اختر مجلدًا داخل مجلد الوسائط، لا المجلد نفسه.",
+    "path_not_a_folder": "هذا ليس مجلدًا.",
+    "path_unreadable": "لا يستطيع الخادم قراءة هذا المجلد.",
+    "path_overlaps": "يتداخل هذا المجلد مع مكتبة أخرى.",
+    "name_taken": "تستخدمه مكتبة أخرى.",
+    "slug_taken": "تستخدمه فئة أخرى من النوع نفسه.",
+    "category_kind": "استخدم فئات من هذا النوع.",
+    "kind_immutable": "لا يمكن تغيير نوع الفئة.",
+    "parent_self": "لا يمكن أن تكون الفئة أصلًا لنفسها.",
+    "ordering_source": "اختر ترتيبًا يملكه مصدر هذا المسلسل.",
+    "wrong_password": "كلمة المرور الحالية غير صحيحة.",
+    "password_unchanged": "اختر كلمة مرور جديدة لا الحالية.",
+    "password_too_short": "استخدم {{min}} حرفًا على الأقل.",
+    "password_too_common": "كلمة المرور هذه شائعة جدًا. اختر غيرها.",
+    "password_entirely_numeric": "استخدم حروفًا أيضًا، لا أرقامًا فقط.",
+    "password_too_similar": "كلمة المرور هذه قريبة جدًا من اسمك أو بريدك.",
+    "too_long": "النص طويل جدًا: اجعله أقل من {{max}} حرف.",
+    "invalid_ingest_user": "استخدم من 1 إلى 64 حرفًا أو رقمًا أو نقطة أو شرطة أو شرطة سفلية.",
+    "invalid_ingest_password": "استخدم من 8 إلى 200 حرف قابل للطباعة دون مسافات."
   },
   "activity": {
     "label": "النشاط",
@@ -3233,14 +3390,16 @@
       "hls_variant": "مستوى HLS",
       "hls_master": "قائمة HLS الرئيسية",
       "uhd": "4K",
-      "thumbnails": "الصور المصغرة"
+      "thumbnails": "الصور المصغرة",
+      "compat_capped": "ملف MP4 متوافق بجودة محدودة (720p/480p)"
     },
     "outputs": {
       "compat_mp4": "MP4 المتوافق",
       "hls": "سلّم HLS",
       "uhd": "4K",
       "thumbnails": "الصور المصغرة",
-      "subtitles": "الترجمات"
+      "subtitles": "الترجمات",
+      "compat_capped": "ملف MP4 متوافق بجودة محدودة (720p/480p)"
     },
     "origins": {
       "embedded": "مضمّنة",
@@ -3290,8 +3449,8 @@
     "rematch": {
       "action": "إعادة المطابقة",
       "title": "إعادة مطابقة هذا العنوان",
-      "description": "اربط ملفاته بعنوان آخر في TMDB، أو دع المطابِق يحاول من جديد. تُجلب البيانات الوصفية والصور مرة أخرى.",
-      "search": "البحث في TMDB",
+      "description": "اربط ملفاته بعنوان آخر في TMDB (أو مسلسل في TheTVDB)، أو دع المطابِق يحاول من جديد. تُجلب البيانات والصور من جديد.",
+      "search": "بحث",
       "use": "استخدام هذا",
       "automatic": "مطابقة تلقائية",
       "done_zero": "لم تُطابَق أي ملفات",
@@ -3306,8 +3465,19 @@
       "automaticDone_few": "تجري مطابقة {{count}} ملفات من جديد",
       "automaticDone_many": "تجري مطابقة {{count}} ملفًا من جديد",
       "automaticDone_other": "تجري مطابقة {{count}} ملف من جديد",
-      "tmdbId": "TMDB {{id}}",
-      "candidate": "{{year}} · TMDB {{id}}"
+      "provider": "المصدر",
+      "providers": {
+        "tmdb": "TMDB",
+        "tvdb": "TheTVDB"
+      },
+      "providerId": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TheTVDB {{id}}"
+      },
+      "candidateOf": {
+        "tmdb": "{{year}} · TMDB {{id}}",
+        "tvdb": "{{year}} · TheTVDB {{id}}"
+      }
     },
     "images": {
       "title": "الصور",
@@ -3810,7 +3980,7 @@
       },
       "tvdb": {
         "title": "TheTVDB",
-        "description": "البديل للمسلسلات التي لا يطابقها TMDB بثقة (يُفحص مفتاحه هنا الآن؛ وتأتي المطابقة به مع بديل المسلسلات).",
+        "description": "البديل للمسلسلات التي لا يطابقها TMDB بثقة. مجاني دون 50,000 دولار من الإيرادات السنوية للشركة مع إظهار الإشارة إليه، وبترخيص مدفوع فوق ذلك.",
         "test": "فحص المفتاح",
         "passed": "قبِل TheTVDB المفتاح"
       },
@@ -3849,6 +4019,12 @@
         "description": "منطقة سحب Bunny أمام خوادمنا مع مصادقة الرموز. أضف المنطقة في صفحة خوادم البث.",
         "test": "اختبار منطقة السحب",
         "passed": "منطقة السحب تعمل"
+      },
+      "live_ingest": {
+        "title": "البث الوارد (MediaMTX)",
+        "description": "تنشر أجهزة الترميز والكاميرات وOBS الخاصة بك إلى MediaMTX، الذي يسأل هذا الخادم عن كل عملية دخول. يتطلب تفعيل البث الوارد على الخادم ‏(LIVE_INGEST=1).",
+        "test": "اختبر مستخدم القراءة",
+        "passed": "قبل MediaMTX مستخدم القراءة"
       }
     },
     "codes": {
@@ -4325,6 +4501,17 @@
       "description": "بعد تأكيد هويتك تبقى الإعدادات والأدوار والاستردادات والحذف مفتوحة لمدة {{minutes}} دقيقة.",
       "lock": "اقفل الآن",
       "locked": "مقفلة"
+    },
+    "password": {
+      "title": "كلمة المرور",
+      "description": "غيّر كلمة المرور التي تسجّل الدخول بها. ستؤكد هويتك برمز أو مفتاح، وتنتهي جلساتك الأخرى.",
+      "current": "كلمة المرور الحالية",
+      "new": "كلمة المرور الجديدة",
+      "repeat": "كلمة المرور الجديدة مرة أخرى",
+      "rules": "12 حرفًا على الأقل؛ ليست شائعة، ولا أرقامًا فقط، ولا تشبه اسمك.",
+      "mismatch": "كلمتا المرور الجديدتان مختلفتان.",
+      "submit": "تغيير كلمة المرور",
+      "changed": "تغيّرت كلمة المرور. انتهت جلساتك الأخرى."
     }
   },
   "about": {
@@ -4464,5 +4651,145 @@
     "unknown": "غير معروف",
     "update": "حدّث الآن",
     "updateQueued": "بدأ التنزيل. يستغرق دقيقة."
+  },
+  "devicesPage": {
+    "title": "الأجهزة",
+    "description": "تطبيقات IPTV والمتصفحات والتطبيقات لكل العملاء. احظرها أو ألغِ حظرها أو أبطلها واحدًا واحدًا أو معًا.",
+    "columns": {
+      "device": "الجهاز",
+      "customer": "العميل",
+      "login": "دخول التلفاز",
+      "status": "الحالة",
+      "lastSeen": "آخر ظهور",
+      "added": "أُضيف"
+    },
+    "kinds": {
+      "xtream": "تطبيق IPTV",
+      "web": "متصفح ويب",
+      "app": "تطبيق جوال أو تلفاز"
+    },
+    "filters": {
+      "search": "ابحث عن جهاز أو دخول تلفاز أو عميل…",
+      "status": "الحالة",
+      "kind": "النوع",
+      "app": "التطبيق",
+      "seen": "ظهر خلال",
+      "days_zero": "{{count}} يوم",
+      "days_one": "يوم واحد",
+      "days_two": "يومان",
+      "days_few": "{{count}} أيام",
+      "days_many": "{{count}} يومًا",
+      "days_other": "{{count}} يوم",
+      "chip": "{{name}}: {{value}}",
+      "seenWithin_zero": "ظهر خلال {{count}} يوم",
+      "seenWithin_one": "ظهر خلال يوم واحد",
+      "seenWithin_two": "ظهر خلال يومين",
+      "seenWithin_few": "ظهر خلال {{count}} أيام",
+      "seenWithin_many": "ظهر خلال {{count}} يومًا",
+      "seenWithin_other": "ظهر خلال {{count}} يوم"
+    },
+    "empty": {
+      "title": "لا أجهزة بعد",
+      "description": "تظهر الأجهزة عندما يضيف العملاء تطبيقات التلفاز أو يشاهدون في المتصفح."
+    },
+    "bulk": {
+      "block": "حظر",
+      "unblock": "إلغاء الحظر",
+      "revoke": "إبطال",
+      "confirm": {
+        "block_zero": "حظر {{count}} جهاز؟",
+        "block_one": "حظر جهاز واحد؟",
+        "block_two": "حظر جهازين؟",
+        "block_few": "حظر {{count}} أجهزة؟",
+        "block_many": "حظر {{count}} جهازًا؟",
+        "block_other": "حظر {{count}} جهاز؟",
+        "unblock_zero": "إلغاء حظر {{count}} جهاز؟",
+        "unblock_one": "إلغاء حظر جهاز واحد؟",
+        "unblock_two": "إلغاء حظر جهازين؟",
+        "unblock_few": "إلغاء حظر {{count}} أجهزة؟",
+        "unblock_many": "إلغاء حظر {{count}} جهازًا؟",
+        "unblock_other": "إلغاء حظر {{count}} جهاز؟",
+        "revoke_zero": "إبطال {{count}} جهاز؟",
+        "revoke_one": "إبطال جهاز واحد؟",
+        "revoke_two": "إبطال جهازين؟",
+        "revoke_few": "إبطال {{count}} أجهزة؟",
+        "revoke_many": "إبطال {{count}} جهازًا؟",
+        "revoke_other": "إبطال {{count}} جهاز؟"
+      },
+      "confirmDescription": {
+        "block": "يتوقف تشغيلها ولا يمكنها التشغيل حتى تلغي حظرها.",
+        "unblock": "يمكنها التشغيل من جديد.",
+        "revoke": "تُحذف بيانات دخولها نهائيًا ويتوقف التشغيل. لا يمكن التراجع عن ذلك."
+      },
+      "done": {
+        "block_zero": "حُظر {{count}} جهاز (تُخطي {{skipped}})",
+        "block_one": "حُظر جهاز واحد (تُخطي {{skipped}})",
+        "block_two": "حُظر جهازان (تُخطي {{skipped}})",
+        "block_few": "حُظرت {{count}} أجهزة (تُخطي {{skipped}})",
+        "block_many": "حُظر {{count}} جهازًا (تُخطي {{skipped}})",
+        "block_other": "حُظر {{count}} جهاز (تُخطي {{skipped}})",
+        "unblock_zero": "أُلغي حظر {{count}} جهاز (تُخطي {{skipped}})",
+        "unblock_one": "أُلغي حظر جهاز واحد (تُخطي {{skipped}})",
+        "unblock_two": "أُلغي حظر جهازين (تُخطي {{skipped}})",
+        "unblock_few": "أُلغي حظر {{count}} أجهزة (تُخطي {{skipped}})",
+        "unblock_many": "أُلغي حظر {{count}} جهازًا (تُخطي {{skipped}})",
+        "unblock_other": "أُلغي حظر {{count}} جهاز (تُخطي {{skipped}})",
+        "revoke_zero": "أُبطل {{count}} جهاز (تُخطي {{skipped}})",
+        "revoke_one": "أُبطل جهاز واحد (تُخطي {{skipped}})",
+        "revoke_two": "أُبطل جهازان (تُخطي {{skipped}})",
+        "revoke_few": "أُبطلت {{count}} أجهزة (تُخطي {{skipped}})",
+        "revoke_many": "أُبطل {{count}} جهازًا (تُخطي {{skipped}})",
+        "revoke_other": "أُبطل {{count}} جهاز (تُخطي {{skipped}})",
+        "approve_zero": "اعتُمد {{count}} جهاز (تُخطي {{skipped}})",
+        "approve_one": "اعتُمد جهاز واحد (تُخطي {{skipped}})",
+        "approve_two": "اعتُمد جهازان (تُخطي {{skipped}})",
+        "approve_few": "اعتُمدت {{count}} أجهزة (تُخطي {{skipped}})",
+        "approve_many": "اعتُمد {{count}} جهازًا (تُخطي {{skipped}})",
+        "approve_other": "اعتُمد {{count}} جهاز (تُخطي {{skipped}})"
+      }
+    }
+  },
+  "lockouts": {
+    "title": "حالات القفل",
+    "description": "من لا يستطيع تسجيل الدخول الآن بعد محاولات فاشلة: المشرفون والبوابة والتطبيقات وبيانات دخول التلفاز وعناوينها. تنتهي حالات القفل وحدها؛ افتح إحداها ليحاول من جديد الآن.",
+    "customerTitle": "حالات القفل",
+    "customerDescription": "عمليات الدخول والتأكيد وبيانات دخول التلفاز لهذا العميل التي فشلت مرات كثيرة.",
+    "columns": {
+      "kind": "النوع",
+      "who": "من",
+      "where": "من أين",
+      "failures": "المحاولات الفاشلة",
+      "until": "تنتهي",
+      "actions": "الإجراءات"
+    },
+    "kinds": {
+      "sign_in": "تسجيل دخول",
+      "second_factor": "رمز المصادقة",
+      "confirmation": "تأكيد",
+      "xtream_login": "دخول تلفاز",
+      "xtream_address": "عنوان تلفاز"
+    },
+    "admin": "مشرف",
+    "anyone": "أي دخول",
+    "unknown": "ليس من حساباتنا",
+    "anywhere": "أي عنوان",
+    "everyNetwork": "كل الشبكات",
+    "network": "الشبكة {{network}}",
+    "untilUnknown": "قريبًا",
+    "unlock": "فتح",
+    "unlocked": "تم الفتح",
+    "confirm": {
+      "title": "الفتح الآن؟",
+      "sign_in": "يمكن لهذا الدخول المحاولة من جديد من هذا العنوان فورًا.",
+      "second_factor": "يمكن لهذا المشرف تجربة رموز المصادقة من جديد فورًا.",
+      "confirmation": "يمكن لهذا الحساب تأكيد الإجراءات الحساسة من جديد فورًا.",
+      "xtream_login": "يمكن لبيانات دخول التلفاز هذه تسجيل الدخول من جديد فورًا.",
+      "xtream_address": "يمكن لتطبيقات التلفاز على هذا العنوان تسجيل الدخول من جديد فورًا."
+    },
+    "empty": {
+      "title": "لا أحد مقفل",
+      "description": "تظهر حالات القفل هنا حين تفشل عمليات الدخول مرات كثيرة.",
+      "customer": "لا شيء مقفل لهذا العميل."
+    }
   }
 }

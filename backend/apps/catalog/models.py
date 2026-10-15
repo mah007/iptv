@@ -64,9 +64,11 @@ class Category(BaseModel):
     def clean(self) -> None:
         if self.parent_id is not None:
             if self.parent_id == self.pk:
-                raise ValidationError({"parent": "A category cannot be its own parent."})
+                message = "A category cannot be its own parent."
+                raise ValidationError({"parent": ValidationError(message, code="parent_self")})
             if self.parent is not None and self.parent.kind != self.kind:
-                raise ValidationError({"parent": "The parent must be of the same kind."})
+                message = "The parent must be of the same kind."
+                raise ValidationError({"parent": ValidationError(message, code="category_kind")})
 
 
 class Genre(BaseModel):
@@ -95,11 +97,13 @@ class TitleStatus(models.TextChoices):
 
 class MetadataSource(models.TextChoices):
     """Where a title's metadata came from. `synthetic` is fixture mode (no TMDB key):
-    hand-written sample data, labelled as such in the admin."""
+    hand-written sample data, labelled as such in the admin. `tvdb`: the TV fallback
+    (ADR-0023), for a series TMDB has no confident match for."""
 
     TMDB = "tmdb", "TMDB"
     SYNTHETIC = "synthetic", "Synthetic fixtures"
     MANUAL = "manual", "Manual"
+    TVDB = "tvdb", "TheTVDB"
 
 
 class EpisodeOrdering(models.TextChoices):
@@ -197,7 +201,7 @@ class Movie(Title):
 
 
 class Series(Title):
-    tvdb_id = models.PositiveIntegerField(null=True, blank=True)
+    tvdb_id = models.PositiveIntegerField(null=True, blank=True, db_index=True)
     first_air_date = models.DateField(null=True, blank=True)
     last_air_date = models.DateField(null=True, blank=True)
     episode_run_time = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -231,6 +235,7 @@ class Season(BaseModel):
     series = models.ForeignKey(Series, on_delete=models.CASCADE, related_name="seasons")
     number = models.PositiveSmallIntegerField()
     tmdb_id = models.PositiveIntegerField(null=True, blank=True)
+    tvdb_id = models.PositiveIntegerField(null=True, blank=True)
     name = models.CharField(max_length=255, blank=True)
     name_ar = models.CharField(max_length=255, blank=True)
     overview = models.TextField(blank=True)
@@ -257,6 +262,7 @@ class Episode(BaseModel):
     number = models.PositiveSmallIntegerField()
     absolute_number = models.PositiveIntegerField(null=True, blank=True)
     tmdb_id = models.PositiveIntegerField(null=True, blank=True)
+    tvdb_id = models.PositiveIntegerField(null=True, blank=True)
     title = models.CharField(max_length=255, blank=True)
     title_ar = models.CharField(max_length=255, blank=True)
     overview = models.TextField(blank=True)
@@ -279,6 +285,8 @@ class Episode(BaseModel):
 
 class Person(BaseModel):
     tmdb_id = models.PositiveIntegerField(unique=True, null=True, blank=True)
+    #: People of TheTVDB-sourced series (ADR-0023) that TMDB never named.
+    tvdb_id = models.PositiveIntegerField(unique=True, null=True, blank=True)
     name = models.CharField(max_length=255)
     name_ar = models.CharField(max_length=255, blank=True)
     #: The provider's profile picture path (downloaded on demand, not at ingest).
@@ -335,6 +343,7 @@ class ImageKind(models.TextChoices):
 class ImageSource(models.TextChoices):
     TMDB = "tmdb", "TMDB"
     UPLOAD = "upload", "Upload"
+    TVDB = "tvdb", "TheTVDB"
 
 
 _IMAGE_OWNERS = ("movie", "series", "season", "episode", "person")
@@ -512,6 +521,8 @@ class MatchReview(BaseModel):
     parse_result = models.JSONField(default=dict)
     candidates = models.JSONField(default=list)
     status = models.CharField(max_length=8, choices=ReviewStatus.choices, default=ReviewStatus.OPEN)
+    #: `tmdb` or `tvdb` (ADR-0023): whose id `chosen_provider_id` is.
+    chosen_provider = models.CharField(max_length=8, blank=True, default="", db_default="")
     chosen_provider_id = models.PositiveIntegerField(null=True, blank=True)
     decided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

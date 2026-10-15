@@ -18,6 +18,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from email.utils import parseaddr
 from enum import StrEnum
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
@@ -44,7 +45,8 @@ class UnknownSettingError(KeyError):
 
 
 #: Widgets the admin renders instead of a text input (the value stays a string).
-WIDGETS: tuple[str, ...] = ("image",)
+#: "image": an upload; "text": long text (Markdown) with a preview (ADR-0023).
+WIDGETS: tuple[str, ...] = ("image", "text")
 
 _TRUE = {"1", "true", "yes", "on"}
 _FALSE = {"0", "false", "no", "off"}
@@ -151,10 +153,12 @@ _CURRENCY = re.compile(r"[A-Z]{3}")
 _COUNTRY = re.compile(r"[A-Z]{2}")
 
 
-def _pattern(regex: re.Pattern[str], message: str) -> Callable[[Any], None]:
+def _pattern(regex: re.Pattern[str], message: str, code: str = "invalid") -> Callable[[Any], None]:
+    """A format check. `code` is the stable code the admin translates (ADR-0015, ADR-0023)."""
+
     def validate(value: Any) -> None:
         if not regex.fullmatch(value):
-            raise ValidationError(message, code="invalid")
+            raise ValidationError(message, code=code)
 
     return validate
 
@@ -178,31 +182,49 @@ def genre_category_map(value: Any) -> None:
     try:
         data = json.loads(value)
     except ValueError:
-        raise ValidationError(message, code="invalid") from None
+        raise ValidationError(message, code="invalid_genre_map") from None
     if not isinstance(data, dict) or not all(
         isinstance(key, str) and key.isdigit() and isinstance(slug, str) and _SLUG.fullmatch(slug)
         for key, slug in data.items()
     ):
-        raise ValidationError(message, code="invalid")
+        raise ValidationError(message, code="invalid_genre_map")
 
 
-hex_color = _pattern(_HEX_COLOR, "Enter a colour as #RRGGBB.")
-currency_code = _pattern(_CURRENCY, "Enter an ISO 4217 currency code, e.g. SAR.")
-country_code = _pattern(_COUNTRY, "Enter an ISO 3166-1 alpha-2 country code, e.g. SA.")
-optional_email = _optional(EmailValidator())
-optional_http_url = _optional(URLValidator(schemes=["http", "https"]))
+hex_color = _pattern(_HEX_COLOR, "Enter a colour as #RRGGBB.", "invalid_color")
+currency_code = _pattern(
+    _CURRENCY, "Enter an ISO 4217 currency code, e.g. SAR.", "invalid_currency"
+)
+country_code = _pattern(
+    _COUNTRY, "Enter an ISO 3166-1 alpha-2 country code, e.g. SA.", "invalid_country"
+)
+optional_email = _optional(EmailValidator(code="invalid_email"))
+optional_http_url = _optional(URLValidator(schemes=["http", "https"], code="invalid_url"))
 # --- Billing validators (B1, ADR-0012) ---
-invoice_prefix = _pattern(re.compile(r"[A-Z0-9]{1,10}"), "Use 1 to 10 capital letters or digits.")
-vat_number = _optional(_pattern(re.compile(r"[0-9A-Z]{5,20}"), "Use 5 to 20 letters or digits."))
+invoice_prefix = _pattern(
+    re.compile(r"[A-Z0-9]{1,10}"),
+    "Use 1 to 10 capital letters or digits.",
+    "invalid_invoice_prefix",
+)
+vat_number = _optional(
+    _pattern(re.compile(r"[0-9A-Z]{5,20}"), "Use 5 to 20 letters or digits.", "invalid_vat_number")
+)
 # --- end B1 ---
 # --- Monitoring validators (O1, ADR-0018) ---
 ALERT_SEVERITY_CHOICES: tuple[str, ...] = ("all", "critical", "none")
 _TELEGRAM_TOKEN = re.compile(r"[0-9]{5,20}:[A-Za-z0-9_-]{30,100}")
 telegram_bot_token = _optional(
-    _pattern(_TELEGRAM_TOKEN, "Enter the bot token @BotFather gave, e.g. 123456789:AA...")
+    _pattern(
+        _TELEGRAM_TOKEN,
+        "Enter the bot token @BotFather gave, e.g. 123456789:AA...",
+        "invalid_telegram_token",
+    )
 )
 telegram_chat_id = _optional(
-    _pattern(re.compile(r"-?[0-9]{1,20}"), "Enter the chat id, a number such as -1001234567890.")
+    _pattern(
+        re.compile(r"-?[0-9]{1,20}"),
+        "Enter the chat id, a number such as -1001234567890.",
+        "invalid_telegram_chat",
+    )
 )
 
 
@@ -210,7 +232,9 @@ def alert_email_list(value: Any) -> None:
     """Email addresses separated by commas (spaces allowed); empty: none."""
     for address in (part.strip() for part in str(value).split(",")):
         if address:
-            EmailValidator(message=f"{address} is not an email address.")(address)
+            EmailValidator(message=f"{address} is not an email address.", code="invalid_email")(
+                address
+            )
 
 
 # --- end O1 ---
@@ -221,44 +245,63 @@ host_name = _optional(
     _pattern(
         re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?"),
         "Enter a host name or address, e.g. smtp.example.com.",
+        "invalid_host",
     )
 )
 tmdb_read_access_token = _optional(
     _pattern(
         re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
         "Paste TMDB's API Read Access Token (a long text starting with eyJ).",
+        "invalid_tmdb_token",
     )
 )
 tmdb_api_key = _optional(
-    _pattern(re.compile(r"[0-9a-f]{32}"), "A TMDB API key is 32 letters and digits.")
+    _pattern(
+        re.compile(r"[0-9a-f]{32}"), "A TMDB API key is 32 letters and digits.", "invalid_tmdb_key"
+    )
 )
-tmdb_language = _pattern(re.compile(r"[a-z]{2}-[A-Z]{2}"), "Use a language tag such as en-US.")
+tmdb_language = _pattern(
+    re.compile(r"[a-z]{2}-[A-Z]{2}"), "Use a language tag such as en-US.", "invalid_language_tag"
+)
 tvdb_api_key = _optional(
-    _pattern(re.compile(r"[A-Za-z0-9-]{16,64}"), "Paste the API key TheTVDB gave your project.")
+    _pattern(
+        re.compile(r"[A-Za-z0-9-]{16,64}"),
+        "Paste the API key TheTVDB gave your project.",
+        "invalid_tvdb_key",
+    )
 )
 tvdb_pin = _optional(
-    _pattern(re.compile(r"[A-Za-z0-9]{1,32}"), "Use the PIN's letters and digits.")
+    _pattern(
+        re.compile(r"[A-Za-z0-9]{1,32}"), "Use the PIN's letters and digits.", "invalid_tvdb_pin"
+    )
 )
 stripe_secret_key = _optional(
     _pattern(
         re.compile(r"(?:sk|rk)_(?:test|live)_[A-Za-z0-9]{10,250}"),
         "A Stripe secret key starts with sk_test_, sk_live_, rk_test_ or rk_live_.",
+        "invalid_stripe_key",
     )
 )
 stripe_webhook_secret = _optional(
     _pattern(
         re.compile(r"whsec_[A-Za-z0-9+/=]{10,200}"),
         "A Stripe webhook signing secret starts with whsec_.",
+        "invalid_stripe_webhook_secret",
     )
 )
 moyasar_secret_key = _optional(
     _pattern(
         re.compile(r"sk_(?:test|live)_[A-Za-z0-9]{10,200}"),
         "A Moyasar secret key starts with sk_test_ or sk_live_.",
+        "invalid_moyasar_key",
     )
 )
 webhook_token = _optional(
-    _pattern(re.compile(r"[!-~]{8,200}"), "Use 8 to 200 characters without spaces.")
+    _pattern(
+        re.compile(r"[!-~]{8,200}"),
+        "Use 8 to 200 characters without spaces.",
+        "invalid_webhook_token",
+    )
 )
 
 
@@ -276,6 +319,7 @@ branding_image = _optional(
     _pattern(
         re.compile(r"images/branding/logo-(?:light|dark)-[0-9a-f]{12}\.png"),
         "Upload the logo; its stored name is set for you.",
+        "invalid_logo",
     )
 )
 
@@ -287,11 +331,11 @@ def email_sender(value: Any) -> None:
         return
     message = 'Enter an address, or a name and an address: "Smart IPTV <no-reply@example.com>".'
     if "\n" in text or "\r" in text:
-        raise ValidationError(message, code="invalid")
+        raise ValidationError(message, code="invalid_sender")
     _name, address = parseaddr(text)
     if not address:
-        raise ValidationError(message, code="invalid")
-    EmailValidator(message=message)(address)
+        raise ValidationError(message, code="invalid_sender")
+    EmailValidator(message=message, code="invalid_sender")(address)
 
 
 def smtp_security_from_env(raw: Mapping[str, object | None]) -> str | None:
@@ -333,18 +377,22 @@ def seconds_to_hours_from_env(raw: Mapping[str, object | None]) -> int | None:
 
 # --- Backups, privacy and CrowdSec validators (H2, ADR-0020) ---
 _CLOCK = re.compile(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]")
-clock_time = _pattern(_CLOCK, "Enter a time as HH:MM (24-hour), e.g. 03:30.")
+clock_time = _pattern(_CLOCK, "Enter a time as HH:MM (24-hour), e.g. 03:30.", "invalid_time")
 _S3_BUCKET = re.compile(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")
-s3_bucket = _optional(_pattern(_S3_BUCKET, "Enter a bucket name, e.g. my-backups."))
+s3_bucket = _optional(
+    _pattern(_S3_BUCKET, "Enter a bucket name, e.g. my-backups.", "invalid_bucket")
+)
 s3_prefix = _pattern(
-    re.compile(r"[A-Za-z0-9._/-]{0,200}"), "Use letters, digits, dots, dashes and slashes."
+    re.compile(r"[A-Za-z0-9._/-]{0,200}"),
+    "Use letters, digits, dots, dashes and slashes.",
+    "invalid_prefix",
 )
 s3_region = _optional(
-    _pattern(re.compile(r"[a-z0-9-]{1,40}"), "Enter a region, e.g. eu-central-1.")
+    _pattern(re.compile(r"[a-z0-9-]{1,40}"), "Enter a region, e.g. eu-central-1.", "invalid_region")
 )
 _S3_CREDENTIAL = re.compile(r"[A-Za-z0-9/+=._-]{3,256}")
 s3_credential = _optional(
-    _pattern(_S3_CREDENTIAL, "Paste the key exactly as the provider gave it.")
+    _pattern(_S3_CREDENTIAL, "Paste the key exactly as the provider gave it.", "invalid_key")
 )
 
 
@@ -356,7 +404,7 @@ def time_zone(value: Any) -> None:
         ZoneInfo(str(value))
     except (ZoneInfoNotFoundError, ValueError):
         msg = "Enter a time zone such as Asia/Riyadh or UTC."
-        raise ValidationError(msg, code="invalid") from None
+        raise ValidationError(msg, code="invalid_timezone") from None
 
 
 def network_list(value: Any) -> None:
@@ -370,7 +418,7 @@ def network_list(value: Any) -> None:
             ipaddress.ip_network(part, strict=False)
         except ValueError:
             msg = f"{part} is not an IP address or network (e.g. 203.0.113.0/24)."
-            raise ValidationError(msg, code="invalid") from None
+            raise ValidationError(msg, code="invalid_network") from None
 
 
 # --- end H2 ---
@@ -389,7 +437,7 @@ def origin_list(value: Any) -> None:
     for part in (item.strip() for item in str(value).split(",")):
         if part and not _CSP_ORIGIN.fullmatch(part):
             msg = f"{part} is not an origin such as https://cdn.example.com."
-            raise ValidationError(msg, code="invalid")
+            raise ValidationError(msg, code="invalid_origin")
 
 
 # --- end M14a ---
@@ -400,9 +448,43 @@ _S3_ENDPOINT = re.compile(
     r"https?://[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(?::[0-9]{1,5})?/?"
 )
 s3_endpoint = _optional(
-    _pattern(_S3_ENDPOINT, "Enter the service's address, e.g. https://s3.example.com.")
+    _pattern(
+        _S3_ENDPOINT, "Enter the service's address, e.g. https://s3.example.com.", "invalid_url"
+    )
 )
 # --- end M15 ---
+
+
+# --- Legal pages (Q1, ADR-0023) ---
+_LEGAL_TEMPLATES = Path(__file__).with_name("legal_templates")
+#: The longest legal text an admin may store (characters).
+LEGAL_MAX_CHARS = 60_000
+
+
+def legal_template(document: str, language: str) -> str:
+    """The starting text of a legal page (Markdown; to be reviewed by a lawyer)."""
+    return (_LEGAL_TEMPLATES / f"{document}.{language}.md").read_text(encoding="utf-8")
+
+
+def legal_text(value: Any) -> None:
+    if len(value) > LEGAL_MAX_CHARS:
+        msg = f"Keep it under {LEGAL_MAX_CHARS} characters."
+        raise ValidationError(msg, code="too_long")
+
+
+_INGEST_USER = re.compile(r"[A-Za-z0-9._-]{1,64}")
+ingest_user = _pattern(_INGEST_USER, "Use 1 to 64 letters, digits, dots, dashes or underscores.",
+                       "invalid_ingest_user")  # fmt: skip
+
+
+def ingest_password(value: Any) -> None:
+    """Encoders put it in URLs (rtmp://user:password@host): printable, no spaces."""
+    if value and not (8 <= len(value) <= 200 and value.isprintable() and " " not in value):
+        msg = "Use 8 to 200 printable characters without spaces."
+        raise ValidationError(msg, code="invalid_ingest_password")
+
+
+# --- end Q1 ---
 
 
 GROUPS: tuple[str, ...] = (
@@ -428,6 +510,8 @@ GROUPS: tuple[str, ...] = (
     "storage",
     "cdn",
     "database",
+    # Q1 (ADR-0023)
+    "legal",
 )
 
 _K = SettingKind
@@ -547,6 +631,10 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("library.uhd_cpu_encode", _K.BOOL, False,
                "Allow UHD HEVC encodes on CPU-only transcoders (very slow; keeping a "
                "suitable source needs no encode).", "library"),
+    SettingDef("library.capped_compat_mp4", _K.STR, "auto",
+               "Remux a 720p or 480p compat MP4 from the ladder for plans capped there, so "
+               "IPTV apps on those plans get an MP4 (auto: the ceilings plans use; off).",
+               "library", choices=("auto", "off")),
     SettingDef("library.rendition_retention_days", _K.INT, 7,
                "Days the renditions of a removed file are kept before cleanup deletes them.",
                "library", min_value=0, max_value=365),
@@ -588,6 +676,10 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "TheTVDB subscriber PIN, needed only with a user-supported key.", "metadata",
                tvdb_pin, sensitive=True),
     # --- end CFG ---
+    # TheTVDB fallback (Q1, ADR-0023)
+    SettingDef("metadata.tvdb_rate_limit_per_s", _K.INT, 10,
+               "TheTVDB requests per second, shared by every worker.", "metadata",
+               min_value=1, max_value=50),
     # Billing (SPEC §7.6)
     SettingDef("billing.vat_rate", _K.FLOAT, 0.15, "VAT rate applied to invoices.", "billing",
                min_value=0.0, max_value=1.0),
@@ -654,6 +746,10 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("security.customer_session_days", _K.INT, 30,
                "Portal sign-ins end after this many idle days.", "security",
                min_value=1, max_value=365),
+    # Q1 (ADR-0023): browsers reuse their device; unused ones leave the lists.
+    SettingDef("security.web_device_idle_days", _K.INT, 30,
+               "A browser unused this many days leaves the customer's devices.", "security",
+               min_value=1, max_value=365),
     SettingDef("security.customer_access_token_ttl_s", _K.INT, 600,
                "Lifetime of app access tokens, in seconds.", "security",
                min_value=60, max_value=3600),
@@ -708,6 +804,26 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("live.epg_max_document_mb", _K.INT, 200,
                "Largest XMLTV document an import reads, in megabytes (uncompressed).", "live",
                min_value=1, max_value=2000),
+    # Live ingest sign-ins (Q1, ADR-0023): MediaMTX asks /internal/mediamtx-auth. The
+    # .env users of before (MEDIAMTX_*) keep working until moved into the settings.
+    SettingDef("live.ingest_publish_user", _K.STR, "publisher",
+               "The user encoders, cameras and OBS publish with.", "live", ingest_user,
+               env=("MEDIAMTX_PUBLISH_USER",)),
+    SettingDef("live.ingest_publish_password", _K.STR, "",
+               "The password encoders, cameras and OBS publish with.", "live", ingest_password,
+               sensitive=True, env=("MEDIAMTX_PUBLISH_PASS",)),
+    SettingDef("live.ingest_read_user", _K.STR, "reader",
+               "The user the live packager reads ingested streams with.", "live", ingest_user,
+               env=("MEDIAMTX_READ_USER",)),
+    SettingDef("live.ingest_read_password", _K.STR, "",
+               "The password the live packager reads ingested streams with.", "live",
+               ingest_password, sensitive=True, env=("MEDIAMTX_READ_PASS",)),
+    SettingDef("live.ingest_auth_max_failures", _K.INT, 20,
+               "Failed ingest sign-ins from one address before it is refused for the window.",
+               "live", min_value=3, max_value=1000),
+    SettingDef("live.ingest_auth_block_minutes", _K.INT, 15,
+               "How long an address with too many failed ingest sign-ins is refused.", "live",
+               min_value=1, max_value=1440),
     # --- end M12 ---
     # --- Monitoring and alerts (O1, ADR-0018) ---
     SettingDef("monitoring.alerts_enabled", _K.BOOL, True,
@@ -993,6 +1109,16 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
                "The replica is used only while it is at most this many seconds behind.",
                "database", min_value=1, max_value=3600),
     # --- end M15 ---
+    # Legal pages (Q1, ADR-0023): Markdown with {service}, {support_email}, {support_phone}
+    # and {seller_address} filled in from Branding and Billing.
+    SettingDef("legal.privacy_en", _K.STR, legal_template("privacy", "en"),
+               "Privacy policy in English (Markdown).", "legal", legal_text, widget="text"),
+    SettingDef("legal.privacy_ar", _K.STR, legal_template("privacy", "ar"),
+               "Privacy policy in Arabic (Markdown).", "legal", legal_text, widget="text"),
+    SettingDef("legal.terms_en", _K.STR, legal_template("terms", "en"),
+               "Terms of service in English (Markdown).", "legal", legal_text, widget="text"),
+    SettingDef("legal.terms_ar", _K.STR, legal_template("terms", "ar"),
+               "Terms of service in Arabic (Markdown).", "legal", legal_text, widget="text"),
 )  # fmt: skip
 
 

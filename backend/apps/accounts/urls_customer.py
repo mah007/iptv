@@ -44,6 +44,7 @@ token_auth = [
 #: Both hosts: the signed-in customer and their devices.
 urlpatterns = [
     path("me", api_customer.MeView.as_view(), name="customer-me"),
+    path("me/password", api_customer.MyPasswordView.as_view(), name="customer-password"),
     path("me/devices", api_customer.MyDeviceListView.as_view(), name="customer-devices"),
     path(
         "me/devices/<uuid:pk>",

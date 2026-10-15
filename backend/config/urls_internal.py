@@ -1,7 +1,8 @@
 """Internal-only endpoints, reachable inside the Docker network but never via Traefik.
 
 Health checks, Prometheus metrics, the media edge's stream-auth (ADR-0007) and the
-monitoring host's forward-auth and Alertmanager's webhook (ADR-0018).
+monitoring host's forward-auth and Alertmanager's webhook (ADR-0018), MediaMTX's
+sign-ins (ADR-0023).
 """
 
 from django.urls import path
@@ -9,6 +10,7 @@ from django.urls import path
 from apps.accounts.monitoring_views import forward_auth
 from apps.core import views
 from apps.core.security import frontend_csp
+from apps.live.views_internal import mediamtx_auth
 from apps.notifications.views_internal import alert_fallback, alert_webhook
 from apps.ops.views_internal import agent_job, agent_poll
 from apps.playback.views import stream_auth
@@ -28,5 +30,7 @@ urlpatterns = [
     path("internal/backups/agent/jobs/<uuid:run_id>", agent_job, name="backup-agent-job"),
     # The media origins the SPAs' Content-Security-Policy allows (M14a, ADR-0021).
     path("internal/frontend-csp", frontend_csp, name="frontend-csp"),
+    # MediaMTX's sign-ins for live ingest (authMethod: http; Q1, ADR-0023).
+    path("internal/mediamtx-auth", mediamtx_auth, name="mediamtx-auth"),
     path("metrics", views.metrics, name="metrics"),
 ]

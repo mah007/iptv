@@ -120,6 +120,7 @@ export const MATRIX_DETAIL: MovieDetail = {
   original_language: "en",
   countries: ["US"],
   trailer_youtube_key: "vKQi3bBA1y8",
+  attribution: "tmdb",
   logo: null,
   genres: [{ id: "g1", name: "Action" }],
   categories: [],
@@ -128,7 +129,7 @@ export const MATRIX_DETAIL: MovieDetail = {
   cast: [{ id: "p2", name: "Keanu Reeves", profile: null, character: "Neo" }],
   quality: { height: 1080, badge: "FHD" },
   tracks: { audio: ["eng"], subtitles: ["ara"] },
-  viewer: { favorite: false, rating: null as unknown as "up", progress: null },
+  viewer: { favorite: false, rating: null, progress: null },
   similar: [INCEPTION],
   release_date: "1999-03-31",
 };
@@ -149,6 +150,7 @@ export const GRANT: PlaybackGrant = {
   audio: [{ language: "eng", codec: "aac", channels: 2, default: true }],
   subtitles: [],
   thumbnails_url: null,
+  live: false,
 };
 
 export function device(overrides: Partial<MyDevice> & Pick<MyDevice, "id" | "name">): MyDevice {

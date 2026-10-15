@@ -57,6 +57,7 @@ def _business(now: datetime) -> None:
     metrics.CUSTOMERS.publish(
         {
             ("active",): kpis.customers_active,
+            ("grace",): kpis.customers_grace,
             ("expired",): kpis.customers_expired,
             ("suspended",): kpis.customers_suspended,
             ("expiring_7d",): kpis.expiring_7d,

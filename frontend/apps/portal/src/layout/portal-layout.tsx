@@ -1,17 +1,19 @@
 import { Button, cn, LanguageToggle, ThemeToggle } from "@smart-iptv/ui";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Clapperboard, Heart, House, Search, Tv, UserRound } from "lucide-react";
+import { Clapperboard, Heart, House, Radio, Search, Tv, UserRound } from "lucide-react";
 import { useEffect, useState, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 
 import { StepUpDialog } from "../features/auth/step-up-dialog";
+import { useMe } from "../lib/auth";
 import { AccountMenu } from "./account-menu";
 import { BrandLockup } from "./brand";
+import { LegalLinks } from "./legal-links";
 import { SupportContacts } from "./support-contacts";
 import { needsRenewNotice, RenewBanner, useAccessState } from "./renew-banner";
 
 interface NavLink {
-  to: "/" | "/movies" | "/series" | "/my-list" | "/search" | "/account";
+  to: "/" | "/movies" | "/series" | "/live" | "/my-list" | "/search" | "/account";
   label: string;
   icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   exact?: boolean;
@@ -21,6 +23,7 @@ const NAV: readonly NavLink[] = [
   { to: "/", label: "nav.home", icon: House, exact: true },
   { to: "/movies", label: "nav.movies", icon: Clapperboard },
   { to: "/series", label: "nav.series", icon: Tv },
+  { to: "/live", label: "nav.live", icon: Radio },
   { to: "/my-list", label: "nav.myList", icon: Heart },
 ];
 
@@ -29,6 +32,7 @@ const MOBILE_NAV: readonly NavLink[] = [
   { to: "/", label: "nav.home", icon: House, exact: true },
   { to: "/movies", label: "nav.movies", icon: Clapperboard },
   { to: "/series", label: "nav.series", icon: Tv },
+  { to: "/live", label: "nav.liveShort", icon: Radio },
   { to: "/search", label: "nav.search", icon: Search },
   { to: "/account", label: "nav.account", icon: UserRound },
 ];
@@ -55,6 +59,10 @@ export function PortalLayout() {
   const scrolled = useScrolled();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const access = useAccessState();
+  // Live TV appears only for plans that include it (ADR-0023).
+  const liveAllowed = useMe()?.access?.allow_live === true;
+  const nav = NAV.filter((item) => item.to !== "/live" || liveAllowed);
+  const mobileNav = MOBILE_NAV.filter((item) => item.to !== "/live" || liveAllowed);
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
@@ -81,7 +89,7 @@ export function PortalLayout() {
           </Link>
           <nav aria-label={t("nav.label")} className="hidden md:block">
             <ul className="flex items-center gap-1">
-              {NAV.map((item) => (
+              {nav.map((item) => (
                 <li key={item.to}>
                   <Link
                     to={item.to}
@@ -121,6 +129,7 @@ export function PortalLayout() {
               {t("about.link")}
             </Link>
           </p>
+          <LegalLinks />
         </footer>
       </main>
       <StepUpDialog />
@@ -128,8 +137,8 @@ export function PortalLayout() {
         aria-label={t("nav.label")}
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
       >
-        <ul className="grid grid-cols-5">
-          {MOBILE_NAV.map((item) => {
+        <ul className={cn("grid", mobileNav.length > 5 ? "grid-cols-6" : "grid-cols-5")}>
+          {mobileNav.map((item) => {
             const Icon = item.icon;
             const active =
               item.exact === true ? pathname === item.to : pathname.startsWith(item.to);

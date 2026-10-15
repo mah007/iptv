@@ -53,7 +53,7 @@ describe("review queue", () => {
     await user.click(screen.getByRole("button", { name: "Match" }));
     expect(api.sent("POST", `${QUEUE}/review-1/resolve`)[0]?.body).toEqual({ tmdb_id: 603 });
 
-    const query = await screen.findByLabelText("Search TMDB");
+    const query = await screen.findByLabelText("Search");
     await user.type(query, "Breaking");
     await user.click(screen.getByRole("button", { name: "Search" }));
     const found = (await screen.findByText("Breaking Bad")).closest("[data-slot=card]");
@@ -65,6 +65,39 @@ describe("review queue", () => {
       tmdb_id: 1396,
       kind: "tv",
     });
+  });
+
+  it("chooses a TheTVDB candidate, or searches TheTVDB for a series (ADR-0023)", async () => {
+    const tvdb = candidate({
+      provider: "tvdb",
+      id: 9100001,
+      kind: "tv",
+      title: "The Lantern Keepers",
+    });
+    const api = mockApi(
+      mediaSignedIn({
+        [`GET ${QUEUE}`]: { body: page([review({ kind: "tv", candidates: [tvdb] })]) },
+        [`POST ${QUEUE}/review-1/resolve`]: { body: review({ status: "resolved" }) },
+        "GET /api/v1/admin/metadata/search": { body: [{ ...tvdb, id: 9100002 }] },
+      }),
+    );
+    const { user } = renderApp("/review");
+    const candidates = await screen.findByRole("region", { name: "Candidates (1)" });
+    expect(within(candidates).getByText("TheTVDB 9100001")).toBeTruthy();
+    await user.click(within(candidates).getByRole("button", { name: "Choose" }));
+    expect(api.sent("POST", `${QUEUE}/review-1/resolve`)[0]?.body).toEqual({ tvdb_id: 9100001 });
+
+    await user.click(screen.getByRole("combobox", { name: "Provider" }));
+    await user.click(await screen.findByRole("option", { name: "TheTVDB" }));
+    await user.type(screen.getByLabelText("TheTVDB ID"), "81189");
+    await user.click(screen.getByRole("button", { name: "Match" }));
+    expect(api.sent("POST", `${QUEUE}/review-1/resolve`).at(-1)?.body).toEqual({
+      tvdb_id: 81189,
+    });
+    await user.type(screen.getByLabelText("Search"), "Lantern");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await screen.findByText("TheTVDB 9100002");
+    expect(api.sent("GET", "/api/v1/admin/metadata/search")[0]?.query.get("provider")).toBe("tvdb");
   });
 
   it("skips a file", async () => {

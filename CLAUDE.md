@@ -28,6 +28,7 @@ A self-hosted OTT/VOD subscription platform for **owned or licensed content** on
   - `live-relay` (`apps.live.relay`, ASGI without Django) serves `live.ts`, the live playlist and catch-up windows behind the edge.
   - Tokens carry the rendition `live` or `archive`, with the channel UUID as the title.
   - Live knobs are `live.*` settings. Source URLs are encrypted, and `apps/live/egress.py` guards every URL an admin supplies.
+  - The portal plays live and catch-up through `playback/start` (`title_type` `live`/`catchup`; ADR-0023). The optional MediaMTX ingest asks `/internal/mediamtx-auth` about every sign-in; its users are `live.ingest_*` settings.
 - **Edges and scale (ADR-0022).**
   - `apps.edges.Edge` rows are `local` (nginx-stream), `standalone` (another host) or `cdn` (Bunny in front of one of ours). `edges.choose()` picks one per session at playback start; the local edge is the fallback.
   - Standalone edges use `edges.<domain>` (`config/urls_edge.py`, bearer secret per edge): the control channel (keys, the S3 read-only key, the CDN secret) and stream-auth (Redis only, `edges:auth`).
@@ -67,8 +68,9 @@ Everything runs in containers through the Makefile (`make` lists targets). The s
 - Host shortcuts (faster, outside containers): in `backend/` run `uv run ruff check .` and `uv run mypy .`; in `frontend/` run `pnpm lint`, `pnpm typecheck` and `pnpm test`.
 - `make api-client` regenerates the OpenAPI schema and the Orval client in `frontend/packages/api` (never hand-edited); `make ci` fails if it's stale. Run it after any admin API change.
 - `make seed args=--reset-admin-password` loads demo data and prints a new admin password once. TOTP codes in dev come from the DEBUG-only `manage.py totp_code`.
-- `make sample-media` generates legal synthetic media into `./media`; `make media-ready` waits until a sample movie and series are scanned and transcoded; `make live-ready` makes the synthetic live channel (the dev MediaMTX loops a test pattern; a generated guide; 3 minutes of catch-up), which compat-live, the IPTVnator journey and e2e-admin play.
-- Xtream contract: `make compat` (schemas and golden fixtures, no stack), `make compat-live` (the running tv host, play URLs included) and `make e2e-iptvnator` (IPTVnator in Docker, driven by Playwright with the host's Chrome). All three run in `make ci`.
+- `make sample-media` generates legal synthetic media into `./media`; `make media-ready` waits until a sample movie and series are scanned and transcoded; `make live-ready` makes the synthetic live channel (the dev MediaMTX loops a test pattern; a generated guide; 3 minutes of catch-up), which compat-live, the IPTVnator journey, e2e-admin and e2e-portal play.
+- Xtream contract: `make compat` (schemas and golden fixtures, no stack), `make compat-live` (the running tv host, play URLs included, and a 720p contract account whose `.mp4` must be a capped compat MP4: it waits for the remux) and `make e2e-iptvnator` (IPTVnator in Docker, driven by Playwright with the host's Chrome). All three run in `make ci`.
+- Live ingest sign-ins (ADR-0023): `make mediamtx-test` runs the production MediaMTX against a throwaway web process (`/internal/mediamtx-auth`) and checks publishing, reading and refusals in about 15 s; in `make ci`. The dev MediaMTX keeps `authMethod: internal`.
 - Browser E2E: `make e2e-admin` and `make e2e-portal` (Playwright with the host's Chrome against the dev stack, axe included; they need `make media-ready`). Both run in `make ci`. Run admin Vitest in a fresh `compose run` container: inside the running frontend container it gets OOM-killed.
 - Transcoding with a GPU in dev: `make up GPU=nvidia,intel` adds the opt-in overlays; the server is CPU-only.
 - Servers: `scripts/install.sh` installs, updates (`--update`) or reconfigures (`--reconfigure`) a production host interactively (`--yes` unattended, `--dry-run` changes nothing). Test changes to it with `--dry-run` in an `ubuntu:24.04` container and ShellCheck (`docker run --rm -v "$PWD/scripts:/mnt:ro" koalaman/shellcheck:stable -x /mnt/install.sh`).
@@ -105,7 +107,7 @@ Everything runs in containers through the Makefile (`make` lists targets). The s
 - **Data:** every model inherits `apps.core.models.BaseModel` (UUIDv7 `id` plus `created_at`/`updated_at`). Catalog items and episodes also get an integer `xc_id`, because Xtream clients need ints. Money is stored in integer minor units with a `currency` column.
 - **Routing:** public endpoints go in the host's URLconf (`config/urls_api.py` or `urls_xtream.py`); internal ones go only in `config/urls_internal.py`. `HostURLConfMiddleware` keeps them apart.
 - **Tests:**
-  - TMDB calls replay from VCR cassettes in `backend/tests/cassettes/` when `TMDB_API_KEY` is unset.
+  - TMDB and TheTVDB calls answer from JSON fixtures (`backend/apps/metadata/fixtures/{tmdb,tvdb}/`, through a fixture transport) when no key is set. `apps.metadata.tmdb.recording` and `manage.py record_tvdb_fixtures` record real ones, which stay out of the public repo.
   - Parser cases live in `backend/tests/data/filenames.csv`.
   - Test the concurrency Lua script against real Redis (Testcontainers), not a mock.
   - Coverage must be ≥ 85% on core apps.

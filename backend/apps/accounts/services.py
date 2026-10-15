@@ -11,11 +11,12 @@ import re
 import secrets
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 from typing import Any, cast
 from uuid import UUID
 
+import redis
 from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -41,6 +42,7 @@ from apps.accounts.rbac import OWNER_ROLE, permission_codes
 from apps.accounts.signals import access_expired, access_suspended, device_disabled
 from apps.accounts.validators import normalize_country, normalize_ip, normalize_network
 from apps.audit import services as audit
+from apps.audit.services import AuditTarget
 from apps.catalog.models import Category
 from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.services import get_setting
@@ -740,6 +742,94 @@ def revoke_device(device: Device, *, actor: User | None, ip: str | None = None) 
         )
         _device_disabled_on_commit(device)
     return device
+
+
+def expire_idle_devices(*, now: datetime | None = None) -> int:
+    """Daily: retire browser devices unused for `security.web_device_idle_days`, and app
+    devices whose sign-in (token family) has ended (ADR-0023). They hold no credential and
+    no playback, so they are revoked in bulk, with one audit entry for the run."""
+    from apps.accounts import customer_tokens  # noqa: PLC0415 (it imports this module)
+
+    moment = now or timezone.now()
+    days = int(cast("int", get_setting("security.web_device_idle_days")))
+    cutoff = moment - timedelta(days=days)
+    live = Device.objects.filter(revoked_at__isnull=True, user__is_staff=False)
+    idle_web = live.filter(kind=DeviceKind.WEB).filter(
+        Q(last_seen__lt=cutoff) | Q(last_seen__isnull=True, created_at__lt=cutoff)
+    )
+    expired = set(idle_web.values_list("pk", flat=True))
+    apps_by_user: dict[UUID, list[UUID]] = {}
+    for device_id, user_id in live.filter(kind=DeviceKind.APP).values_list("pk", "user_id"):
+        apps_by_user.setdefault(user_id, []).append(device_id)
+    for user_id, device_ids in apps_by_user.items():
+        try:
+            signed_in = customer_tokens.live_devices(user_id)
+        except redis.RedisError:
+            return 0  # redis-state down: nothing is known to be signed out
+        expired.update(device for device in device_ids if device not in signed_in)
+    if not expired:
+        return 0
+    count = Device.objects.filter(pk__in=expired, revoked_at__isnull=True).update(
+        revoked_at=moment, updated_at=moment
+    )
+    audit.record(
+        "devices.expire",
+        actor=None,
+        target=AuditTarget("devices", "idle"),
+        after={"devices": count, "idle_days": days},
+    )
+    return count
+
+
+#: Most devices one bulk action changes (the admin's Devices page, ADR-0023).
+BULK_DEVICE_LIMIT = 500
+
+
+@dataclass(frozen=True, slots=True)
+class BulkResult:
+    changed: int
+    skipped: int
+
+
+def bulk_devices(
+    devices: Iterable[Device],
+    action: str,
+    *,
+    reason: str = "",
+    actor: User | None,
+    ip: str | None = None,
+) -> BulkResult:
+    """Block, unblock, approve or revoke several customers' devices (the Devices page).
+
+    Each device is changed and audited on its own, as from its customer's page; one that
+    is revoked already (or has nothing to change) is skipped."""
+    changed = skipped = 0
+    for device in devices:
+        if device.revoked_at is not None:
+            skipped += 1
+            continue
+        if action == "block":
+            if device.blocked:
+                skipped += 1
+                continue
+            block_device(device, reason=reason, actor=actor, ip=ip)
+        elif action == "unblock":
+            if not device.blocked:
+                skipped += 1
+                continue
+            unblock_device(device, actor=actor, ip=ip)
+        elif action == "approve":
+            if device.approved:
+                skipped += 1
+                continue
+            approve_device(device, actor=actor, ip=ip)
+        elif action == "revoke":
+            revoke_device(device, actor=actor, ip=ip)
+        else:
+            msg = f"unknown device action {action!r}"
+            raise ValueError(msg)
+        changed += 1
+    return BulkResult(changed=changed, skipped=skipped)
 
 
 @dataclass(frozen=True, slots=True)

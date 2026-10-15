@@ -6,6 +6,8 @@ path; the layout is in `apps.media.layout`):
 
 - `compat.mp4` produced by a `TranscodeJob`, or `source.<ext>`, a symlink to the
   library file when the source already plays everywhere;
+- `compat720.mp4`, `compat480.mp4`: the compat MP4 capped at a plan's ceiling, remuxed
+  from the ladder's rung that fits (ADR-0023), for IPTV apps on capped plans;
 - the HLS ladder: one `hls_variant` per rung (`hls/v0/`, ...) and one `hls_master`
   per presentation (`hls/master.m3u8`, and capped or UHD ones such as `hls720/`);
 - `uhd.<ext>`, the UHD version, with its HLS variant in `hls2160/uhd/`;
@@ -30,6 +32,8 @@ class RenditionKind(models.TextChoices):
     HLS_MASTER = "hls_master", "HLS master"
     UHD = "uhd", "UHD"
     THUMBNAILS = "thumbnails", "Thumbnails"
+    #: `compat720`, `compat480` (ADR-0023): one row per ceiling, told apart by `name`.
+    COMPAT_CAPPED = "compat_capped", "Capped compat MP4"
 
 
 class RenditionStatus(models.TextChoices):
@@ -42,7 +46,7 @@ class RenditionStatus(models.TextChoices):
 #: Renditions a player can open on their own that make a title `ready` (ADR-0010).
 PLAYABLE_KINDS = (RenditionKind.COMPAT_MP4, RenditionKind.SOURCE)
 #: Kinds with several rows per file, told apart by `name`.
-NAMED_KINDS = (RenditionKind.HLS_VARIANT, RenditionKind.HLS_MASTER)
+NAMED_KINDS = (RenditionKind.HLS_VARIANT, RenditionKind.HLS_MASTER, RenditionKind.COMPAT_CAPPED)
 
 
 class Rendition(BaseModel):
@@ -82,12 +86,12 @@ class Rendition(BaseModel):
         constraints = (
             models.UniqueConstraint(
                 fields=("media_file", "kind"),
-                condition=~Q(kind__in=("hls_variant", "hls_master")),
+                condition=~Q(kind__in=("hls_variant", "hls_master", "compat_capped")),
                 name="media_rendition_file_kind",
             ),
             models.UniqueConstraint(
                 fields=("media_file", "kind", "name"),
-                condition=Q(kind__in=("hls_variant", "hls_master")),
+                condition=Q(kind__in=("hls_variant", "hls_master", "compat_capped")),
                 name="media_rendition_file_kind_name",
             ),
         )
@@ -103,6 +107,8 @@ class TranscodeProfile(models.TextChoices):
     UHD = "uhd", "UHD version"
     THUMBNAILS = "thumbnails", "Thumbnails"
     SUBTITLES = "subtitles", "Subtitles"
+    #: The capped compat MP4s, remuxed from the ladder (ADR-0023).
+    COMPAT_CAPPED = "compat_capped", "Capped compat MP4"
 
 
 class TranscodeBackend(models.TextChoices):
@@ -133,6 +139,7 @@ PROFILE_PRIORITY = {
     "subtitles": 6,
     "thumbnails": 6,
     "hls": 3,
+    "compat_capped": 4,
     "uhd": 2,
 }
 

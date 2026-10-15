@@ -62,6 +62,7 @@ def test_kpis(
         "customers_active": 3,
         "customers_expired": 1,
         "customers_suspended": 1,
+        "customers_grace": 0,
         "expiring_7d": 1,
         "devices_total": 4,
         "devices_blocked": 1,

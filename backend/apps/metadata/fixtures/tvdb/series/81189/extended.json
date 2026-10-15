@@ -1,0 +1,60 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-written TheTVDB v4 response for tests (ADR-0023); not TheTVDB data."
+  },
+  "status": "success",
+  "data": {
+    "id": 81189,
+    "name": "Breaking Bad",
+    "slug": "breaking-bad",
+    "image": "https://artworks.thetvdb.com/banners/v4/series/81189/posters/bb-680x1000.jpg",
+    "firstAired": "2008-01-20",
+    "year": "2008",
+    "averageRuntime": 47,
+    "status": {
+      "id": 2,
+      "name": "Ended"
+    },
+    "originalCountry": "usa",
+    "originalLanguage": "eng",
+    "overview": "A chemistry teacher turns to crime.",
+    "aliases": [
+      {
+        "language": "spa",
+        "name": "La Química"
+      }
+    ],
+    "genres": [
+      {
+        "id": 3,
+        "name": "Drama",
+        "slug": "drama"
+      }
+    ],
+    "remoteIds": [
+      {
+        "id": "tt0903747",
+        "type": 2,
+        "sourceName": "IMDB"
+      },
+      {
+        "id": "1396",
+        "type": 12,
+        "sourceName": "TheMovieDB.com"
+      }
+    ],
+    "seasons": [],
+    "characters": [],
+    "artworks": [],
+    "translations": {
+      "nameTranslations": [
+        {
+          "name": "Breaking Bad",
+          "language": "eng"
+        }
+      ],
+      "overviewTranslations": []
+    }
+  }
+}

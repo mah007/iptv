@@ -14,6 +14,9 @@ urlpatterns = [
         name="customer-playback-progress",
     ),
     path("playback/<uuid:pk>/stop", api.PlaybackStopView.as_view(), name="customer-playback-stop"),
+    # Q1 (ADR-0023): my streams on every device, and stopping one of them.
+    path("me/streams", api.MyStreamListView.as_view(), name="customer-streams"),
+    path("me/streams/<uuid:pk>/stop", api.MyStreamStopView.as_view(), name="customer-stream-stop"),
     path(
         "continue-watching",
         api.ContinueWatchingView.as_view(),

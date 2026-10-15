@@ -44,6 +44,8 @@ export const STATUS_TONES = {
   partially_refunded: "warning",
   refunded: "neutral",
   void: "neutral",
+  // A customer with neither a subscription nor an access profile (ADR-0023).
+  none: "neutral",
 } as const satisfies Record<string, BadgeTone>;
 
 export type KnownStatus = keyof typeof STATUS_TONES;

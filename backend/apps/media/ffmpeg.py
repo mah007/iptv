@@ -336,6 +336,58 @@ def _extra_subtitle_args(extras: Sequence[ExtraSubtitle], offset: int, codec: st
     return args
 
 
+@dataclass(frozen=True, slots=True)
+class CappedInput:
+    """One input of a capped compat MP4 (ADR-0023): a playlist or a subtitle file."""
+
+    path: Path
+    language: str = "und"
+    title: str = ""
+    default: bool = False
+    forced: bool = False
+
+
+def capped_compat_command(  # noqa: PLR0913
+    *,
+    video: Path,
+    audio: Sequence[CappedInput],
+    subtitles: Sequence[CappedInput],
+    output: Path,
+    asset: Path,
+    duration_ms: int | None,
+    movflags: str = "+faststart",
+    subtitle_codec: str = "mov_text",
+    ffmpeg: str = "ffmpeg",
+) -> Command:
+    """A compat MP4 capped at a plan's ceiling (ADR-0023), without encoding: the ladder
+    rung that fits (`video`, its HLS playlist), the AAC audio renditions and the text
+    subtitles (SRT) as mov_text, +faststart. Seconds of CPU per title."""
+    argv = [ffmpeg, *GLOBAL_ARGS, "-i", input_url(video)]
+    for item in (*audio, *subtitles):
+        argv += ["-i", input_url(item.path)]
+    argv += ["-map", "0:v:0"]
+    for n, item in enumerate(audio):
+        argv += ["-map", f"{n + 1}:a:0", f"-metadata:s:a:{n}", f"language={item.language}"]
+        argv += [f"-metadata:s:a:{n}", f"title={item.title}"]
+        argv += [f"-disposition:a:{n}", "default" if item.default else "0"]
+    offset = len(audio) + 1
+    for n, item in enumerate(subtitles):
+        argv += ["-map", f"{offset + n}:s:0", f"-c:s:{n}", subtitle_codec]
+        argv += [f"-metadata:s:s:{n}", f"language={item.language}"]
+        argv += [f"-metadata:s:s:{n}", f"title={item.title}"]
+        flags = [name for name, on in (("default", item.default), ("forced", item.forced)) if on]
+        argv += [f"-disposition:s:{n}", "+".join(flags) or "0"]
+    argv += ["-c:v", "copy", "-c:a", "copy", "-map_metadata", "-1", "-movflags", movflags]
+    argv += [*MUXING_QUEUE_ARGS, "-f", "mp4", input_url(output)]
+    return Command(
+        argv=tuple(argv),
+        outputs=(output,),
+        directories=(output.parent,),
+        duration_ms=duration_ms,
+        redactions=_redactions(asset, output.parent),
+    )
+
+
 def uhd_command(  # noqa: PLR0913
     probe: ProbeResult,
     plan: UhdPlan,

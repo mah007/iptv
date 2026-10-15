@@ -1,8 +1,10 @@
 import { isApiError, type SettingEntry } from "@smart-iptv/api";
 import {
+  Alert,
   Badge,
   Button,
   Input,
+  Markdown,
   RelativeTime,
   Select,
   SelectContent,
@@ -238,7 +240,10 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
         setError(null);
       },
     };
-    const field = isLong(entry) ? (
+    const longText = entry.widget === "text";
+    const field = longText ? (
+      <Textarea {...common} rows={16} dir="auto" className="text-sm" />
+    ) : isLong(entry) ? (
       <Textarea {...common} rows={4} dir="ltr" spellCheck={false} className="font-mono text-xs" />
     ) : (
       <Input
@@ -252,7 +257,7 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
         className="sm:w-64"
       />
     );
-    control = (
+    const form = (
       <form
         noValidate
         className="flex flex-wrap items-start gap-2"
@@ -274,6 +279,24 @@ export function SettingRow({ entry, canEdit }: { entry: SettingEntry; canEdit: b
           </Button>
         ) : null}
       </form>
+    );
+    // Long text (the legal pages, ADR-0023): a Markdown preview, and a reminder while it
+    // is still the shipped template (customers never see it).
+    control = longText ? (
+      <div className="grid gap-2">
+        {entry.value === entry.default ? (
+          <Alert tone="warning">{t("settings.text.template")}</Alert>
+        ) : null}
+        {form}
+        <details className="rounded-card border border-border p-3">
+          <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+            {t("settings.text.preview")}
+          </summary>
+          <Markdown text={draft} className="mt-3" />
+        </details>
+      </div>
+    ) : (
+      form
     );
   }
 

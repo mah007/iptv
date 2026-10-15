@@ -25,13 +25,13 @@ from typing import Final, cast
 
 import redis
 from axes.handlers.proxy import AxesProxyHandler
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.signals import user_login_failed
 from django.db import transaction
 from django.http import HttpRequest
 from django.utils import timezone
 
-from apps.accounts import crypto, mfa, passkeys, stepup
+from apps.accounts import crypto, mfa, passkeys, passwords, stepup
 from apps.accounts.lockout import LOGIN_USERNAME_ATTR
 from apps.accounts.models import MfaTotp, User, UserStatus
 from apps.audit import services as audit
@@ -49,6 +49,8 @@ PENDING_ATTEMPTS: Final = 5
 USER_MFA_FAILURES: Final = 10
 USER_MFA_WINDOW_S: Final = 900
 _USER_FAIL_PREFIX: Final = "mfa:fail:"
+#: The redis-state prefix of an account's wrong second factors (the Lockouts page reads it).
+USER_MFA_FAILURES_PREFIX: Final = _USER_FAIL_PREFIX
 
 
 class LoginStatus(StrEnum):
@@ -395,6 +397,36 @@ def step_up(
     end = stepup.elevate(request, user)
     audit.record("auth.step_up", actor=user, target=user, ip=ip, after={"method": method})
     return end
+
+
+# --- My password (Q1, ADR-0023) -----------------------------------------------------------------
+
+
+def change_password(request: HttpRequest, user: User, *, current: str, new: str) -> None:
+    """An admin changes their own password: the current one, a recent confirmation (the
+    view asks for it) and the new one. Every other session of theirs ends (the session
+    hash follows the password); this one stays, still confirmed."""
+    ip = client_ip(request)
+    if not user.check_password(current):
+        failures = stepup.count_failure(user)
+        audit.record("auth.password_change_failed", actor=user, target=user, ip=ip)
+        if failures >= stepup.FAIL_LIMIT:
+            audit.record("auth.step_up_locked", actor=user, target=user, ip=ip)
+            logout(request)
+            raise ProblemError(
+                ErrorCode.NOT_AUTHENTICATED,
+                "Too many failed confirmations: you have been signed out.",
+                status=401,
+            )
+        raise passwords.wrong_current()
+    passwords.check_new_password(user, current, new)
+    with transaction.atomic():
+        user.set_password(new)
+        user.save(update_fields=["password", "updated_at"])
+        audit.record("auth.password_change", actor=user, target=user, ip=ip)
+        passwords.notify_changed(user)
+    update_session_auth_hash(request, user)
+    stepup.elevate(request, user)
 
 
 # --- MFA reset (recovery, ADR-0021) -------------------------------------------------------------

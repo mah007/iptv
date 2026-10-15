@@ -181,6 +181,8 @@ def _expected_entries(rows: list[Rendition]) -> set[str]:
         kind = RenditionKind(row.kind)
         if kind is RenditionKind.COMPAT_MP4:
             names |= {f"{layout.COMPAT}.mp4", layout.COMPAT}
+        elif kind is RenditionKind.COMPAT_CAPPED:
+            names |= {f"{row.name}.mp4", row.name}
         elif kind is RenditionKind.SOURCE:
             names |= {f"{layout.SOURCE}.{row.container}", layout.SOURCE}
         elif kind is RenditionKind.UHD:

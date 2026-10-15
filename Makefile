@@ -54,7 +54,7 @@ BUILD_FLAGS ?= --pull
 .PHONY: help secrets up down ps logs migrate backup restore-test crowdsec-test hardening-test seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
 	api-client api-client-check build smoke-images scan licenses ci ci-steps audit semgrep zap \
-	media-ready compat compat-live e2e-iptvnator e2e-admin e2e-portal \
+	media-ready compat compat-live mediamtx-test e2e-iptvnator e2e-admin e2e-portal \
 	edge-test s3-dev edge-dev rollout rollout-test loadtest deploy \
 	monitoring-test monitoring-dashboards monitoring-smoke monitoring-firedrill
 
@@ -97,6 +97,9 @@ migrate: ## Apply database migrations (as the database owner; the app services u
 
 hardening-test: ## Every production container drops capabilities, can't gain privileges, has a read-only root, a digest-pinned image and no Docker socket (G-36, G-39; no stack needed)
 	python3 scripts/check_hardening.py
+
+mediamtx-test: ## Live ingest sign-ins end to end: the production MediaMTX asks a throwaway web process (/internal/mediamtx-auth); publish, read and refusals (dev stack up)
+	@scripts/mediamtx_test.sh
 
 crowdsec-test: ## With CROWDSEC=1 up: a probe bans its own address and gets 403 from Traefik, the admin switch lets it pass, unban restores 200
 	@scripts/crowdsec_test.sh
@@ -276,9 +279,12 @@ IPTVNATOR_NAME := smart-iptv-e2e-iptvnator
 compat: ## Xtream contract suite on the schemas and golden fixtures (no stack needed)
 	$(COMPAT_TOOL)
 
-compat-live: ## Contract suite against the running Xtream host, play URLs included (needs ready titles: make media-ready)
+compat-live: ## Contract suite against the running Xtream host, play URLs included, and a 720p plan's .mp4 (a capped compat MP4; needs make media-ready)
 	@$(XC_CREDENTIALS); \
 	$(COMPOSE) exec -T -e XC_USER -e XC_PASS web python manage.py xtream_contract_account; \
+	export XC_CAPPED_USER="$$XC_USER-720" XC_CAPPED_PASS="$$XC_PASS"; \
+	XC_USER="$$XC_CAPPED_USER" $(COMPOSE) exec -T -e XC_USER -e XC_PASS web \
+	  python manage.py xtream_contract_account --max-quality 720 --wait-capped 300; \
 	$(COMPAT_TOOL) --live "$(TV_URL)" --play
 
 e2e-iptvnator: ## IPTVnator (Docker, driven by Playwright) signs in, browses and plays from the Xtream host
@@ -317,7 +323,7 @@ e2e-admin: ## Admin journeys (MFA sign-in, customer, device, scan, review, kill)
 PORTAL_URL = http://app.$$(sed -n 's/^DOMAIN=//p' .env)$$(port=$$(sed -n 's/^HTTP_PORT=//p' .env); \
 	[ "$$port" = "80" ] || echo ":$$port")
 
-e2e-portal: ## Portal journey (sign in, Arabic search, play, continue watching, sign out) and axe checks in Playwright
+e2e-portal: ## Portal journeys (sign in, Arabic search, play, continue watching, sign out; live TV and catch-up; a full plan; my password) and axe checks in Playwright (needs media-ready and live-ready)
 	@export E2E_PORTAL_USER=e2e-portal E2E_PORTAL_PASS="$$(openssl rand -hex 16)"; \
 	$(COMPOSE) exec -T -e E2E_PORTAL_USER -e E2E_PORTAL_PASS web python manage.py e2e_portal_account; \
 	export PORTAL_URL="$(PORTAL_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/portal-e2e"; \
@@ -452,6 +458,7 @@ ci-steps:
 	$(MAKE) media-ready
 	$(MAKE) live-ready
 	$(MAKE) compat-live
+	$(MAKE) mediamtx-test
 	$(MAKE) e2e-iptvnator
 	$(MAKE) e2e-admin
 	$(MAKE) e2e-portal

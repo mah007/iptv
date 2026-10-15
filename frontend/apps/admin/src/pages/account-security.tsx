@@ -4,6 +4,7 @@ import {
   authWebauthnCredentialsOptions,
   getAuthWebauthnCredentialsListQueryKey,
   isApiError,
+  useAuthPasswordChange,
   useAuthWebauthnCredentialsDestroy,
   useAuthWebauthnCredentialsList,
   useAuthWebauthnCredentialsPartialUpdate,
@@ -35,14 +36,14 @@ import {
   useNow,
 } from "@smart-iptv/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { KeyRound, LockKeyhole, Plus, ShieldCheck, Smartphone } from "lucide-react";
+import { KeyRound, KeySquare, LockKeyhole, Plus, ShieldCheck, Smartphone } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError } from "../components/states";
 import { keyCancelled, keysSupported, createKey } from "../features/security/webauthn";
 import { meQueryOptions, useMe } from "../lib/auth";
-import { notifyError } from "../lib/problems";
+import { fieldErrorCodes, fieldErrorMessage, notifyError } from "../lib/problems";
 import { usePageTitle } from "../lib/page-title";
 
 function AddKeyDialog({
@@ -243,6 +244,137 @@ function KeyRow({ item }: { item: WebAuthnCredential }) {
 }
 
 /** My account → Security: the admin's sign-in confirmation (ADR-0021). */
+/** My password (ADR-0023): the current one, a code or key (asked by the API), the new one. */
+function PasswordCard() {
+  const { t } = useTranslation();
+  const change = useAuthPasswordChange();
+  const currentId = useId();
+  const newId = useId();
+  const repeatId = useId();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const mismatch = repeat !== "" && repeat !== next;
+
+  function fieldError(field: string): string | undefined {
+    return errors[field];
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <KeySquare aria-hidden="true" className="size-4 text-muted-foreground" />
+          {t("security.password.title")}
+        </CardTitle>
+        <CardDescription>{t("security.password.description")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="grid max-w-md gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (mismatch || current === "" || next === "") return;
+            setErrors({});
+            change.mutate(
+              { data: { current_password: current, new_password: next } },
+              {
+                onSuccess: () => {
+                  toast.success(t("security.password.changed"));
+                  setCurrent("");
+                  setNext("");
+                  setRepeat("");
+                },
+                onError: (error) => {
+                  if (isApiError(error) && error.code === "VALIDATION_ERROR") {
+                    const found: Record<string, string> = {};
+                    for (const [field, messages] of Object.entries(error.fieldErrors)) {
+                      const codes = fieldErrorCodes(error, field);
+                      const first = messages[0];
+                      if (first !== undefined) {
+                        found[field] = fieldErrorMessage(t, codes[0], first);
+                      }
+                    }
+                    setErrors(found);
+                    return;
+                  }
+                  notifyError(t, error);
+                },
+              },
+            );
+          }}
+        >
+          <div className="grid gap-1.5">
+            <Label htmlFor={currentId}>{t("security.password.current")}</Label>
+            <Input
+              id={currentId}
+              type="password"
+              autoComplete="current-password"
+              value={current}
+              aria-invalid={fieldError("current_password") ? true : undefined}
+              aria-describedby={fieldError("current_password") ? `${currentId}-error` : undefined}
+              onChange={(event) => {
+                setCurrent(event.target.value);
+              }}
+            />
+            {fieldError("current_password") ? (
+              <p id={`${currentId}-error`} className="text-xs text-danger-text">
+                {fieldError("current_password")}
+              </p>
+            ) : null}
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={newId}>{t("security.password.new")}</Label>
+            <Input
+              id={newId}
+              type="password"
+              autoComplete="new-password"
+              value={next}
+              aria-invalid={fieldError("new_password") ? true : undefined}
+              aria-describedby={`${newId}-help`}
+              onChange={(event) => {
+                setNext(event.target.value);
+              }}
+            />
+            <p id={`${newId}-help`} className="text-xs text-muted-foreground">
+              {fieldError("new_password") ?? t("security.password.rules")}
+            </p>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={repeatId}>{t("security.password.repeat")}</Label>
+            <Input
+              id={repeatId}
+              type="password"
+              autoComplete="new-password"
+              value={repeat}
+              aria-invalid={mismatch ? true : undefined}
+              aria-describedby={mismatch ? `${repeatId}-error` : undefined}
+              onChange={(event) => {
+                setRepeat(event.target.value);
+              }}
+            />
+            {mismatch ? (
+              <p id={`${repeatId}-error`} className="text-xs text-danger-text">
+                {t("security.password.mismatch")}
+              </p>
+            ) : null}
+          </div>
+          <div>
+            <Button
+              type="submit"
+              pending={change.isPending}
+              disabled={current === "" || next === "" || repeat === "" || mismatch}
+            >
+              {t("security.password.submit")}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AccountSecurityPage() {
   const { t } = useTranslation();
   usePageTitle(t("security.title"));
@@ -344,6 +476,7 @@ export function AccountSecurityPage() {
           </Button>
         </CardContent>
       </Card>
+      <PasswordCard />
       <AddKeyDialog open={adding} onOpenChange={setAdding} />
     </div>
   );

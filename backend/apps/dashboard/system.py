@@ -75,6 +75,8 @@ BOOTSTRAP_SECRETS: Final[tuple[BootstrapSecret, ...]] = (
     ),
     BootstrapSecret("MEDIAMTX_PUBLISH_PASS", SecretReason.INGEST, required=False),
     BootstrapSecret("MEDIAMTX_READ_PASS", SecretReason.INGEST, required=False),
+    # MediaMTX's own sign-in to /internal/mediamtx-auth (Q1, ADR-0023).
+    BootstrapSecret("MEDIAMTX_AUTH_TOKEN", SecretReason.INGEST, required=False),
 )
 
 

@@ -39,6 +39,10 @@ _USER_PREFIX: Final = "xc:fail:user:"
 _USER_ALL_PREFIX: Final = "xc:fail:userall:"
 _BLOCK_PREFIX: Final = "xc:block:ip:"
 _STRIKE_PREFIX: Final = "xc:strike:ip:"
+#: Read by the admin's Lockouts page (`apps.accounts.lockouts`, ADR-0023).
+USER_PREFIX: Final = _USER_PREFIX
+USER_ALL_PREFIX: Final = _USER_ALL_PREFIX
+BLOCK_PREFIX: Final = _BLOCK_PREFIX
 #: The all-networks username limit is this many times the per-network one.
 USERNAME_SPREAD: Final = 10
 STRIKE_MEMORY_S: Final = 86400
@@ -61,6 +65,16 @@ def _setting(key: str) -> int:
 
 def _digest(username: str) -> str:
     return hashlib.sha256(username.casefold().encode()).hexdigest()[:32]
+
+
+def digest(username: str) -> str:
+    """How a TV login is named in the counters (never stored in clear)."""
+    return _digest(username)
+
+
+def username_limit() -> int:
+    """Failures from one network that pause a TV login."""
+    return _setting("xtream.auth_failures_per_username")
 
 
 def _network(ip: str | None) -> str:
@@ -153,3 +167,19 @@ def clear_username(username: str, ip: str | None = None) -> None:
         state_redis().delete(_user_key(username, ip), _user_all_key(username))
     except redis.RedisError:
         logger.warning("redis-state unavailable; Xtream sign-in failures not cleared")
+
+
+def clear_digest(login_digest: str, network: str | None) -> None:
+    """An admin's unlock: one network's count of a TV login, or (`network` None) every
+    count of it, the all-networks one included."""
+    client = state_redis()
+    if network is not None:
+        client.delete(f"{_USER_PREFIX}{login_digest}:{network}")
+        return
+    keys = list(client.scan_iter(match=f"{_USER_PREFIX}{login_digest}:*", count=1000))
+    client.delete(_USER_ALL_PREFIX + login_digest, *keys)
+
+
+def clear_ip(ip: str) -> None:
+    """An admin's unlock of a paused address: its pause, strikes and count."""
+    state_redis().delete(_BLOCK_PREFIX + ip, _STRIKE_PREFIX + ip, _IP_PREFIX + ip)

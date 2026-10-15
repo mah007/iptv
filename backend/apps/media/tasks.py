@@ -55,6 +55,12 @@ def reconcile_media() -> int:
     return len(files) + recovered
 
 
+@shared_task(name="apps.media.tasks.queue_capped_compat")
+def queue_capped_compat() -> int:
+    """Hourly: capped compat MP4s (ADR-0023) for files that miss one a plan now needs."""
+    return services.queue_capped_backlog()
+
+
 @shared_task(name="apps.media.tasks.cleanup_renditions")
 def cleanup_renditions(dry_run: bool = False) -> int:
     """Delete (or with `dry_run`, list) orphaned, expired and superseded renditions;

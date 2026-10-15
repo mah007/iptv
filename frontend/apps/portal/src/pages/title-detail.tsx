@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  TvdbAttribution,
   useFormatters,
 } from "@smart-iptv/ui";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
@@ -475,8 +476,9 @@ function TitlePage({ detail, season }: { detail: Detail; season?: number | undef
 
       <div className="mx-auto grid max-w-[1800px] gap-10 px-4 pb-6 sm:px-6 lg:px-10">
         {isSeries(detail) ? <Seasons series={detail} season={season} /> : null}
-        <section aria-label={t("title.details")} className="max-w-3xl">
+        <section aria-label={t("title.details")} className="grid max-w-3xl gap-4">
           <Facts detail={detail} />
+          {detail.attribution === "tvdb" ? <TvdbAttribution short /> : null}
         </section>
       </div>
 

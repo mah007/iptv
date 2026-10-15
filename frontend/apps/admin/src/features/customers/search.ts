@@ -1,7 +1,7 @@
 import {
-  AccessStatus,
   CustomersListOrderingItem,
   CustomersListRisk,
+  CustomersListSubscriptionStatus,
   UserStatus,
 } from "@smart-iptv/api";
 import { parseTableSearch } from "@smart-iptv/ui";
@@ -18,7 +18,8 @@ export function parseCustomersSearch(raw: Record<string, unknown>) {
   const table = parseTableSearch(raw);
   return compact({
     q: stringParam(raw.q),
-    access: enumParam(raw.access, Object.values(AccessStatus)),
+    /** The governing status: the subscription's, else the access profile's (ADR-0023). */
+    access: enumParam(raw.access, Object.values(CustomersListSubscriptionStatus)),
     status: enumParam(raw.status, Object.values(UserStatus)),
     expiring: intParam(raw.expiring, EXPIRING_WINDOWS),
     risk: enumParam(raw.risk, Object.values(CustomersListRisk)),

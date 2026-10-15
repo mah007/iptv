@@ -322,3 +322,17 @@ def test_playable_seasons_ignores_impossible_numbers() -> None:
     assert {
         season: [e.xc_id for e in eps] for season, eps in payloads.playable_seasons(items).items()
     } == {1: [3]}
+
+
+def test_a_series_known_only_to_thetvdb_keeps_the_contract(contract: Contract) -> None:
+    """ADR-0023: a TheTVDB-sourced series has no TMDB id, so `tmdb` is an empty string."""
+    tvdb_only = replace(BREAKING_BAD, series=replace(BREAKING_BAD.series, tmdb_id=None), seasons=())
+    rows = payloads.series_list([tvdb_only.series], SERIES_CATEGORIES, "en")
+    assert rows[0]["tmdb"] == ""
+    contract.check("get_series", body(rows))
+    info = payloads.series_info(tvdb_only, SERIES_CATEGORIES, "en")
+    assert info is not None
+    details = info["info"]
+    assert isinstance(details, dict)
+    assert details["tmdb"] == ""
+    contract.check("get_series_info", body(info))

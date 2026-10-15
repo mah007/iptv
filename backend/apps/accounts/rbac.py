@@ -45,6 +45,9 @@ PERMISSIONS: Mapping[str, str] = MappingProxyType(
         # Media edges and CDN zones (M15, ADR-0022).
         "edges.view": "See the media edges, their health and load.",
         "edges.manage": "Add, change and remove edges; rotate an edge's secret.",
+        # The Lockouts page (Q1, ADR-0023): sign-in, second-factor and TV-login lockouts.
+        "lockouts.view": "See who is locked out of signing in, and why.",
+        "lockouts.manage": "Unlock sign-ins and TV logins (an admin's needs admins.manage).",
         "roles.manage": "Create and change roles.",
         "admins.manage": "Create admin users and assign their roles.",
     }
@@ -78,6 +81,9 @@ ROLE_DEFAULTS: Mapping[str, tuple[str, frozenset[str]]] = MappingProxyType(
                     # B1 (ADR-0012): support sees payments and messages.
                     "billing.view",
                     "notifications.view",
+                    # Q1 (ADR-0023): customers locked out call support.
+                    "lockouts.view",
+                    "lockouts.manage",
                 }
             ),
         ),

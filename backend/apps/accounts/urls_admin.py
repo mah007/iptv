@@ -33,6 +33,11 @@ urlpatterns = [
         api_customer.CustomerPasswordInviteView.as_view(),
         name="admin-customers-password-invite",
     ),
+    # Q1 (ADR-0023): the Devices and Lockouts pages.
+    path("devices", api.DeviceListView.as_view(), name="admin-devices-list"),
+    path("devices/bulk", api.DeviceBulkView.as_view(), name="admin-devices-bulk"),
+    path("lockouts", api.LockoutListView.as_view(), name="admin-lockouts-list"),
+    path("lockouts/unlock", api.LockoutUnlockView.as_view(), name="admin-lockouts-unlock"),
     path(
         "devices/revoke-by-app",
         api.DeviceRevokeByAppView.as_view(),

@@ -23,7 +23,9 @@
     "devices": "Devices & TV apps",
     "subscription": "Subscription & invoices",
     "history": "Watch history",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "live": "Live TV",
+    "liveShort": "Live"
   },
   "errors": {
     "signOutFailed": "Couldn't reach the server to sign out. You were signed out on this device."
@@ -307,7 +309,8 @@
       "devices": "Manage devices",
       "account": "Account",
       "retry": "Try again",
-      "back": "Go back"
+      "back": "Go back",
+      "stopThere": "Stop it and play here"
     },
     "errors": {
       "SUBSCRIPTION_EXPIRED": {
@@ -389,8 +392,19 @@
       "UNEXPECTED": {
         "title": "Something went wrong",
         "description": "Playback couldn't start. Try again in a moment."
+      },
+      "TV_APP_ONLY": {
+        "title": "This channel plays in TV apps",
+        "description": "Its video format needs an IPTV app on your TV or phone. Add one from Devices & TV apps."
       }
-    }
+    },
+    "otherStreams": "Playing elsewhere",
+    "untitledStream": "Something is playing",
+    "unknownDevice": "Another device",
+    "preparingEta_one": "It should be ready in about {{count}} minute. We'll try again then.",
+    "preparingEta_other": "It should be ready in about {{count}} minutes. We'll try again then.",
+    "live": "Live",
+    "catchupFrom": "Recorded · {{time}}"
   },
   "account": {
     "title": "Account",
@@ -411,7 +425,7 @@
     "saved": "Profile saved",
     "saveFailed": "Couldn't save your profile. Try again.",
     "password": "Password",
-    "passwordHint": "We'll email you a link to choose a new password.",
+    "passwordHint": "Forgot it? We'll email you a link to choose a new one.",
     "passwordNoEmail": "Your account has no email address. Ask support to change your password.",
     "passwordSend": "Email me a link",
     "passwordSent": "A link is on its way to {{email}}. It works for an hour.",
@@ -424,6 +438,19 @@
     },
     "validation": {
       "nameRequired": "Enter your name."
+    },
+    "passwordChangeHint": "Change the password you sign in with. Your other browsers and apps are signed out; your TV app logins keep working.",
+    "passwordCurrent": "Current password",
+    "passwordNew": "New password",
+    "passwordRepeat": "New password again",
+    "passwordRules": "At least 12 characters; not a common password, not only digits, not like your name.",
+    "passwordMismatch": "The two new passwords are different.",
+    "passwordChange": "Change password",
+    "passwordChanged": "Password changed. Your other sign-ins have ended.",
+    "passwordChangeFailed": "Couldn't change the password. Try again later.",
+    "passwordErrors": {
+      "wrong_password": "The current password is not right.",
+      "password_unchanged": "Choose a new password, not the current one."
     }
   },
   "credential": {
@@ -656,7 +683,8 @@
       "RATE_LIMITED": "Too many attempts. Wait a few minutes.",
       "NETWORK_ERROR": "Can't reach the service. Check your connection.",
       "UNEXPECTED": "Something went wrong. Try again."
-    }
+    },
+    "acceptTerms": "By continuing you accept the <terms>Terms of service</terms> and the <privacy>Privacy policy</privacy>."
   },
   "support": {
     "title": "Need help?",
@@ -680,5 +708,42 @@
     "description": "{{name}}: watch on the web, or in any IPTV app with your TV login.",
     "credits": "Credits",
     "back": "Back to the service"
+  },
+  "live": {
+    "title": "Live TV",
+    "groups": "Channel groups",
+    "allGroups": "All",
+    "channels": "Channels",
+    "number": "Channel {{number}}",
+    "catchupDays_one": "Catch-up: {{count}} day",
+    "catchupDays_other": "Catch-up: {{count}} days",
+    "now": "Now",
+    "nextAt": "Next {{time}}",
+    "untitled": "Untitled programme",
+    "noGuide": "No guide for this channel.",
+    "watch": "Watch",
+    "watchChannel": "Watch {{name}}",
+    "tvAppOnly": "Plays in TV apps only",
+    "guide": "Guide",
+    "guideFor": "Guide for {{name}}",
+    "guideDescription": "What's on, and recorded programmes you can watch from the start.",
+    "programmes": "Programmes",
+    "onNow": "On now",
+    "recorded": "Recorded",
+    "watchLive": "Watch live",
+    "watchFromStart": "Watch from the start",
+    "watchFromStartOf": "Watch from the start: {{title}}",
+    "emptyTitle": "No channels yet",
+    "empty": "Live channels in your plan will show here.",
+    "notInPlanTitle": "Live TV isn't in your plan",
+    "notInPlan": "Choose a plan with live channels to watch them here and in TV apps.",
+    "seePlans": "See plans"
+  },
+  "legal": {
+    "title": "Legal",
+    "privacy": "Privacy policy",
+    "terms": "Terms of service",
+    "updated": "Last updated {{date}}",
+    "more": "More"
   }
 }

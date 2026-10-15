@@ -1,17 +1,20 @@
 import {
   isApiError,
   useEpisodesRetrieve,
+  useLiveChannelsList,
   useMoviesRetrieve,
+  useMeStreamsList,
+  useMeStreamsStop,
   usePlaybackStart,
   useSeriesRetrieve,
   type PlaybackGrant,
+  type PlaybackTitleType,
   type PreferEnum,
-  type TitleType,
 } from "@smart-iptv/api-portal";
-import { Button, formatDuration } from "@smart-iptv/ui";
+import { Button, formatDuration, useFormatters } from "@smart-iptv/ui";
 import { getRouteApi, Link, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { ArrowLeft, CirclePlay, RotateCcw, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useEpisodeLabel } from "../components/watch-card";
@@ -22,10 +25,23 @@ import { usePageTitle } from "../lib/page-title";
 
 const movieApi = getRouteApi("/app/watch/movie/$titleId");
 const seriesApi = getRouteApi("/app/watch/series/$titleId");
+const liveApi = getRouteApi("/app/watch/live/$channelId");
+
+/** A live grant is renewed this long before its signed URL expires (ADR-0023). */
+const LIVE_RENEW_BEFORE_MS = 120_000;
+const LIVE_RENEW_MIN_MS = 30_000;
+
+/** When to ask for a fresh live grant: shortly before this one's link stops working. */
+export function liveRenewDelay(grant: PlaybackGrant, now = Date.now()): number | null {
+  if (!grant.live) return null;
+  const expires = Date.parse(grant.expires_at);
+  if (Number.isNaN(expires)) return null;
+  return Math.max(LIVE_RENEW_MIN_MS, expires - now - LIVE_RENEW_BEFORE_MS);
+}
 
 /** Resume where the viewer stopped unless they asked to start over or there is nothing to resume. */
 export function initialStart(grant: PlaybackGrant, restart: boolean): number | "ask" {
-  if (restart || grant.resume_ms <= 0) return 0;
+  if (restart || grant.live || grant.resume_ms <= 0) return 0;
   return "ask";
 }
 
@@ -47,6 +63,57 @@ function PlayerFrame({ children, onBack }: { children: ReactNode; onBack: () => 
   );
 }
 
+/**
+ * CONCURRENCY_LIMIT (ADR-0023): the streams playing elsewhere, each with "stop it and play
+ * here": its device's playback stops and its slot is free at once.
+ */
+function OtherStreams({ onStopped }: { onStopped: () => void }) {
+  const { t } = useTranslation();
+  const streams = useMeStreamsList();
+  const stop = useMeStreamsStop();
+  const others = (streams.data ?? []).filter((stream) => !stream.current);
+  if (streams.isPending || others.length === 0) return null;
+  return (
+    <ul className="grid w-full gap-2 text-start" aria-label={t("player.otherStreams")}>
+      {others.map((stream) => (
+        <li
+          key={stream.id}
+          className="flex items-center justify-between gap-3 rounded-input bg-white/10 p-3"
+        >
+          <span className="grid min-w-0">
+            <span className="truncate text-sm font-medium" dir="auto">
+              {stream.title_name || t("player.untitledStream")}
+            </span>
+            <span className="truncate text-xs text-white/70" dir="auto">
+              {stream.device?.name ?? t("player.unknownDevice")}
+            </span>
+          </span>
+          <Button
+            size="sm"
+            pending={stop.isPending && stop.variables.id === stream.id}
+            onClick={() => {
+              stop.mutate({ id: stream.id }, { onSuccess: onStopped });
+            }}
+          >
+            {t("player.actions.stopThere")}
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** TITLE_PREPARING's `eta_s` (ADR-0023), rounded up to whole minutes; null when unknown. */
+export function preparingMinutes(error: unknown): number | null {
+  if (!isApiError(error) || error.code !== "TITLE_PREPARING") return null;
+  const eta = error.problem?.eta_s;
+  return typeof eta === "number" && eta > 0 ? Math.max(1, Math.ceil(eta / 60)) : null;
+}
+
+/** Ask again on its own once the title should be ready (at most every 5 minutes). */
+const PREPARING_RETRY_MAX_MS = 300_000;
+const PREPARING_RETRY_MIN_MS = 15_000;
+
 function ProblemPanel({
   error,
   onRetry,
@@ -58,6 +125,16 @@ function ProblemPanel({
 }) {
   const { t } = useTranslation();
   const problem = playbackProblem(error);
+  const minutes = preparingMinutes(error);
+  useEffect(() => {
+    if (minutes === null) return undefined;
+    const eta = isApiError(error) ? (error.problem?.eta_s ?? 0) * 1000 : 0;
+    const wait = Math.min(Math.max(eta, PREPARING_RETRY_MIN_MS), PREPARING_RETRY_MAX_MS);
+    const timer = window.setTimeout(onRetry, wait);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [error, minutes, onRetry]);
   const link = (action: PlaybackAction) => {
     switch (action) {
       case "renew":
@@ -98,7 +175,12 @@ function ProblemPanel({
       <div role="alert" className="grid justify-items-center gap-4 text-center">
         <TriangleAlert aria-hidden="true" className="size-10 text-warning" />
         <h1 className="text-xl font-semibold">{t(`player.errors.${problem.code}.title`)}</h1>
-        <p className="text-sm text-white/80">{t(`player.errors.${problem.code}.description`)}</p>
+        <p className="text-sm text-white/80">
+          {minutes === null
+            ? t(`player.errors.${problem.code}.description`)
+            : t("player.preparingEta", { count: minutes })}
+        </p>
+        {problem.code === "CONCURRENCY_LIMIT" ? <OtherStreams onStopped={onRetry} /> : null}
         <div className="flex flex-wrap justify-center gap-2">
           {problem.actions.map(link)}
           <Button
@@ -168,15 +250,20 @@ function Watch({
   kind,
   titleId,
   episodeId,
+  catchupStart,
+  catchupMinutes,
   restart,
   heading,
   subheading,
   nextEpisodeId,
   nextLabel,
 }: {
-  kind: TitleType;
+  kind: PlaybackTitleType;
   titleId: string;
   episodeId?: string | undefined;
+  /** Catch-up: the recorded programme's start and length in minutes. */
+  catchupStart?: string | undefined;
+  catchupMinutes?: number | undefined;
   restart: boolean;
   heading: string;
   subheading?: string | undefined;
@@ -200,6 +287,9 @@ function Watch({
             title_type: kind,
             title_id: titleId,
             ...(episodeId ? { episode_id: episodeId } : {}),
+            ...(catchupStart !== undefined && catchupMinutes !== undefined
+              ? { start: catchupStart, duration_min: catchupMinutes }
+              : {}),
             prefer,
           },
         },
@@ -215,22 +305,47 @@ function Watch({
         },
       );
     },
-    [mutate, kind, titleId, episodeId, restart],
+    [mutate, kind, titleId, episodeId, catchupStart, catchupMinutes, restart],
   );
 
-  // The page is keyed by what plays, so this runs once per title or episode.
+  // The page is keyed by what plays, so this runs once per title or episode; the ref
+  // keeps React's development double effects from starting a second stream (with one
+  // stream allowed, the second start would be refused: ADR-0023).
+  const begun = useRef(false);
   useEffect(() => {
+    if (begun.current) return;
+    begun.current = true;
     begin("hls");
   }, [begin]);
 
+  // Live: a fresh grant shortly before this one's link expires (the stream reloads).
+  useEffect(() => {
+    if (grant === null) return undefined;
+    const delay = liveRenewDelay(grant);
+    if (delay === null) return undefined;
+    const timer = window.setTimeout(() => {
+      begin("hls", 0);
+    }, delay);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [begin, grant]);
+
   const back = useCallback(() => {
     if (canGoBack) router.history.back();
+    else if (kind === "live" || kind === "catchup") void navigate({ to: "/live", replace: true });
     else void navigate({ ...titlePath(kind, titleId), replace: true });
   }, [canGoBack, kind, navigate, router.history, titleId]);
 
   const onFailure = useCallback(
     (failure: PlayerFailure, positionS: number) => {
       if (failure === "HLS_UNAVAILABLE") {
+        if (kind === "live" || kind === "catchup") {
+          // Live TV has no MP4 to fall back to.
+          setGrant(null);
+          setError("STREAM_UNSUPPORTED");
+          return;
+        }
         begin("mp4", positionS);
         return;
       }
@@ -238,7 +353,7 @@ function Watch({
       setError(failure);
       setStartAt(positionS);
     },
-    [begin],
+    [begin, kind],
   );
 
   if (error !== null) {
@@ -351,6 +466,55 @@ export function WatchSeriesPage() {
           ? `${episodeLabel(next.data.season_number, next.data.number)} · ${next.data.title}`
           : undefined
       }
+    />
+  );
+}
+
+/**
+ * A live channel, or one of its recorded programmes (`?start=&duration=`, catch-up),
+ * ADR-0023. Channels whose codecs a browser can't decode are for TV apps only.
+ */
+export function WatchLivePage() {
+  const { t } = useTranslation();
+  const format = useFormatters();
+  const navigate = useNavigate();
+  const { channelId } = liveApi.useParams();
+  const { start, duration } = liveApi.useSearch();
+  const listing = useLiveChannelsList();
+  const channel = listing.data?.channels.find((item) => item.id === channelId);
+  const catchup =
+    start !== undefined && duration !== undefined ? { start, minutes: duration } : null;
+  const heading = channel?.name ?? t("player.title");
+  const onNow = channel?.now?.title ?? "";
+  const subheading = catchup
+    ? t("player.catchupFrom", { time: format.dateTime(catchup.start) })
+    : onNow === ""
+      ? undefined
+      : onNow;
+  usePageTitle(subheading ? `${heading} · ${subheading}` : heading);
+  // The channel list says whether a browser can play it; it is usually cached already.
+  if (listing.isPending) return null;
+  if (channel?.web_playable === false) {
+    return (
+      <ProblemPanel
+        error="TV_APP_ONLY"
+        onBack={() => {
+          void navigate({ to: "/live", replace: true });
+        }}
+        onRetry={() => undefined}
+      />
+    );
+  }
+  return (
+    <Watch
+      key={`${channelId}:${catchup?.start ?? "live"}`}
+      kind={catchup ? "catchup" : "live"}
+      titleId={channelId}
+      catchupStart={catchup?.start}
+      catchupMinutes={catchup?.minutes}
+      restart
+      heading={heading}
+      subheading={subheading}
     />
   );
 }

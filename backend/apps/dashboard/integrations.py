@@ -39,6 +39,8 @@ class IntegrationName(StrEnum):
     # M15 (ADR-0022): the S3 origin and the Bunny CDN.
     S3_ORIGIN = "s3_origin"
     BUNNY = "bunny"
+    # Q1 (ADR-0023): MediaMTX's publish and read users.
+    LIVE_INGEST = "live_ingest"
 
 
 class IntegrationStatus(StrEnum):
@@ -145,6 +147,16 @@ INTEGRATIONS: Final[tuple[Integration, ...]] = (
         keys=("cdn.bunny_token_key", "cdn.origin_secret", "cdn.bunny_ip_binding"),
         required=(("cdn.bunny_token_key",), ("cdn.origin_secret",)),
     ),
+    Integration(
+        IntegrationName.LIVE_INGEST,
+        keys=(
+            "live.ingest_publish_user",
+            "live.ingest_publish_password",
+            "live.ingest_read_user",
+            "live.ingest_read_password",
+        ),
+        required=(("live.ingest_publish_password",), ("live.ingest_read_password",)),
+    ),
 )
 _BY_NAME: Final = {integration.name.value: integration for integration in INTEGRATIONS}
 
@@ -244,6 +256,10 @@ def _tester(  # noqa: PLR0911 (one tester per integration)
             from apps.edges.checks import check_bunny  # noqa: PLC0415
 
             return check_bunny
+        case IntegrationName.LIVE_INGEST:
+            from apps.live.checks import check_ingest  # noqa: PLC0415
+
+            return check_ingest
 
 
 def _limit(actor: User, name: str) -> None:

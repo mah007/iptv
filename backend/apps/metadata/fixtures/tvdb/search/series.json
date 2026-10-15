@@ -1,0 +1,194 @@
+{
+  "_fixture": {
+    "synthetic": true,
+    "note": "Hand-written TheTVDB v4 search results for tests (ADR-0023); not TheTVDB data."
+  },
+  "queries": {
+    "lantern keepers": [
+      {
+        "objectID": "series-9100001",
+        "id": "series-9100001",
+        "tvdb_id": "9100001",
+        "type": "series",
+        "name": "The Lantern Keepers",
+        "slug": "the-lantern-keepers",
+        "year": "2021",
+        "first_air_time": "2021-04-13",
+        "primary_language": "eng",
+        "country": "sau",
+        "status": "Ended",
+        "aliases": [
+          "Lantern Keepers"
+        ],
+        "translations": {
+          "eng": "The Lantern Keepers",
+          "ara": "حراس الفانوس"
+        },
+        "overviews": {
+          "eng": "Three siblings keep their grandfather's lantern shop open in old Jeddah.",
+          "ara": "ثلاثة إخوة يحافظون على متجر فوانيس جدهم في جدة القديمة."
+        },
+        "overview": "Three siblings keep their grandfather's lantern shop open in old Jeddah.",
+        "image_url": "https://artworks.thetvdb.com/banners/v4/series/9100001/posters/lantern-680x1000.jpg",
+        "remote_ids": [
+          {
+            "id": "tt99100001",
+            "type": 2,
+            "sourceName": "IMDB"
+          }
+        ]
+      },
+      {
+        "objectID": "series-9100002",
+        "id": "series-9100002",
+        "tvdb_id": "9100002",
+        "type": "series",
+        "name": "Lantern Tales",
+        "slug": "lantern-tales",
+        "year": "2021",
+        "first_air_time": "2021-09-01",
+        "primary_language": "eng",
+        "country": "are",
+        "status": "Continuing",
+        "aliases": [],
+        "translations": {
+          "eng": "Lantern Tales"
+        },
+        "overviews": {
+          "eng": "An anthology of stories told by lantern light."
+        },
+        "overview": "An anthology of stories told by lantern light.",
+        "image_url": "https://artworks.thetvdb.com/banners/v4/series/9100002/posters/tales-680x1000.jpg",
+        "remote_ids": []
+      }
+    ],
+    "lanterns": [
+      {
+        "objectID": "series-9100002",
+        "id": "series-9100002",
+        "tvdb_id": "9100002",
+        "type": "series",
+        "name": "Lanterns",
+        "slug": "lantern-tales",
+        "year": "2021",
+        "first_air_time": "2021-09-01",
+        "primary_language": "eng",
+        "country": "are",
+        "status": "Continuing",
+        "aliases": [],
+        "translations": {
+          "eng": "Lantern Tales"
+        },
+        "overviews": {
+          "eng": "An anthology of stories told by lantern light."
+        },
+        "overview": "An anthology of stories told by lantern light.",
+        "image_url": "https://artworks.thetvdb.com/banners/v4/series/9100002/posters/tales-680x1000.jpg",
+        "remote_ids": []
+      },
+      {
+        "objectID": "series-9100001",
+        "id": "series-9100001",
+        "tvdb_id": "9100001",
+        "type": "series",
+        "name": "Lanterns Keep",
+        "slug": "the-lantern-keepers",
+        "year": "2021",
+        "first_air_time": "2021-04-13",
+        "primary_language": "eng",
+        "country": "sau",
+        "status": "Ended",
+        "aliases": [],
+        "translations": {
+          "eng": "Lanterns Keep"
+        },
+        "overviews": {
+          "eng": "Three siblings keep their grandfather's lantern shop open in old Jeddah.",
+          "ara": "ثلاثة إخوة يحافظون على متجر فوانيس جدهم في جدة القديمة."
+        },
+        "overview": "Three siblings keep their grandfather's lantern shop open in old Jeddah.",
+        "image_url": "https://artworks.thetvdb.com/banners/v4/series/9100001/posters/lantern-680x1000.jpg",
+        "remote_ids": [
+          {
+            "id": "tt99100001",
+            "type": 2,
+            "sourceName": "IMDB"
+          }
+        ]
+      }
+    ],
+    "la quimica": [
+      {
+        "objectID": "series-81189",
+        "id": "series-81189",
+        "tvdb_id": "81189",
+        "type": "series",
+        "name": "Breaking Bad",
+        "slug": "breaking-bad",
+        "year": "2008",
+        "first_air_time": "2008-01-20",
+        "primary_language": "eng",
+        "country": "usa",
+        "status": "Ended",
+        "aliases": [
+          "La Química"
+        ],
+        "translations": {
+          "eng": "Breaking Bad"
+        },
+        "overviews": {
+          "eng": "A chemistry teacher turns to crime."
+        },
+        "overview": "A chemistry teacher turns to crime.",
+        "image_url": "https://artworks.thetvdb.com/banners/v4/series/81189/posters/bb-680x1000.jpg",
+        "remote_ids": [
+          {
+            "id": "tt0903747",
+            "type": 2,
+            "sourceName": "IMDB"
+          },
+          {
+            "id": "1396",
+            "type": 12,
+            "sourceName": "TheMovieDB.com"
+          }
+        ]
+      }
+    ],
+    "حراس فانوس": [
+      {
+        "objectID": "series-9100001",
+        "id": "series-9100001",
+        "tvdb_id": "9100001",
+        "type": "series",
+        "name": "The Lantern Keepers",
+        "slug": "the-lantern-keepers",
+        "year": "2021",
+        "first_air_time": "2021-04-13",
+        "primary_language": "eng",
+        "country": "sau",
+        "status": "Ended",
+        "aliases": [
+          "Lantern Keepers"
+        ],
+        "translations": {
+          "eng": "The Lantern Keepers",
+          "ara": "حراس الفانوس"
+        },
+        "overviews": {
+          "eng": "Three siblings keep their grandfather's lantern shop open in old Jeddah.",
+          "ara": "ثلاثة إخوة يحافظون على متجر فوانيس جدهم في جدة القديمة."
+        },
+        "overview": "Three siblings keep their grandfather's lantern shop open in old Jeddah.",
+        "image_url": "https://artworks.thetvdb.com/banners/v4/series/9100001/posters/lantern-680x1000.jpg",
+        "remote_ids": [
+          {
+            "id": "tt99100001",
+            "type": 2,
+            "sourceName": "IMDB"
+          }
+        ]
+      }
+    ]
+  }
+}

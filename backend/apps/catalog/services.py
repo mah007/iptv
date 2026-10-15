@@ -26,7 +26,9 @@ from apps.catalog.models import (
     Collection,
     CollectionItem,
     Episode,
+    EpisodeOrdering,
     MediaFile,
+    MetadataSource,
     Movie,
     Series,
     Title,
@@ -83,7 +85,12 @@ EDITABLE_FIELDS: Final = (
     "license_expires_at",
 )
 MOVIE_EDITABLE_FIELDS: Final = (*EDITABLE_FIELDS, "release_date", "runtime_min")
-SERIES_EDITABLE_FIELDS: Final = (*EDITABLE_FIELDS, "first_air_date", "episode_run_time")
+SERIES_EDITABLE_FIELDS: Final = (
+    *EDITABLE_FIELDS,
+    "first_air_date",
+    "episode_run_time",
+    "episode_ordering",
+)
 #: Lock names that are not model fields: the M2M and the admin's visibility choice.
 EXTRA_LOCKS: Final = ("categories", "status")
 _SORT_STEP: Final = 10
@@ -246,6 +253,7 @@ def update_title(  # noqa: PLR0912 (one branch per kind of change)
     editable = MOVIE_EDITABLE_FIELDS if isinstance(title, Movie) else SERIES_EDITABLE_FIELDS
     kind = "movie" if isinstance(title, Movie) else "series"
     fields = [name for name in editable if name in changes]
+    reorder = _check_ordering(title, changes)
     before = _snapshot(title, [*fields, "status", "metadata_locked_fields"])
     locks = list(title.metadata_locked_fields)
     with transaction.atomic():
@@ -260,7 +268,11 @@ def update_title(  # noqa: PLR0912 (one branch per kind of change)
                 raise ProblemError(
                     ErrorCode.VALIDATION_ERROR,
                     f"Categories of a {kind} must be of kind {expected}.",
-                    field_errors={"categories": [f"Use {expected} categories."]},
+                    field_errors={
+                        "categories": [
+                            field_error(f"Use {expected} categories.", code="category_kind")
+                        ]
+                    },
                 )
             title.categories.set(categories)
             if "categories" not in locks:
@@ -288,7 +300,36 @@ def update_title(  # noqa: PLR0912 (one branch per kind of change)
             after["categories"] = sorted(str(c.pk) for c in title.categories.all())
         audit.record(f"{kind}.update", actor=actor, target=title, before=before, after=after, ip=ip)
         notify_catalog_changed(kind, [title.pk])
+        if reorder and isinstance(title, Series):
+            _queue_refresh(title)
     return title
+
+
+def _check_ordering(title: Movie | Series, changes: Mapping[str, Any]) -> bool:
+    """A TheTVDB order applies to a series built from TheTVDB (ADR-0023); a new order
+    renumbers its episodes, so the series is fetched again. True when it changes."""
+    if not isinstance(title, Series) or "episode_ordering" not in changes:
+        return False
+    wanted = changes["episode_ordering"]
+    tvdb_orders = {EpisodeOrdering.TVDB_AIRED, EpisodeOrdering.TVDB_DVD}
+    if (title.metadata_source == MetadataSource.TVDB) != (wanted in tvdb_orders):
+        raise ProblemError(
+            ErrorCode.VALIDATION_ERROR,
+            "TheTVDB orders apply to series built from TheTVDB; TMDB series use TMDB's.",
+            field_errors={
+                "episode_ordering": [
+                    field_error("Choose an order this series' source has.", code="ordering_source")
+                ]
+            },
+        )
+    return bool(wanted != title.episode_ordering)
+
+
+def _queue_refresh(series: Series) -> None:
+    from apps.metadata import tasks  # noqa: PLC0415 (metadata builds on the catalog)
+
+    series_id = str(series.pk)
+    transaction.on_commit(lambda: tasks.refresh_title.delay("series", series_id))
 
 
 # --- Admin edits of categories --------------------------------------------------------------------
@@ -305,7 +346,13 @@ def create_category(data: Mapping[str, Any], *, actor: User | None, ip: str | No
             raise ProblemError(
                 ErrorCode.CONFLICT,
                 "A category of this kind already uses that slug.",
-                field_errors={"slug": ["Already used by another category of this kind."]},
+                field_errors={
+                    "slug": [
+                        field_error(
+                            "Already used by another category of this kind.", code="slug_taken"
+                        )
+                    ]
+                },
             )
         category = Category(**values)
         category.full_clean()
@@ -333,7 +380,13 @@ def update_category(
             raise ProblemError(
                 ErrorCode.CONFLICT,
                 "A category of this kind already uses that slug.",
-                field_errors={"slug": ["Already used by another category of this kind."]},
+                field_errors={
+                    "slug": [
+                        field_error(
+                            "Already used by another category of this kind.", code="slug_taken"
+                        )
+                    ]
+                },
             )
         category.full_clean()
         category.save()
@@ -379,7 +432,14 @@ def reorder_categories(
             raise ProblemError(
                 ErrorCode.VALIDATION_ERROR,
                 f"Not categories of kind {kind}: {', '.join(unknown)}.",
-                field_errors={"ids": [f"Unknown or of another kind: {', '.join(unknown)}."]},
+                field_errors={
+                    "ids": [
+                        field_error(
+                            f"Unknown or of another kind: {', '.join(unknown)}.",
+                            code="category_kind",
+                        )
+                    ]
+                },
             )
         listed = list(dict.fromkeys(ids))
         ordered = [by_id[pk] for pk in listed] + [c for c in categories if c.pk not in set(listed)]

@@ -20,6 +20,8 @@ export const REPORT_PATH = "/api/v1/csp-report";
 
 const YOUTUBE = "https://www.youtube-nocookie.com";
 const TMDB_IMAGES = "https://image.tmdb.org";
+/** TheTVDB candidates' artwork in the admin's review queue (ADR-0023). */
+const TVDB_IMAGES = "https://artworks.thetvdb.com";
 
 /**
  * @param {"admin" | "portal"} app
@@ -32,7 +34,16 @@ export function buildCsp(app, options) {
     ["default-src", ["'none'"]],
     ["script-src", ["'self'", nonce]],
     ["style-src", ["'self'", nonce]],
-    ["img-src", ["'self'", "data:", "blob:", ...media, ...(app === "admin" ? [TMDB_IMAGES] : [])]],
+    [
+      "img-src",
+      [
+        "'self'",
+        "data:",
+        "blob:",
+        ...media,
+        ...(app === "admin" ? [TMDB_IMAGES, TVDB_IMAGES] : []),
+      ],
+    ],
     ["font-src", ["'self'", "data:"]],
     ["connect-src", ["'self'", ...media, ...(options.connectExtra ?? [])]],
     ["media-src", ["'self'", "blob:", ...media]],

@@ -34,6 +34,8 @@ const PAGES = [
   "/templates",
   "/admins",
   "/access-rules",
+  "/devices",
+  "/lockouts",
   "/audit",
   "/health",
   "/monitoring",

@@ -17,8 +17,8 @@ describe("customers list", () => {
             customerSummary({
               id: "cust-2",
               name: "Omar Ali",
-              access_status: "expired",
-              expires_at: "2026-01-01T00:00:00Z",
+              subscription_status: "grace",
+              ends_at: "2026-01-01T00:00:00Z",
               device_count: 2,
             }),
           ]),
@@ -31,7 +31,8 @@ describe("customers list", () => {
     expect(sara?.textContent).toContain("Active");
     expect(sara?.textContent).toContain("1 / 2");
     const omar = within(table).getByRole("link", { name: "Omar Ali" }).closest("tr");
-    expect(omar?.textContent).toContain("Expired");
+    expect(omar?.textContent).toContain("Grace");
+    expect(sara?.textContent).toContain("Premium");
     expect(screen.getByText("1–2 of 2")).toBeTruthy();
   });
 
@@ -39,9 +40,9 @@ describe("customers list", () => {
     const api = mockApi(signedIn());
     const { user, router } = renderApp("/customers?access=expired");
     const table = await screen.findByRole("table", { name: "Customers" });
-    expect(api.sent("GET", "/api/v1/admin/customers").at(-1)?.query.get("access_status")).toBe(
-      "expired",
-    );
+    expect(
+      api.sent("GET", "/api/v1/admin/customers").at(-1)?.query.get("subscription_status"),
+    ).toBe("expired");
     expect(screen.getByText("Access: Expired")).toBeTruthy();
 
     await user.type(screen.getByRole("searchbox"), "sara");

@@ -35,6 +35,7 @@ const PROBLEMS: Readonly<Record<string, readonly PlaybackAction[]>> = {
   STREAM_DENIED: ["retry"],
   STREAM_FAILED: ["retry"],
   STREAM_UNSUPPORTED: [],
+  TV_APP_ONLY: ["devices"],
 };
 
 export function playbackProblem(error: unknown): PlaybackProblem {

@@ -125,6 +125,58 @@ test("see a live session and stop it", async ({ page }) => {
   await expect(row).toHaveCount(0, { timeout: 60_000 });
 });
 
+test("block and unblock a device from the Devices page", async ({ page }) => {
+  await page.goto(`/devices?q=${encodeURIComponent(customer.login)}`);
+  const row = page.getByRole("row").filter({ hasText: customer.login });
+  await expect(row).toBeVisible();
+  await row.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Block", exact: true }).click();
+  const block = page.getByRole("alertdialog", { name: "Block 1 device?" });
+  await block.getByLabel("Reason (optional)").fill("E2E check");
+  await block.getByRole("button", { name: "Block", exact: true }).click();
+  await expect(page.getByText("1 device blocked (0 skipped)")).toBeVisible();
+  await expect(row.getByText("Blocked")).toBeVisible();
+  await row.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Unblock", exact: true }).click();
+  await page
+    .getByRole("alertdialog", { name: "Unblock 1 device?" })
+    .getByRole("button", { name: "Unblock", exact: true })
+    .click();
+  await expect(page.getByText("1 device unblocked (0 skipped)")).toBeVisible();
+  await expect(row.getByText("Active")).toBeVisible();
+});
+
+test("a TV login paused by failed sign-ins, unlocked from Lockouts", async ({ page }) => {
+  // Failed Xtream sign-ins pause the login for this network (ADR-0021's limits).
+  const tv = await request.newContext({ baseURL: env.tvUrl });
+  const wrong = `username=${encodeURIComponent(customer.login)}&password=not-it-${stamp}`;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const refused = await tv.get(`/player_api.php?${wrong}`);
+    expect(refused.status()).toBe(200);
+  }
+  await tv.dispose();
+  await page.goto("/lockouts");
+  const row = page.getByRole("row").filter({ hasText: customer.login });
+  await expect(row).toBeVisible();
+  await expect(row.getByText("TV login")).toBeVisible();
+  await row.getByRole("button", { name: "Unlock" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Unlock now?" })
+    .getByRole("button", { name: "Unlock" })
+    .click();
+  await expect(page.getByText("Unlocked", { exact: true })).toBeVisible();
+  await expect(row).toHaveCount(0);
+});
+
+test("my password: a wrong current one is refused", async ({ page }) => {
+  await page.goto("/account/security");
+  await page.getByLabel("Current password").fill("not-my-password");
+  await page.getByLabel("New password", { exact: true }).fill(`E2e-new-pass-${stamp}`);
+  await page.getByLabel("New password again").fill(`E2e-new-pass-${stamp}`);
+  await page.getByRole("button", { name: "Change password" }).click();
+  await expect(page.getByText("The current password is not right.")).toBeVisible();
+});
+
 test("add a live channel, test its source and remove it", async ({ page }) => {
   // The dev stack's MediaMTX serves the synthetic test pattern (make live-ready).
   const name = `E2E Channel ${stamp}`;

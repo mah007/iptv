@@ -40,10 +40,16 @@ def cards(client: APIClient) -> dict[str, Any]:
     return {card["name"]: card for card in response.json()}
 
 
-def test_every_integration_starts_not_set(client: APIClient) -> None:
+def test_every_integration_starts_not_set(
+    client: APIClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The stack's .env may hold live ingest users of before (MEDIAMTX_*, ADR-0023).
+    for name in ("MEDIAMTX_PUBLISH_PASS", "MEDIAMTX_READ_PASS"):
+        monkeypatch.delenv(name, raising=False)
     listed = cards(client)
     assert list(listed) == [
         "tmdb", "tvdb", "email", "stripe", "moyasar", "telegram", "s3_origin", "bunny",
+        "live_ingest",
     ]  # fmt: skip
     assert {card["status"] for card in listed.values()} == {"not_set"}
     stripe = listed["stripe"]

@@ -1,5 +1,6 @@
 import {
   ReviewKind,
+  type MetadataProvider,
   getMoviesListQueryKey,
   getReviewQueueListQueryKey,
   getSeriesListQueryKey,
@@ -60,6 +61,12 @@ import { useShortcuts } from "../lib/shortcuts";
 const route = getRouteApi("/app/review");
 const PAGE_SIZE = 25;
 const STATUSES: readonly ReviewStatus[] = ["open", "resolved", "skipped"];
+const PROVIDERS: readonly MetadataProvider[] = ["tmdb", "tvdb"];
+
+/** A provider's id as the request names it (TheTVDB is the TV fallback, ADR-0023). */
+function providerTarget(provider: MetadataProvider, id: number) {
+  return provider === "tvdb" ? { tvdb_id: id } : { tmdb_id: id };
+}
 
 function reasonLabel(t: (key: string) => string, reason: string): string {
   return (REVIEW_REASONS as readonly string[]).includes(reason)
@@ -125,8 +132,11 @@ function CandidateCard({
               </span>
             ) : null}
             <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              {candidate.provider === "tvdb" ? (
+                <Badge tone="info">{t("review.providers.tvdb")}</Badge>
+              ) : null}
               <span dir="ltr" className="font-mono">
-                {t("review.tmdbId", { id: candidate.id })}
+                {t(`review.providerId.${candidate.provider}`, { id: candidate.id })}
               </span>
               {candidate.runtime_min ? (
                 <span>{format.duration(candidate.runtime_min * 60, "short")}</span>
@@ -243,27 +253,37 @@ function ManualMatch({
   pending,
 }: {
   review: Review;
-  onResolve: (tmdbId: number, kind: ReviewKind, label: string) => void;
+  onResolve: (
+    provider: MetadataProvider,
+    providerId: number,
+    kind: ReviewKind,
+    label: string,
+  ) => void;
   pending: boolean;
 }) {
   const { t } = useTranslation();
   const idField = useId();
   const kindField = useId();
+  const providerField = useId();
   const queryField = useId();
-  const [tmdbId, setTmdbId] = useState("");
+  const [providerId, setProviderId] = useState("");
   const [kind, setKind] = useState<ReviewKind>(review.kind);
+  const [chosenProvider, setProvider] = useState<MetadataProvider>("tmdb");
   const [text, setText] = useState(review.parse_result?.title ?? "");
   const [query, setQuery] = useState<string | null>(null);
+  // TheTVDB is the fallback for series only.
+  const provider: MetadataProvider = kind === "tv" ? chosenProvider : "tmdb";
   const search = useMetadataSearch(
-    { kind, query: query ?? "" },
+    { kind, query: query ?? "", provider },
     { query: { enabled: query !== null && query !== "" } },
   );
-  const valid = /^\d+$/u.test(tmdbId.trim()) && Number(tmdbId) > 0;
+  const valid = /^\d+$/u.test(providerId.trim()) && Number(providerId) > 0;
 
   function submitId(event: { preventDefault: () => void }): void {
     event.preventDefault();
     if (!valid) return;
-    onResolve(Number(tmdbId.trim()), kind, t("review.tmdbId", { id: tmdbId.trim() }));
+    const id = providerId.trim();
+    onResolve(provider, Number(id), kind, t(`review.providerId.${provider}`, { id }));
   }
 
   return (
@@ -294,17 +314,39 @@ function ManualMatch({
               </SelectContent>
             </Select>
           </div>
+          {kind === "tv" ? (
+            <div className="grid gap-1.5">
+              <Label htmlFor={providerField}>{t("review.manual.provider")}</Label>
+              <Select
+                value={provider}
+                onValueChange={(value) => {
+                  setProvider(value as MetadataProvider);
+                }}
+              >
+                <SelectTrigger id={providerField} className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROVIDERS.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {t(`review.providers.${value}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           <div className="grid gap-1.5">
-            <Label htmlFor={idField}>{t("review.manual.tmdbId")}</Label>
+            <Label htmlFor={idField}>{t(`review.manual.providerIdLabel.${provider}`)}</Label>
             <Input
               id={idField}
               inputMode="numeric"
               autoComplete="off"
               dir="ltr"
               className="w-36 font-mono tabular-nums"
-              value={tmdbId}
+              value={providerId}
               onChange={(event) => {
-                setTmdbId(event.target.value);
+                setProviderId(event.target.value);
               }}
             />
           </div>
@@ -354,12 +396,12 @@ function ManualMatch({
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {(search.data ?? []).map((candidate) => (
                 <CandidateCard
-                  key={`${candidate.kind}-${String(candidate.id)}`}
+                  key={`${candidate.provider}-${candidate.kind}-${String(candidate.id)}`}
                   candidate={candidate}
                   chosen={false}
                   pending={pending}
                   onChoose={() => {
-                    onResolve(candidate.id, candidate.kind, candidate.title);
+                    onResolve(candidate.provider, candidate.id, candidate.kind, candidate.title);
                   }}
                 />
               ))}
@@ -396,11 +438,17 @@ function ReviewDetail({
     );
   }
 
-  function choose(tmdbId: number, kind: ReviewKind, label: string): void {
+  function choose(
+    provider: MetadataProvider,
+    providerId: number,
+    kind: ReviewKind,
+    label: string,
+  ): void {
+    const target = providerTarget(provider, providerId);
     resolve.mutate(
       {
         id: review.id,
-        data: kind === review.kind ? { tmdb_id: tmdbId } : { tmdb_id: tmdbId, kind },
+        data: kind === review.kind ? target : { ...target, kind },
       },
       {
         onSuccess: () => {
@@ -440,7 +488,7 @@ function ReviewDetail({
         labelKey: `review.shortcuts.choose${String(index + 1)}`,
         group: "page" as const,
         run: () => {
-          if (!pending) choose(candidate.id, candidate.kind, candidate.title);
+          if (!pending) choose(candidate.provider, candidate.id, candidate.kind, candidate.title);
         },
       })),
       {
@@ -506,15 +554,23 @@ function ReviewDetail({
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {candidates.map((candidate, index) => (
               <CandidateCard
-                key={`${candidate.kind}-${String(candidate.id)}`}
+                key={`${candidate.provider}-${candidate.kind}-${String(candidate.id)}`}
                 number={index + 1}
                 candidate={candidate}
-                chosen={review.chosen_provider_id === candidate.id}
-                pending={resolve.isPending && resolve.variables.data.tmdb_id === candidate.id}
+                chosen={
+                  review.chosen_provider_id === candidate.id &&
+                  (review.chosen_provider || "tmdb") === candidate.provider
+                }
+                pending={
+                  resolve.isPending &&
+                  (candidate.provider === "tvdb"
+                    ? resolve.variables.data?.tvdb_id
+                    : resolve.variables.data?.tmdb_id) === candidate.id
+                }
                 onChoose={
                   decide
                     ? () => {
-                        choose(candidate.id, candidate.kind, candidate.title);
+                        choose(candidate.provider, candidate.id, candidate.kind, candidate.title);
                       }
                     : null
                 }

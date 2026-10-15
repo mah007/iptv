@@ -50,6 +50,7 @@ import {
 } from "../features/customers/billing-panels";
 import { CustomerHistory } from "../features/customers/history-panel";
 import { RiskPanel } from "../features/customers/risk-panel";
+import { LockoutsTable } from "../features/lockouts/lockouts-table";
 import { CustomerSessions } from "../features/customers/sessions-panel";
 import { CUSTOMER_TABS, type CustomerTab } from "../features/customers/search";
 import { useCan } from "../lib/auth";
@@ -391,6 +392,17 @@ function CustomerView({ customer }: { customer: CustomerDetail }) {
         </TabsContent>
         <TabsContent value="security" className="grid gap-(--density-page)">
           <RiskPanel customerId={customer.id} active={customer.status === "active"} />
+          {can("lockouts.view") ? (
+            <Card className="p-0">
+              <CardHeader className="p-(--density-card)">
+                <CardTitle>{t("lockouts.customerTitle")}</CardTitle>
+                <CardDescription>{t("lockouts.customerDescription")}</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <LockoutsTable customer={customer.id} />
+              </CardContent>
+            </Card>
+          ) : null}
           <Card className="p-0">
             <CardHeader className="flex-row items-start justify-between gap-3 p-(--density-card)">
               <div className="grid gap-1">

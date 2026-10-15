@@ -28,6 +28,7 @@ from apps.accounts.serializers import (
     LoginSerializer,
     MeSerializer,
     MfaVerifySerializer,
+    PasswordChangeSerializer,
     StepUpResultSerializer,
     StepUpSerializer,
     WebAuthnCredentialSerializer,
@@ -253,6 +254,31 @@ class StepUpView(StaffView):
     def delete(self, request: Request) -> Response:
         self.staff(request)
         stepup.forget(request._request)
+        return Response(status=204)
+
+
+class PasswordChangeView(StaffView):
+    """POST /api/v1/auth/password: change my own password (Q1, ADR-0023). It needs the
+    current password and a recent confirmation (a code or a key: never the password
+    alone, ADR-0021); every other session of mine ends."""
+
+    @extend_schema(
+        operation_id="auth_password_change",
+        summary="Change my password; my other sessions end",
+        request=PasswordChangeSerializer,
+        responses={204: OpenApiResponse(description="Changed."), **problems(400, 401, 403)},
+    )
+    def post(self, request: Request) -> Response:
+        user = self.staff(request)
+        stepup.require(request)
+        payload = PasswordChangeSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        auth.change_password(
+            request._request,
+            user,
+            current=payload.validated_data["current_password"],
+            new=payload.validated_data["new_password"],
+        )
         return Response(status=204)
 
 

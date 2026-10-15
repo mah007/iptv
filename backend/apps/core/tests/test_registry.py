@@ -52,6 +52,7 @@ EXPECTED_DEFAULTS = {
     "security.admin_idle_timeout_min": 30,
     # C1 (ADR-0013): customer sign-in and web playback progress.
     "security.customer_session_days": 30,
+    "security.web_device_idle_days": 30,
     "security.customer_access_token_ttl_s": 600,
     "security.customer_refresh_token_days": 30,
     "security.customer_auth_requests_per_ip": 60,
@@ -114,6 +115,7 @@ EXPECTED_DEFAULTS = {
     "metadata.tmdb_cache_ttl_s": 86400,
     "metadata.tvdb_api_key": "",
     "metadata.tvdb_pin": "",
+    "metadata.tvdb_rate_limit_per_s": 10,
     "billing.stripe_secret_key": "",
     "billing.stripe_webhook_secret": "",
     "billing.moyasar_secret_key": "",
@@ -207,6 +209,20 @@ EXPECTED_DEFAULTS = {
     "cdn.bunny_ip_binding": False,
     "database.replica_reads": True,
     "database.replica_max_lag_s": 30,
+    # Q1 (ADR-0023): capped compat MP4s by remux.
+    "library.capped_compat_mp4": "auto",
+    # Q1 (ADR-0023): live ingest sign-ins through /internal/mediamtx-auth.
+    "live.ingest_publish_user": "publisher",
+    "live.ingest_publish_password": "",
+    "live.ingest_read_user": "reader",
+    "live.ingest_read_password": "",
+    "live.ingest_auth_max_failures": 20,
+    "live.ingest_auth_block_minutes": 15,
+    # Q1 (ADR-0023): the legal pages start as templates for a lawyer to review.
+    "legal.privacy_en": registry.legal_template("privacy", "en"),
+    "legal.privacy_ar": registry.legal_template("privacy", "ar"),
+    "legal.terms_en": registry.legal_template("terms", "en"),
+    "legal.terms_ar": registry.legal_template("terms", "ar"),
 }
 
 
@@ -229,6 +245,8 @@ SENSITIVE_KEYS = {
     "storage.s3_edge_secret_key",
     "cdn.bunny_token_key",
     "cdn.origin_secret",
+    "live.ingest_publish_password",
+    "live.ingest_read_password",
 }
 
 

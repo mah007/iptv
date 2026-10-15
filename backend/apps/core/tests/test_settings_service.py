@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.core import registry, services
+from apps.core.metrics import SETTINGS_CACHE_HEALS
 from apps.core.models import Setting
 from apps.core.registry import UnknownSettingError
 from apps.core.services import (
@@ -188,3 +189,35 @@ def test_reads_use_the_database_when_the_cache_keeps_no_version(staff_user: User
 
 def test_a_setting_reads_as_its_key() -> None:
     assert str(Setting(key="billing.grace_days", value=3)) == "billing.grace_days"
+
+
+# --- The staleness healer (ADR-0023) ----------------------------------------------------------
+
+
+def test_a_missed_bump_heals_on_the_next_check(staff_user: User) -> None:
+    services.reset_settings_cache()
+    assert get_setting("billing.grace_days") == 3
+    assert services.heal_settings_cache() is False  # cache and database agree
+    # Another process stores a change, but its version bump never reaches the cache.
+    Setting.objects.create(key="billing.grace_days", value=6, updated_by=staff_user)
+    assert get_setting("billing.grace_days") == 3  # stale
+    healed = SETTINGS_CACHE_HEALS._value.get()
+    assert services.heal_settings_cache() is True
+    assert SETTINGS_CACHE_HEALS._value.get() == healed + 1
+    assert get_setting("billing.grace_days") == 6
+    assert services.heal_settings_cache() is False
+
+
+def test_the_healer_notices_deleted_overrides_and_skips_without_a_cache(
+    staff_user: User,
+) -> None:
+    Setting.objects.create(key="billing.grace_days", value=6, updated_by=staff_user)
+    services.reset_settings_cache()
+    assert get_setting("billing.grace_days") == 6
+    Setting.objects.filter(key="billing.grace_days").delete()  # a reset whose bump failed
+    assert services.heal_settings_cache() is True
+    assert get_setting("billing.grace_days") == 3
+    with mock.patch.object(cache, "get", side_effect=redis.ConnectionError):
+        assert services.heal_settings_cache() is False
+    cache.delete(SETTINGS_VERSION_KEY)
+    assert services.heal_settings_cache() is False

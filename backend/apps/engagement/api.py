@@ -12,12 +12,19 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import pagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.accounts.customer_auth import customer_of, device_for
+from apps.accounts.customer_auth import (
+    current_device_id,
+    customer_of,
+    device_for,
+    remember_web_device,
+)
+from apps.audit import services as audit
 from apps.catalog import home
 from apps.catalog.api_customer import CatalogView
 from apps.catalog.browse import playable_episodes, visible_movies, visible_series
@@ -25,7 +32,7 @@ from apps.catalog.home import row_title
 from apps.catalog.models import Episode
 from apps.catalog.playable import playable_title_by_id
 from apps.catalog.serializers_customer import TitleCardSerializer
-from apps.core.errors import ErrorCode, ProblemError
+from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.http import client_ip
 from apps.core.schema import problems
 from apps.core.throttling import PlaybackStartThrottle
@@ -34,6 +41,7 @@ from apps.engagement.recommend import recommender
 from apps.engagement.serializers import (
     FavoriteAddedSerializer,
     HomeSerializer,
+    MyStreamSerializer,
     PlaybackGrantSerializer,
     PlaybackStartSerializer,
     ProgressReportSerializer,
@@ -49,6 +57,8 @@ from apps.playback.concurrency import KickReason
 from apps.playback.models import PlaybackSession, TitleKind
 from apps.playback.services import (
     Delivery,
+    Denial,
+    PlaybackDenied,
     PlaybackGrant,
     Prefer,
     start_playback,
@@ -59,6 +69,26 @@ THUMBNAILS_VTT = "thumbs/thumbs.vtt"
 
 
 # --- Playback ---------------------------------------------------------------------------------
+
+
+#: The longest Retry-After a TITLE_PREPARING answer suggests (the player asks again then).
+PREPARING_RETRY_MAX_S = 300
+
+
+def _preparing(kind: TitleKind | None, title_id: UUID | None) -> ProblemError:
+    """TITLE_PREPARING with `eta_s` (ADR-0023). Asking also hurries the title along: SPEC
+    §7.3's on-demand fallback queues an urgent compat job (a remux when that's enough)."""
+    from apps.media.services import request_on_demand  # noqa: PLC0415 (media builds on us)
+
+    eta = (
+        request_on_demand(kind, title_id).eta_s
+        if kind is not None and title_id is not None
+        else None
+    )
+    error = ProblemError(ErrorCode.TITLE_PREPARING, extensions={"eta_s": eta})
+    if eta:
+        error.wait = min(max(eta, 5), PREPARING_RETRY_MAX_S)  # type: ignore[attr-defined]
+    return error
 
 
 def _episode_to_play(view: CatalogView, series_id: UUID, episode_id: UUID | None) -> Episode:
@@ -76,12 +106,12 @@ def _episode_to_play(view: CatalogView, series_id: UUID, episode_id: UUID | None
         if episode is None:
             # Known but not playable yet, or not part of this series.
             if Episode.objects.filter(pk=episode_id, season__series=series).exists():
-                raise ProblemError(ErrorCode.TITLE_PREPARING)
+                raise _preparing(TitleKind.EPISODE, episode_id)
             raise ProblemError(ErrorCode.NOT_FOUND, "No such episode.")
         return episode
     episode = services.next_episode(user, series)
     if episode is None:
-        raise ProblemError(ErrorCode.TITLE_PREPARING)
+        raise _preparing(None, None)
     return episode
 
 
@@ -148,6 +178,8 @@ class PlaybackStartView(CatalogView):
         payload.is_valid(raise_exception=True)
         data = payload.validated_data
         user = customer_of(request)
+        if data["title_type"] in ("live", "catchup"):
+            return self._start_live(request, user, data)
         episode: Episode | None = None
         if data["title_type"] == "movie":
             if not visible_movies(self.scope()).filter(pk=data["title_id"]).exists():
@@ -158,16 +190,22 @@ class PlaybackStartView(CatalogView):
             kind, title_id = TitleKind.EPISODE, episode.pk
         playable = playable_title_by_id(kind, title_id)
         if playable is None:
-            raise ProblemError(ErrorCode.TITLE_PREPARING)
+            raise _preparing(kind, title_id)
         prefer = Prefer(data["prefer"]) if data.get("prefer") else None
-        grant = start_playback(
-            user,
-            device_for(request, user),
-            playable,
-            prefer=prefer,
-            client_ip=client_ip(request),
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
-        )
+        device = device_for(request, user)
+        try:
+            grant = start_playback(
+                user,
+                device,
+                playable,
+                prefer=prefer,
+                client_ip=client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except PlaybackDenied as denied:
+            if denied.denial is Denial.TITLE_PREPARING:
+                raise _preparing(kind, title_id) from None
+            raise
         audio, subtitles, thumbnails = _tracks(grant)
         segmented = grant.rendition.delivery is Delivery.SEGMENTED
         body = {
@@ -190,9 +228,71 @@ class PlaybackStartView(CatalogView):
             "audio": audio,
             "subtitles": subtitles,
             "thumbnails_url": thumbnails,
+            "live": False,
         }
         response = Response(PlaybackGrantSerializer(body).data)
         response["Cache-Control"] = "no-store"
+        remember_web_device(response, request, device)
+        return response
+
+    def _start_live(self, request: Request, user: Any, data: dict[str, Any]) -> Response:
+        """A live channel (HLS) or a catch-up window of it (ADR-0017's playback, from the
+        portal: ADR-0023)."""
+        from apps.live import state  # noqa: PLC0415 (live builds on the catalogue)
+        from apps.live.api_customer import visible_channels  # noqa: PLC0415
+        from apps.live.playable import playable_channel  # noqa: PLC0415
+        from apps.xtream_api.dto import TimeshiftWindow  # noqa: PLC0415
+
+        channel = visible_channels(self.scope(), timezone.now()).filter(pk=data["title_id"]).first()
+        if channel is None:
+            raise ProblemError(ErrorCode.NOT_FOUND, "No such channel.")
+        window = None
+        if data["title_type"] == "catchup":
+            if not data.get("start") or not data.get("duration_min"):
+                raise ProblemError(
+                    ErrorCode.VALIDATION_ERROR,
+                    "Catch-up needs its start and length.",
+                    field_errors={
+                        "start": [field_error("Choose a recorded programme.", code="required")]
+                    },
+                )
+            window = TimeshiftWindow(start=data["start"], minutes=int(data["duration_min"]))
+        playable = playable_channel(channel.xc_id, extension="m3u8", window=window)
+        if playable is None:
+            raise ProblemError(
+                ErrorCode.NOT_FOUND, "That part of the channel isn't recorded (any more)."
+            )
+        device = device_for(request, user)
+        grant = start_playback(
+            user,
+            device,
+            playable,
+            client_ip=client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        )
+        if window is None:
+            state.wake(channel.storage_key)
+        body = {
+            "session_id": grant.session.pk,
+            "title_type": playable.kind.value,
+            "title_id": channel.pk,
+            "episode": None,
+            "delivery": grant.rendition.delivery.value,
+            "url": grant.url,
+            "hls_master_url": grant.url,
+            "compat_url": None,
+            "height": grant.rendition.height,
+            "expires_at": datetime.fromtimestamp(grant.expires_at, tz=UTC),
+            "duration_ms": window.minutes * 60_000 if window is not None else 0,
+            "resume_ms": 0,
+            "audio": [],
+            "subtitles": [],
+            "thumbnails_url": None,
+            "live": window is None,
+        }
+        response = Response(PlaybackGrantSerializer(body).data)
+        response["Cache-Control"] = "no-store"
+        remember_web_device(response, request, device)
         return response
 
 
@@ -251,6 +351,81 @@ class PlaybackStopView(CatalogView):
         if session.ended_at is None:
             # Ends as "stopped": the edge refuses the token's next request.
             stop_sessions([session], KickReason.STOPPED)
+        return Response(status=204)
+
+
+# --- My streams (ADR-0023) ---------------------------------------------------------------------
+
+
+def _stream_rows(request: Request) -> list[dict[str, Any]]:
+    here = current_device_id(request)
+    sessions = (
+        PlaybackSession.objects.filter(user=customer_of(request), ended_at__isnull=True)
+        .select_related("device")
+        .order_by("-started_at")
+    )
+    rows = []
+    for session in sessions:
+        device = session.device
+        rows.append(
+            {
+                "pk": session.pk,
+                "title_kind": session.title_kind,
+                "title_id": session.title_id,
+                "title_name": session.title_name,
+                "device": (
+                    {
+                        "id": device.pk,
+                        "name": device.name,
+                        "kind": device.kind,
+                        "app_hint": device.app_hint,
+                    }
+                    if device is not None
+                    else None
+                ),
+                "current": here is not None and session.device_id == here,
+                "country": session.country,
+                "started_at": session.started_at,
+                "last_heartbeat_at": session.last_heartbeat_at,
+            }
+        )
+    return rows
+
+
+class MyStreamListView(CatalogView):
+    @extend_schema(
+        operation_id="me_streams_list",
+        summary="My streams playing now, on every device",
+        description="On CONCURRENCY_LIMIT the player offers to stop one of these and play here.",
+        responses={200: MyStreamSerializer(many=True), **problems(401, 403)},
+    )
+    def get(self, request: Request) -> Response:
+        response = Response(MyStreamSerializer(_stream_rows(request), many=True).data)
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+class MyStreamStopView(CatalogView):
+    @extend_schema(
+        operation_id="me_streams_stop",
+        summary="Stop one of my streams: its device's playback stops and its slot is free",
+        request=None,
+        responses={204: OpenApiResponse(description="Stopped."), **problems(401, 403, 404)},
+    )
+    def post(self, request: Request, pk: UUID) -> Response:
+        user = customer_of(request)
+        session = PlaybackSession.objects.filter(pk=pk, user=user, ended_at__isnull=True).first()
+        if session is None:
+            raise ProblemError(ErrorCode.NOT_FOUND, "No such stream playing.")
+        stopped = stop_sessions([session], KickReason.STOPPED)
+        if stopped:
+            audit.record(
+                "session.stop_own",
+                actor=user,
+                target=session,
+                after={"device": str(session.device_id) if session.device_id else None},
+                ip=client_ip(request),
+            )
         return Response(status=204)
 
 

@@ -107,8 +107,8 @@ export function RatingButtons({
   function set(value: Thumb): void {
     const next = shown === value ? null : value;
     setOptimistic(next);
-    // The API clears the rating with null (its schema documents it in the description).
-    const data = { title_type: type, title_id: id, value: next } as unknown as RatingRequest;
+    // null clears the rating.
+    const data: RatingRequest = { title_type: type, title_id: id, value: next };
     rate.mutate(
       { data },
       {

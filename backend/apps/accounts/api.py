@@ -9,19 +9,27 @@ that carry a plaintext password are marked `Cache-Control: no-store`.
 from typing import Any, ClassVar
 from uuid import UUID
 
-from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q, QuerySet
+from django.db.models import Count, Exists, F, Max, OuterRef, Prefetch, Q, QuerySet
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import filters, generics
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts import auth, services, stepup
-from apps.accounts.filters import AccessRuleFilter, CustomerFilter
+from apps.accounts import auth, lockouts, services, stepup
+from apps.accounts.filters import AccessRuleFilter, CustomerFilter, DeviceFilter
+from apps.accounts.governing import with_governing
 from apps.accounts.models import AccessRule, CustomerAccess, Device, Permission, Role, User
-from apps.accounts.permissions import HasPermission, Requirements
+from apps.accounts.permissions import HasPermission, Requirements, request_permission_codes
 from apps.accounts.serializers import (
     AccessProfileSerializer,
     AccessRuleCreateSerializer,
@@ -37,9 +45,14 @@ from apps.accounts.serializers import (
     CustomerProfileSerializer,
     CustomerSummarySerializer,
     DeviceBlockSerializer,
+    DeviceBulkResultSerializer,
+    DeviceBulkSerializer,
     DeviceCreateSerializer,
+    DeviceListItemSerializer,
     DeviceSerializer,
     IssuedCredentialSerializer,
+    LockoutSerializer,
+    LockoutUnlockSerializer,
     PermissionSerializer,
     RevokeByAppResultSerializer,
     RevokeByAppSerializer,
@@ -80,8 +93,7 @@ def customer_list_queryset() -> QuerySet[User]:
     `distinct=True` keeps the count right when a search joins devices again.
     """
     return (
-        customers()
-        .select_related("access")
+        with_governing(customers().select_related("access"), timezone.now())
         .annotate(
             device_count=Count(
                 "devices", filter=Q(devices__revoked_at__isnull=True), distinct=True
@@ -334,6 +346,126 @@ class CustomerDeviceListView(generics.ListCreateAPIView[Device]):
             ip=client_ip(request),
         )
         return secret_response(IssuedCredentialSerializer(issued_body(issued)).data, status=201)
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="devices_list",
+        summary="Every customer's devices, with filters (the Devices page)",
+        responses={200: DeviceListItemSerializer(many=True), **problems(400, 401, 403)},
+    ),
+)
+class DeviceListView(generics.ListAPIView[Device]):
+    """GET /api/v1/admin/devices (SPEC §8.2 Customers → Devices; ADR-0023): one query per
+    page with the customer and the credential joined."""
+
+    permission_classes = (HasPermission,)
+    required_permissions: ClassVar[Requirements] = {"GET": "customers.view"}
+    serializer_class = DeviceListItemSerializer
+    filter_backends = (DjangoFilterBackend, filters.SearchFilter)
+    filterset_class = DeviceFilter
+    search_fields = ("name", "credential__username", "user__name", "user__username", "user__email")
+
+    def get_queryset(self) -> QuerySet[Device]:
+        return (
+            Device.objects.filter(user__is_staff=False)
+            .select_related("user", "credential")
+            .order_by(F("last_seen").desc(nulls_last=True), "-created_at", "-id")
+        )
+
+
+class DeviceBulkView(AdminView):
+    """Block, unblock, approve or revoke many devices at once. Protective (block, revoke)
+    or the customer's own setting back (unblock, approve): no confirmation (ADR-0021)."""
+
+    required_permissions: ClassVar[Requirements] = {"POST": "devices.manage"}
+
+    @extend_schema(
+        operation_id="devices_bulk",
+        summary="Change several devices at once; each change is audited",
+        request=DeviceBulkSerializer,
+        responses={200: DeviceBulkResultSerializer, **problems(400, 401, 403)},
+    )
+    def post(self, request: Request) -> Response:
+        payload = DeviceBulkSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        ids = payload.validated_data["ids"]
+        devices = devices_with_credentials().filter(user__is_staff=False, pk__in=ids)
+        result = services.bulk_devices(
+            list(devices),
+            payload.validated_data["action"],
+            reason=payload.validated_data["reason"],
+            actor=acting_user(request),
+            ip=client_ip(request),
+        )
+        missing = len(set(ids)) - result.changed - result.skipped
+        body = {"changed": result.changed, "skipped": result.skipped + max(0, missing)}
+        return Response(DeviceBulkResultSerializer(body).data)
+
+
+# --- Lockouts (SPEC §8.2 Security → Lockouts; ADR-0023) ---------------------------------------
+
+
+class LockoutListView(AdminView):
+    required_permissions: ClassVar[Requirements] = {"GET": "lockouts.view"}
+
+    @extend_schema(
+        operation_id="lockouts_list",
+        summary="Who is locked out of signing in right now, and why",
+        description="Sign-ins (admins, portal, apps), second factors, confirmations, TV logins "
+        "and TV sign-in addresses; `customer` limits it to one customer.",
+        parameters=[
+            OpenApiParameter("customer", OpenApiTypes.UUID, required=False),
+        ],
+        responses={200: LockoutSerializer(many=True), **problems(400, 401, 403, 404)},
+    )
+    def get(self, request: Request) -> Response:
+        customer = None
+        raw = request.query_params.get("customer")
+        if raw:
+            try:
+                customer = get_object_or_404(customers(), pk=UUID(raw))
+            except ValueError:
+                raise ProblemError(
+                    ErrorCode.VALIDATION_ERROR,
+                    "Not a customer id.",
+                    field_errors={"customer": [field_error("Not a customer id.", code="invalid")]},
+                ) from None
+        found = lockouts.list_lockouts(now=timezone.now(), customer=customer)
+        response = Response(LockoutSerializer(found, many=True).data)
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+class LockoutUnlockView(AdminView):
+    """Lifting a lockout lifts a protection: it needs a recent confirmation (ADR-0021),
+    and an admin's account needs `admins.manage` as well."""
+
+    required_permissions: ClassVar[Requirements] = {"POST": "lockouts.manage"}
+    step_up_methods = frozenset({"POST"})
+
+    @extend_schema(
+        operation_id="lockouts_unlock",
+        summary="Unlock one sign-in, second factor, confirmation, TV login or address",
+        request=LockoutUnlockSerializer,
+        responses={204: OpenApiResponse(description="Unlocked."), **problems(400, 401, 403, 404)},
+    )
+    def post(self, request: Request) -> Response:
+        payload = LockoutUnlockSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        lockout_id = payload.validated_data["id"]
+        account = lockouts.account_of(lockout_id)
+        if (
+            account is not None
+            and account.is_staff
+            and "admins.manage" not in request_permission_codes(request)
+        ):
+            raise ProblemError(
+                ErrorCode.PERMISSION_DENIED,
+                "Unlocking an admin needs the admins.manage permission.",
+            )
+        lockouts.unlock(lockout_id, actor=acting_user(request), ip=client_ip(request))
+        return Response(status=204)
 
 
 def device_of(pk: UUID) -> Device:

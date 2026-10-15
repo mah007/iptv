@@ -361,6 +361,18 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 30.0,
         "options": {"expires": 25},
     },
+    # Q1 (ADR-0023): settings caches that missed a version bump heal within a minute.
+    "core-heal-settings-cache": {
+        "task": "apps.core.tasks.heal_settings_cache",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
+    # Q1 (ADR-0023): unused browsers and ended app sign-ins leave the device lists.
+    "accounts-expire-idle-devices": {
+        "task": "apps.accounts.tasks.expire_idle_devices",
+        "schedule": crontab(hour=3, minute=25),
+        "options": {"expires": 3600},
+    },
     # Customers whose access period ended: entitlement -> expired, sessions stop (M7).
     "accounts-expire-access": {
         "task": "apps.accounts.tasks.expire_access",
@@ -380,6 +392,12 @@ CELERY_BEAT_SCHEDULE = {
         "options": {"expires": 280},
     },
     # Deletes orphaned, expired and superseded renditions (M8, ADR-0014; T1).
+    # Q1 (ADR-0023): capped compat MP4s for plans with a 720p or 480p ceiling.
+    "media-queue-capped-compat": {
+        "task": "apps.media.tasks.queue_capped_compat",
+        "schedule": 3600.0,
+        "options": {"expires": 3000},
+    },
     "media-cleanup-renditions": {
         "task": "apps.media.tasks.cleanup_renditions",
         "schedule": 6 * 3600.0,
@@ -641,6 +659,13 @@ SPECTACULAR_SETTINGS = {
         "BackupKind": "apps.ops.models.BackupKind",
         "BackupRunStatus": "apps.ops.models.RunStatus",
         "BackupTrigger": "apps.ops.models.RunTrigger",
+        # Q1 (ADR-0023): the governing status, the Devices and Lockouts pages, TheTVDB.
+        "GoverningStatus": "apps.accounts.governing.GoverningStatus",
+        "StatusSource": "apps.accounts.governing.StatusSource",
+        "DeviceBulkAction": "apps.accounts.serializers.DEVICE_ACTIONS",
+        "LockoutKind": "apps.accounts.lockouts.LockoutKind",
+        "MetadataProvider": "apps.catalog.serializers.PROVIDER_CHOICES",
+        "LegalDocument": "apps.core.legal.DOCUMENTS",
     },
     "ENUM_ADD_EXPLICIT_BLANK_NULL_CHOICE": False,
     "POSTPROCESSING_HOOKS": [
@@ -666,6 +691,10 @@ EDGE_LOCAL_STATUS_URL = env("EDGE_LOCAL_STATUS_URL", "http://nginx-stream:8081/s
 GRAFANA_URL = env("GRAFANA_URL", "")
 # Alertmanager authenticates to /internal/alerts with this (ADR-0018); empty: no webhook.
 ALERT_WEBHOOK_TOKEN = env("ALERT_WEBHOOK_TOKEN", "")
+# MediaMTX authenticates to /internal/mediamtx-auth with this (Basic auth, user "mediamtx";
+# ADR-0023); empty: no endpoint. Its API, for the Integrations page's Test.
+MEDIAMTX_AUTH_TOKEN = env("MEDIAMTX_AUTH_TOKEN", "")
+MEDIAMTX_API_URL = env("MEDIAMTX_API_URL", "http://mediamtx:9997")
 # --- Operations (H2, ADR-0020) ---
 # The backup service authenticates to /internal/backups/agent with this; empty: no API.
 BACKUP_AGENT_TOKEN = env("BACKUP_AGENT_TOKEN", "")

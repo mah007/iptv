@@ -174,6 +174,9 @@ function SettingsGroup<T extends string | number>({
  * the plan's ceiling, audio and subtitle tracks, seek-bar thumbnails, keyboard
  * shortcuts, full screen and picture-in-picture. Progress goes to the API every
  * ~15 s and on pause; leaving stops the session.
+ *
+ * A live grant (`grant.live`, ADR-0023) plays at the live edge: no seek bar, no
+ * skipping, no speed, a LIVE mark instead of the clock. Catch-up plays like a title.
  */
 export function VideoPlayer({
   grant,
@@ -194,6 +197,7 @@ export function VideoPlayer({
   const hideTimer = useRef<number | undefined>(undefined);
   const fail = useEffectEvent(onFailure);
   const settingsId = useId();
+  const live = grant.live;
 
   const [preferences, setPreferences] = useState(readPreferences);
   const [ready, setReady] = useState(false);
@@ -575,13 +579,16 @@ export function VideoPlayer({
     else video.pause();
   }, []);
 
-  const seekTo = useCallback((seconds: number) => {
-    const video = videoRef.current;
-    if (!video) return;
-    const end = Number.isFinite(video.duration) ? video.duration : Number.POSITIVE_INFINITY;
-    video.currentTime = Math.min(Math.max(0, seconds), Math.max(0, end - 0.25));
-    setTime(video.currentTime);
-  }, []);
+  const seekTo = useCallback(
+    (seconds: number) => {
+      const video = videoRef.current;
+      if (!video || live) return;
+      const end = Number.isFinite(video.duration) ? video.duration : Number.POSITIVE_INFINITY;
+      video.currentTime = Math.min(Math.max(0, seconds), Math.max(0, end - 0.25));
+      setTime(video.currentTime);
+    },
+    [live],
+  );
 
   const toggleFullscreen = useCallback(() => {
     const container = containerRef.current;
@@ -830,71 +837,73 @@ export function VideoPlayer({
           showControls ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
-        <div
-          dir="ltr"
-          className="group/seek relative flex h-6 items-center"
-          onPointerMove={(event) => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            const at = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-            setPreview({ ratio: at, time: at * duration });
-          }}
-          onPointerLeave={() => {
-            setPreview(null);
-          }}
-        >
-          <div className="pointer-events-none absolute inset-x-0 h-1 rounded-full bg-white/25 transition-[height] group-hover/seek:h-1.5">
-            <div
-              className="absolute inset-y-0 start-0 rounded-full bg-white/35"
-              style={{ width: `${String(bufferedRatio * 100)}%` }}
-            />
-            <div
-              className="absolute inset-y-0 start-0 rounded-full bg-primary"
-              style={{ width: `${String(ratio * 100)}%` }}
-            />
-          </div>
+        {live ? null : (
           <div
-            className="pointer-events-none absolute size-3.5 -translate-x-1/2 rounded-full bg-primary shadow ring-2 ring-black/20"
-            style={{ left: `${String(ratio * 100)}%` }}
-          />
-          <input
-            type="range"
-            min={0}
-            max={Math.max(1, Math.floor(duration))}
-            step={SEEK_STEP_S}
-            value={Math.floor(time)}
-            aria-label={t("player.seek")}
-            aria-valuetext={t("player.positionOf", {
-              position: clock(time, language),
-              duration: clock(duration, language),
-            })}
-            className="absolute inset-0 h-6 w-full cursor-pointer appearance-none opacity-0"
-            onChange={(event) => {
-              seekTo(Number(event.target.value));
+            dir="ltr"
+            className="group/seek relative flex h-6 items-center"
+            onPointerMove={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              const at = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+              setPreview({ ratio: at, time: at * duration });
             }}
-          />
-          {preview ? (
-            <div
-              className="pointer-events-none absolute bottom-6 grid -translate-x-1/2 justify-items-center gap-1"
-              style={{ left: `clamp(5rem, ${String(preview.ratio * 100)}%, calc(100% - 5rem))` }}
-              aria-hidden="true"
-            >
-              {thumb ? (
-                <div
-                  className="overflow-hidden rounded-input bg-black ring-1 ring-white/40"
-                  style={{
-                    width: thumb.width,
-                    height: thumb.height,
-                    backgroundImage: `url("${thumb.url}")`,
-                    backgroundPosition: `-${String(thumb.x)}px -${String(thumb.y)}px`,
-                  }}
-                />
-              ) : null}
-              <span className="rounded-badge bg-black/80 px-1.5 py-0.5 text-xs tabular-nums">
-                {clock(preview.time, language)}
-              </span>
+            onPointerLeave={() => {
+              setPreview(null);
+            }}
+          >
+            <div className="pointer-events-none absolute inset-x-0 h-1 rounded-full bg-white/25 transition-[height] group-hover/seek:h-1.5">
+              <div
+                className="absolute inset-y-0 start-0 rounded-full bg-white/35"
+                style={{ width: `${String(bufferedRatio * 100)}%` }}
+              />
+              <div
+                className="absolute inset-y-0 start-0 rounded-full bg-primary"
+                style={{ width: `${String(ratio * 100)}%` }}
+              />
             </div>
-          ) : null}
-        </div>
+            <div
+              className="pointer-events-none absolute size-3.5 -translate-x-1/2 rounded-full bg-primary shadow ring-2 ring-black/20"
+              style={{ left: `${String(ratio * 100)}%` }}
+            />
+            <input
+              type="range"
+              min={0}
+              max={Math.max(1, Math.floor(duration))}
+              step={SEEK_STEP_S}
+              value={Math.floor(time)}
+              aria-label={t("player.seek")}
+              aria-valuetext={t("player.positionOf", {
+                position: clock(time, language),
+                duration: clock(duration, language),
+              })}
+              className="absolute inset-0 h-6 w-full cursor-pointer appearance-none opacity-0"
+              onChange={(event) => {
+                seekTo(Number(event.target.value));
+              }}
+            />
+            {preview ? (
+              <div
+                className="pointer-events-none absolute bottom-6 grid -translate-x-1/2 justify-items-center gap-1"
+                style={{ left: `clamp(5rem, ${String(preview.ratio * 100)}%, calc(100% - 5rem))` }}
+                aria-hidden="true"
+              >
+                {thumb ? (
+                  <div
+                    className="overflow-hidden rounded-input bg-black ring-1 ring-white/40"
+                    style={{
+                      width: thumb.width,
+                      height: thumb.height,
+                      backgroundImage: `url("${thumb.url}")`,
+                      backgroundPosition: `-${String(thumb.x)}px -${String(thumb.y)}px`,
+                    }}
+                  />
+                ) : null}
+                <span className="rounded-badge bg-black/80 px-1.5 py-0.5 text-xs tabular-nums">
+                  {clock(preview.time, language)}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        )}
 
         <div dir="ltr" className="flex items-center gap-1 sm:gap-2">
           <Button
@@ -910,28 +919,32 @@ export function VideoPlayer({
               <Play aria-hidden="true" className="fill-current" />
             )}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-white/15 hover:text-white"
-            aria-label={t("player.back10")}
-            onClick={() => {
-              run({ type: "seek-by", seconds: -SEEK_STEP_S });
-            }}
-          >
-            <RotateCcw aria-hidden="true" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-white/15 hover:text-white"
-            aria-label={t("player.forward10")}
-            onClick={() => {
-              run({ type: "seek-by", seconds: SEEK_STEP_S });
-            }}
-          >
-            <RotateCw aria-hidden="true" />
-          </Button>
+          {live ? null : (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/15 hover:text-white"
+                aria-label={t("player.back10")}
+                onClick={() => {
+                  run({ type: "seek-by", seconds: -SEEK_STEP_S });
+                }}
+              >
+                <RotateCcw aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/15 hover:text-white"
+                aria-label={t("player.forward10")}
+                onClick={() => {
+                  run({ type: "seek-by", seconds: SEEK_STEP_S });
+                }}
+              >
+                <RotateCw aria-hidden="true" />
+              </Button>
+            </>
+          )}
           <div className="group/volume flex items-center">
             <Button
               variant="ghost"
@@ -959,9 +972,16 @@ export function VideoPlayer({
               }}
             />
           </div>
-          <span className="ms-1 text-xs tabular-nums text-white/85 sm:text-sm">
-            {clock(time, language)} / {clock(duration, language)}
-          </span>
+          {live ? (
+            <span className="ms-1 inline-flex items-center gap-1.5 rounded-badge bg-danger-solid px-2 py-0.5 text-xs font-semibold text-white uppercase">
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-white" />
+              {t("player.live")}
+            </span>
+          ) : (
+            <span className="ms-1 text-xs tabular-nums text-white/85 sm:text-sm">
+              {clock(time, language)} / {clock(duration, language)}
+            </span>
+          )}
 
           <div className="ms-auto flex items-center gap-1 sm:gap-2">
             {next ? (
@@ -1128,19 +1148,21 @@ export function VideoPlayer({
                 />
               </>
             ) : null}
-            <SettingsGroup<number>
-              legend={t("player.speed")}
-              name={`${settingsId}-speed`}
-              value={speed}
-              options={SPEEDS.map((value) => ({
-                value,
-                label: value === 1 ? t("player.normalSpeed") : `${String(value)}×`,
-              }))}
-              onChange={(value) => {
-                setSpeed(value);
-                if (videoRef.current) videoRef.current.playbackRate = value;
-              }}
-            />
+            {live ? null : (
+              <SettingsGroup<number>
+                legend={t("player.speed")}
+                name={`${settingsId}-speed`}
+                value={speed}
+                options={SPEEDS.map((value) => ({
+                  value,
+                  label: value === 1 ? t("player.normalSpeed") : `${String(value)}×`,
+                }))}
+                onChange={(value) => {
+                  setSpeed(value);
+                  if (videoRef.current) videoRef.current.playbackRate = value;
+                }}
+              />
+            )}
           </div>
         </div>
       ) : null}

@@ -56,16 +56,22 @@ LAN addresses (192.168.x, 10.x, 172.16–31.x) are allowed, for encoders and Ers
    sed -i 's/^LIVE_INGEST_BIND=.*/LIVE_INGEST_BIND=10.8.0.1/' .env
    sudo scripts/install.sh --update
    ```
-   `scripts/secrets.sh` (run by the installer) generates `MEDIAMTX_PUBLISH_PASS` and `MEDIAMTX_READ_PASS` the first time. Read them from `.env` on the server; don't copy them anywhere else.
-2. Publish a stream as the `publisher` user. The path name is yours, here `studio`:
+   `scripts/secrets.sh` (run by the installer) generates `MEDIAMTX_PUBLISH_PASS`, `MEDIAMTX_READ_PASS` and `MEDIAMTX_AUTH_TOKEN` the first time.
+2. **Sign-ins live in the admin (ADR-0023).** MediaMTX asks the server about every publish, read and API call (`authMethod: http`, `/internal/mediamtx-auth` on the backend network, with `MEDIAMTX_AUTH_TOKEN` as its own password). Open **Settings → Integrations → Live ingest**:
+   - the publish user and password your encoders use, and the read user and password the packager uses;
+   - until you save them there, the generated `MEDIAMTX_*` values of `.env` apply (the card says "from the server config"; **Move into settings** copies them in);
+   - **Test** reads MediaMTX's API with the read user, which proves the whole loop: MediaMTX up, asking this server, and the read user accepted.
+
+   Changing a password takes effect at an encoder's next connection. After 20 failed sign-ins from one address, counted from its first failure, that address is refused until 15 minutes have passed since that first failure (both numbers in **Settings → Live TV**). Readers must come from the Docker networks; MediaMTX's own `runOnDemand` hooks may publish from its loopback. Failures show in the metric `iptv_live_ingest_auth_total{result="denied"}`.
+3. Publish a stream as the `publisher` user. The path name is yours, here `studio`:
    - **OBS:** Settings → Stream → Custom, server `rtmp://tv.example.com:1935/studio?user=publisher&pass=<MEDIAMTX_PUBLISH_PASS>`, with an empty stream key. Use H.264 and AAC with a keyframe every 2 s.
    - **FFmpeg:** `ffmpeg -re -i input.mp4 -c copy -f flv "rtmp://tv.example.com:1935/studio?user=publisher&pass=$PUBLISH_PASS"`
    - **SRT encoder:** `srt://tv.example.com:8890?streamid=publish:studio:publisher:<MEDIAMTX_PUBLISH_PASS>`
    - **An IP camera** that only offers RTSP needs no ingest: add `rtsp://user:pass@camera-ip:554/...` as a channel directly.
-3. In the admin: **Live TV → Integrations → Add instance → MediaMTX** with:
+4. In the admin: **Live TV → Integrations → Add instance → MediaMTX** with:
    - Address `http://mediamtx:9997`;
    - Stream address `rtsp://mediamtx:8554`;
-   - Reader user `reader` and its password (`MEDIAMTX_READ_PASS`).
+   - Reader user `reader` and its password (the read password of step 2). An instance's own user may read too, so it can also be a separate user.
 
    Add the rights holder and licence reference, then **Sync now**. Each published path becomes a **disabled** channel; review it and enable it. Or add the channel by hand with the source `rtsp://reader:<pass>@mediamtx:8554/studio`.
 

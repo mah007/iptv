@@ -75,8 +75,10 @@ def _shared_links(root: Path, scope: Path) -> None:
 
 def _link_scopes(root: Path, rows: Sequence[Rendition]) -> None:
     for row in rows:
-        stem = _PROGRESSIVE.get(RenditionKind(row.kind))
-        if stem is None or row.status != RenditionStatus.READY:
+        kind = RenditionKind(row.kind)
+        # A capped compat MP4's scope is its name (`compat720`, ADR-0023).
+        stem = row.name if kind is RenditionKind.COMPAT_CAPPED else _PROGRESSIVE.get(kind)
+        if not stem or row.status != RenditionStatus.READY:
             continue
         _shared_links(root, root / stem)
 

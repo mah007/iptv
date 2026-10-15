@@ -1650,7 +1650,7 @@ class HttpClient:
 class LiveRun:
     """The live checks, in order; auth failures run last because they trip rate limits."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 (the run's inputs)
         self,
         suite: SchemaSuite,
         reporter: Reporter,
@@ -1658,10 +1658,13 @@ class LiveRun:
         credentials: tuple[str, str],
         *,
         play: bool,
+        capped: tuple[str, str] | None = None,
     ) -> None:
         self.suite, self.reporter, self.client = suite, reporter, client
         self.username, self.password = credentials
         self.play = play
+        #: An account on a plan capped below 1080p (ADR-0023): its .mp4 is a capped MP4.
+        self.capped = capped
         #: Media reads (the edge, the live relay): a cold channel can take seconds.
         self.media_timeout = 25.0
         self.catalog = Catalog()
@@ -1799,6 +1802,8 @@ class LiveRun:
         self._guide()
         if self.play:
             self._play(vod)
+            if self.capped is not None:
+                self._play_capped(vod)
             self._play_live(live)
         self._auth_failures()
 
@@ -2019,6 +2024,41 @@ class LiveRun:
                     )
             self.check(label, problems, f"to {_origin(location)}" if location else "")
 
+    def _play_capped(self, vod: list[Any] | None) -> None:
+        """A capped plan's .mp4 (ADR-0023): the redirect names a capped compat MP4
+        (`compat720.mp4`, `compat480.mp4`), never an HLS playlist an IPTV app's MP4
+        player can't open, and the edge serves an MP4 (its `ftyp` box first)."""
+        if not vod or self.capped is None:
+            self.reporter.skip("capped plan .mp4", "no movie to play")
+            return
+        user, password = (quote(value, safe="") for value in self.capped)
+        xc_id = vod[0]["stream_id"]
+        location = self._redirect(
+            f"GET /movie/<capped user>/<pass>/{xc_id}.mp4 redirects to a capped MP4",
+            f"/movie/{user}/{password}/{xc_id}.mp4",
+        )
+        if location is None:
+            return
+        label = "the capped plan's .mp4 is a capped compat MP4 the edge serves"
+        tail = urlsplit(location).path.rsplit("/", 1)[-1]
+        problems = []
+        if not re.fullmatch(r"compat(?:480|720)\.mp4", tail):
+            problems.append(
+                Problem("Location", "play:capped", f"names {tail!r}, expected compat720.mp4")
+            )
+            self.check(label, problems)
+            return
+        try:
+            status, content_type, body = self._media(location, max_bytes=4096)
+        except LiveError as exc:
+            self.reporter.fail(label, [Problem("HTTP", "http:connection", str(exc))])
+            return
+        if status not in (200, 206):
+            problems.append(Problem("HTTP", "media:status", f"status {status}"))
+        if body[4:8] != b"ftyp":
+            problems.append(Problem("body", "media:mp4", "an MP4 starts with its ftyp box"))
+        self.check(label, problems, f"{tail}, {content_type}")
+
     # --- Live TV (M12): play URLs, and the media they lead to --------------------------------
 
     def _redirect(self, label: str, path: str) -> str | None:
@@ -2225,7 +2265,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--play",
         action="store_true",
         help="with --live, also request one movie and one episode play URL and "
-        "check the 302; this holds a stream slot until the session expires",
+        "check the 302; this holds a stream slot until the session expires; with "
+        "XC_CAPPED_USER and XC_CAPPED_PASS also a capped plan's .mp4",
     )
     parser.add_argument("--timeout", type=float, default=30.0, help="seconds per request (30)")
     parser.add_argument(
@@ -2250,8 +2291,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise SuiteError("--live needs the XC_USER and XC_PASS environment variables")
             for secret in credentials:
                 redact.add(secret)
+            # Optional: an account on a capped plan (ADR-0023), for the capped .mp4 check.
+            capped_pair = os.environ.get("XC_CAPPED_USER", ""), os.environ.get("XC_CAPPED_PASS", "")
+            capped = capped_pair if all(capped_pair) else None
+            for secret in capped or ():
+                redact.add(secret)
             client = HttpClient(args.live, args.timeout)
-            LiveRun(suite, reporter, client, credentials, play=args.play).run()
+            LiveRun(suite, reporter, client, credentials, play=args.play, capped=capped).run()
     except SuiteError as exc:
         sys.stderr.write(redact(f"validate.py: {exc}") + "\n")
         return 2

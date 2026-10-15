@@ -43,13 +43,21 @@ class CustomerScope:
     categories: frozenset[UUID] | None = None  # granted categories; None = every non-adult
     allow_movies: bool = True
     allow_series: bool = True
+    #: Live channels (the portal's Live page, ADR-0023); not part of the home rows' cache.
+    allow_live: bool = True
     nothing: bool = False  # no entitlement at all (no access profile)
     #: The plan's quality ceiling, for quality badges; not a browsing restriction.
     max_quality: int = 1080
 
     @classmethod
     def none(cls) -> "CustomerScope":
-        return cls(categories=frozenset(), allow_movies=False, allow_series=False, nothing=True)
+        return cls(
+            categories=frozenset(),
+            allow_movies=False,
+            allow_series=False,
+            allow_live=False,
+            nothing=True,
+        )
 
     def fingerprint(self) -> str:
         if self.nothing:
@@ -69,6 +77,7 @@ def scope_for(user: User) -> CustomerScope:
         categories=None if granted is None else frozenset(UUID(value) for value in granted),
         allow_movies=bool(entitlement["allow_movies"]),
         allow_series=bool(entitlement["allow_series"]),
+        allow_live=bool(entitlement.get("allow_live", True)),
         max_quality=int(entitlement["max_quality"]),
     )
 

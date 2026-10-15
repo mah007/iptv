@@ -59,3 +59,11 @@ def measure_replica_lag() -> float | None:
 
     measured = replica.measure()
     return None if measured is None else measured.get("lag_s")
+
+
+@shared_task(name="apps.core.tasks.heal_settings_cache", ignore_result=True)
+def heal_settings_cache() -> None:
+    """Every minute: a settings cache that missed a version bump is reset (ADR-0023)."""
+    from apps.core.services import heal_settings_cache as heal  # noqa: PLC0415
+
+    heal()

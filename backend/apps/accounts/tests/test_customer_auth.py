@@ -143,7 +143,9 @@ def test_the_ip_budget_covers_every_username(customer: User) -> None:
     assert int(response["Retry-After"]) > 0
 
 
-def test_portal_logout_retires_the_browser_device(customer: User) -> None:
+def test_portal_logout_keeps_the_browser_device_for_the_next_sign_in(customer: User) -> None:
+    """ADR-0023: the browser's device stays (its playback stops); a later sign-in in the
+    same browser reuses it, and the daily job retires it once unused."""
     client = APIClient()
     portal_login(client, customer.username)
     device = Device.objects.create(user=customer, kind=DeviceKind.WEB, name="Firefox on Linux")
@@ -152,7 +154,7 @@ def test_portal_logout_retires_the_browser_device(customer: User) -> None:
     session.save()
     assert client.post("/api/v1/auth/logout", headers=PORTAL).status_code == 204
     device.refresh_from_db()
-    assert device.revoked_at is not None
+    assert device.revoked_at is None
     assert client.get("/api/v1/me", headers=PORTAL).status_code == 401
     # Signed out already: still fine.
     assert APIClient().post("/api/v1/auth/logout", headers=PORTAL).status_code == 204

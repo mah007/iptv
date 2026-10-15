@@ -45,6 +45,8 @@ describe("csp", () => {
     expect(portal.get("frame-src")).toContain("https://www.youtube-nocookie.com");
     expect(admin.get("img-src")).toContain("https://image.tmdb.org");
     expect(portal.get("img-src")).not.toContain("https://image.tmdb.org");
+    expect(admin.get("img-src")).toContain("https://artworks.thetvdb.com");
+    expect(portal.get("img-src")).not.toContain("https://artworks.thetvdb.com");
   });
 
   it("sends the companion headers, keys allowed only in the admin", () => {

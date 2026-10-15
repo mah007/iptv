@@ -9,10 +9,12 @@ import os
 import shutil
 import subprocess
 from collections.abc import Callable, Iterator
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
+from django.utils import timezone
 from pytest_django import Settings
 
 from apps.catalog.models import FileState, ImageKind, ImageSource, MediaFile, MediaImage, Movie
@@ -418,3 +420,80 @@ def test_unreadable_sidecars_fail_alone(library: Library) -> None:
     # The compat MP4 leaves the unreadable sidecar out instead of failing.
     run(file, TranscodeProfile.COMPAT_MP4)
     assert [s.language for s in probe(asset(file) / "compat.mp4").subtitles] == ["eng"]
+
+
+def test_a_capped_plan_gets_a_capped_compat_mp4_by_remux(
+    library: Library, make_customer: Callable[..., Any], media_keys: None
+) -> None:
+    """ADR-0023: a plan capped at 480p plays an MP4 in IPTV apps: the ladder's 360p rung,
+    its AAC audio and the text subtitles, remuxed into compat480.mp4."""
+    from apps.media import capped, cleanup, publisher  # noqa: PLC0415
+    from apps.playback.services import Prefer, _choose_rendition  # noqa: PLC0415
+
+    make_customer(max_quality=480)
+    assert capped.wanted_ceilings() == (480,)
+    file = film(library)
+    services.prepare_file(file.pk)
+    for profile in (TranscodeProfile.SUBTITLES, TranscodeProfile.COMPAT_MP4):
+        run(file, profile)
+    run(file, TranscodeProfile.HLS)  # queues the capped MP4 once the ladder is ready
+
+    job = run(file, TranscodeProfile.COMPAT_CAPPED)
+    assert (job.remux, job.encoder, job.backend) == (True, "copy", "cpu")
+    made = probe(asset(file) / "compat480.mp4")
+    assert made.video is not None
+    assert (made.video.codec, made.video.height) == ("h264", 360)
+    assert [a.codec for a in made.audio] == ["aac"]
+    assert sorted(s.language for s in made.subtitles) == ["ara", "eng"]
+    row = Rendition.objects.get(media_file=file, kind=RenditionKind.COMPAT_CAPPED)
+    assert (row.name, row.height, row.details["rung"], row.encoder_used) == (
+        "compat480",
+        360,
+        "v2",
+        "copy",
+    )
+    assert os.readlink(asset(file) / "compat480" / "subs") == "../subs"
+
+    # An IPTV app on the 480p plan asking for .mp4 gets it; a 1080p plan the full MP4.
+    assert file.movie is not None
+    title = playable_title(TitleKind.MOVIE, file.movie.xc_id)
+    assert title is not None
+    entitlement: Any = {"max_quality": 480}
+    chosen = _choose_rendition(entitlement, title, Prefer.MP4)
+    assert (chosen.kind, chosen.token_rendition, chosen.entry) == (
+        Kind.COMPAT,
+        "compat480",
+        "compat480.mp4",
+    )
+    entitlement = {"max_quality": 1080}
+    assert _choose_rendition(entitlement, title, Prefer.MP4).entry == "compat.mp4"
+
+    # It stays through the cleanup, is published like the others, and is not queued again.
+    later = timezone.now() + timedelta(days=1)  # past the cleanup's grace period
+    swept = {
+        item.path.rsplit("/", 1)[-1] for item in cleanup.cleanup(dry_run=True, now=later).removals
+    }
+    assert not swept & {"compat480.mp4", "compat480"}
+    assert "compat480" in publisher.plan(file).renditions
+    assert services.ensure_capped(file) is None
+
+    # Switched off: no new ones are made (and the backlog finds nothing to do).
+    set_setting("library.capped_compat_mp4", "off", actor=None)
+    reset_settings_cache()
+    assert capped.wanted_ceilings() == ()
+    assert services.queue_capped_backlog() == 0
+
+
+def test_the_backlog_queues_capped_mp4s_for_a_new_ceiling(
+    library: Library, make_customer: Callable[..., Any]
+) -> None:
+    file = film(library)
+    services.prepare_file(file.pk)
+    for profile in (TranscodeProfile.SUBTITLES, TranscodeProfile.COMPAT_MP4, TranscodeProfile.HLS):
+        run(file, profile)
+    assert not TranscodeJob.objects.filter(profile=TranscodeProfile.COMPAT_CAPPED).exists()
+    make_customer(max_quality=480)  # a capped plan appears
+    assert services.queue_capped_backlog() == 1
+    assert services.queue_capped_backlog() == 0  # already queued
+    run(file, TranscodeProfile.COMPAT_CAPPED)
+    assert (asset(file) / "compat480.mp4").is_file()

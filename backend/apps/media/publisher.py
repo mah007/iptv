@@ -5,6 +5,7 @@ publisher (on the worker, which has internet access) copies each asset to the bu
 standalone edges and CDNs:
 
     <prefix>/<asset key>-g<generation>/compat.mp4           as on disk
+    .../compat720.mp4, compat480.mp4                         capped compat MP4s (ADR-0023)
     .../source.<ext>, uhd.<ext>                              the library file a link names
     .../hls/master.m3u8                                      rewritten: rungs by height
     .../hls/v<n>-h<box>/index.m3u8, init.mp4, seg_*.m4s     each rung, named by its height
@@ -212,8 +213,14 @@ _STEMS: Final = {
 }
 
 
+def _stem(row: Rendition) -> str:
+    """The file stem (and token rendition) of a progressive rendition."""
+    kind = RenditionKind(row.kind)
+    return row.name if kind is RenditionKind.COMPAT_CAPPED else _STEMS[kind]
+
+
 def _progressive(root: Path, row: Rendition, *, sources: bool) -> Planned | None:
-    entry = root / f"{_STEMS[RenditionKind(row.kind)]}.{row.container}"
+    entry = root / f"{_stem(row)}.{row.container}"
     if entry.is_symlink() and not sources:
         return None
     return _file(entry.name, entry.resolve()) if entry.exists() else None
@@ -253,11 +260,11 @@ def plan(file: MediaFile) -> Plan:
     sources = bool(get_setting("storage.publish_sources"))
     for row in rows:
         kind = RenditionKind(row.kind)
-        if kind in _STEMS:
+        if kind in _STEMS or (kind is RenditionKind.COMPAT_CAPPED and row.name):
             item = _progressive(root, row, sources=sources)
             if item is not None:
                 objects.append(item)
-                renditions.append(_STEMS[kind])
+                renditions.append(_stem(row))
         elif kind == RenditionKind.HLS_MASTER:
             master = root / row.name / layout.MASTER
             if master.is_file():

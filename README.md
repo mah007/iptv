@@ -19,6 +19,13 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-16:** the last follow-ups (ADR-0023):
+  - **Metadata:** TheTVDB as the fallback for TV series TMDB can't match.
+  - **Admin:** Devices and Lockouts pages; admins change their own password; customer lists and KPIs follow the governing subscription.
+  - **Customers:** they see and stop their other streams from the player, change their password, and get one device per browser.
+  - **Portal:** live TV with now/next, a guide and catch-up; editable privacy and terms pages (templates for a lawyer to review).
+  - **Live ingest:** MediaMTX encoder sign-ins are managed in the admin.
+  - **Fixes:** 720p/480p MP4 copies so capped plans play in Android IPTV apps, and a self-healing settings cache.
 - **2026-10-14:** application security and scale deployed to tv.mah007.net:
   - The rolling update replaced the web replicas behind health checks with no errors.
   - Strict CSP headers are live on the admin and portal; the IP geolocation database downloaded.
@@ -111,10 +118,12 @@ From a file on disk to a TV screen:
 - ✅ Folder watcher plus scheduled reconciliation scans that detect new, changed, moved and removed files.
 - ✅ Filename parsing for movies, episodes, multi-episode files, anime absolute numbering and editions.
 - ✅ TMDB matching with a confidence score: confident matches publish automatically, and doubtful ones go to a review queue.
-- ✅ Metadata in English and Arabic, with posters in WebP/AVIF and blurhash placeholders. 🔜 TheTVDB as a fallback for TV.
+- ✅ Metadata in English and Arabic, with posters in WebP/AVIF and blurhash placeholders.
+- ✅ **TheTVDB as the TV fallback:** when TMDB has no confident match for a series, TheTVDB is asked (our own v4 client, rate-limited and cached). A series that names its TMDB id is matched there; otherwise it is built from TheTVDB with its aired order and shown with TheTVDB's credit. Reviews, search and rematch can choose either provider. Off until its key is saved.
 
 **Media processing**
 - ✅ **Transcode at ingest and direct-play at runtime.** Each title produces a compatible MP4 (H.264/AAC), an adaptive HLS ladder (1080p/720p/540p/360p) and an optional UHD variant.
+- ✅ **MP4s for capped plans:** for plans capped at 720p or 480p, a matching MP4 is remuxed from the ladder in seconds (no encode), so IPTV apps that only play MP4 work on those plans too.
 - ✅ Hardware encoding with Intel QSV/VAAPI and NVIDIA NVENC, detected automatically, with CPU fallback.
 - ✅ Subtitle extraction and sidecar `.srt` pickup, Arabic encoding fixes (cp1256 to UTF-8), and preview thumbnails for seeking.
 
@@ -122,7 +131,7 @@ From a file on disk to a TV screen:
 - ✅ Separate control and streaming planes. Media servers only verify signed tokens and serve bytes; the database never sees a media request.
 - ✅ Per-device credentials, server-side concurrency limits, device approval, IP and country rules, and new-device emails.
 - ✅ **Sharing detection:** every 5 minutes a score per customer from the providers, countries, impossible journeys and networks per TV login they were seen on (DB-IP Lite geolocation, updated monthly). Flags show their evidence and never lock anyone; admins warn, reset the TV logins or suspend, and *revoke by app* stops every login of one app after a vendor leak.
-- ✅ Live session view, with kill, block-device and block-IP actions.
+- ✅ Live session view, with kill, block-device and block-IP actions; a Devices page across every customer with bulk block, unblock and revoke; a Lockouts page (sign-ins, second factors, TV logins and addresses) with unlock.
 - ✅ **Media edges on other servers (M15):** add one in the admin's **Edges** page and run `install.sh --edge` on it.
   - Each edge has its own Let's Encrypt certificate and a secret of its own. It receives its keys on a control channel, so nothing else secret lives there.
   - Kicks and the concurrency heartbeats work across servers.
@@ -137,15 +146,17 @@ From a file on disk to a TV screen:
 - ✅ Contract tests on every response, plus an automated end-to-end run with IPTVnator.
 
 **Live TV**
-- ✅ Channels you own or license, from your encoders, cameras, an ErsatzTV schedule or the optional MediaMTX ingest (RTMP, SRT, RTSP). Each channel records its rights holder and licence dates and is switched off when the licence ends. There is no playlist import.
+- ✅ Channels you own or license, from your encoders, cameras, an ErsatzTV schedule or the optional MediaMTX ingest (RTMP, SRT, RTSP), whose publish and read users are managed in Settings → Integrations (MediaMTX asks the server about every sign-in). Each channel records its rights holder and licence dates and is switched off when the licence ends. There is no playlist import.
 - ✅ Sources are encrypted and never shown again, and addresses inside the server are refused. Groups use the plans' category rules; channels have logos, ordering and a source test that probes codecs.
 - ✅ Each channel is packaged once (FFmpeg copy) and served by the edge as HLS or one continuous MPEG-TS stream. Channels start when someone watches. Catch-up recording has a disk budget set in the admin, and apps can timeshift.
 - ✅ XMLTV guide import from a URL on a schedule, or an upload, with channel mapping and an unmatched view. The guide table is partitioned monthly.
-- 🔜 Live TV in the customer portal; GPU real-time transcoding for live.
+- ✅ **Live TV in the customer portal:** a Live page with groups, what's on now and next, each channel's guide, and recorded programmes to watch from the start (catch-up); the player has a live mode.
+- 🔜 GPU real-time transcoding for live.
 
 **Admin and customer apps**
 - ✅ Admin SPA in Arabic (RTL) and English, with dark and light themes, a ⌘K command palette, keyboard shortcuts and live dashboards.
-- ✅ Customer web portal with a Shaka Player-based player, Continue Watching, search, recommendations, device and TV-app management, and checkout.
+- ✅ Customer web portal with a Shaka Player-based player, Continue Watching, search, recommendations, device and TV-app management, and checkout. When the plan's streams are all in use, the player lists them and stops one; customers and admins change their own passwords; a title being prepared says when it'll be ready.
+- ✅ **Privacy policy and terms:** editable in the admin (Markdown, English and Arabic), starting from templates to review with a lawyer, and shown at `/privacy` and `/terms`, linked from every footer and the checkout.
 
 **Business**
 - ✅ Plans, subscriptions, trials, a grace period and expiry reminders.
@@ -243,7 +254,7 @@ Every dependency imported into our code is permissively licensed (MIT, BSD, Apac
 
 ### Accounts and keys
 - **TMDB API key.** Commercial use needs a TMDB commercial licence. Without a key, development runs on recorded fixtures.
-- **TheTVDB** (optional, for TV ordering). Its paid tier is required above $50k revenue.
+- **TheTVDB** (optional: the fallback for series TMDB can't match, and TV ordering). Free below USD 50,000 of yearly revenue with its credit shown (the apps show it); a paid tier above.
 - Payment provider, SMTP, Telegram bot and WhatsApp Business accounts, as needed. Keys are entered in the admin (**Settings → Integrations**), not in files.
 
 ### Hardware sizing
@@ -308,9 +319,10 @@ Demo data and media:
 | `make sample-media` | Legal synthetic sample files (FFmpeg test patterns named like real titles) in `./media` |
 | `make media-ready` | Adds the sample libraries if missing, then waits until a movie and a series are scanned, matched and transcoded |
 | `make live-ready` | The legal synthetic live channel: a test pattern looped by the dev MediaMTX, with a generated guide, waiting until 3 minutes of catch-up are recorded; about a second on reruns |
-| `make compat` · `make compat-live` · `make e2e-iptvnator` | Xtream contract suite: offline, against the running stack, and an IPTVnator journey that signs in and plays |
+| `make compat` · `make compat-live` · `make e2e-iptvnator` | Xtream contract suite: offline, against the running stack (a 720p plan's `.mp4` must be a capped MP4), and an IPTVnator journey that signs in and plays |
+| `make mediamtx-test` | Live ingest sign-ins: the production MediaMTX asks a throwaway web process about publishing and reading (about 15 s; part of `make ci`) |
 | `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session, add a live channel, set SMTP to Mailpit and send a test email from Integrations) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
-| `make e2e-portal` | Portal journey in Playwright (sign in, Arabic search, play The Matrix, continue watching, sign out) and axe on ten pages in Arabic/light and English/dark at 390 px. Report in `dist/portal-e2e` |
+| `make e2e-portal` | Portal journeys in Playwright (sign in, Arabic search, play The Matrix, continue watching, sign out; live TV and catch-up; a full plan stopping the other stream; changing the password) and axe on thirteen pages in Arabic/light and English/dark at 390 px; needs `make media-ready` and `make live-ready`. Report in `dist/portal-e2e` |
 
 ## Connecting an IPTV app
 
@@ -395,7 +407,7 @@ The admin enrols an authenticator app (TOTP) at first sign-in. A generated passw
 
 ### Beyond the installer
 - ✅ **Monitoring (M13):** the `compose.monitoring.yml` overlay (the installer's monitoring question) with Grafana, Prometheus and Alertmanager on `grafana.<domain>` behind the admin's sign-in, and alerts by email and Telegram; what each alert means and what to do is in [docs/runbooks/alerts.md](docs/runbooks/alerts.md).
-- ✅ **Live TV (M12):** included in every install and update (the `live` packager, the `live-relay` and the `live-data` volume). The catch-up disk budget and the other live settings are in the admin (**Settings → Live TV**). The optional MediaMTX ingest for your own encoders and OBS is `LIVE_INGEST=1` in `.env` plus `install.sh --update`. Channels, ingest, ErsatzTV, guides and disk sizing are in [docs/runbooks/live-tv.md](docs/runbooks/live-tv.md).
+- ✅ **Live TV (M12):** included in every install and update (the `live` packager, the `live-relay` and the `live-data` volume). The catch-up disk budget and the other live settings are in the admin (**Settings → Live TV**). The optional MediaMTX ingest for your own encoders and OBS is `LIVE_INGEST=1` in `.env` plus `install.sh --update`; its publish and read users are then managed in **Settings → Integrations → Live ingest**. Channels, ingest, ErsatzTV, guides and disk sizing are in [docs/runbooks/live-tv.md](docs/runbooks/live-tv.md).
 - ✅ **Backups (M14b):** included in every install and update. pgBackRest takes a full backup weekly and a differential nightly, and archives WAL continuously (at most 5 minutes of data at risk); restic keeps `.env`, `secrets/`, the artwork, a logical dump and optionally the media (renditions are excluded because they can be regenerated). Everything is encrypted, kept in `BACKUP_DIR` and optionally copied to an S3-compatible bucket (Settings → Backups). A restore drill runs weekly; its result and restore time are on the admin's Backups page, and a failure alerts. Restores, disaster recovery and rollback: [docs/runbooks/backups.md](docs/runbooks/backups.md), [docs/runbooks/rollback.md](docs/runbooks/rollback.md).
 - ✅ **Server security (M14b):** CrowdSec (opt-in at install, on by default), ufw with SSH rate-limited or limited to your networks, TLS 1.2+ with forward-secret ciphers, least-privilege database and Valkey users, and key rotation. The checklist, CrowdSec commands and the privacy settings are in [docs/runbooks/security.md](docs/runbooks/security.md); for trouble, [leaked-credential.md](docs/runbooks/leaked-credential.md) and [incident-response.md](docs/runbooks/incident-response.md).
 - ✅ **Application security (M14a):** included in every update, with nothing to do by hand (the edge's stream-auth secret is generated, the GeoIP databases download on the worker's first start). Then add a security key for each owner (user menu → **Sign-in and security**), consider **Settings → Security** → *Security key required for* and *Admin allowed addresses*, and set SPF, DKIM and DMARC for your mail domain: [docs/runbooks/security.md](docs/runbooks/security.md). Sharing flags: [docs/runbooks/leaked-credential.md](docs/runbooks/leaked-credential.md#sharing-flags).
@@ -415,7 +427,8 @@ The admin enrols an authenticator app (TOTP) at first sign-in. A generated passw
 - Never load-test against a CDN or public egress.
 
 ### Go-live checklist
-- [ ] TMDB commercial licence signed (and a TheTVDB tier if needed); TMDB attribution visible.
+- [ ] TMDB commercial licence signed (and a TheTVDB tier if needed); TMDB attribution visible (and TheTVDB's, which the apps show for its series).
+- [ ] The privacy policy and terms (Settings → Legal pages) reviewed by a lawyer and adapted; the admin flags a text that is still the template.
 - [ ] Every title has rights metadata, and the licence-expiry job is active.
 - [ ] TLS rated A+, HSTS on, admin MFA enforced, no default credentials.
 - [ ] Secrets only in Docker secrets or SOPS; an automated test proves none appear in images or logs.
@@ -433,7 +446,7 @@ Everything you change while running the service lives in the admin, like any end
 
 | Where | What |
 |---|---|
-| **Settings → Integrations** | TMDB, TheTVDB, email (SMTP), Stripe, Moyasar and Telegram: one card each with its status (configured, from server config, incomplete, not set) and a **Test**: a test email to yourself, a key check against the provider, a test Telegram message. Save, then Test. |
+| **Settings → Integrations** | TMDB, TheTVDB, email (SMTP), Stripe, Moyasar, Telegram, the S3 origin, Bunny and live ingest (MediaMTX): one card each with its status (configured, from server config, incomplete, not set) and a **Test**: a test email to yourself, a key check against the provider, a test Telegram message. Save, then Test. |
 | **Settings** | Every setting, grouped: branding (names, logos, support contacts, language, time zone), Xtream, playback, library and transcoding, metadata, email, notifications, billing, trials, security, feature flags, live TV, monitoring. Each shows where its value comes from. |
 | **Settings → System** | Read-only: version and commit, hosts, folders, monitoring and live ingest, the settings still read from `.env`, the bootstrap secrets (where each lives and why) and key rotations. |
 
@@ -453,15 +466,15 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 | M2 | Backend foundation | Redacted structured logs, problem+json errors, OpenAPI and the generated client, settings registry, feature flags, audit log, metrics | ✅ Done |
 | M3 | Accounts & subscriptions | Users, roles, devices, Xtream credentials (Argon2id, admin-chosen or generated), admin MFA, plans, subscription activation, expiry and grace jobs, entitlement cache, invoices, payments, notifications | ✅ Done |
 | M4 | Library scanner | Watcher, reconciliation scans, move detection, ffprobe, filename parsing, live scan progress, sample media | ✅ Done |
-| M5 | Metadata | TMDB client, match scoring, review queue, English and Arabic enrichment, image pipeline (TheTVDB fallback still to come) | ✅ Mostly done |
+| M5 | Metadata | TMDB client, match scoring, review queue, English and Arabic enrichment, image pipeline, TheTVDB fallback | ✅ Done |
 | M6 | Catalog & search | Catalog API, categories, collections, Meilisearch with Arabic normalisation, home rows | ✅ Done |
 | M7 | Direct-play streaming | Nginx edge with signed tokens, playback API, concurrency limits, kick, session sweeper | ✅ Done |
 | M8 | Transcoding | Rendition planner, GPU detection, compatible MP4, HLS ladder with per-plan ceilings, UHD/HDR, thumbnails, subtitles, retention | ✅ Done (GPU benchmarks pending) |
 | M9 | Xtream API | All VOD and series endpoints with exact types, per-plan cache, M3U, contract tests, IPTVnator E2E | ✅ Done |
 | M10 | Client compatibility | Verified on Smarters, TiviMate, XCIPTV, OTT Navigator, UHF and a webOS/Tizen app; Arabic and English setup guides | Needs real devices |
-| M11 | Admin UI | Every admin page, both themes, Arabic RTL and English, shortcuts, live views, accessibility checks | ✅ Done |
-| M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, checkout (manual, Stripe, Moyasar) | ✅ Done (provider sandboxes need keys) |
-| M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up and timeshift, ErsatzTV and MediaMTX integrations | ✅ Done (portal live TV later) |
+| M11 | Admin UI | Every admin page (Devices and Lockouts included), both themes, Arabic RTL and English, shortcuts, live views, accessibility checks | ✅ Done |
+| M11b | Customer portal | Browse, search, player with thumbnails, tracks and resume, live TV and catch-up, checkout (manual, Stripe, Moyasar), legal pages | ✅ Done (provider sandboxes need keys) |
+| M12 | Live TV & EPG | Channels and groups, XMLTV EPG, live HLS/TS, catch-up and timeshift, ErsatzTV and MediaMTX integrations, live TV in the portal | ✅ Done |
 | M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | ✅ Done |
 | CFG | Dynamic configuration | Encrypted secret settings with the `.env` fallback, Integrations page with Tests, System page, branding, Alertmanager's fallback from Django, installer writes settings | ✅ Done |
 | M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | ✅ Done: operations (M14b) and application security (M14a: CSP, WebAuthn, step-up, IP allowlist, sharing detection, rate limits, dependency/Semgrep/ZAP checks, threat model v2) |

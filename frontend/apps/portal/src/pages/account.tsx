@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   getMeRetrieveQueryKey,
   useAuthPasswordForgot,
+  useMePasswordChange,
   useMeUpdate,
   type CustomerMe,
 } from "@smart-iptv/api-portal";
@@ -21,6 +22,7 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -39,11 +41,12 @@ import {
   LogOut,
   MonitorSmartphone,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
+import { changeErrorKeys } from "../features/auth/errors";
 import { useSignOut } from "../layout/account-menu";
 import { useMe } from "../lib/auth";
 import { usePageTitle } from "../lib/page-title";
@@ -203,11 +206,26 @@ function ProfileForm({ me }: { me: CustomerMe }) {
   );
 }
 
-/** No password change endpoint exists: the customer gets a reset link by email instead. */
+/**
+ * Change my password with the current one (ADR-0023): my other sign-ins end. A forgotten
+ * password still gets a reset link by email.
+ */
 function PasswordCard({ me }: { me: CustomerMe }) {
   const { t } = useTranslation();
   const forgot = useAuthPasswordForgot();
+  const change = useMePasswordChange();
+  const currentId = useId();
+  const newId = useId();
+  const repeatId = useId();
   const [sent, setSent] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [errors, setErrors] = useState<{ current: string | null; password: string | null }>({
+    current: null,
+    password: null,
+  });
+  const mismatch = repeat !== "" && repeat !== next;
   return (
     <Card>
       <CardHeader>
@@ -215,10 +233,111 @@ function PasswordCard({ me }: { me: CustomerMe }) {
           <KeyRound aria-hidden="true" className="size-4" />
           {t("account.password")}
         </CardTitle>
-        <CardDescription>
-          {me.email ? t("account.passwordHint") : t("account.passwordNoEmail")}
-        </CardDescription>
+        <CardDescription>{t("account.passwordChangeHint")}</CardDescription>
       </CardHeader>
+      <CardContent>
+        <form
+          className="grid max-w-md gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (mismatch || current === "" || next === "") return;
+            setErrors({ current: null, password: null });
+            change.mutate(
+              { data: { current_password: current, new_password: next } },
+              {
+                onSuccess: () => {
+                  toast.success(t("account.passwordChanged"));
+                  setCurrent("");
+                  setNext("");
+                  setRepeat("");
+                },
+                onError: (error) => {
+                  const found = changeErrorKeys(error);
+                  if (found.current === null && found.password === null) {
+                    toast.error(t("account.passwordChangeFailed"));
+                  }
+                  setErrors(found);
+                },
+              },
+            );
+          }}
+        >
+          <div className="grid gap-1.5">
+            <Label htmlFor={currentId}>{t("account.passwordCurrent")}</Label>
+            <Input
+              id={currentId}
+              type="password"
+              autoComplete="current-password"
+              value={current}
+              aria-invalid={errors.current ? true : undefined}
+              aria-describedby={errors.current ? `${currentId}-error` : undefined}
+              onChange={(event) => {
+                setCurrent(event.target.value);
+              }}
+            />
+            {errors.current ? (
+              <p id={`${currentId}-error`} className="text-xs text-danger-text">
+                {t(errors.current)}
+              </p>
+            ) : null}
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={newId}>{t("account.passwordNew")}</Label>
+            <Input
+              id={newId}
+              type="password"
+              autoComplete="new-password"
+              value={next}
+              aria-invalid={errors.password ? true : undefined}
+              aria-describedby={`${newId}-help`}
+              onChange={(event) => {
+                setNext(event.target.value);
+              }}
+            />
+            <p
+              id={`${newId}-help`}
+              className={
+                errors.password ? "text-xs text-danger-text" : "text-xs text-muted-foreground"
+              }
+            >
+              {errors.password ? t(errors.password) : t("account.passwordRules")}
+            </p>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={repeatId}>{t("account.passwordRepeat")}</Label>
+            <Input
+              id={repeatId}
+              type="password"
+              autoComplete="new-password"
+              value={repeat}
+              aria-invalid={mismatch ? true : undefined}
+              aria-describedby={mismatch ? `${repeatId}-error` : undefined}
+              onChange={(event) => {
+                setRepeat(event.target.value);
+              }}
+            />
+            {mismatch ? (
+              <p id={`${repeatId}-error`} className="text-xs text-danger-text">
+                {t("account.passwordMismatch")}
+              </p>
+            ) : null}
+          </div>
+          <div>
+            <Button
+              type="submit"
+              pending={change.isPending}
+              disabled={current === "" || next === "" || repeat === "" || mismatch}
+            >
+              {t("account.passwordChange")}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+      <CardContent className="grid gap-3 border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          {me.email ? t("account.passwordHint") : t("account.passwordNoEmail")}
+        </p>
+      </CardContent>
       {me.email ? (
         <CardContent className="grid gap-3">
           {sent ? (

@@ -48,7 +48,9 @@
     "integrations": "Integrations",
     "system": "System",
     "backups": "Backups",
-    "edges": "Edges"
+    "edges": "Edges",
+    "devices": "Devices",
+    "lockouts": "Lockouts"
   },
   "layout": {
     "skipToContent": "Skip to content",
@@ -109,7 +111,9 @@
       "reviews": "Review queue",
       "reviewsDetail": "Files waiting for a match",
       "transcode": "Transcode queue",
-      "transcodeDetail": "{{running}} running · {{failed}} failed in 24 h"
+      "transcodeDetail": "{{running}} running · {{failed}} failed in 24 h",
+      "inGrace_one": "{{formatted}} more in grace",
+      "inGrace_other": "{{formatted}} more in grace"
     },
     "expiringSoon": "Expiring soon",
     "newest": "Newest customers",
@@ -373,7 +377,12 @@
       "confirm": "Reactivate",
       "done": "Customer reactivated"
     },
-    "riskFlagged": "Possible sharing"
+    "riskFlagged": "Possible sharing",
+    "sources": {
+      "subscription": "Subscription",
+      "profile": "Access profile",
+      "none": "No subscription"
+    }
   },
   "credential": {
     "server": "Server URL",
@@ -892,6 +901,10 @@
       "antisharing": {
         "title": "Sharing detection",
         "description": "When a customer's networks and countries suggest their account is shared."
+      },
+      "legal": {
+        "title": "Legal pages",
+        "description": "The privacy policy and terms of service customers read in the portal and at checkout."
       }
     },
     "keys": {
@@ -1033,6 +1046,10 @@
         "transcode_job_timeout_h": {
           "label": "Transcode time limit (h)",
           "description": "A transcode running longer than this many hours is stopped."
+        },
+        "capped_compat_mp4": {
+          "label": "Capped MP4s for IPTV apps",
+          "description": "A 720p or 480p MP4 remuxed from the ladder (seconds per title, no encode), so IPTV apps on plans capped there get an MP4. Auto: only the ceilings plans use."
         }
       },
       "metadata": {
@@ -1079,6 +1096,10 @@
         "tvdb_pin": {
           "label": "TheTVDB subscriber PIN",
           "description": "Only for a user-supported key."
+        },
+        "tvdb_rate_limit_per_s": {
+          "label": "TheTVDB requests per second",
+          "description": "Shared by every worker."
         }
       },
       "billing": {
@@ -1245,6 +1266,10 @@
         "rate_backup_runs_per_hour": {
           "label": "Backup runs per hour",
           "description": "Backups, restore drills and destination checks one admin may start per hour."
+        },
+        "web_device_idle_days": {
+          "label": "Unused browsers leave after (days)",
+          "description": "A browser not used for this many days leaves the customer's device list. The same browser keeps one device across sign-ins."
         }
       },
       "features": {
@@ -1301,6 +1326,30 @@
         "archive_max_gb": {
           "label": "Catch-up archive budget",
           "description": "Disk the catch-up archive may use across all channels, in GB. Beyond it the oldest recorded hours are deleted first."
+        },
+        "ingest_publish_user": {
+          "label": "Ingest publish user",
+          "description": "The user encoders, cameras and OBS publish with (rtmp://user:password@host/path)."
+        },
+        "ingest_publish_password": {
+          "label": "Ingest publish password",
+          "description": "8 to 200 characters without spaces; changing it signs out encoders at their next connection."
+        },
+        "ingest_read_user": {
+          "label": "Ingest read user",
+          "description": "The user the live packager reads ingested streams with, from the Docker networks only."
+        },
+        "ingest_read_password": {
+          "label": "Ingest read password",
+          "description": "Use it in the channels' source addresses (rtsp://reader:password@mediamtx:8554/path)."
+        },
+        "ingest_auth_max_failures": {
+          "label": "Failed ingest sign-ins before a pause",
+          "description": "Failed sign-ins from one address before it is refused for the window below."
+        },
+        "ingest_auth_block_minutes": {
+          "label": "Ingest sign-in pause (minutes)",
+          "description": "How long an address with too many failed ingest sign-ins is refused."
         }
       },
       "monitoring": {
@@ -1640,6 +1689,24 @@
           "label": "Tell the admins",
           "description": "Tell the admins (alert recipients and Telegram) when a customer is flagged."
         }
+      },
+      "legal": {
+        "privacy_en": {
+          "label": "Privacy policy (English)",
+          "description": "Markdown. {service}, {support_email}, {support_phone} and {seller_address} are filled in from Branding and Billing."
+        },
+        "privacy_ar": {
+          "label": "Privacy policy (Arabic)",
+          "description": "Markdown, with the same placeholders."
+        },
+        "terms_en": {
+          "label": "Terms of service (English)",
+          "description": "Markdown, with the same placeholders."
+        },
+        "terms_ar": {
+          "label": "Terms of service (Arabic)",
+          "description": "Markdown, with the same placeholders."
+        }
       }
     },
     "choices": {
@@ -1653,7 +1720,9 @@
       "owners": "Owners",
       "admins": "Owners and admins",
       "deny": "Deny",
-      "allow": "Allow"
+      "allow": "Allow",
+      "auto": "Automatic",
+      "off": "Off"
     },
     "tabs": {
       "label": "Settings pages",
@@ -1708,6 +1777,10 @@
       "uploaded": "Uploaded; it appears in a few seconds.",
       "slow": "The logo is taking long to appear; check again in a minute.",
       "tooLarge": "The image is too large (2 MB at most)."
+    },
+    "text": {
+      "template": "Template text: review it with a lawyer before go-live.",
+      "preview": "Preview"
     }
   },
   "notFound": {
@@ -1936,7 +2009,8 @@
     "sources": {
       "tmdb": "TMDB",
       "synthetic": "Offline fixtures",
-      "manual": "Manual"
+      "manual": "Manual",
+      "tvdb": "TheTVDB"
     },
     "detail": {
       "edit": "Edit",
@@ -1961,7 +2035,10 @@
       "refreshed": "Refreshed",
       "locked": "Locked fields",
       "posterOf": "Poster of {{title}}",
-      "categories": "Categories"
+      "categories": "Categories",
+      "tvdb": "TheTVDB",
+      "ordering": "Episode order",
+      "orderingSaved": "Episode order changed. The series is being fetched again."
     },
     "files": {
       "title": "Files",
@@ -2008,6 +2085,11 @@
       "titleRequired": "Enter the English title.",
       "tooLong": "That's too long.",
       "year": "Enter a year from 1870 to 2200, or leave it empty."
+    },
+    "orderings": {
+      "tmdb_default": "TMDB",
+      "tvdb_aired": "TheTVDB aired order",
+      "tvdb_dvd": "TheTVDB DVD order"
     }
   },
   "review": {
@@ -2047,9 +2129,8 @@
       "runtime": "Runtime",
       "popularity": "Popularity"
     },
-    "tmdbId": "TMDB {{id}}",
     "candidates": "Candidates ({{number}})",
-    "noCandidates": "No candidates. Search TMDB or enter an ID below.",
+    "noCandidates": "No candidates. Search TMDB (or TheTVDB for series), or enter an ID below.",
     "file": {
       "title": "What the file says",
       "parsedTitle": "Parsed title",
@@ -2061,13 +2142,17 @@
     },
     "manual": {
       "title": "Match manually",
-      "description": "Search TMDB, or enter the TMDB ID of the right title.",
+      "description": "Search TMDB, or TheTVDB for series, or enter the right title's ID.",
       "kind": "Type",
-      "tmdbId": "TMDB ID",
       "match": "Match",
-      "search": "Search TMDB",
+      "search": "Search",
       "searchButton": "Search",
-      "noResults": "Nothing found. Try another spelling or the original title."
+      "noResults": "Nothing found. Try another spelling or the original title.",
+      "provider": "Provider",
+      "providerIdLabel": {
+        "tmdb": "TMDB ID",
+        "tvdb": "TheTVDB ID"
+      }
     },
     "empty": {
       "open": {
@@ -2092,6 +2177,14 @@
       "skip": "Skip this file",
       "next": "Next file",
       "previous": "Previous file"
+    },
+    "providers": {
+      "tmdb": "TMDB",
+      "tvdb": "TheTVDB"
+    },
+    "providerId": {
+      "tmdb": "TMDB {{id}}",
+      "tvdb": "TheTVDB {{id}}"
     }
   },
   "categories": {
@@ -2278,7 +2371,67 @@
     "rights_required": "Channels need a rights holder before they can be enabled.",
     "invalid_cron": "Enter five cron fields.",
     "invalid_url": "Enter a valid URL.",
-    "credentials_in_url": "Put credentials in their own fields, not in the URL."
+    "credentials_in_url": "Put credentials in their own fields, not in the URL.",
+    "provider_not_found": "The provider has no title with this ID.",
+    "tvdb_series_only": "TheTVDB matches series only.",
+    "one_provider": "Choose a TMDB or a TheTVDB title, not both.",
+    "placement_episode_not_found": "The provider has no such season or episode: check the numbers in the file name.",
+    "placement_numbering": "The file name has no season and episode numbers.",
+    "placement_classification": "Choose whether the file is a movie or an episode.",
+    "invalid_type": "Enter a value of the right kind.",
+    "invalid_color": "Enter a colour as #RRGGBB.",
+    "invalid_currency": "Enter an ISO 4217 currency code, e.g. SAR.",
+    "invalid_email": "Enter a valid email address.",
+    "invalid_invoice_prefix": "Use 1 to 10 capital letters or digits.",
+    "invalid_vat_number": "Use 5 to 20 letters or digits.",
+    "invalid_telegram_token": "Enter the bot token @BotFather gave, e.g. 123456789:AA…",
+    "invalid_telegram_chat": "Enter the chat ID, a number such as -1001234567890.",
+    "invalid_host": "Enter a host name or address, e.g. smtp.example.com.",
+    "invalid_tmdb_token": "Paste TMDB's API Read Access Token (a long text starting with eyJ).",
+    "invalid_tmdb_key": "A TMDB API key is 32 letters and digits.",
+    "invalid_language_tag": "Use a language tag such as en-US.",
+    "invalid_tvdb_key": "Paste the API key TheTVDB gave your project.",
+    "invalid_tvdb_pin": "Use the PIN's letters and digits.",
+    "invalid_stripe_key": "A Stripe secret key starts with sk_test_, sk_live_, rk_test_ or rk_live_.",
+    "invalid_stripe_webhook_secret": "A Stripe webhook signing secret starts with whsec_.",
+    "invalid_moyasar_key": "A Moyasar secret key starts with sk_test_ or sk_live_.",
+    "invalid_webhook_token": "Use 8 to 200 characters without spaces.",
+    "invalid_logo": "Upload the logo; its stored name is set for you.",
+    "invalid_sender": "Enter an address, or a name and an address: \"Smart IPTV <no-reply@example.com>\".",
+    "invalid_time": "Enter a time as HH:MM (24-hour), e.g. 03:30.",
+    "invalid_bucket": "Enter a bucket name, e.g. my-backups.",
+    "invalid_prefix": "Use letters, digits, dots, dashes and slashes.",
+    "invalid_region": "Enter a region, e.g. eu-central-1.",
+    "invalid_key": "Paste the key exactly as the provider gave it.",
+    "invalid_genre_map": "Enter a JSON object of TMDB genre IDs to category slugs, e.g. {\"28\": \"action\"}.",
+    "invalid_network": "One of the entries isn't an IP address or network (e.g. 203.0.113.0/24).",
+    "invalid_origin": "One of the entries isn't an origin such as https://cdn.example.com.",
+    "no_server_config": "The server config holds no value for this setting.",
+    "too_large": "The file is too large.",
+    "unsupported_format": "Use a PNG, JPEG or WebP image.",
+    "not_an_image_setting": "This setting takes no image.",
+    "allowlist_excludes_you": "Add the address you're using now first, or you'd lock yourself out.",
+    "path_missing": "This folder doesn't exist.",
+    "path_outside_root": "Libraries must be folders under the media root.",
+    "path_root": "Choose a folder inside the media root, not the root itself.",
+    "path_not_a_folder": "This is not a folder.",
+    "path_unreadable": "The server can't read this folder.",
+    "path_overlaps": "This folder overlaps another library.",
+    "name_taken": "Already used by another library.",
+    "slug_taken": "Already used by another category of this kind.",
+    "category_kind": "Use categories of this kind.",
+    "kind_immutable": "A category's kind can't change.",
+    "parent_self": "A category can't be its own parent.",
+    "ordering_source": "Choose an order this series' source has.",
+    "wrong_password": "The current password is not right.",
+    "password_unchanged": "Choose a new password, not the current one.",
+    "password_too_short": "Use at least {{min}} characters.",
+    "password_too_common": "This password is too common. Choose another.",
+    "password_entirely_numeric": "Use letters too, not only digits.",
+    "password_too_similar": "This password is too close to your name or email.",
+    "too_long": "Too long: keep it under {{max}} characters.",
+    "invalid_ingest_user": "Use 1 to 64 letters, digits, dots, dashes or underscores.",
+    "invalid_ingest_password": "Use 8 to 200 printable characters without spaces."
   },
   "activity": {
     "label": "Activity",
@@ -3077,14 +3230,16 @@
       "hls_variant": "HLS variant",
       "hls_master": "HLS master playlist",
       "uhd": "4K",
-      "thumbnails": "Thumbnails"
+      "thumbnails": "Thumbnails",
+      "compat_capped": "Capped compatibility MP4 (720p/480p)"
     },
     "outputs": {
       "compat_mp4": "Compatibility MP4",
       "hls": "HLS ladder",
       "uhd": "4K",
       "thumbnails": "Thumbnails",
-      "subtitles": "Subtitles"
+      "subtitles": "Subtitles",
+      "compat_capped": "Capped compatibility MP4 (720p/480p)"
     },
     "origins": {
       "embedded": "Embedded",
@@ -3130,16 +3285,27 @@
     "rematch": {
       "action": "Re-match",
       "title": "Re-match this title",
-      "description": "Link its files to another TMDB title, or let the matcher try again. Metadata and artwork are fetched again.",
-      "search": "Search TMDB",
+      "description": "Link its files to another TMDB title (or TheTVDB series), or let the matcher try again. Metadata and artwork are fetched again.",
+      "search": "Search",
       "use": "Use this",
       "automatic": "Match automatically",
       "done_one": "{{count}} file re-matched",
       "done_other": "{{count}} files re-matched",
       "automaticDone_one": "Matching {{count}} file again",
       "automaticDone_other": "Matching {{count}} files again",
-      "tmdbId": "TMDB {{id}}",
-      "candidate": "{{year}} · TMDB {{id}}"
+      "provider": "Provider",
+      "providers": {
+        "tmdb": "TMDB",
+        "tvdb": "TheTVDB"
+      },
+      "providerId": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TheTVDB {{id}}"
+      },
+      "candidateOf": {
+        "tmdb": "{{year}} · TMDB {{id}}",
+        "tvdb": "{{year}} · TheTVDB {{id}}"
+      }
     },
     "images": {
       "title": "Artwork",
@@ -3602,7 +3768,7 @@
       },
       "tvdb": {
         "title": "TheTVDB",
-        "description": "The fallback for series TMDB can't match confidently (its key is checked here now; matching with it comes with the TV fallback).",
+        "description": "The fallback for series TMDB can't match confidently. Free below USD 50,000 of yearly company revenue with its credit shown; a paid licence above.",
         "test": "Check the key",
         "passed": "TheTVDB accepted the key"
       },
@@ -3641,6 +3807,12 @@
         "description": "A Bunny pull zone in front of our edges, with token authentication. Add the zone on the Edges page.",
         "test": "Test the pull zone",
         "passed": "The pull zone works"
+      },
+      "live_ingest": {
+        "title": "Live ingest (MediaMTX)",
+        "description": "Your own encoders, cameras and OBS publish to MediaMTX, which asks this server about every sign-in. Needs live ingest on the server (LIVE_INGEST=1).",
+        "test": "Test the read user",
+        "passed": "MediaMTX accepted the read user"
       }
     },
     "codes": {
@@ -4105,6 +4277,17 @@
       "description": "After you confirm it's you, settings, roles, refunds and deletions stay unlocked for {{minutes}} minutes.",
       "lock": "Lock now",
       "locked": "Locked"
+    },
+    "password": {
+      "title": "Password",
+      "description": "Change the password you sign in with. You'll confirm it's you with a code or key; your other sessions end.",
+      "current": "Current password",
+      "new": "New password",
+      "repeat": "New password again",
+      "rules": "At least 12 characters; not a common password, not only digits, not like your name.",
+      "mismatch": "The two new passwords are different.",
+      "submit": "Change password",
+      "changed": "Password changed. Your other sessions have ended."
     }
   },
   "about": {
@@ -4228,5 +4411,109 @@
     "unknown": "unknown",
     "update": "Update now",
     "updateQueued": "Download started. It takes a minute."
+  },
+  "devicesPage": {
+    "title": "Devices",
+    "description": "Every customer's IPTV apps, browsers and apps. Block, unblock or revoke them, one at a time or together.",
+    "columns": {
+      "device": "Device",
+      "customer": "Customer",
+      "login": "TV login",
+      "status": "Status",
+      "lastSeen": "Last seen",
+      "added": "Added"
+    },
+    "kinds": {
+      "xtream": "IPTV app",
+      "web": "Web browser",
+      "app": "Mobile or TV app"
+    },
+    "filters": {
+      "search": "Search device, TV login or customer…",
+      "status": "Status",
+      "kind": "Kind",
+      "app": "App",
+      "seen": "Seen within",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "chip": "{{name}}: {{value}}",
+      "seenWithin_one": "Seen within {{count}} day",
+      "seenWithin_other": "Seen within {{count}} days"
+    },
+    "empty": {
+      "title": "No devices yet",
+      "description": "Devices appear when customers add TV apps or watch in a browser."
+    },
+    "bulk": {
+      "block": "Block",
+      "unblock": "Unblock",
+      "revoke": "Revoke",
+      "confirm": {
+        "block_one": "Block {{count}} device?",
+        "block_other": "Block {{count}} devices?",
+        "unblock_one": "Unblock {{count}} device?",
+        "unblock_other": "Unblock {{count}} devices?",
+        "revoke_one": "Revoke {{count}} device?",
+        "revoke_other": "Revoke {{count}} devices?"
+      },
+      "confirmDescription": {
+        "block": "Their playback stops, and they can't play until you unblock them.",
+        "unblock": "They can play again.",
+        "revoke": "Their logins are deleted for good and playback stops. This can't be undone."
+      },
+      "done": {
+        "block_one": "{{count}} device blocked ({{skipped}} skipped)",
+        "block_other": "{{count}} devices blocked ({{skipped}} skipped)",
+        "unblock_one": "{{count}} device unblocked ({{skipped}} skipped)",
+        "unblock_other": "{{count}} devices unblocked ({{skipped}} skipped)",
+        "revoke_one": "{{count}} device revoked ({{skipped}} skipped)",
+        "revoke_other": "{{count}} devices revoked ({{skipped}} skipped)",
+        "approve_one": "{{count}} device approved ({{skipped}} skipped)",
+        "approve_other": "{{count}} devices approved ({{skipped}} skipped)"
+      }
+    }
+  },
+  "lockouts": {
+    "title": "Lockouts",
+    "description": "Who can't sign in right now after failed attempts: admins, the portal and apps, TV logins and their addresses. Lockouts end by themselves; unlock one to let it try again now.",
+    "customerTitle": "Lockouts",
+    "customerDescription": "Sign-ins, confirmations and TV logins of this customer that failed too often.",
+    "columns": {
+      "kind": "Kind",
+      "who": "Who",
+      "where": "From",
+      "failures": "Failures",
+      "until": "Ends",
+      "actions": "Actions"
+    },
+    "kinds": {
+      "sign_in": "Sign-in",
+      "second_factor": "Authenticator code",
+      "confirmation": "Confirmation",
+      "xtream_login": "TV login",
+      "xtream_address": "TV address"
+    },
+    "admin": "Admin",
+    "anyone": "Any login",
+    "unknown": "Not one of ours",
+    "anywhere": "Any address",
+    "everyNetwork": "Every network",
+    "network": "Network {{network}}",
+    "untilUnknown": "Soon",
+    "unlock": "Unlock",
+    "unlocked": "Unlocked",
+    "confirm": {
+      "title": "Unlock now?",
+      "sign_in": "This login can try to sign in again from this address at once.",
+      "second_factor": "This admin can try authenticator codes again at once.",
+      "confirmation": "This account can confirm sensitive actions again at once.",
+      "xtream_login": "This TV login can sign in again at once.",
+      "xtream_address": "TV apps at this address can sign in again at once."
+    },
+    "empty": {
+      "title": "No one is locked out",
+      "description": "Lockouts show here when sign-ins fail too often.",
+      "customer": "Nothing of this customer's is locked."
+    }
   }
 }

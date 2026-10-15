@@ -14,14 +14,15 @@ from django.core.cache import cache
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from apps.accounts.models import Device, User, UserStatus
+from apps.accounts.governing import GoverningStatus, with_governing
+from apps.accounts.models import Device, User
 from apps.catalog.models import MatchReview, ReviewStatus
 from apps.media.models import JobStatus, TranscodeJob
 from apps.playback.models import PlaybackSession
 
 logger = logging.getLogger(__name__)
 
-CACHE_KEY = "dashboard:kpis:v2"
+CACHE_KEY = "dashboard:kpis:v3"
 CACHE_TTL_S = 30
 EXPIRING_WINDOW = timedelta(days=7)
 FAILED_JOBS_WINDOW = timedelta(hours=24)
@@ -33,6 +34,8 @@ class Kpis:
     customers_active: int
     customers_expired: int
     customers_suspended: int
+    #: In their subscription's grace period: still watching, about to stop (ADR-0023).
+    customers_grace: int
     expiring_7d: int
     devices_total: int
     devices_blocked: int
@@ -47,17 +50,17 @@ class Kpis:
 
 def compute_kpis(*, now: datetime | None = None) -> Kpis:
     moment = now or timezone.now()
-    active = Q(status=UserStatus.ACTIVE)
-    open_ended = Q(access__expires_at__isnull=True) | Q(access__expires_at__gt=moment)
-    users = User.objects.filter(is_staff=False).aggregate(
+    # The governing status: the subscription's from its dates, else the access profile's.
+    users = with_governing(User.objects.filter(is_staff=False), moment).aggregate(
         total=Count("pk"),
-        active=Count("pk", filter=active & open_ended),
-        expired=Count("pk", filter=active & Q(access__expires_at__lte=moment)),
-        suspended=Count("pk", filter=Q(status=UserStatus.SUSPENDED)),
+        active=Count("pk", filter=Q(governing_status=GoverningStatus.ACTIVE)),
+        grace=Count("pk", filter=Q(governing_status=GoverningStatus.GRACE)),
+        expired=Count("pk", filter=Q(governing_status=GoverningStatus.EXPIRED)),
+        suspended=Count("pk", filter=Q(governing_status=GoverningStatus.SUSPENDED)),
         expiring=Count(
             "pk",
-            filter=active
-            & Q(access__expires_at__gt=moment, access__expires_at__lte=moment + EXPIRING_WINDOW),
+            filter=Q(governing_status=GoverningStatus.ACTIVE)
+            & Q(effective_ends__gt=moment, effective_ends__lte=moment + EXPIRING_WINDOW),
         ),
     )
     devices = Device.objects.filter(user__is_staff=False, revoked_at__isnull=True).aggregate(
@@ -80,6 +83,7 @@ def compute_kpis(*, now: datetime | None = None) -> Kpis:
         customers_active=users["active"],
         customers_expired=users["expired"],
         customers_suspended=users["suspended"],
+        customers_grace=users["grace"],
         expiring_7d=users["expiring"],
         devices_total=devices["total"],
         devices_blocked=devices["blocked"],

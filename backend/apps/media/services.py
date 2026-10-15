@@ -28,7 +28,7 @@ import os
 import shutil
 import socket
 import threading
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
@@ -48,7 +48,7 @@ from apps.catalog.services import refresh_status_of_files
 from apps.core.errors import ErrorCode, ProblemError
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
-from apps.media import conf, hwdetect, layout, outputs, subtitles
+from apps.media import capped, conf, hwdetect, layout, outputs, subtitles
 from apps.media.ffmpeg import FfmpegCancelled, FfmpegError
 from apps.media.layout import asset_dir, asset_key, source_path
 from apps.media.models import (
@@ -349,6 +349,59 @@ def queue_followups(file: MediaFile) -> list[TranscodeJob]:
         return []
     job = ensure_output(file, TranscodeProfile.THUMBNAILS)
     return [job] if job is not None else []
+
+
+def ensure_capped(file: MediaFile, ceilings: Sequence[int] | None = None) -> TranscodeJob | None:
+    """Queue the capped compat MP4s (ADR-0023) the file's plans need and lacks; a failed
+    job for this source is not queued again (an admin reprocesses it)."""
+    wanted = capped.wanted_ceilings() if ceilings is None else ceilings
+    if not wanted or file.removed_at is not None:
+        return None
+    rows = list(Rendition.objects.filter(media_file=file))
+    if not capped.missing(rows, wanted):
+        return None
+    ladder = next(
+        (row for row in rows if row.kind == RenditionKind.HLS_MASTER and row.name == layout.HLS),
+        None,
+    )
+    failed = TranscodeJob.objects.filter(
+        media_file=file, profile=TranscodeProfile.COMPAT_CAPPED, status=JobStatus.FAILED
+    )
+    if ladder is not None and ladder.ready_at is not None:
+        failed = failed.filter(created_at__gte=ladder.ready_at)  # tried with this ladder
+    if failed.exists():
+        return None
+    return ensure_output(file, TranscodeProfile.COMPAT_CAPPED, remux=True)
+
+
+def queue_capped_backlog(limit: int = 100) -> int:
+    """Files with a ready ladder that miss a capped compat MP4 now wanted (a plan with
+    a new ceiling, the setting switched on): up to `limit` jobs per run."""
+    ceilings = capped.wanted_ceilings()
+    if not ceilings:
+        return 0
+    candidates = (
+        MediaFile.objects.filter(
+            removed_at__isnull=True,
+            renditions__kind=RenditionKind.HLS_MASTER,
+            renditions__name=layout.HLS,
+            renditions__status=RenditionStatus.READY,
+        )
+        .exclude(
+            transcode_jobs__profile=TranscodeProfile.COMPAT_CAPPED,
+            transcode_jobs__status__in=ACTIVE_JOB_STATUSES,
+        )
+        .distinct()
+        .prefetch_related("renditions")
+        .order_by("-created_at")
+    )
+    queued = 0
+    for file in candidates.iterator(chunk_size=200):
+        if queued >= limit:
+            break
+        if capped.missing(file.renditions.all(), ceilings) and ensure_capped(file, ceilings):
+            queued += 1
+    return queued
 
 
 def _uhd_plan(result: ProbeResult, policy: ProcessingPolicy, profiles: Profiles) -> UhdPlan | None:
@@ -673,6 +726,8 @@ def _execute(
     )
     if job.profile == TranscodeProfile.COMPAT_MP4:
         queue_followups(file)
+    elif job.profile == TranscodeProfile.HLS:
+        ensure_capped(file)  # the ladder's rungs are what the capped MP4s copy
     return JobStatus.DONE
 
 
@@ -881,36 +936,42 @@ def reprocess(
         ).exists():
             result_by_profile[profile] = "active"
             continue
-        job: TranscodeJob | None
-        if profile == TranscodeProfile.SUBTITLES:
-            sidecars = subtitles.find_sidecars(source_path(file), Path(file.library.path))
-            subtitles.sync_tracks(file, result, sidecars)
-            SubtitleTrack.objects.filter(media_file=file).exclude(
-                status=SubtitleStatus.UNSUPPORTED
-            ).update(status=SubtitleStatus.PENDING, error="", updated_at=timezone.now())
-            job = ensure_output(file, profile, force=True)
-        elif profile == TranscodeProfile.UHD:
-            uhd = _uhd_plan(result, ProcessingPolicy.INGEST, default_profiles())
-            if uhd is None:
-                result_by_profile[profile] = "not_uhd"
-                continue
-            job = _ensure_uhd(file, uhd, force=True)
-            if job is None:
-                result_by_profile[profile] = NO_HEVC_ENCODER
-                continue
-        elif profile == TranscodeProfile.COMPAT_MP4:
-            compat = plan.compat_mp4
-            if compat is None:
-                result_by_profile[profile] = "passthrough"
-                continue
-            job = ensure_output(file, profile, remux=compat.is_remux, force=True)
-        elif profile == TranscodeProfile.HLS and plan.hls is None:
-            result_by_profile[profile] = "passthrough"
-            continue
-        else:
-            job = ensure_output(file, profile, force=True)
-        result_by_profile[profile] = "queued" if job is not None else "active"
+        result_by_profile[profile] = _reprocess_one(file, profile, result, plan)
     return result_by_profile
+
+
+def _reprocess_one(file: MediaFile, profile: str, result: ProbeResult, plan: ProcessingPlan) -> str:
+    """Queue one output again: `queued`, `active`, or why it was not queued."""
+    job: TranscodeJob | None
+    if profile == TranscodeProfile.SUBTITLES:
+        sidecars = subtitles.find_sidecars(source_path(file), Path(file.library.path))
+        subtitles.sync_tracks(file, result, sidecars)
+        SubtitleTrack.objects.filter(media_file=file).exclude(
+            status=SubtitleStatus.UNSUPPORTED
+        ).update(status=SubtitleStatus.PENDING, error="", updated_at=timezone.now())
+        job = ensure_output(file, profile, force=True)
+    elif profile == TranscodeProfile.UHD:
+        uhd = _uhd_plan(result, ProcessingPolicy.INGEST, default_profiles())
+        if uhd is None:
+            return "not_uhd"
+        job = _ensure_uhd(file, uhd, force=True)
+        if job is None:
+            return NO_HEVC_ENCODER
+    elif profile == TranscodeProfile.COMPAT_MP4:
+        compat = plan.compat_mp4
+        if compat is None:
+            return "passthrough"
+        job = ensure_output(file, profile, remux=compat.is_remux, force=True)
+    elif profile == TranscodeProfile.HLS and plan.hls is None:
+        return "passthrough"
+    elif profile == TranscodeProfile.COMPAT_CAPPED:
+        # Made from the ladder (ADR-0023): only for ceilings plans use.
+        if not capped.needed(Rendition.objects.filter(media_file=file), capped.wanted_ceilings()):
+            return "not_needed"
+        job = ensure_output(file, profile, remux=True, force=True)
+    else:
+        job = ensure_output(file, profile, force=True)
+    return "queued" if job is not None else "active"
 
 
 # --- On-demand fallback and reconciliation --------------------------------------------

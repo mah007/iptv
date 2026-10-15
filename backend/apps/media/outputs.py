@@ -35,8 +35,8 @@ from PIL import Image
 from apps.catalog.models import ImageKind, ImageSource, MediaFile, MediaImage
 from apps.catalog.services import refresh_status_of_files
 from apps.catalog.signals import notify_catalog_changed
-from apps.media import ffmpeg, layout, presentations, subtitles
-from apps.media.ffmpeg import Encoding, ExtraSubtitle
+from apps.media import capped, ffmpeg, layout, presentations, subtitles
+from apps.media.ffmpeg import CappedInput, Encoding, ExtraSubtitle
 from apps.media.hls import playlist_bitrates, subtitle_playlist, video_codec_string
 from apps.media.models import (
     Rendition,
@@ -62,6 +62,7 @@ from apps.media.probe import HdrKind, ProbeResult, probe
 from apps.media.profiles import Backend, Profiles, VideoCodec
 from apps.media.progress import ProgressUpdate
 from apps.media.verify import (
+    Expected,
     VerificationError,
     expected_compat,
     expected_uhd,
@@ -716,10 +717,135 @@ def _publish_track(  # noqa: PLR0913
     track.save()
 
 
+# --- Capped compat MP4s (ADR-0023) --------------------------------------------------------
+
+
+def _capped_audio(ctx: JobContext, master: Rendition) -> list[CappedInput]:
+    items = [
+        item
+        for item in (master.details or {}).get("audio", [])
+        if isinstance(item, dict) and str(item.get("codec") or "") in capped.MP4_AUDIO
+    ]
+    hls = ctx.workdir / layout.HLS
+    found: list[CappedInput] = []
+    for item in items:
+        playlist = hls / str(item["dir"]) / layout.PLAYLIST
+        if playlist.is_file():
+            found.append(
+                CappedInput(
+                    path=playlist,
+                    language=str(item.get("language") or "und"),
+                    title=str(item.get("name") or ""),
+                    default=not found,
+                )
+            )
+    return found
+
+
+def _capped_subtitles(ctx: JobContext) -> list[CappedInput]:
+    tracks = SubtitleTrack.objects.filter(media_file=ctx.file, status=SubtitleStatus.READY)
+    found: list[CappedInput] = []
+    for track in tracks.exclude(storage_key="").order_by("-default", "stream_index", "created_at"):
+        path = ctx.workdir / layout.subtitle_file(track.storage_key, "srt")
+        if path.is_file():
+            found.append(
+                CappedInput(
+                    path=path,
+                    language=track.language or "und",
+                    title=track.title,
+                    default=track.default,
+                    forced=track.forced,
+                )
+            )
+    return found
+
+
+def run_compat_capped(ctx: JobContext) -> None:
+    """The capped compat MP4s a file's plans need (`apps.media.capped`): each a remux of
+    the ladder's rung that fits, its AAC audio and its text subtitles. Ceilings no
+    longer needed lose their row (the cleanup removes the file)."""
+    rows = list(Rendition.objects.filter(media_file=ctx.file))
+    master = next(
+        (
+            row
+            for row in rows
+            if row.kind == RenditionKind.HLS_MASTER
+            and row.name == layout.HLS
+            and row.status == RenditionStatus.READY
+        ),
+        None,
+    )
+    if master is None:
+        raise PlanError("no_hls_ladder")
+    wanted = capped.needed(rows, capped.wanted_ceilings())
+    audio = _capped_audio(ctx, master)
+    if wanted and not audio:
+        raise PlanError("no_mp4_audio")
+    subtitle_inputs = _capped_subtitles(ctx)
+    ctx.set_encoder("copy", remux=True)
+    for item in wanted:
+        output = ctx.temporary / f"{item.name}.mp4"
+        command = ffmpeg.capped_compat_command(
+            video=ctx.workdir / layout.HLS / item.rung.name / layout.PLAYLIST,
+            audio=audio,
+            subtitles=subtitle_inputs,
+            output=output,
+            asset=ctx.workdir,
+            duration_ms=ctx.probe.duration_ms,
+            movflags=ctx.profiles.compat_mp4.movflags,
+            subtitle_codec=ctx.profiles.compat_mp4.subtitle_codec,
+        )
+        ctx.run(command)
+        made = verify_file(
+            output,
+            Expected(
+                duration_ms=ctx.probe.duration_ms,
+                audio=len(audio),
+                subtitle=len(subtitle_inputs),
+                video_codec="h264",
+                faststart=True,
+            ),
+        )
+        os.replace(output, ctx.workdir / f"{item.name}.mp4")
+        video = made.video
+        Rendition.objects.update_or_create(
+            media_file=ctx.file,
+            kind=RenditionKind.COMPAT_CAPPED,
+            name=item.name,
+            defaults={
+                "storage_key": layout.asset_key(ctx.file),
+                "container": "mp4",
+                "width": video.width if video else None,
+                "height": video.height if video else item.ceiling,
+                "codec": video.codec if video else "h264",
+                "bitrate": made.bitrate,
+                "size": made.size or 0,
+                "duration_s": made.duration_ms / 1000 if made.duration_ms else None,
+                "status": RenditionStatus.READY,
+                "error": "",
+                "encoder_used": "copy",
+                "ready_at": timezone.now(),
+                "source_hash": ctx.file.xxhash64,
+                "details": {
+                    "ceiling": item.ceiling,
+                    "rung": item.rung.name,
+                    "audio": len(audio),
+                    "subtitles": len(subtitle_inputs),
+                },
+            },
+        )
+    keep = {item.name for item in wanted}
+    Rendition.objects.filter(media_file=ctx.file, kind=RenditionKind.COMPAT_CAPPED).exclude(
+        name__in=keep
+    ).delete()
+    presentations.publish(ctx.file)
+
+
 RUNNERS: Final[dict[str, Callable[[JobContext], None]]] = {
     TranscodeProfile.COMPAT_MP4: run_compat,
     TranscodeProfile.HLS: run_hls,
     TranscodeProfile.UHD: run_uhd,
     TranscodeProfile.THUMBNAILS: run_thumbnails,
     TranscodeProfile.SUBTITLES: run_subtitles,
+    TranscodeProfile.COMPAT_CAPPED: run_compat_capped,
 }

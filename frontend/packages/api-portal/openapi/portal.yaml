@@ -740,6 +740,149 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/legal/{document}:
+    get:
+      operationId: legal_retrieve
+      description: "Public: the privacy policy and terms are readable before signing
+        in."
+      summary: The privacy policy or the terms of service, in English or Arabic
+      parameters:
+        - in: path
+          name: document
+          schema:
+            type: string
+            pattern: ^privacy|terms$
+          required: true
+        - in: query
+          name: lang
+          schema:
+            type: string
+            enum:
+              - ar
+              - en
+          description: "The language (default: the service's default language)."
+      tags:
+        - legal
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegalPage"
+          description: ""
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/live/channels:
+    get:
+      operationId: live_channels_list
+      description: A customer endpoint answering in the request's language.
+      summary: Live channels I may watch, by group, with what's on now and next
+      tags:
+        - live
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveListing"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/live/channels/{id}/guide:
+    get:
+      operationId: live_channels_guide
+      description: A customer endpoint answering in the request's language.
+      summary: One channel's guide; recorded programmes can be watched again
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          description: "Start (default: 6 hours ago)."
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          description: "End (default: a day ahead)."
+      tags:
+        - live
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveGuide"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/me:
     get:
       operationId: me_retrieve
@@ -1151,6 +1294,141 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: Not signed in (NOT_AUTHENTICATED).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/password:
+    post:
+      operationId: me_password_change
+      description: |-
+        POST me/password (ADR-0023): change my password with the current one; my other
+        sign-ins end (portal sessions, app sign-ins and their playback). TV logins keep
+        working: they have their own passwords.
+      summary: Change my password; my other sign-ins end
+      tags:
+        - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordChangeRequest"
+        required: true
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "204":
+          description: Changed.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/streams:
+    get:
+      operationId: me_streams_list
+      description: On CONCURRENCY_LIMIT the player offers to stop one of these and
+        play here.
+      summary: My streams playing now, on every device
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyStream"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/streams/{id}/stop:
+    post:
+      operationId: me_streams_stop
+      description: A customer endpoint answering in the request's language.
+      summary: "Stop one of my streams: its device's playback stops and its slot
+        is free"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "204":
+          description: Stopped.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
         "404":
           content:
             application/problem+json:
@@ -2989,6 +3267,124 @@ components:
         - character
         - role
         - title
+    LegalDocument:
+      enum:
+        - privacy
+        - terms
+      type: string
+      description: |-
+        * `privacy` - privacy
+        * `terms` - terms
+    LegalPage:
+      type: object
+      properties:
+        document:
+          $ref: "#/components/schemas/LegalDocument"
+        language:
+          type: string
+          description: en or ar.
+        body:
+          type: string
+          description: "Markdown: headings, paragraphs, lists, bold, links."
+        updated_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: When an admin last changed it; null for the template.
+      required:
+        - body
+        - document
+        - language
+        - updated_at
+    LiveChannel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          description: The channel's number in IPTV apps.
+        name:
+          type: string
+        logo_url:
+          type:
+            - string
+            - "null"
+          format: uri
+        group_id:
+          type: string
+          format: uuid
+        catchup_days:
+          type: integer
+          description: "0: no catch-up."
+        archive_from:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: The oldest moment recorded, when catch-up records.
+        web_playable:
+          type: boolean
+          description: False when its codecs need a TV app (a browser can't decode
+            them).
+        now:
+          oneOf:
+            - $ref: "#/components/schemas/Programme"
+            - type: "null"
+        next:
+          oneOf:
+            - $ref: "#/components/schemas/Programme"
+            - type: "null"
+      required:
+        - archive_from
+        - catchup_days
+        - group_id
+        - id
+        - logo_url
+        - name
+        - next
+        - now
+        - number
+        - web_playable
+    LiveGroup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+        - id
+        - name
+    LiveGuide:
+      type: object
+      properties:
+        channel:
+          $ref: "#/components/schemas/LiveChannel"
+        programmes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Programme"
+      required:
+        - channel
+        - programmes
+    LiveListing:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveGroup"
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveChannel"
+      required:
+        - channels
+        - groups
     Locale:
       enum:
         - ar
@@ -3009,6 +3405,11 @@ components:
         * `720` - 720p
         * `1080` - 1080p
         * `2160` - 2160p
+    MetadataProvider:
+      enum:
+        - tmdb
+        - tvdb
+      type: string
     MovieDetail:
       type: object
       description: A movie or a series in a grid or a row.
@@ -3116,12 +3517,19 @@ components:
           items:
             $ref: "#/components/schemas/TitleCard"
           readOnly: true
+        attribution:
+          allOf:
+            - $ref: "#/components/schemas/MetadataProvider"
+          description: "Whose metadata the page shows, for the credit its licence
+            asks for: TMDB, or TheTVDB for a series built from it (ADR-0023)."
+          readOnly: true
         release_date:
           type:
             - string
             - "null"
           format: date
       required:
+        - attribution
         - backdrop
         - cast
         - categories
@@ -3278,6 +3686,46 @@ components:
         - password
         - server_url
         - username
+    MyStream:
+      type: object
+      description: "One of my streams playing now (ADR-0023): stop it to free its
+        slot."
+      properties:
+        id:
+          type: string
+          format: uuid
+        title_kind:
+          $ref: "#/components/schemas/PlaybackKind"
+        title_id:
+          type: string
+          format: uuid
+        title_name:
+          type: string
+        device:
+          oneOf:
+            - $ref: "#/components/schemas/StreamDevice"
+            - type: "null"
+        current:
+          type: boolean
+          description: Playing on the device of this request.
+        country:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+      required:
+        - country
+        - current
+        - device
+        - id
+        - last_seen
+        - started_at
+        - title_id
+        - title_kind
+        - title_name
     MySubscription:
       type: object
       description: "The customer's subscription: the current one, a waiting one,
@@ -3348,6 +3796,8 @@ components:
         - season_number
         - still
         - title
+    NullEnum:
+      type: "null"
     PaginatedCustomerInvoiceList:
       type: object
       required:
@@ -3415,6 +3865,24 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WatchItem"
+    PasswordChangeRequest:
+      type: object
+      description: "My new password (ADR-0023): the current one proves it's still
+        me."
+      properties:
+        current_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 256
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 256
+      required:
+        - current_password
+        - new_password
     PatchedCustomerMeUpdateRequest:
       type: object
       description: What customers change themselves; email and phone stay with the
@@ -3543,11 +4011,15 @@ components:
           format: uuid
           description: For playback/{id}/progress and /stop.
         title_type:
-          $ref: "#/components/schemas/PlayingType"
+          $ref: "#/components/schemas/PlaybackKind"
         title_id:
           type: string
           format: uuid
-          description: The movie or the episode playing.
+          description: The movie, the episode or the channel playing.
+        live:
+          type: boolean
+          description: "A live channel: no duration, no resume, no progress reports
+            (ADR-0023)."
         episode:
           oneOf:
             - $ref: "#/components/schemas/PlaybackEpisode"
@@ -3602,6 +4074,7 @@ components:
         - expires_at
         - height
         - hls_master_url
+        - live
         - resume_ms
         - session_id
         - subtitles
@@ -3609,14 +4082,41 @@ components:
         - title_id
         - title_type
         - url
+    PlaybackKind:
+      enum:
+        - movie
+        - episode
+        - live
+        - catchup
+      type: string
+      description: |-
+        * `movie` - Movie
+        * `episode` - Episode
+        * `live` - Live channel
+        * `catchup` - Catch-up
     PlaybackStartRequest:
       type: object
       properties:
         title_type:
-          $ref: "#/components/schemas/TitleType"
+          $ref: "#/components/schemas/PlaybackTitleType"
         title_id:
           type: string
           format: uuid
+          description: A movie, a series, or a live channel.
+        start:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: "Catch-up: where the window starts (a recorded programme's
+            start)."
+        duration_min:
+          type:
+            - integer
+            - "null"
+          maximum: 1440
+          minimum: 1
+          description: "Catch-up: how long the window is, at most live.timeshift_max_minutes."
         episode_id:
           type:
             - string
@@ -3625,16 +4125,29 @@ components:
           description: "For a series: the episode. Without it, the episode in progress
             or the next one (series_retrieve's next_episode)."
         prefer:
-          allOf:
-            - $ref: "#/components/schemas/PreferEnum"
           description: |-
             Segmented or progressive delivery when both exist; the best quality within the plan otherwise.
 
             * `hls` - HLS
             * `mp4` - Progressive MP4
+          oneOf:
+            - $ref: "#/components/schemas/PreferEnum"
+            - $ref: "#/components/schemas/NullEnum"
       required:
         - title_id
         - title_type
+    PlaybackTitleType:
+      enum:
+        - movie
+        - series
+        - live
+        - catchup
+      type: string
+      description: |-
+        * `movie` - Movie
+        * `series` - Series
+        * `live` - Live channel
+        * `catchup` - Catch-up
     PlayingType:
       enum:
         - movie
@@ -3677,6 +4190,32 @@ components:
         - total
         - vat
         - vat_rate
+    Programme:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stable across guide imports.
+        title:
+          type: string
+        description:
+          type: string
+        start:
+          type: string
+          format: date-time
+        stop:
+          type: string
+          format: date-time
+        catchup:
+          type: boolean
+          description: "Recorded: it can be watched again now."
+      required:
+        - catchup
+        - description
+        - id
+        - start
+        - stop
+        - title
     Progress:
       type: object
       properties:
@@ -3844,13 +4383,14 @@ components:
           type: string
           format: uuid
         value:
-          allOf:
-            - $ref: "#/components/schemas/Thumb"
           description: |-
             null clears the rating.
 
             * `up` - Up
             * `down` - Down
+          oneOf:
+            - $ref: "#/components/schemas/Thumb"
+            - $ref: "#/components/schemas/NullEnum"
       required:
         - title_id
         - title_type
@@ -3864,13 +4404,14 @@ components:
           type: string
           format: uuid
         value:
-          allOf:
-            - $ref: "#/components/schemas/Thumb"
           description: |-
             null clears the rating.
 
             * `up` - Up
             * `down` - Down
+          oneOf:
+            - $ref: "#/components/schemas/Thumb"
+            - $ref: "#/components/schemas/NullEnum"
       required:
         - title_id
         - title_type
@@ -4162,6 +4703,12 @@ components:
           items:
             $ref: "#/components/schemas/TitleCard"
           readOnly: true
+        attribution:
+          allOf:
+            - $ref: "#/components/schemas/MetadataProvider"
+          description: "Whose metadata the page shows, for the credit its licence
+            asks for: TMDB, or TheTVDB for a series built from it (ADR-0023)."
+          readOnly: true
         first_air_date:
           type:
             - string
@@ -4183,6 +4730,7 @@ components:
             - type: "null"
           readOnly: true
       required:
+        - attribution
         - backdrop
         - cast
         - categories
@@ -4249,6 +4797,23 @@ components:
             - "null"
           maximum: 360000000
           minimum: 0
+    StreamDevice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/DeviceKind"
+        app_hint:
+          $ref: "#/components/schemas/AppHint"
+      required:
+        - app_hint
+        - id
+        - kind
+        - name
     SubscriptionEndReason:
       enum:
         - expired
@@ -4427,7 +4992,9 @@ components:
         favorite:
           type: boolean
         rating:
-          $ref: "#/components/schemas/Thumb"
+          oneOf:
+            - $ref: "#/components/schemas/Thumb"
+            - $ref: "#/components/schemas/NullEnum"
         progress:
           oneOf:
             - $ref: "#/components/schemas/Progress"
@@ -4548,6 +5115,12 @@ components:
             type: array
             items:
               type: string
+        eta_s:
+          type:
+            - integer
+            - "null"
+          description: "TITLE_PREPARING: about how many seconds until the title plays,
+            when known (a running job's estimate, else from the file's length)."
       required:
         - type
         - title
