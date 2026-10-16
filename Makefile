@@ -46,12 +46,12 @@ RUN_FRONTEND := $(COMPOSE) run --rm --no-deps -T frontend
 
 # Trivy pinned by digest: a moved or compromised tag can't change what runs.
 TRIVY_IMAGE := aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
-IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/media:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION) \
+IMAGES := smart-iptv/app:$(APP_VERSION) smart-iptv/media:$(APP_VERSION) smart-iptv/importer:$(APP_VERSION) smart-iptv/frontend:$(APP_VERSION) \
 	smart-iptv/postgres:$(APP_VERSION) smart-iptv/postgres-backup:$(APP_VERSION) smart-iptv/traefik:$(APP_VERSION)
 # Extra docker build flags; before tagging a milestone use BUILD_FLAGS="--pull --no-cache".
 BUILD_FLAGS ?= --pull
 
-.PHONY: help secrets up down ps logs migrate backup restore-test crowdsec-test hardening-test seed sample-media shell smoke test test-backend test-frontend \
+.PHONY: help secrets up down ps logs migrate backup restore-test crowdsec-test hardening-test import-test seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
 	api-client api-client-check build smoke-images scan licenses ci ci-steps audit semgrep zap \
 	media-ready compat compat-live mediamtx-test e2e-iptvnator e2e-admin e2e-portal visual visual-record \
@@ -100,6 +100,9 @@ hardening-test: ## Every production container drops capabilities, can't gain pri
 
 mediamtx-test: ## Live ingest sign-ins end to end: the production MediaMTX asks a throwaway web process (/internal/mediamtx-auth); publish, read and refusals (dev stack up)
 	@scripts/mediamtx_test.sh
+
+import-test: ## Imports end to end on the dev stack: a throwaway SFTP and HTTPS server (rclone, synthetic clips), a folder and a direct link through the importer, scanned (ADR-0025)
+	@scripts/import_test.sh
 
 crowdsec-test: ## With CROWDSEC=1 up: a probe bans its own address and gets 403 from Traefik, the admin switch lets it pass, unban restores 200
 	@scripts/crowdsec_test.sh
@@ -389,9 +392,10 @@ monitoring-firedrill: ## With MONITORING=1 up: fire the FireDrill alert and wait
 	$(COMPOSE) exec -T web python manage.py fire_drill --stop; trap - EXIT; \
 	python3 monitoring/tests/fire_drill.py --mailpit "$(MAIL_URL)" --since "$$since" --resolved --timeout 420
 
-build: ## Build the production images (app, media, frontend, postgres, postgres-backup, traefik), pulling fresh base images
+build: ## Build the production images (app, media, importer, frontend, postgres, postgres-backup, traefik), pulling fresh base images
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target runtime -t smart-iptv/app:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target media -t smart-iptv/media:$(APP_VERSION) .
+	docker build $(BUILD_FLAGS) -f docker/app.Dockerfile --target importer -t smart-iptv/importer:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/frontend.Dockerfile --target runtime -t smart-iptv/frontend:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/postgres.Dockerfile --target postgres -t smart-iptv/postgres:$(APP_VERSION) .
 	docker build $(BUILD_FLAGS) -f docker/postgres.Dockerfile --target backup -t smart-iptv/postgres-backup:$(APP_VERSION) .
@@ -470,7 +474,7 @@ ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitt
 	@$(MAKE) ci-steps || { echo "make ci FAILED. Service status and recent logs:" >&2; \
 	  $(COMPOSE) ps >&2 || true; $(COMPOSE) logs --no-color --tail=60 >&2 || true; exit 1; }
 	@echo ""
-	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Semgrep, dependency audit, ZAP baseline, Xtream contract, media edges, monitoring configs and log redaction, types, API client, tests, live Xtream checks, IPTVnator, admin and portal E2E with axe, visual regression, images, Trivy, licences."
+	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Semgrep, dependency audit, ZAP baseline, Xtream contract, media edges, monitoring configs and log redaction, types, API client, tests, live Xtream checks, imports, IPTVnator, admin and portal E2E with axe, visual regression, images, Trivy, licences."
 
 ci-steps:
 	$(MAKE) up
@@ -491,6 +495,7 @@ ci-steps:
 	$(MAKE) live-ready
 	$(MAKE) compat-live
 	$(MAKE) mediamtx-test
+	$(MAKE) import-test
 	$(MAKE) e2e-iptvnator
 	$(MAKE) e2e-admin
 	$(MAKE) e2e-portal

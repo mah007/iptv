@@ -35,7 +35,16 @@ import {
   toast,
   useFormatters,
 } from "@smart-iptv/ui";
-import { FolderOpen, HardDrive, Pencil, Plus, RefreshCw, ScrollText } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import {
+  CloudDownload,
+  FolderOpen,
+  HardDrive,
+  Pencil,
+  Plus,
+  RefreshCw,
+  ScrollText,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -375,6 +384,15 @@ function Libraries() {
       {t("libraries.new")}
     </Button>
   ) : null;
+  // Imports (ADR-0025): copy files from the operator's storage or a direct link.
+  const importButton = (
+    <Button variant="secondary" asChild>
+      <Link to="/libraries/import">
+        <CloudDownload aria-hidden="true" />
+        {t("libraries.import")}
+      </Link>
+    </Button>
+  );
 
   let body;
   if (query.isPending) {
@@ -429,7 +447,12 @@ function Libraries() {
       <PageHeader
         title={t("libraries.title")}
         description={t("libraries.description")}
-        actions={newButton}
+        actions={
+          <>
+            {importButton}
+            {newButton}
+          </>
+        }
       />
       <div className="grid grid-cols-1 gap-6">
         {body}

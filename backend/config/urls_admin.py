@@ -33,6 +33,8 @@ admin_api = [
     path("", include("apps.antisharing.urls_admin")),
     # Media edges and CDN zones (M15, ADR-0022).
     path("", include("apps.edges.urls_admin")),
+    # Imports from storage and direct links (I1, ADR-0025).
+    path("", include("apps.imports.urls_admin")),
 ]
 
 urlpatterns = [

@@ -219,3 +219,60 @@ test("add a live channel, test its source and remove it", async ({ page }) => {
   await confirm.getByRole("button", { name: "Delete" }).click();
   await expect(row).toBeHidden();
 });
+
+test("imports: add a source, test it, queue a direct link and read its history", async ({
+  page,
+}) => {
+  // Hosts under .invalid never resolve (RFC 2606): the importer refuses them before it
+  // connects anywhere, so the journey exercises the real importer without the internet.
+  const name = `E2E source ${stamp}`;
+  const file = `E2E Link ${stamp}.mp4`;
+  await page.goto("/libraries");
+  // Adding a source needs a recent confirmation (ADR-0021): lock it, so the step-up is
+  // asked (and answered by the fixture's handler) on every run.
+  const csrf = (await page.context().cookies()).find((cookie) => cookie.name === "csrftoken");
+  const locked = await page.request.delete("/api/v1/auth/step-up", {
+    headers: { "X-CSRFToken": csrf?.value ?? "" },
+  });
+  expect(locked.status()).toBe(204);
+  await page.getByRole("link", { name: "Import", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Import media" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Add source" }).first().click();
+  const sheet = page.getByRole("dialog", { name: "Add source" });
+  await sheet.getByRole("combobox", { name: "Kind" }).click();
+  await page.getByRole("option", { name: "WebDAV" }).click();
+  await sheet.getByLabel("Name", { exact: true }).fill(name);
+  await sheet.getByLabel("Address").fill("https://dav.e2e.invalid/media");
+  await sheet.getByLabel("User name").fill("e2e");
+  await sheet.getByLabel("Password", { exact: true }).fill(`E2e-dav-${stamp}`);
+  await sheet.getByRole("button", { name: "Add source" }).click();
+  await expect(sheet).toBeHidden();
+  // The source's own card, inside the Sources card.
+  const card = page.locator("[data-slot=card] [data-slot=card]").filter({ hasText: name });
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "Test" }).click();
+  await expect(card.getByText("The test failed")).toBeVisible({ timeout: 45_000 });
+
+  await page.getByRole("button", { name: "Direct link" }).click();
+  const dialog = page.getByRole("dialog", { name: "Import from a direct link" });
+  await dialog.getByLabel("Link").fill(`https://files.e2e.invalid/${encodeURIComponent(file)}`);
+  await dialog.getByRole("combobox", { name: "Library" }).click();
+  await page.getByRole("option").first().click();
+  await dialog.getByLabel("Rights holder").fill("Public domain");
+  await dialog.getByLabel("Licence reference").fill("E2E journey (no real file)");
+  await dialog.getByRole("button", { name: "Start import" }).click();
+  await expect(dialog).toBeHidden();
+  const row = page.getByRole("row").filter({ hasText: file });
+  await expect(row).toBeVisible({ timeout: 45_000 });
+  await expect(row.getByText("That address is never fetched from.")).toBeVisible();
+  await row.getByRole("button", { name: "Details" }).click();
+  const details = page.getByRole("dialog", { name: "Import details" });
+  await expect(details.getByText("E2E journey (no real file)")).toBeVisible();
+  await details.press("Escape");
+
+  await card.getByRole("button", { name: "Delete" }).click();
+  const confirm = page.getByRole("alertdialog", { name: `Delete ${name}?` });
+  await confirm.getByRole("button", { name: "Delete source" }).click();
+  await expect(card).toBeHidden();
+});

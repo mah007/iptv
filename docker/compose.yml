@@ -291,6 +291,31 @@ services:
       start_period: 120s
       retries: 3
 
+  # Imports (ADR-0025): copies files the operator owns or is licensed for from their
+  # storage (S3-compatible buckets, SFTP, WebDAV, Google Drive, Dropbox, OneDrive through
+  # rclone) or from one direct link into a library, at the server's speed. It consumes
+  # only the `import` queue and is the only service the overlays give the media libraries
+  # read-write (web, worker, watcher and transcoder keep them read-only). Four threads:
+  # at most two imports at once (library.import_max_concurrent), so a Test or a folder
+  # listing always finds one free.
+  importer:
+    <<: *app
+    image: smart-iptv/importer:${APP_VERSION:-dev}
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      target: importer
+    command: ["celery", "-A", "config", "worker", "--queues", "import", "--pool", "threads", "--concurrency", "4", "--hostname", "importer@%h", "--loglevel", "INFO"]
+    # Sources and links are on the internet or the LAN; backend has no route out.
+    networks: [backend, egress]
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping --destination importer@$$HOSTNAME --timeout 5 > /dev/null"]
+      interval: 30s
+      timeout: 15s
+      start_period: 30s
+      retries: 3
+
   # Applies database migrations once per start, before any app process (web, worker, beat,
   # watcher, transcoder) touches the schema: on a deploy that adds tables, nothing queries
   # them before they exist.

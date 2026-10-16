@@ -16,6 +16,7 @@ const PAGES = [
   "/customers",
   "/subscriptions",
   "/libraries",
+  "/libraries/import",
   "/movies",
   "/series",
   "/review",

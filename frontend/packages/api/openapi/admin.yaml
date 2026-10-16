@@ -3455,6 +3455,675 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/jobs:
+    get:
+      operationId: import_jobs_list
+      summary: "Imports, newest first: the queue (state=active) or the history"
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - in: query
+          name: state
+          schema:
+            type: string
+            enum:
+              - active
+              - finished
+          description: Only these imports.
+      tags:
+        - imports
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedImportJobList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: import_jobs_create
+      summary: Import files or folders of a source into a library, under the stated
+        rights
+      tags:
+        - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SourceJobCreateRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportJob"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/jobs/{id}:
+    get:
+      operationId: import_jobs_retrieve
+      summary: One import with the files it placed (library-relative paths)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - imports
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportJobDetail"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/jobs/{id}/cancel:
+    post:
+      operationId: import_jobs_cancel
+      summary: "Cancel an import: a queued one ends now, a running one within seconds"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - imports
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportJob"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/links:
+    post:
+      operationId: import_links_create
+      summary: Import one file from a direct HTTPS link into a library, under the
+        stated rights
+      tags:
+        - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkJobCreateRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportJob"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/requests/{request_id}:
+    get:
+      operationId: import_requests_retrieve
+      summary: The answer to a Test or a browse (pending until the importer is done)
+      parameters:
+        - in: path
+          name: request_id
+          schema:
+            type: string
+          required: true
+      tags:
+        - imports
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoteAnswer"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/sources:
+    get:
+      operationId: import_sources_list
+      summary: Import sources (credentials never included)
+      tags:
+        - imports
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImportSource"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: import_sources_create
+      summary: Add an import source (needs a recent confirmation)
+      tags:
+        - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportSourceWriteRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportSource"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/sources/{id}:
+    get:
+      operationId: import_sources_retrieve
+      summary: One import source
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - imports
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportSource"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: import_sources_update
+      summary: Change a source; new credentials or a new address need a recent confirmation
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchedImportSourceWriteRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportSource"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: import_sources_delete
+      summary: Delete a source (the history of its imports stays)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - imports
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: No response body
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/sources/{id}/browse:
+    post:
+      operationId: import_sources_browse
+      summary: List one folder of a source (sizes included); poll the answer
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrowseRequestRequest"
+      security:
+        - sessionAuth: []
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestQueued"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/sources/{id}/test:
+    post:
+      operationId: import_sources_test
+      summary: "Test a source: the importer lists its root folder; poll the answer"
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - imports
+      security:
+        - sessionAuth: []
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestQueued"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/imports/status:
+    get:
+      operationId: imports_status
+      summary: The importer's state, the import settings and each library's free space
+      tags:
+        - imports
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportStatus"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/integrations:
     get:
       operationId: integrations_list
@@ -12031,6 +12700,13 @@ components:
         - runtime
         - title
         - year
+    BrowseRequestRequest:
+      type: object
+      properties:
+        path:
+          type: string
+          default: ""
+          maxLength: 1000
     BulkEnableRequest:
       type: object
       properties:
@@ -13324,6 +14000,14 @@ components:
         * `pending` - PENDING
         * `blocked` - BLOCKED
         * `revoked` - REVOKED
+    DriveTypeEnum:
+      enum:
+        - personal
+        - business
+        - documentLibrary
+      type: string
+      description: "* `` - \n* `personal` - personal\n* `business` - business\n* `documentLibrary`
+        - documentLibrary"
     Edge:
       type: object
       properties:
@@ -14348,6 +15032,542 @@ components:
         * `logo` - Logo
         * `still` - Still
         * `profile` - Profile
+    ImportFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        relative_path:
+          type: string
+          readOnly: true
+        remote_path:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/ImportFileKind"
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+        rights_applied_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+      required:
+        - id
+        - kind
+        - relative_path
+        - remote_path
+        - rights_applied_at
+        - size
+    ImportFileKind:
+      enum:
+        - video
+        - subtitle
+      type: string
+      description: |-
+        * `video` - Video
+        * `subtitle` - Subtitle
+    ImportJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        origin:
+          allOf:
+            - $ref: "#/components/schemas/ImportJobOrigin"
+          readOnly: true
+        source:
+          oneOf:
+            - $ref: "#/components/schemas/NamedRef"
+            - type: "null"
+          readOnly: true
+        source_name:
+          type: string
+          readOnly: true
+        source_kind:
+          type: string
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+          readOnly: true
+        url:
+          type: string
+          readOnly: true
+        file_name:
+          type: string
+          readOnly: true
+        has_checksum:
+          type: boolean
+          readOnly: true
+        library:
+          oneOf:
+            - $ref: "#/components/schemas/NamedRef"
+            - type: "null"
+          readOnly: true
+        library_name:
+          type: string
+          readOnly: true
+        subfolder:
+          type: string
+          readOnly: true
+        rights_holder:
+          type: string
+          readOnly: true
+        license_ref:
+          type: string
+          readOnly: true
+        license_expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/TranscodeJobStatusEnum"
+          readOnly: true
+        phase:
+          allOf:
+            - $ref: "#/components/schemas/PhaseEnum"
+          readOnly: true
+        error_code:
+          type: string
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        error_params:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        attempts:
+          type: integer
+          readOnly: true
+        retry_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        cancel_requested:
+          type: boolean
+          readOnly: true
+        files_total:
+          type: integer
+          readOnly: true
+        files_done:
+          type: integer
+          readOnly: true
+        bytes_total:
+          type: integer
+          readOnly: true
+        bytes_done:
+          type: integer
+          readOnly: true
+        speed_bps:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        eta_s:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        skipped:
+          allOf:
+            - $ref: "#/components/schemas/Skipped"
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        finished_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+      required:
+        - attempts
+        - bytes_done
+        - bytes_total
+        - cancel_requested
+        - created_at
+        - created_by_name
+        - error
+        - error_code
+        - error_params
+        - eta_s
+        - file_name
+        - files_done
+        - files_total
+        - finished_at
+        - has_checksum
+        - id
+        - items
+        - library
+        - library_name
+        - license_expires_at
+        - license_ref
+        - origin
+        - phase
+        - retry_at
+        - rights_holder
+        - skipped
+        - source
+        - source_kind
+        - source_name
+        - speed_bps
+        - started_at
+        - status
+        - subfolder
+        - url
+    ImportJobDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        origin:
+          allOf:
+            - $ref: "#/components/schemas/ImportJobOrigin"
+          readOnly: true
+        source:
+          oneOf:
+            - $ref: "#/components/schemas/NamedRef"
+            - type: "null"
+          readOnly: true
+        source_name:
+          type: string
+          readOnly: true
+        source_kind:
+          type: string
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+          readOnly: true
+        url:
+          type: string
+          readOnly: true
+        file_name:
+          type: string
+          readOnly: true
+        has_checksum:
+          type: boolean
+          readOnly: true
+        library:
+          oneOf:
+            - $ref: "#/components/schemas/NamedRef"
+            - type: "null"
+          readOnly: true
+        library_name:
+          type: string
+          readOnly: true
+        subfolder:
+          type: string
+          readOnly: true
+        rights_holder:
+          type: string
+          readOnly: true
+        license_ref:
+          type: string
+          readOnly: true
+        license_expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        status:
+          allOf:
+            - $ref: "#/components/schemas/TranscodeJobStatusEnum"
+          readOnly: true
+        phase:
+          allOf:
+            - $ref: "#/components/schemas/PhaseEnum"
+          readOnly: true
+        error_code:
+          type: string
+          readOnly: true
+        error:
+          type: string
+          readOnly: true
+        error_params:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        attempts:
+          type: integer
+          readOnly: true
+        retry_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        cancel_requested:
+          type: boolean
+          readOnly: true
+        files_total:
+          type: integer
+          readOnly: true
+        files_done:
+          type: integer
+          readOnly: true
+        bytes_total:
+          type: integer
+          readOnly: true
+        bytes_done:
+          type: integer
+          readOnly: true
+        speed_bps:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        eta_s:
+          type:
+            - integer
+            - "null"
+          readOnly: true
+        skipped:
+          allOf:
+            - $ref: "#/components/schemas/Skipped"
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        finished_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportFile"
+          readOnly: true
+      required:
+        - attempts
+        - bytes_done
+        - bytes_total
+        - cancel_requested
+        - created_at
+        - created_by_name
+        - error
+        - error_code
+        - error_params
+        - eta_s
+        - file_name
+        - files
+        - files_done
+        - files_total
+        - finished_at
+        - has_checksum
+        - id
+        - items
+        - library
+        - library_name
+        - license_expires_at
+        - license_ref
+        - origin
+        - phase
+        - retry_at
+        - rights_holder
+        - skipped
+        - source
+        - source_kind
+        - source_name
+        - speed_bps
+        - started_at
+        - status
+        - subfolder
+        - url
+    ImportJobOrigin:
+      enum:
+        - source
+        - link
+      type: string
+      description: |-
+        * `source` - A source
+        * `link` - A direct link
+    ImportRequestStatus:
+      enum:
+        - pending
+        - done
+      type: string
+      description: |-
+        * `pending` - pending
+        * `done` - done
+    ImportSecretName:
+      enum:
+        - access_key_id
+        - secret_access_key
+        - password
+        - private_key
+        - key_passphrase
+        - token
+        - client_secret
+      type: string
+      description: |-
+        * `access_key_id` - access_key_id
+        * `secret_access_key` - secret_access_key
+        * `password` - password
+        * `private_key` - private_key
+        * `key_passphrase` - key_passphrase
+        * `token` - token
+        * `client_secret` - client_secret
+    ImportSource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        kind:
+          allOf:
+            - $ref: "#/components/schemas/ImportSourceKind"
+          readOnly: true
+        options:
+          allOf:
+            - $ref: "#/components/schemas/SourceOptions"
+          readOnly: true
+        summary:
+          type: string
+          readOnly: true
+        secrets_set:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportSecretName"
+          readOnly: true
+        last_test_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+        last_test_status:
+          allOf:
+            - $ref: "#/components/schemas/LastTestStatusEnum"
+          readOnly: true
+        last_test_message:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - created_at
+        - id
+        - kind
+        - last_test_at
+        - last_test_message
+        - last_test_status
+        - name
+        - options
+        - secrets_set
+        - summary
+        - updated_at
+    ImportSourceKind:
+      enum:
+        - s3
+        - sftp
+        - webdav
+        - drive
+        - dropbox
+        - onedrive
+      type: string
+      description: |-
+        * `s3` - S3-compatible bucket
+        * `sftp` - SFTP
+        * `webdav` - WebDAV
+        * `drive` - Google Drive
+        * `dropbox` - Dropbox
+        * `onedrive` - OneDrive
+    ImportSourceWriteRequest:
+      type: object
+      description: Create a source (name, kind, options, secrets) or change one (kind
+        stays).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        kind:
+          $ref: "#/components/schemas/ImportSourceKind"
+        options:
+          $ref: "#/components/schemas/SourceOptionsRequest"
+        secrets:
+          $ref: "#/components/schemas/SourceSecretsRequest"
+        clear_secrets:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportSecretName"
+          description: Secrets to remove (for example the password when switching
+            to a key).
+    ImportStatus:
+      type: object
+      properties:
+        importer_online:
+          type: boolean
+        max_concurrent:
+          type: integer
+        reserve_bytes:
+          type: integer
+        bandwidth_mbit:
+          type: integer
+        libraries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LibraryTarget"
+      required:
+        - bandwidth_mbit
+        - importer_online
+        - libraries
+        - max_concurrent
+        - reserve_bytes
     Integration:
       type: object
       properties:
@@ -14591,6 +15811,29 @@ components:
         - password
         - server_url
         - username
+    Item:
+      type: object
+      properties:
+        path:
+          type: string
+          maxLength: 1000
+        is_dir:
+          type: boolean
+      required:
+        - is_dir
+        - path
+    ItemRequest:
+      type: object
+      properties:
+        path:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        is_dir:
+          type: boolean
+      required:
+        - is_dir
+        - path
     JobFile:
       type: object
       properties:
@@ -14716,6 +15959,21 @@ components:
         - transcode_failed_24h
         - transcode_queued
         - transcode_running
+    LastTestStatusEnum:
+      enum:
+        - ok
+        - auth_failed
+        - not_found
+        - unreachable
+        - timeout
+        - tls_failed
+        - unsafe_destination
+        - unexpected
+      type: string
+      description: "* `` - \n* `ok` - ok\n* `auth_failed` - auth_failed\n* `not_found`
+        - not_found\n* `unreachable` - unreachable\n* `timeout` - timeout\n* `tls_failed`
+        - tls_failed\n* `unsafe_destination` - unsafe_destination\n* `unexpected`
+        - unexpected"
     LatestRuns:
       type: object
       properties:
@@ -14869,6 +16127,30 @@ components:
         pending:
           type: integer
           default: 0
+    LibraryTarget:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/LibraryKind"
+        free_bytes:
+          type:
+            - integer
+            - "null"
+        total_bytes:
+          type:
+            - integer
+            - "null"
+      required:
+        - free_bytes
+        - id
+        - kind
+        - name
+        - total_bytes
     LibraryUsage:
       type: object
       properties:
@@ -14930,6 +16212,48 @@ components:
         - kind
         - name
         - path
+    LinkJobCreateRequest:
+      type: object
+      properties:
+        library:
+          type: string
+          format: uuid
+        subfolder:
+          type: string
+          default: ""
+          maxLength: 500
+        rights_holder:
+          type: string
+          minLength: 1
+          maxLength: 255
+        license_ref:
+          type: string
+          minLength: 1
+          maxLength: 255
+        license_expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        url:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        file_name:
+          type: string
+          default: ""
+          maxLength: 255
+        checksum:
+          type: string
+          default: ""
+          description: The file's SHA-256, SHA-1 or MD5 in hexadecimal, verified after
+            the download.
+          maxLength: 128
+      required:
+        - library
+        - license_ref
+        - rights_holder
+        - url
     LiveChannel:
       type: object
       properties:
@@ -16244,6 +17568,17 @@ components:
         - updated_at
         - xc_id
         - year
+    NamedRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+        - id
+        - name
     NotificationChannel:
       enum:
         - email
@@ -16672,6 +18007,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DeviceListItem"
+    PaginatedImportJobList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportJob"
     PaginatedInvoiceList:
       type: object
       required:
@@ -17365,6 +18725,27 @@ components:
           minimum: 0
         enabled:
           type: boolean
+    PatchedImportSourceWriteRequest:
+      type: object
+      description: Create a source (name, kind, options, secrets) or change one (kind
+        stays).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        kind:
+          $ref: "#/components/schemas/ImportSourceKind"
+        options:
+          $ref: "#/components/schemas/SourceOptionsRequest"
+        secrets:
+          $ref: "#/components/schemas/SourceSecretsRequest"
+        clear_secrets:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportSecretName"
+          description: Secrets to remove (for example the password when switching
+            to a key).
     PatchedLibraryWriteRequest:
       type: object
       description: |-
@@ -18114,6 +19495,14 @@ components:
         - name
         - name_ar
         - tmdb_id
+    PhaseEnum:
+      enum:
+        - planning
+        - copying
+        - moving
+      type: string
+      description: "* `` - \n* `planning` - planning\n* `copying` - copying\n* `moving`
+        - moving"
     Plan:
       type: object
       properties:
@@ -18755,6 +20144,72 @@ components:
         - automatic
         - files
         - title_ids
+    RemoteAnswer:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ImportRequestStatus"
+        result:
+          oneOf:
+            - $ref: "#/components/schemas/RemoteResult"
+            - type: "null"
+      required:
+        - result
+        - status
+    RemoteEntry:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+          description: Relative to the source's root folder.
+        is_dir:
+          type: boolean
+        size:
+          type:
+            - integer
+            - "null"
+        modified:
+          type:
+            - string
+            - "null"
+        importable:
+          type: boolean
+          description: A folder, a video file or a subtitle.
+      required:
+        - importable
+        - is_dir
+        - modified
+        - name
+        - path
+        - size
+    RemoteResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        code:
+          type: string
+          description: ok, auth_failed, not_found, unreachable, timeout, ...
+        message:
+          type: string
+        path:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RemoteEntry"
+        truncated:
+          type: boolean
+        count:
+          type: integer
+        host_keys:
+          type: string
+      required:
+        - code
+        - message
+        - ok
     Rendition:
       type: object
       properties:
@@ -18910,6 +20365,13 @@ components:
       required:
         - files
         - outputs
+    RequestQueued:
+      type: object
+      properties:
+        request_id:
+          type: string
+      required:
+        - request_id
     ResetResult:
       type: object
       properties:
@@ -20236,6 +21698,16 @@ components:
         - name
         - points
         - value
+    Skipped:
+      type: object
+      properties:
+        count:
+          type: integer
+          default: 0
+        names:
+          type: array
+          items:
+            type: string
     Snapshots:
       type: object
       properties:
@@ -20266,6 +21738,175 @@ components:
         - host
         - port
         - scheme
+    SourceJobCreateRequest:
+      type: object
+      properties:
+        library:
+          type: string
+          format: uuid
+        subfolder:
+          type: string
+          default: ""
+          maxLength: 500
+        rights_holder:
+          type: string
+          minLength: 1
+          maxLength: 255
+        license_ref:
+          type: string
+          minLength: 1
+          maxLength: 255
+        license_expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        source:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemRequest"
+      required:
+        - items
+        - library
+        - license_ref
+        - rights_holder
+        - source
+    SourceOptions:
+      type: object
+      description: The non-secret options; each kind uses some (`remotes.OPTIONS`).
+      properties:
+        provider:
+          $ref: "#/components/schemas/SourceOptionsProviderEnum"
+        endpoint:
+          type: string
+          maxLength: 500
+        region:
+          type: string
+          maxLength: 40
+        path_style:
+          type: boolean
+        root:
+          type: string
+          maxLength: 1000
+        host:
+          type: string
+          maxLength: 253
+        port:
+          type: integer
+          maximum: 65535
+          minimum: 1
+        username:
+          type: string
+          maxLength: 128
+        host_keys:
+          type: string
+          maxLength: 8000
+        url:
+          type: string
+          maxLength: 500
+        vendor:
+          $ref: "#/components/schemas/VendorEnum"
+        root_folder_id:
+          type: string
+          maxLength: 200
+        client_id:
+          type: string
+          maxLength: 200
+        drive_id:
+          type: string
+          maxLength: 200
+        drive_type:
+          $ref: "#/components/schemas/DriveTypeEnum"
+    SourceOptionsProviderEnum:
+      enum:
+        - aws
+        - b2
+        - r2
+        - wasabi
+        - minio
+        - other
+      type: string
+      description: |-
+        * `aws` - aws
+        * `b2` - b2
+        * `r2` - r2
+        * `wasabi` - wasabi
+        * `minio` - minio
+        * `other` - other
+    SourceOptionsRequest:
+      type: object
+      description: The non-secret options; each kind uses some (`remotes.OPTIONS`).
+      properties:
+        provider:
+          $ref: "#/components/schemas/SourceOptionsProviderEnum"
+        endpoint:
+          type: string
+          maxLength: 500
+        region:
+          type: string
+          maxLength: 40
+        path_style:
+          type: boolean
+        root:
+          type: string
+          maxLength: 1000
+        host:
+          type: string
+          maxLength: 253
+        port:
+          type: integer
+          maximum: 65535
+          minimum: 1
+        username:
+          type: string
+          maxLength: 128
+        host_keys:
+          type: string
+          maxLength: 8000
+        url:
+          type: string
+          maxLength: 500
+        vendor:
+          $ref: "#/components/schemas/VendorEnum"
+        root_folder_id:
+          type: string
+          maxLength: 200
+        client_id:
+          type: string
+          maxLength: 200
+        drive_id:
+          type: string
+          maxLength: 200
+        drive_type:
+          $ref: "#/components/schemas/DriveTypeEnum"
+    SourceSecretsRequest:
+      type: object
+      description: Secrets, write-only; only the ones given change.
+      properties:
+        access_key_id:
+          type: string
+          maxLength: 200
+        secret_access_key:
+          type: string
+          maxLength: 500
+        password:
+          type: string
+          maxLength: 500
+        private_key:
+          type: string
+          maxLength: 20000
+        key_passphrase:
+          type: string
+          maxLength: 500
+        token:
+          type: string
+          maxLength: 20000
+        client_secret:
+          type: string
+          maxLength: 500
     SourceTestQueued:
       type: object
       properties:
@@ -20286,7 +21927,7 @@ components:
       type: object
       properties:
         status:
-          $ref: "#/components/schemas/SourceTestResultStatusEnum"
+          $ref: "#/components/schemas/ImportRequestStatus"
         result:
           oneOf:
             - $ref: "#/components/schemas/Probe"
@@ -20294,14 +21935,6 @@ components:
       required:
         - result
         - status
-    SourceTestResultStatusEnum:
-      enum:
-        - pending
-        - done
-      type: string
-      description: |-
-        * `pending` - pending
-        * `done` - done
     StatusSource:
       enum:
         - subscription
@@ -21455,6 +23088,20 @@ components:
         * `active` - Active
         * `suspended` - Suspended
         * `disabled` - Disabled
+    VendorEnum:
+      enum:
+        - other
+        - nextcloud
+        - owncloud
+        - sharepoint
+        - sharepoint-ntlm
+      type: string
+      description: |-
+        * `other` - other
+        * `nextcloud` - nextcloud
+        * `owncloud` - owncloud
+        * `sharepoint` - sharepoint
+        * `sharepoint-ntlm` - sharepoint-ntlm
     WatchHistory:
       type: object
       properties:

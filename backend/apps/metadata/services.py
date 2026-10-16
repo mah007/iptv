@@ -73,6 +73,7 @@ from apps.core.metrics import MATCH_CONFIDENCE
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
 from apps.core.text import strip_bidi
+from apps.imports.rights import apply_import_rights
 from apps.library.parsing import ParseResult
 from apps.metadata.images import ImageError, LocalImageStore, fetch_and_store, tmdb_source_size
 from apps.metadata.images import ImageKind as ImageKindName
@@ -394,6 +395,8 @@ def accept_movie(
         if "categories" not in movie.metadata_locked_fields:
             movie.categories.add(*file.library.default_categories.all())
         _close_reviews(file, tmdb_id, actor)
+        # Imported files bring the rights the admin stated (ADR-0025).
+        apply_import_rights(file, movie)
         refresh_movie_status(movie)
         _refresh_previous(previous, keep=movie)
         notify_catalog_changed("movie", [movie.pk])
@@ -488,6 +491,7 @@ def link_episode_file(  # noqa: PLR0913 (everything after confidence is keyword-
         if "categories" not in series.metadata_locked_fields:
             series.categories.add(*file.library.default_categories.all())
         _close_reviews(file, provider_id, actor, provider)
+        apply_import_rights(file, series)
         refresh_series_status(series)
         _refresh_previous(previous, keep=series)
         notify_catalog_changed("series", [series.pk])

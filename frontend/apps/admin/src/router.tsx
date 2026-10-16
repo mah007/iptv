@@ -107,6 +107,12 @@ const librariesRoute = createRoute({
   path: "/libraries",
   component: lazyRouteComponent(() => import("./pages/libraries"), "LibrariesPage"),
 });
+// Imports from the operator's storage or a direct link (ADR-0025).
+const importsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/libraries/import",
+  component: lazyRouteComponent(() => import("./pages/imports"), "ImportsPage"),
+});
 const moviesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/movies",
@@ -312,6 +318,7 @@ export const routeTree = rootRoute.addChildren([
     customerRoute,
     sessionsRoute,
     librariesRoute,
+    importsRoute,
     moviesRoute,
     movieRoute,
     seriesListRoute,

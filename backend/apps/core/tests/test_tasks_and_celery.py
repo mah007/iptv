@@ -29,6 +29,8 @@ def test_spec_queues_are_declared() -> None:
         "notify",
         # S3 publishing (M15, ADR-0022): the worker consumes it with the others.
         "publish",
+        # Imports (I1, ADR-0025): only the importer consumes it.
+        "import",
         "transcode.cpu",
         "transcode.qsv",
         "transcode.vaapi",

@@ -10,6 +10,7 @@ from .env.example, never the real one) and checks every service:
   from bases pinned by digest, which the Dockerfiles check below covers);
 - mounts the Docker socket only if it is one of the read-only API proxies (cAdvisor is
   the documented exception: it needs the container runtime's sockets);
+- mounts the media libraries (`/media`) read-only, unless it is the importer (ADR-0025);
 - is never privileged and never on the host's network.
 
 It also checks that every Dockerfile's base image is pinned by digest.
@@ -57,6 +58,9 @@ SOCKET: dict[str, str] = {
     "node-exporter": "reads the host's file systems through / as nobody (no socket access)",
 }
 SOCKET_PATHS = ("/var/run/docker.sock", "/run/docker.sock", "/var/run", "/run", "/")
+#: Services that may write the media libraries, and why (ADR-0025).
+MEDIA_WRITERS: dict[str, str] = {"importer": "copies imports into the libraries"}
+MEDIA_TARGET = "/media"
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
 
 
@@ -92,6 +96,10 @@ def service_problems(name: str, service: dict) -> list[str]:
         source = str(volume.get("source", "")) if isinstance(volume, dict) else ""
         if source in SOCKET_PATHS and name not in SOCKET:
             problems.append(f"mounts {source}")
+        target = str(volume.get("target", "")) if isinstance(volume, dict) else ""
+        writable = isinstance(volume, dict) and not volume.get("read_only")
+        if target == MEDIA_TARGET and writable and name not in MEDIA_WRITERS:
+            problems.append("mounts the media libraries read-write")
     return problems
 
 

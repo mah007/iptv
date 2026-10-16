@@ -98,6 +98,8 @@ INSTALLED_APPS = [
     "apps.edges",
     # Anti-sharing: sightings, the risk score and flags (M14a, ADR-0021).
     "apps.antisharing",
+    # Imports from the operator's storage or a direct link (I1, ADR-0025).
+    "apps.imports",
 ]
 
 MIDDLEWARE = [
@@ -273,6 +275,12 @@ DATA_ROOT = env("DATA_ROOT", "/data")
 # DB-IP Lite country and ASN databases (M14a, ADR-0021): the `geoip-data` volume, written
 # by the worker's monthly update, read by web (apps.core.geoip).
 GEOIP_DIR = env("GEOIP_DIR", "/geoip")
+# Imports (I1, ADR-0025): rclone in the importer service, its per-run config folders on
+# the importer's in-memory /tmp. IMPORT_EXTRA_CA_FILE is honoured with DEBUG only: the
+# CA of the dev stack's throwaway HTTPS test server (make import-test).
+RCLONE_BINARY = env("RCLONE_BINARY", "rclone")
+IMPORT_TMP_DIR = env("IMPORT_TMP_DIR", "") or None
+IMPORT_EXTRA_CA_FILE = env("IMPORT_EXTRA_CA_FILE", "")
 # Polling for network shares is the admin setting `library.watcher_polling`; this
 # variable is only its fallback (ADR-0019).
 LIBRARY_WATCHER_POLLING = env_optional_bool("LIBRARY_WATCHER_POLLING")
@@ -328,6 +336,8 @@ CELERY_TASK_QUEUES = tuple(
         "notify",
         # Uploads of renditions to the S3 origin (M15, ADR-0022), on the worker.
         "publish",
+        # Imports (I1, ADR-0025): only the importer consumes it.
+        "import",
         "transcode.cpu",
         "transcode.qsv",
         "transcode.vaapi",
@@ -348,6 +358,8 @@ CELERY_TASK_ROUTES = {
     "apps.notifications.tasks.*": {"queue": "notify"},
     # The S3 origin's publisher (M15, ADR-0022): network-bound, on the worker (egress).
     "apps.media.publish_tasks.*": {"queue": "publish"},
+    # Imports (I1, ADR-0025): rclone and the writable media root live in the importer.
+    "apps.imports.tasks.*": {"queue": "import"},
 }
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_ACKS_LATE = True
@@ -531,6 +543,13 @@ CELERY_BEAT_SCHEDULE = {
         "options": {"expires": 14},
     },
     # --- end M15 ---
+    # Imports (I1, ADR-0025), in the importer: its heartbeat, jobs of a stopped importer
+    # requeued, unused staging folders removed, queued jobs started.
+    "imports-sweep": {
+        "task": "apps.imports.tasks.sweep_imports",
+        "schedule": 60.0,
+        "options": {"expires": 55},
+    },
 }
 
 # --- I18n -----------------------------------------------------------------------
@@ -633,6 +652,13 @@ SPECTACULAR_SETTINGS = {
         "RiskFlagStatus": "apps.antisharing.models.FlagStatus",
         # Media edges (M15, ADR-0022): added by H1 to unblock the schema's --fail-on-warn.
         "EdgeKind": "apps.edges.models.EdgeKind",
+        # Imports (I1, ADR-0025).
+        "ImportSourceKind": "apps.imports.models.SourceKind",
+        # Import jobs share TranscodeJobStatusEnum (the same five statuses).
+        "ImportJobOrigin": "apps.imports.models.JobOrigin",
+        "ImportFileKind": "apps.imports.models.FileKind",
+        "ImportSecretName": "apps.imports.remotes.ALL_SECRETS",
+        "ImportRequestStatus": "apps.imports.serializers.REQUEST_STATUSES",
         # Admin system health (ADR-0015).
         "HealthStatus": "apps.dashboard.health.Status",
         # Media pipeline (T1, ADR-0014); TranscodeJobStatusEnum keeps its generated name.

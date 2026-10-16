@@ -31,7 +31,9 @@ export const test = base.extend({
         fromConsole.push(message.text());
       }
     });
-    const stepUp = page.getByRole("dialog", { name: /^(Confirm it's you|أكّد هويتك)$/u });
+    // "." for the apostrophe: a quote inside a role-name regex breaks Playwright's
+    // selector parser once the handler chains locators inside the dialog.
+    const stepUp = page.getByRole("dialog", { name: /^(Confirm it.s you|أكّد هويتك)$/u });
     await page.addLocatorHandler(stepUp, async (dialog) => {
       await dialog.getByLabel(/authenticator app|تطبيق المصادقة/u).fill(totpCode());
       await dialog.getByRole("button", { name: /^(Confirm|تأكيد)$/u }).click();

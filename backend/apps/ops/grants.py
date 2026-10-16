@@ -48,6 +48,8 @@ REPORTING_HIDDEN: Final = (
     "core_setting",
     "live_liveintegration",
     "billing_webhookevent",
+    # Import sources' encrypted credentials (ADR-0025).
+    "imports_importsource",
 )
 
 

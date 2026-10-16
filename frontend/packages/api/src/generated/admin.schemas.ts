@@ -686,6 +686,11 @@ export interface Breakdown {
   matched_title: string;
 }
 
+export interface BrowseRequestRequest {
+  /** @maxLength 1000 */
+  path?: string;
+}
+
 export interface BulkEnableRequest {
   /**
    * @minItems 1
@@ -1456,6 +1461,20 @@ export interface DeviceListItem {
 }
 
 /**
+ * * `` -
+ * * `personal` - personal
+ * * `business` - business
+ * * `documentLibrary` - documentLibrary
+ */
+export type DriveTypeEnum = (typeof DriveTypeEnum)[keyof typeof DriveTypeEnum];
+
+export const DriveTypeEnum = {
+  personal: "personal",
+  business: "business",
+  documentLibrary: "documentLibrary",
+} as const;
+
+/**
  * * `local` - This server
  * * `standalone` - Standalone edge
  * * `cdn` - CDN pull zone
@@ -2052,6 +2071,427 @@ export interface ImageAlternative {
 }
 
 /**
+ * * `video` - Video
+ * * `subtitle` - Subtitle
+ */
+export type ImportFileKind = (typeof ImportFileKind)[keyof typeof ImportFileKind];
+
+export const ImportFileKind = {
+  video: "video",
+  subtitle: "subtitle",
+} as const;
+
+export interface ImportFile {
+  readonly id: string;
+  readonly relative_path: string;
+  readonly remote_path: string;
+  readonly kind: ImportFileKind;
+  readonly size: number;
+  /** @nullable */
+  readonly rights_applied_at: string | null;
+}
+
+export type ImportJobErrorParams = { [key: string]: unknown };
+
+/**
+ * * `source` - A source
+ * * `link` - A direct link
+ */
+export type ImportJobOrigin = (typeof ImportJobOrigin)[keyof typeof ImportJobOrigin];
+
+export const ImportJobOrigin = {
+  source: "source",
+  link: "link",
+} as const;
+
+export interface NamedRef {
+  id: string;
+  name: string;
+}
+
+export interface Item {
+  /** @maxLength 1000 */
+  path: string;
+  is_dir: boolean;
+}
+
+/**
+ * * `` -
+ * * `planning` - planning
+ * * `copying` - copying
+ * * `moving` - moving
+ */
+export type PhaseEnum = (typeof PhaseEnum)[keyof typeof PhaseEnum];
+
+export const PhaseEnum = {
+  planning: "planning",
+  copying: "copying",
+  moving: "moving",
+} as const;
+
+export interface Skipped {
+  count?: number;
+  names?: string[];
+}
+
+export interface ImportJob {
+  readonly id: string;
+  readonly origin: ImportJobOrigin;
+  readonly source: NamedRef | null;
+  readonly source_name: string;
+  readonly source_kind: string;
+  readonly items: readonly Item[];
+  readonly url: string;
+  readonly file_name: string;
+  readonly has_checksum: boolean;
+  readonly library: NamedRef | null;
+  readonly library_name: string;
+  readonly subfolder: string;
+  readonly rights_holder: string;
+  readonly license_ref: string;
+  /** @nullable */
+  readonly license_expires_at: string | null;
+  readonly status: TranscodeJobStatusEnum;
+  readonly phase: PhaseEnum;
+  readonly error_code: string;
+  readonly error: string;
+  readonly error_params: ImportJobErrorParams;
+  readonly attempts: number;
+  /** @nullable */
+  readonly retry_at: string | null;
+  readonly cancel_requested: boolean;
+  readonly files_total: number;
+  readonly files_done: number;
+  readonly bytes_total: number;
+  readonly bytes_done: number;
+  /** @nullable */
+  readonly speed_bps: number | null;
+  /** @nullable */
+  readonly eta_s: number | null;
+  readonly skipped: Skipped;
+  readonly created_by_name: string;
+  readonly created_at: string;
+  /** @nullable */
+  readonly started_at: string | null;
+  /** @nullable */
+  readonly finished_at: string | null;
+}
+
+export type ImportJobDetailErrorParams = { [key: string]: unknown };
+
+export interface ImportJobDetail {
+  readonly id: string;
+  readonly origin: ImportJobOrigin;
+  readonly source: NamedRef | null;
+  readonly source_name: string;
+  readonly source_kind: string;
+  readonly items: readonly Item[];
+  readonly url: string;
+  readonly file_name: string;
+  readonly has_checksum: boolean;
+  readonly library: NamedRef | null;
+  readonly library_name: string;
+  readonly subfolder: string;
+  readonly rights_holder: string;
+  readonly license_ref: string;
+  /** @nullable */
+  readonly license_expires_at: string | null;
+  readonly status: TranscodeJobStatusEnum;
+  readonly phase: PhaseEnum;
+  readonly error_code: string;
+  readonly error: string;
+  readonly error_params: ImportJobDetailErrorParams;
+  readonly attempts: number;
+  /** @nullable */
+  readonly retry_at: string | null;
+  readonly cancel_requested: boolean;
+  readonly files_total: number;
+  readonly files_done: number;
+  readonly bytes_total: number;
+  readonly bytes_done: number;
+  /** @nullable */
+  readonly speed_bps: number | null;
+  /** @nullable */
+  readonly eta_s: number | null;
+  readonly skipped: Skipped;
+  readonly created_by_name: string;
+  readonly created_at: string;
+  /** @nullable */
+  readonly started_at: string | null;
+  /** @nullable */
+  readonly finished_at: string | null;
+  readonly files: readonly ImportFile[];
+}
+
+/**
+ * * `pending` - pending
+ * * `done` - done
+ */
+export type ImportRequestStatus = (typeof ImportRequestStatus)[keyof typeof ImportRequestStatus];
+
+export const ImportRequestStatus = {
+  pending: "pending",
+  done: "done",
+} as const;
+
+/**
+ * * `access_key_id` - access_key_id
+ * * `secret_access_key` - secret_access_key
+ * * `password` - password
+ * * `private_key` - private_key
+ * * `key_passphrase` - key_passphrase
+ * * `token` - token
+ * * `client_secret` - client_secret
+ */
+export type ImportSecretName = (typeof ImportSecretName)[keyof typeof ImportSecretName];
+
+export const ImportSecretName = {
+  access_key_id: "access_key_id",
+  secret_access_key: "secret_access_key",
+  password: "password",
+  private_key: "private_key",
+  key_passphrase: "key_passphrase",
+  token: "token",
+  client_secret: "client_secret",
+} as const;
+
+/**
+ * * `s3` - S3-compatible bucket
+ * * `sftp` - SFTP
+ * * `webdav` - WebDAV
+ * * `drive` - Google Drive
+ * * `dropbox` - Dropbox
+ * * `onedrive` - OneDrive
+ */
+export type ImportSourceKind = (typeof ImportSourceKind)[keyof typeof ImportSourceKind];
+
+export const ImportSourceKind = {
+  s3: "s3",
+  sftp: "sftp",
+  webdav: "webdav",
+  drive: "drive",
+  dropbox: "dropbox",
+  onedrive: "onedrive",
+} as const;
+
+/**
+ * * `aws` - aws
+ * * `b2` - b2
+ * * `r2` - r2
+ * * `wasabi` - wasabi
+ * * `minio` - minio
+ * * `other` - other
+ */
+export type SourceOptionsProviderEnum =
+  (typeof SourceOptionsProviderEnum)[keyof typeof SourceOptionsProviderEnum];
+
+export const SourceOptionsProviderEnum = {
+  aws: "aws",
+  b2: "b2",
+  r2: "r2",
+  wasabi: "wasabi",
+  minio: "minio",
+  other: "other",
+} as const;
+
+/**
+ * * `other` - other
+ * * `nextcloud` - nextcloud
+ * * `owncloud` - owncloud
+ * * `sharepoint` - sharepoint
+ * * `sharepoint-ntlm` - sharepoint-ntlm
+ */
+export type VendorEnum = (typeof VendorEnum)[keyof typeof VendorEnum];
+
+export const VendorEnum = {
+  other: "other",
+  nextcloud: "nextcloud",
+  owncloud: "owncloud",
+  sharepoint: "sharepoint",
+  "sharepoint-ntlm": "sharepoint-ntlm",
+} as const;
+
+/**
+ * The non-secret options; each kind uses some (`remotes.OPTIONS`).
+ */
+export interface SourceOptions {
+  provider?: SourceOptionsProviderEnum;
+  /** @maxLength 500 */
+  endpoint?: string;
+  /** @maxLength 40 */
+  region?: string;
+  path_style?: boolean;
+  /** @maxLength 1000 */
+  root?: string;
+  /** @maxLength 253 */
+  host?: string;
+  /**
+   * @minimum 1
+   * @maximum 65535
+   */
+  port?: number;
+  /** @maxLength 128 */
+  username?: string;
+  /** @maxLength 8000 */
+  host_keys?: string;
+  /** @maxLength 500 */
+  url?: string;
+  vendor?: VendorEnum;
+  /** @maxLength 200 */
+  root_folder_id?: string;
+  /** @maxLength 200 */
+  client_id?: string;
+  /** @maxLength 200 */
+  drive_id?: string;
+  drive_type?: DriveTypeEnum;
+}
+
+/**
+ * * `` -
+ * * `ok` - ok
+ * * `auth_failed` - auth_failed
+ * * `not_found` - not_found
+ * * `unreachable` - unreachable
+ * * `timeout` - timeout
+ * * `tls_failed` - tls_failed
+ * * `unsafe_destination` - unsafe_destination
+ * * `unexpected` - unexpected
+ */
+export type LastTestStatusEnum = (typeof LastTestStatusEnum)[keyof typeof LastTestStatusEnum];
+
+export const LastTestStatusEnum = {
+  ok: "ok",
+  auth_failed: "auth_failed",
+  not_found: "not_found",
+  unreachable: "unreachable",
+  timeout: "timeout",
+  tls_failed: "tls_failed",
+  unsafe_destination: "unsafe_destination",
+  unexpected: "unexpected",
+} as const;
+
+export interface ImportSource {
+  readonly id: string;
+  readonly name: string;
+  readonly kind: ImportSourceKind;
+  readonly options: SourceOptions;
+  readonly summary: string;
+  readonly secrets_set: readonly ImportSecretName[];
+  /** @nullable */
+  readonly last_test_at: string | null;
+  readonly last_test_status: LastTestStatusEnum;
+  readonly last_test_message: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+/**
+ * The non-secret options; each kind uses some (`remotes.OPTIONS`).
+ */
+export interface SourceOptionsRequest {
+  provider?: SourceOptionsProviderEnum;
+  /** @maxLength 500 */
+  endpoint?: string;
+  /** @maxLength 40 */
+  region?: string;
+  path_style?: boolean;
+  /** @maxLength 1000 */
+  root?: string;
+  /** @maxLength 253 */
+  host?: string;
+  /**
+   * @minimum 1
+   * @maximum 65535
+   */
+  port?: number;
+  /** @maxLength 128 */
+  username?: string;
+  /** @maxLength 8000 */
+  host_keys?: string;
+  /** @maxLength 500 */
+  url?: string;
+  vendor?: VendorEnum;
+  /** @maxLength 200 */
+  root_folder_id?: string;
+  /** @maxLength 200 */
+  client_id?: string;
+  /** @maxLength 200 */
+  drive_id?: string;
+  drive_type?: DriveTypeEnum;
+}
+
+/**
+ * Secrets, write-only; only the ones given change.
+ */
+export interface SourceSecretsRequest {
+  /** @maxLength 200 */
+  access_key_id?: string;
+  /** @maxLength 500 */
+  secret_access_key?: string;
+  /** @maxLength 500 */
+  password?: string;
+  /** @maxLength 20000 */
+  private_key?: string;
+  /** @maxLength 500 */
+  key_passphrase?: string;
+  /** @maxLength 20000 */
+  token?: string;
+  /** @maxLength 500 */
+  client_secret?: string;
+}
+
+/**
+ * Create a source (name, kind, options, secrets) or change one (kind stays).
+ */
+export interface ImportSourceWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  kind?: ImportSourceKind;
+  options?: SourceOptionsRequest;
+  secrets?: SourceSecretsRequest;
+  /** Secrets to remove (for example the password when switching to a key). */
+  clear_secrets?: ImportSecretName[];
+}
+
+/**
+ * * `movies` - Movies
+ * * `series` - Series
+ * * `documentaries` - Documentaries
+ * * `kids` - Kids
+ * * `mixed` - Mixed
+ */
+export type LibraryKind = (typeof LibraryKind)[keyof typeof LibraryKind];
+
+export const LibraryKind = {
+  movies: "movies",
+  series: "series",
+  documentaries: "documentaries",
+  kids: "kids",
+  mixed: "mixed",
+} as const;
+
+export interface LibraryTarget {
+  id: string;
+  name: string;
+  kind: LibraryKind;
+  /** @nullable */
+  free_bytes: number | null;
+  /** @nullable */
+  total_bytes: number | null;
+}
+
+export interface ImportStatus {
+  importer_online: boolean;
+  max_concurrent: number;
+  reserve_bytes: number;
+  bandwidth_mbit: number;
+  libraries: LibraryTarget[];
+}
+
+/**
  * * `tmdb` - TMDB
  * * `tvdb` - TVDB
  * * `email` - EMAIL
@@ -2281,6 +2721,15 @@ export interface Invoice {
   readonly created_at: string;
 }
 
+export interface ItemRequest {
+  /**
+   * @minLength 1
+   * @maxLength 1000
+   */
+  path: string;
+  is_dir: boolean;
+}
+
 export interface JobFile {
   id: string;
   /** The library's name. */
@@ -2347,23 +2796,6 @@ export interface Kpis {
   /** When the figures were computed (cached 30 s). */
   as_of: string;
 }
-
-/**
- * * `movies` - Movies
- * * `series` - Series
- * * `documentaries` - Documentaries
- * * `kids` - Kids
- * * `mixed` - Mixed
- */
-export type LibraryKind = (typeof LibraryKind)[keyof typeof LibraryKind];
-
-export const LibraryKind = {
-  movies: "movies",
-  series: "series",
-  documentaries: "documentaries",
-  kids: "kids",
-  mixed: "mixed",
-} as const;
 
 /**
  * * `ingest` - At ingest
@@ -2494,6 +2926,36 @@ export interface LibraryWriteRequest {
    */
   scan_interval_min?: number;
   enabled?: boolean;
+}
+
+export interface LinkJobCreateRequest {
+  library: string;
+  /** @maxLength 500 */
+  subfolder?: string;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  rights_holder: string;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  license_ref: string;
+  /** @nullable */
+  license_expires_at?: string | null;
+  /**
+   * @minLength 1
+   * @maxLength 4000
+   */
+  url: string;
+  /** @maxLength 255 */
+  file_name?: string;
+  /**
+   * The file's SHA-256, SHA-1 or MD5 in hexadecimal, verified after the download.
+   * @maxLength 128
+   */
+  checksum?: string;
 }
 
 export type ProbeVideo = { [key: string]: unknown };
@@ -3207,6 +3669,15 @@ export interface PaginatedDeviceListItemList {
   /** @nullable */
   previous: string | null;
   results: DeviceListItem[];
+}
+
+export interface PaginatedImportJobList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: ImportJob[];
 }
 
 export interface PaginatedInvoiceList {
@@ -3970,6 +4441,22 @@ export interface PatchedEpgSourceWriteRequest {
 }
 
 /**
+ * Create a source (name, kind, options, secrets) or change one (kind stays).
+ */
+export interface PatchedImportSourceWriteRequest {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name?: string;
+  kind?: ImportSourceKind;
+  options?: SourceOptionsRequest;
+  secrets?: SourceSecretsRequest;
+  /** Secrets to remove (for example the password when switching to a key). */
+  clear_secrets?: ImportSecretName[];
+}
+
+/**
  * Create or change a library. `path` is a folder under the media root, given as an
  * absolute container path (/media/movies) or relative to the root (movies).
  */
@@ -4622,6 +5109,36 @@ export interface RematchResult {
   title_ids: string[];
 }
 
+export interface RemoteEntry {
+  name: string;
+  /** Relative to the source's root folder. */
+  path: string;
+  is_dir: boolean;
+  /** @nullable */
+  size: number | null;
+  /** @nullable */
+  modified: string | null;
+  /** A folder, a video file or a subtitle. */
+  importable: boolean;
+}
+
+export interface RemoteResult {
+  ok: boolean;
+  /** ok, auth_failed, not_found, unreachable, timeout, ... */
+  code: string;
+  message: string;
+  path?: string;
+  entries?: RemoteEntry[];
+  truncated?: boolean;
+  count?: number;
+  host_keys?: string;
+}
+
+export interface RemoteAnswer {
+  status: ImportRequestStatus;
+  result: RemoteResult | null;
+}
+
 /**
  * * `compat_mp4` - Compat MP4
  * * `source` - Source (direct play)
@@ -4698,6 +5215,10 @@ export interface ReprocessRequest {
 export interface ReprocessResult {
   files: string[];
   outputs: string[];
+}
+
+export interface RequestQueued {
+  request_id: string;
 }
 
 export interface ResetResult {
@@ -4961,6 +5482,26 @@ export interface SettingImageRequest {
   file: Blob | File;
 }
 
+export interface SourceJobCreateRequest {
+  library: string;
+  /** @maxLength 500 */
+  subfolder?: string;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  rights_holder: string;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  license_ref: string;
+  /** @nullable */
+  license_expires_at?: string | null;
+  source: string;
+  items: ItemRequest[];
+}
+
 export interface SourceTestQueued {
   request_id: string;
 }
@@ -4973,20 +5514,8 @@ export interface SourceTestRequestRequest {
   url: string;
 }
 
-/**
- * * `pending` - pending
- * * `done` - done
- */
-export type SourceTestResultStatusEnum =
-  (typeof SourceTestResultStatusEnum)[keyof typeof SourceTestResultStatusEnum];
-
-export const SourceTestResultStatusEnum = {
-  pending: "pending",
-  done: "done",
-} as const;
-
 export interface SourceTestResult {
-  status: SourceTestResultStatusEnum;
+  status: ImportRequestStatus;
   result: Probe | null;
 }
 
@@ -5871,6 +6400,28 @@ export const DevicesListStatus = {
   blocked: "blocked",
   pending: "pending",
   revoked: "revoked",
+} as const;
+
+export type ImportJobsListParams = {
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * Only these imports.
+   */
+  state?: ImportJobsListState;
+};
+
+export type ImportJobsListState = (typeof ImportJobsListState)[keyof typeof ImportJobsListState];
+
+export const ImportJobsListState = {
+  active: "active",
+  finished: "finished",
 } as const;
 
 export type InvoicesListParams = {

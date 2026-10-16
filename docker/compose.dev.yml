@@ -58,6 +58,21 @@ services:
     # edits elsewhere in the backend would otherwise restart it all day (T1).
     command: ["watchfiles", "--filter", "python", "--ignore-paths", "/app/apps/media/tests", "python manage.py run_transcoder", "/app/apps/media"]
 
+  # Imports (ADR-0025): the libraries read-write here only. Reloads on apps/imports
+  # changes (a reload stops the running copy; the job resumes after its retry).
+  importer:
+    <<: *app-dev
+    mem_limit: 768m
+    command: ["watchfiles", "--filter", "python", "--ignore-paths", "/app/apps/imports/tests", "celery -A config worker --queues import --pool threads --concurrency 4 --hostname importer@%h --loglevel INFO", "/app/apps/imports"]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      APP_COMMIT: ${APP_COMMIT:-}
+      # The CA of make import-test's throwaway HTTPS server (honoured with DEBUG only).
+      IMPORT_EXTRA_CA_FILE: /media/.import-test/ca.pem
+    volumes:
+      - ./backend:/app
+      - ./media:/media
+
   nginx-stream:
     volumes:
       # Direct-play renditions are symlinks to library files (ADR-0010).

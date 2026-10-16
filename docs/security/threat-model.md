@@ -385,6 +385,16 @@ Each table lists the threat, its likelihood (L) and impact (I), what mitigates i
 | HO-4 | S | SSH or console compromise of the host | L | H | ufw policy (deny incoming, SSH rate-limited or from given networks) in the installer, SSH hardening in the security runbook (**Built**, M14b) | G-42 |
 | HO-5 | D | One host and one web replica: updates cause seconds of downtime, and losing the host loses everything | M | M | Health-gated restarts (**Built**); two web replicas and zero-downtime deploys (**Planned M13 to M15**); encrypted backups with a weekly restore drill and disaster-recovery steps (**Built**, M14b) | G-41 |
 
+### 8.19 Importer (process, I1, [ADR-0025](../adr/0025-imports-from-storage-and-direct-links.md))
+
+| ID | STRIDE | Threat | L | I | Mitigations | Gap |
+|---|---|---|---|---|---|---|
+| IM-1 | I, E | An admin-typed source host or link reaches our own services or the cloud metadata address (SSRF) | M | H | The egress guard on every host and URL: static when saved, with DNS before every run, and on every redirect of a link; HTTPS only, no downgrade (**Built**, I1). rclone resolves a source's host again itself, so DNS rebinding of a source is not covered (as for FFmpeg's live sources) | — |
+| IM-2 | I | Source credentials leak through argv, logs or the API | L | H | Fernet at rest, write-only in the API; rclone reads them from a per-run 0600 config in a private tmp folder (tmpfs in production); errors scrubbed of every secret; the reporting role can't read sources (**Built**, I1) | — |
+| IM-3 | T, E | A remote name writes outside the library or overwrites a file | L | H | Library-relative keys checked against `..` and hidden names; staging inside the library; hard-link moves that never overwrite; the importer is the only service with the libraries writable (`make hardening-test`) (**Built**, I1) | — |
+| IM-4 | D | An import fills the disk | M | M | The size and the reserve are checked before copying (other running imports counted); a watchdog stops the copy under half the reserve; one or two imports at a time (**Built**, I1) | — |
+| IM-5 | R | Media of unknown origin enters the catalogue | M | H | Admin-started imports only (no automation, no torrents or indexers), rights holder and licence reference required and applied to the titles, `import.*` audit entries and a history of who imported what from where (**Built**, I1) | — |
+
 ## 9. Abuse cases: credential sharing and reselling
 
 Spec §11.1 assumes that credentials leak and aims to make each leak cheap and visible. The planned controls are:
@@ -478,6 +488,8 @@ Severity follows the ratings in [section 3](#3-how-to-read-this-document). Items
 - **Keep IDs stable:** don't renumber threats or gaps; mark closed ones as closed so that references in commits and ADRs stay valid.
 
 ## 12. Review log
+
+- **16 October 2026 (I1, [ADR-0025](../adr/0025-imports-from-storage-and-direct-links.md)).** Added the importer (section 8.19). Checks: the import tests against real rclone servers and a local HTTPS server (credentials absent from argv and the environment, the guard on loopback, metadata and internal names, redirects to HTTP refused, a certificate that doesn't verify), `make hardening-test` with the new media-writers rule, Trivy on the importer image.
 
 - **Version 2, 14 October 2026 (M14a, [ADR-0021](../adr/0021-application-security.md)).** Every gap got a status (section 10). Rows touched by M7 to M14 had their tags brought up to date; the rest of section 8 still reads as of version 1 where nothing changed. Checks behind the statuses: the backend suite (pytest, real PostgreSQL and Valkey), `make semgrep` (the project's own rules, `.semgrep/rules.yml`), `make audit` (pip-audit and `pnpm audit --prod`: no known vulnerabilities on 14 October 2026), the header checks in `make smoke`, and the first ZAP baseline (`make zap`, passive rules on every dev host).
 - **ZAP baseline, first run.** Found and fixed: the SPAs' dev servers sent the CSP only to browsers' page requests (now on every response, as nginx does in production), and the media edge's CSP lacked `base-uri` and `form-action`. Accepted, with reasons in `security/zap/plan.yaml`: `Access-Control-Allow-Origin: *` on the media edge (ADR-0017: the signed URL is the only credential), the `csrftoken` cookie readable by scripts (double-submit CSRF), the deprecated `report-uri` sent next to `report-to` (Firefox only reports to the former), and informational alerts.

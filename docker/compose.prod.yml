@@ -99,6 +99,13 @@ services:
   beat:
     <<: *prod-app
 
+  # Imports (ADR-0025): the only service with the libraries read-write. rclone's per-run
+  # config folders live on the in-memory /tmp.
+  importer:
+    <<: *prod-app
+    volumes:
+      - ${MEDIA_ROOT:-/srv/media}:/media
+
   # Live TV (ADR-0017): production settings for the packager; the relay needs none.
   live:
     <<: *prod-app

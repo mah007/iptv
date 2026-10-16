@@ -838,7 +838,13 @@
       "monitoring_fire_drill": "تجربة التنبيهات",
       "customer_mfa_enable": "تفعيل العميل للتحقق بخطوتين",
       "customer_mfa_disable": "إيقاف العميل للتحقق بخطوتين",
-      "customer_mfa_reset": "إيقاف الدعم للتحقق بخطوتين لعميل"
+      "customer_mfa_reset": "إيقاف الدعم للتحقق بخطوتين لعميل",
+      "import_start": "بدأ استيراد",
+      "import_finish": "انتهى استيراد",
+      "import_cancel": "أُلغي استيراد",
+      "import_source_create": "أُضيف مصدر استيراد",
+      "import_source_update": "عُدّل مصدر استيراد",
+      "import_source_delete": "حُذف مصدر استيراد"
     },
     "targets": {
       "accounts_user": "مستخدم",
@@ -863,7 +869,9 @@
       "media_transcodejob": "مهمة تحويل",
       "media_audiotrack": "مسار صوت",
       "media_subtitletrack": "مسار ترجمة",
-      "catalog_mediaimage": "صورة"
+      "catalog_mediaimage": "صورة",
+      "imports_importjob": "استيراد",
+      "imports_importsource": "مصدر استيراد"
     }
   },
   "settings": {
@@ -1112,6 +1120,18 @@
         "capped_compat_mp4": {
           "label": "ملفات MP4 محدودة الجودة لتطبيقات IPTV",
           "description": "ملف MP4 بجودة 720p أو 480p يُعاد تغليفه من سلّم الجودات (ثوانٍ لكل عمل دون ترميز)، لتحصل تطبيقات IPTV في الباقات المحدودة على ملف MP4. تلقائي: الحدود التي تستخدمها الباقات فقط."
+        },
+        "import_max_concurrent": {
+          "label": "عمليات الاستيراد في الوقت نفسه",
+          "description": "كم عملية استيراد تنسخ في الوقت نفسه (1 أو 2)؛ تنتظر البقية في الطابور."
+        },
+        "import_reserve_gb": {
+          "label": "المساحة التي يُبقيها الاستيراد فارغة (GB)",
+          "description": "يُرفض الاستيراد قبل أن ينسخ شيئًا إن كان سيترك على قرص المكتبة مساحة فارغة أقل من هذه."
+        },
+        "import_bandwidth_mbit": {
+          "label": "سرعة نقل الاستيراد (Mbit/s)",
+          "description": "أقصى ما ينزّله الاستيراد في الثانية؛ 0 بلا حد."
         }
       },
       "metadata": {
@@ -2047,7 +2067,8 @@
       "pathRequired": "أدخل مجلدًا ضمن ⁦/media⁩.",
       "pathTooLong": "استخدم 500 حرف كحد أقصى.",
       "interval": "أدخل عددًا صحيحًا من الدقائق بين 1 و10080."
-    }
+    },
+    "import": "استيراد"
   },
   "titles": {
     "movie": {
@@ -2552,7 +2573,21 @@
     "invalid_ingest_user": "استخدم من 1 إلى 64 حرفًا أو رقمًا أو نقطة أو شرطة أو شرطة سفلية.",
     "invalid_ingest_password": "استخدم من 8 إلى 200 حرف قابل للطباعة دون مسافات.",
     "ordering_needs_tvdb_id": "لا يعرف TMDB معرّف هذا المسلسل في TheTVDB، لذا لا تنطبق ترتيبات TheTVDB.",
-    "placement_tvdb_unavailable": "يتبع هذا المسلسل ترتيبًا من TheTVDB: احفظ مفتاح TheTVDB في الإعدادات ← التكاملات ثم حاول مجددًا."
+    "placement_tvdb_unavailable": "يتبع هذا المسلسل ترتيبًا من TheTVDB: احفظ مفتاح TheTVDB في الإعدادات ← التكاملات ثم حاول مجددًا.",
+    "invalid_path": "استخدم مسار مجلد عاديًا، بلا .. ولا أسماء تبدأ بنقطة.",
+    "invalid_port": "أدخل منفذًا من 1 إلى 65535.",
+    "invalid_host_key": "الصق المفتاح العام للخادم، مثل ssh-ed25519 AAAA…",
+    "invalid_token": "الصق ملف JSON الذي طبعه rclone authorize.",
+    "invalid_name": "أعطِ اسم ملف عاديًا، مثل Metropolis (1927).mp4.",
+    "unsupported_type": "لا يُستورد إلا ملفات الفيديو والترجمات.",
+    "invalid_checksum": "أعطِ بصمة SHA-256 أو SHA-1 أو MD5 بالنظام الست عشري.",
+    "nothing_selected": "اختر ملفات أو مجلدات للاستيراد.",
+    "kind_fixed": "لا يتغير نوع المصدر؛ أضف مصدرًا جديدًا.",
+    "library_missing": "مجلد المكتبة غير موجود.",
+    "link_not_https": "استخدم رابطًا يبدأ بـ https://.",
+    "source_name_taken": "هذا الاسم مستخدم لمصدر آخر.",
+    "unknown_option": "هذا النوع من المصادر لا يأخذ هذا الحقل.",
+    "too_many_items": "عناصر أكثر مما يحتمله استيراد واحد."
   },
   "activity": {
     "label": "النشاط",
@@ -4836,6 +4871,302 @@
       "title": "لا أحد مقفل",
       "description": "تظهر حالات القفل هنا حين تفشل عمليات الدخول مرات كثيرة.",
       "customer": "لا شيء مقفل لهذا العميل."
+    }
+  },
+  "imports": {
+    "title": "استيراد الوسائط",
+    "breadcrumb": "استيراد",
+    "description": "انسخ إلى مكتبة ملفاتٍ تملكها أو مرخّصًا لك بتوزيعها، من مساحة تخزين تتحكم بها أو من رابط مباشر واحد. ينزّلها الخادم بنفسه وبسرعته، ثم تُفحص وتُطابَق وتُحوَّل كالمعتاد.",
+    "offline": {
+      "title": "خدمة الاستيراد لا تعمل",
+      "description": "تنتظر عمليات الاستيراد في الطابور حتى تبدأ. على الخادم شغّل install.sh --update."
+    },
+    "limits": {
+      "concurrent_zero": "لا استيراد في الوقت نفسه",
+      "concurrent_one": "عملية استيراد واحدة في كل مرة",
+      "concurrent_two": "عمليتا استيراد في الوقت نفسه",
+      "concurrent_few": "{{count}} عمليات استيراد في الوقت نفسه",
+      "concurrent_many": "{{count}} عملية استيراد في الوقت نفسه",
+      "concurrent_other": "{{count}} عملية استيراد في الوقت نفسه",
+      "reserve": "تبقى {{size}} فارغة على قرص المكتبة",
+      "bandwidth": "حد سرعة النقل {{rate}}",
+      "unlimited": "بلا حد لسرعة النقل"
+    },
+    "kinds": {
+      "s3": "حاوية متوافقة مع S3",
+      "sftp": "SFTP",
+      "webdav": "WebDAV",
+      "drive": "Google Drive",
+      "dropbox": "Dropbox",
+      "onedrive": "OneDrive"
+    },
+    "providers": {
+      "aws": "Amazon S3",
+      "b2": "Backblaze B2",
+      "r2": "Cloudflare R2",
+      "wasabi": "Wasabi",
+      "minio": "MinIO",
+      "other": "خدمة أخرى متوافقة مع S3"
+    },
+    "vendors": {
+      "other": "خادم WebDAV آخر",
+      "nextcloud": "Nextcloud",
+      "owncloud": "ownCloud",
+      "sharepoint": "SharePoint Online",
+      "sharepoint-ntlm": "SharePoint (‏NTLM، داخل المؤسسة)"
+    },
+    "driveTypes": {
+      "auto": "يُعرف بعد الاختبار",
+      "personal": "شخصي",
+      "business": "للأعمال",
+      "documentLibrary": "مكتبة مستندات SharePoint"
+    },
+    "testStatus": {
+      "ok": "يمكن الوصول إليه",
+      "auth_failed": "رُفض تسجيل الدخول",
+      "not_found": "غير موجود",
+      "unreachable": "تعذّر الوصول",
+      "timeout": "انتهت المهلة",
+      "tls_failed": "الشهادة غير موثوقة",
+      "unsafe_destination": "غير مسموح",
+      "unexpected": "فشل"
+    },
+    "queue": {
+      "title": "الطابور",
+      "description": "عمليات الاستيراد الجارية الآن أو التي تنتظر دورها.",
+      "empty": "لا يُستورد شيء الآن.",
+      "andMore_zero": "{{name}}",
+      "andMore_one": "{{name}} وعنصر آخر",
+      "andMore_two": "{{name}} وعنصران آخران",
+      "andMore_few": "{{name}} و{{count}} عناصر أخرى",
+      "andMore_many": "{{name}} و{{count}} عنصرًا آخر",
+      "andMore_other": "{{name}} و{{count}} عنصر آخر",
+      "into": "إلى {{library}}",
+      "intoFolder": "إلى {{library}} / {{folder}}",
+      "waiting": "ينتظر دوره",
+      "retrying": "إعادة المحاولة",
+      "phases": {
+        "planning": "السرد والتحقق",
+        "copying": "النسخ",
+        "moving": "النقل إلى المكتبة"
+      },
+      "progress": "{{done}} من {{total}}",
+      "files": "{{done}} من {{total}} ملفات",
+      "speed": "{{rate}}",
+      "cancel": "إلغاء",
+      "cancelLabel": "إلغاء استيراد {{name}}",
+      "cancelTitle": "إلغاء هذا الاستيراد؟",
+      "cancelDescription": "يتوقف النسخ ويُحذف ما نُسخ حتى الآن. تبقى الملفات التي نُقلت إلى المكتبة في مكانها.",
+      "cancelConfirm": "إلغاء الاستيراد",
+      "cancelled": "أُلغي الاستيراد"
+    },
+    "sources": {
+      "title": "المصادر",
+      "description": "مساحات تخزين تتحكم بها: حاويات وخوادم وأقراص سحابية. تُشفَّر بيانات الدخول ولا تُعرض مرة أخرى.",
+      "new": "إضافة مصدر",
+      "empty": "لا مصادر بعد",
+      "emptyDescription": "أضف حاوية متوافقة مع S3 أو خادم SFTP أو WebDAV أو Google Drive أو Dropbox أو OneDrive. لملف واحد استخدم رابطًا مباشرًا.",
+      "neverTested": "لم يُختبر",
+      "lastTest": "اختُبر",
+      "test": "اختبار",
+      "testing": "جارٍ الاختبار…",
+      "testOk": "يمكن الوصول إليه",
+      "testOkDescription": "سرد المستورِد مجلد المصدر.",
+      "testFailed": "فشل الاختبار",
+      "hostKeyPinned": "مفتاح الخادم المثبّت:",
+      "browse": "تصفّح",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "deleteTitle": "حذف {{name}}؟",
+      "deleteDescription": "تُحذف بيانات دخوله. يبقى سجل ما استُورد منه.",
+      "deleteConfirm": "حذف المصدر",
+      "deleted": "حُذف {{name}}"
+    },
+    "sheet": {
+      "newTitle": "إضافة مصدر",
+      "editTitle": "تعديل المصدر",
+      "description": "لا ينسخ المستورِد من هنا إلا الملفات التي تختارها. تتطلب إضافة بيانات الدخول أو تغييرها تأكيد هويتك.",
+      "kind": "النوع",
+      "kindHelp": {
+        "s3": "Amazon S3 أو Backblaze B2 أو Cloudflare R2 أو Wasabi أو MinIO أو خدمة أخرى متوافقة مع S3.",
+        "sftp": "خادم تصل إليه عبر SSH: بكلمة مرور أو مفتاح خاص.",
+        "webdav": "Nextcloud أو ownCloud أو SharePoint أو خادم WebDAV آخر.",
+        "drive": "عبر rclone: الصق الرمز الذي يطبعه rclone authorize \"drive\" على جهازك.",
+        "dropbox": "عبر rclone: الصق الرمز الذي يطبعه rclone authorize \"dropbox\" على جهازك.",
+        "onedrive": "عبر rclone: الصق الرمز الذي يطبعه rclone authorize \"onedrive\" على جهازك."
+      },
+      "name": "الاسم",
+      "provider": "المزوّد",
+      "endpoint": "نقطة الوصول",
+      "endpointHelp": {
+        "b2": "نقطة وصول S3 لحاويتك، مثل https://s3.eu-central-003.backblazeb2.com.",
+        "r2": "https://<معرّف الحساب>.r2.cloudflarestorage.com",
+        "wasabi": "مثل https://s3.eu-central-1.wasabisys.com",
+        "minio": "مثل http://nas.lan:9000",
+        "other": "عنوان S3 للخدمة."
+      },
+      "region": "المنطقة",
+      "regionHelp": "اختيارية لمعظم المزوّدين، مثل eu-central-1.",
+      "pathStyle": "عناوين بنمط المسار",
+      "pathStyleHelp": "لـ MinIO والخدمات التي لا تدعم النطاقات الفرعية للحاويات.",
+      "accessKeyId": "معرّف مفتاح الوصول",
+      "secretAccessKey": "مفتاح الوصول السري",
+      "host": "الخادم",
+      "port": "المنفذ",
+      "username": "اسم المستخدم",
+      "password": "كلمة المرور",
+      "passwordOrKey": "كلمة مرور أو مفتاح خاص أو كلاهما.",
+      "privateKey": "المفتاح الخاص",
+      "keyPassphrase": "عبارة مرور المفتاح",
+      "hostKeys": "مفتاح الخادم",
+      "hostKeysHelp": "اختياري: المفتاح العام للخادم (ناتج ssh-keyscan). إن تُرك فارغًا يثبّت أول اختبار ناجح المفتاحَ الذي يراه.",
+      "url": "العنوان",
+      "vendor": "برنامج الخادم",
+      "token": "الرمز",
+      "tokenHelp": {
+        "drive": "على جهازك شغّل rclone authorize \"drive\" وسجّل الدخول إلى Google ثم الصق ملف JSON الذي يطبعه. لا تصل كلمة مرورك إلى الخادم.",
+        "dropbox": "على جهازك شغّل rclone authorize \"dropbox\" وسجّل الدخول إلى Dropbox ثم الصق ملف JSON الذي يطبعه.",
+        "onedrive": "على جهازك شغّل rclone authorize \"onedrive\" وسجّل الدخول إلى Microsoft ثم الصق ملف JSON الذي يطبعه؛ يعثر أول اختبار على قرصك."
+      },
+      "rootFolderId": "معرّف المجلد",
+      "rootFolderIdHelp": "اختياري: ابدأ من هذا المجلد في Drive (آخر جزء من عنوانه).",
+      "driveId": "معرّف القرص",
+      "driveIdHelp": "اختياري: يعثر عليه أول اختبار.",
+      "driveType": "نوع القرص",
+      "clientId": "معرّف العميل",
+      "clientIdHelp": "فقط إن خوّلت rclone بتطبيق OAuth خاص بك.",
+      "clientSecret": "سر العميل",
+      "root": "مجلد البداية",
+      "rootHelp": "اختياري: المجلد الذي يبدأ منه المتصفح.",
+      "rootHelpS3": "حاوية، أو حاوية/مجلد. إن تُرك فارغًا يسرد المتصفح حاوياتك.",
+      "secretSaved": "محفوظ؛ اتركه فارغًا للإبقاء عليه",
+      "stepUpNote": "تُشفَّر بيانات الدخول على الخادم ولا تُعرض مرة أخرى.",
+      "create": "إضافة المصدر",
+      "saved": "حُفظ {{name}}"
+    },
+    "browser": {
+      "title": "تصفّح {{name}}",
+      "description": "اختر ملفات أو مجلدات. لا تجلب المجلدات إلا ملفات الفيديو والترجمات.",
+      "location": "المجلد",
+      "top": "الأعلى",
+      "up": "للأعلى",
+      "loading": "جارٍ سرد المجلد…",
+      "empty": "هذا المجلد فارغ.",
+      "failed": "تعذّر سرد المجلد",
+      "noAnswer": "لم يُجب المستورِد. تحقق من أنه يعمل.",
+      "choose": "اختيار",
+      "name": "الاسم",
+      "size": "الحجم",
+      "select": "اختيار {{name}}",
+      "notImportable": "ليس فيديو ولا ترجمة",
+      "truncated": "تُعرض أول 2000 عنصر فقط.",
+      "noneSelected": "لم تختر شيئًا بعد.",
+      "selected_zero": "لم يُختر شيء",
+      "selected_one": "اختير عنصر واحد ({{size}} في الملفات)",
+      "selected_two": "اختير عنصران ({{size}} في الملفات)",
+      "selected_few": "اختيرت {{count}} عناصر ({{size}} في الملفات)",
+      "selected_many": "اختير {{count}} عنصرًا ({{size}} في الملفات)",
+      "selected_other": "اختير {{count}} عنصر ({{size}} في الملفات)",
+      "next": "التالي",
+      "back": "رجوع"
+    },
+    "form": {
+      "title": "إلى أين وتحت أي حقوق",
+      "description_zero": "لا عناصر.",
+      "description_one": "عنصر واحد. تُسجَّل ملفاته بهذه الحقوق.",
+      "description_two": "عنصران. تُسجَّل ملفاتهما بهذه الحقوق.",
+      "description_few": "{{count}} عناصر. تُسجَّل ملفاتها بهذه الحقوق.",
+      "description_many": "{{count}} عنصرًا. تُسجَّل ملفاتها بهذه الحقوق.",
+      "description_other": "{{count}} عنصر. تُسجَّل ملفاتها بهذه الحقوق.",
+      "library": "المكتبة",
+      "libraryPlaceholder": "اختر مكتبة",
+      "libraryFree": "{{free}} فارغة من {{total}}؛ تبقى {{reserve}} فارغة.",
+      "subfolder": "مجلد داخل المكتبة",
+      "subfolderHelp": "اختياري، مثل Classics. تحتفظ المجلدات التي اخترتها بأسمائها داخله.",
+      "rightsHolder": "صاحب الحقوق",
+      "rightsHolderHelp": "من يملك الحقوق أو رخّصها لك. لفيلم في الملكية العامة اكتب «ملكية عامة».",
+      "licenseRef": "مرجع الترخيص",
+      "licenseRefHelp": "رقم العقد أو الترخيص؛ ولفيلم في الملكية العامة الصفحة التي تُثبت ذلك، مثل صفحته في Internet Archive.",
+      "licenseExpires": "ينتهي الترخيص",
+      "licenseExpiresHelp": "اختياري. تُخفى العناوين بعد انقضائه.",
+      "rightsNote": "تُسجَّل الحقوق مع الاستيراد وتُعطى للعناوين التي تُطابَق ملفاته معها (تبقى الحقول التي لدى العنوان من قبل).",
+      "start": "بدء الاستيراد",
+      "started": "أُضيف الاستيراد إلى الطابور"
+    },
+    "link": {
+      "button": "رابط مباشر",
+      "title": "الاستيراد من رابط مباشر",
+      "description": "ملف واحد عبر HTTPS، مثل رابط تنزيل فيلم في الملكية العامة على Internet Archive. يُستأنف التنزيل المنقطع من حيث توقف.",
+      "url": "الرابط",
+      "urlHelp": "‏https://‏ فقط. تُرفض الروابط إلى الشبكة الداخلية لهذا الخادم.",
+      "fileName": "اسم الملف",
+      "fileNameHelp": "اختياري؛ وإلا يؤخذ من الرابط أو من الخادم.",
+      "checksum": "بصمة الملف",
+      "checksumHelp": "اختيارية: SHA-256 أو SHA-1 أو MD5، يُتحقق منها بعد التنزيل."
+    },
+    "history": {
+      "title": "السجل",
+      "description": "من استورد ماذا، ومن أين، وتحت أي حقوق.",
+      "empty": "لا عمليات استيراد بعد.",
+      "what": "الاستيراد",
+      "status": "الحالة",
+      "rights": "الحقوق",
+      "size": "الملفات",
+      "when": "متى",
+      "details": "التفاصيل",
+      "detailsTitle": "تفاصيل الاستيراد",
+      "fromTo": "من {{from}} إلى {{to}}",
+      "fromToBy": "من {{from}} إلى {{to}} · {{name}}",
+      "filesSize_zero": "لا ملفات",
+      "filesSize_one": "ملف واحد، {{size}}",
+      "filesSize_two": "ملفان، {{size}}",
+      "filesSize_few": "{{count}} ملفات، {{size}}",
+      "filesSize_many": "{{count}} ملفًا، {{size}}",
+      "filesSize_other": "{{count}} ملف، {{size}}",
+      "from": "من",
+      "into": "إلى",
+      "by": "بدأه",
+      "system": "النظام",
+      "noExpiry": "بلا تاريخ انتهاء",
+      "skipped_zero": "لم يُستبعد شيء.",
+      "skipped_one": "استُبعد ملف واحد من نوع آخر.",
+      "skipped_two": "استُبعد ملفان من نوع آخر.",
+      "skipped_few": "استُبعدت {{count}} ملفات من أنواع أخرى.",
+      "skipped_many": "استُبعد {{count}} ملفًا من أنواع أخرى.",
+      "skipped_other": "استُبعد {{count}} ملف من أنواع أخرى.",
+      "filesPlaced": "الملفات التي وُضعت في المكتبة",
+      "noFiles": "لم يوضع أي ملف."
+    },
+    "errors": {
+      "insufficient_space": "لا تكفي المساحة الفارغة لهذا الاستيراد مع الاحتياطي.",
+      "insufficient_space_sizes": "لا تكفي المساحة: يحتاج {{needed}}، ويجب أن تبقى {{reserve}} فارغة، والفارغ {{free}}.",
+      "target_exists": "توجد في المكتبة ملفات بهذه الأسماء.",
+      "target_exists_names": "موجود في المكتبة: {{names}}",
+      "unsupported_type": "لا يُستورد إلا ملفات الفيديو والترجمات.",
+      "unsupported_type_names": "لا يُستورد إلا ملفات الفيديو والترجمات: {{names}}",
+      "nothing_to_import": "لم يُعثر على ملفات فيديو أو ترجمات.",
+      "auth_failed": "رفض المصدر تسجيل الدخول.",
+      "not_found": "لا شيء في هذا المسار.",
+      "unreachable": "تعذّر الوصول إلى المصدر.",
+      "timeout": "تأخر المصدر في الرد.",
+      "tls_failed": "تعذّر التحقق من شهادة الخادم.",
+      "unsafe_destination": "هذا العنوان لا يُجلب منه أبدًا.",
+      "checksum_mismatch": "بصمة الملف لا تطابق البصمة المعطاة.",
+      "transfer_failed": "فشل النسخ.",
+      "worker_lost": "توقف المستورِد أثناء الاستيراد.",
+      "source_missing": "حُذف المصدر.",
+      "library_missing": "المكتبة أو مجلدها لم يعد موجودًا.",
+      "unreadable_link": "لم يعد الرابط مقروءًا (تغيّر مفتاح التشفير).",
+      "invalid_path": "هذا المسار غير مسموح.",
+      "unexpected": "حدث خطأ؛ راجع سجل المستورِد.",
+      "too_many_items": "ملفات أكثر مما يحتمله استيراد واحد."
+    },
+    "validation": {
+      "nameRequired": "أعطِ المصدر اسمًا.",
+      "libraryRequired": "اختر مكتبة.",
+      "rightsHolderRequired": "اذكر صاحب الحقوق.",
+      "licenseRefRequired": "اذكر مرجع الترخيص أو مصدر الملكية العامة.",
+      "urlRequired": "الصق الرابط."
     }
   }
 }

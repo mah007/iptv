@@ -33,6 +33,9 @@ ENCRYPTED_FIELDS: Final = (
     ("live.LiveChannel", "source_encrypted"),
     ("live.LiveIntegration", "credentials_encrypted"),
     ("live.EpgSource", "url_encrypted"),
+    # Imports (ADR-0025): source credentials and direct links.
+    ("imports.ImportSource", "credentials_encrypted"),
+    ("imports.ImportJob", "url_encrypted"),
 )
 #: Signed media URLs accept this much clock difference past their expiry (tokens.py).
 CLOCK_SKEW: Final = timedelta(seconds=30)

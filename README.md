@@ -3,7 +3,7 @@
 **A self-hosted OTT/VOD subscription platform with an Xtream Codes-compatible API.** It brings library management like Plex/Jellyfin together with an IPTV panel. IPTV Smarters, TiviMate, XCIPTV, OTT Navigator and similar apps work with it out of the box.
 
 > ✅ **Status: feature-complete and running in production at tv.mah007.net.** Milestones M1–M9 and M11–M15 are accepted and tagged. Two wait on the owner: M10 for testing on real devices, and M11b for payment sandbox keys.
-> - **Working end to end:** admins (MFA, passkeys) create customers and IPTV logins; libraries are scanned, matched on TMDB (TheTVDB as the TV fallback) in English and Arabic, transcoded once into MP4 and an HLS ladder with per-plan quality ceilings, and served by signed-URL edges; IPTV apps and the customer portal play movies, series and live TV with catch-up.
+> - **Working end to end:** admins (MFA, passkeys) create customers and IPTV logins; films are imported from the owner's buckets, servers, cloud drives or a direct link at the server's speed; libraries are scanned, matched on TMDB (TheTVDB as the TV fallback) in English and Arabic, transcoded once into MP4 and an HLS ladder with per-plan quality ceilings, and served by signed-URL edges; IPTV apps and the customer portal play movies, series and live TV with catch-up.
 > - **Business:** plans, subscriptions with grace, invoices with VAT, manual, Stripe and Moyasar payments, emails, and editable privacy and terms pages.
 > - **Operations:** monitoring with alerts (email, Telegram), nightly encrypted backups with a weekly restore drill, hardened containers, CrowdSec, a strict CSP, sharing detection, rate limits, and every setting and integration configured in the admin.
 > - **Scale:** extra media edges on other hosts, a private S3 origin, a Bunny CDN option, a read replica and zero-downtime updates, all opt-in.
@@ -15,6 +15,7 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-16:** **Import from storage** (ADR-0025): Libraries → Import pulls films straight onto the server from S3-compatible buckets (AWS, Backblaze B2, Cloudflare R2, Wasabi), SFTP, WebDAV, Google Drive, Dropbox and OneDrive, or from one direct HTTPS link. It checks space and file types first, resumes, verifies checksums, shows live progress and records the rights of every import. No uploads from your own computer needed. The first real-device test also passed: Xtream sign-in and movie playback work on an LG TV.
 - **2026-10-16:** the last items deployed to tv.mah007.net with a rolling update (no errors, 7 hosts green, contract suite 195 passed). Every planned feature is built and live.
 - **2026-10-16:** the last open items (ADR-0024):
   - **Screenshot regression tests:** `make visual`, 48 baselines across 12 pages in both languages and themes, in `make ci`.
@@ -107,7 +108,7 @@ Newest first; each step that lands on `main` adds a line here. Details in [docs/
 
 From a file on disk to a TV screen:
 
-1. The admin drops `The.Matrix.1999.1080p.BluRay.x265.mkv` into the movies library.
+1. The admin drops `The.Matrix.1999.1080p.BluRay.x265.mkv` into the movies library, or imports it from a bucket, an SFTP server, a cloud drive or a direct link (admin → Libraries → Import), and the server downloads it at its own speed.
 2. Smart IPTV detects it and parses *The Matrix* / 1999 / 1080p / HEVC. It matches the file on TMDB and downloads the poster, backdrop, English and Arabic overview, cast, genres, rating and trailer.
 3. It transcodes the title **once** into a set of formats that devices can play directly, then publishes it under *Movies → Science Fiction*.
 4. The admin creates a customer with a plan (for example 2 connections until a chosen date). The credentials are shown once, with a QR code.
@@ -125,6 +126,10 @@ From a file on disk to a TV screen:
 - ✅ TMDB matching with a confidence score: confident matches publish automatically, and doubtful ones go to a review queue.
 - ✅ Metadata in English and Arabic, with posters in WebP/AVIF and blurhash placeholders.
 - ✅ **TheTVDB as the TV fallback:** when TMDB has no confident match for a series, TheTVDB is asked (our own v4 client, rate-limited and cached). A series that names its TMDB id is matched there; otherwise it is built from TheTVDB with its aired order and shown with TheTVDB's credit. Reviews, search and rematch can choose either provider. Off until its key is saved.
+- ✅ **Import from your storage (I1):** admin → Libraries → **Import** copies files you own or license into a library, at the server's speed. Sources are S3-compatible buckets (AWS, Backblaze B2, Cloudflare R2, Wasabi, MinIO), SFTP (password or key, pinned host key), WebDAV, and Google Drive, Dropbox or OneDrive through rclone; or one direct HTTPS link, such as a public-domain film on the Internet Archive.
+  - The admin browses the source with sizes, picks files or folders, then the library and the rights: a rights holder and a licence reference are required, and they reach the matched titles.
+  - The space check and the type check come first: videos and subtitles only. The copy is staged inside the library and moved in atomically, resumes after a drop and verifies checksums. Progress, cancel and a single retry are in the queue; the history and audit log show who imported what, from where, under which rights.
+  - Credentials are encrypted and never reach a command line or a log, and addresses inside the server are refused. Only the `importer` service may write the libraries. There are no torrents, indexers or automatic downloads.
 - ✅ **TheTVDB's DVD or absolute order for TMDB series:** files named after the DVDs or with absolute numbers (anime) are mapped to TMDB's episodes through TheTVDB; set it on the series page, and the series' files are placed again.
 
 **Media processing**
@@ -201,6 +206,7 @@ flowchart LR
     WK["Celery workers<br/>scan · metadata · images · notify"]
     TX["Transcoder<br/>FFmpeg · QSV / VAAPI / NVENC / CPU"]
     LV["Live packager<br/>FFmpeg copy · catch-up"]
+    IM["Importer<br/>rclone · direct links"]
   end
   subgraph ST["State"]
     PG[("PostgreSQL")]
@@ -218,6 +224,7 @@ flowchart LR
   APP & WEB -- "302 → signed URL" --> EDGE
   EDGE -- "auth check (Redis only)" --> DJ
   EDGE --> STO
+  YS["Your buckets · servers · drives · a link"] --> IM --> STO
   SRC["Your encoders · ErsatzTV · MediaMTX"] --> LV --> LVOL[("Live volume<br/>HLS window · archive")]
   EDGE --> LVOL
   EDGE -- ".ts streams" --> RL["Live relay"] --> LVOL
@@ -234,7 +241,7 @@ flowchart LR
 |---|---|
 | Backend | Python, Django + Django REST Framework, Celery, Gunicorn/Uvicorn (ASGI) |
 | Data | PostgreSQL, two Redis/Valkey instances (state and cache), Meilisearch |
-| Media | FFmpeg (jellyfin-ffmpeg build), ffprobe, guessit, rapidfuzz, ffsubsync |
+| Media | FFmpeg (jellyfin-ffmpeg build), ffprobe, guessit, rapidfuzz, ffsubsync; rclone for imports (a separate process) |
 | Frontend | React, TypeScript (strict), Vite, TanStack Router/Query/Table, Tailwind CSS, shadcn/ui, i18next |
 | Player | Shaka Player (hls.js fallback) |
 | Edge and ingress | Nginx with njs, Traefik v3 |
@@ -330,8 +337,9 @@ Demo data and media:
 | `make media-ready` | Adds the sample libraries if missing, then waits until a movie and a series are scanned, matched and transcoded |
 | `make live-ready` | The legal synthetic live channel: a test pattern looped by the dev MediaMTX, with a generated guide, waiting until 3 minutes of catch-up are recorded; about a second on reruns |
 | `make compat` · `make compat-live` · `make e2e-iptvnator` | Xtream contract suite: offline, against the running stack (a 720p plan's `.mp4` must be a capped MP4), and an IPTVnator journey that signs in and plays |
+| `make import-test` | Imports end to end: a throwaway SFTP and HTTPS server (rclone, synthetic clips) on the dev stack's egress network; a folder and a direct link go through the importer into a library and are scanned (about 5 s; part of `make ci`) |
 | `make mediamtx-test` | Live ingest sign-ins: the production MediaMTX asks a throwaway web process about publishing and reading (about 15 s; part of `make ci`) |
-| `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session, add a live channel, set SMTP to Mailpit and send a test email from Integrations) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
+| `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session, add a live channel, set SMTP to Mailpit and send a test email from Integrations, add an import source and queue a direct link) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
 | `make e2e-portal` | Portal journeys in Playwright (sign in, Arabic search, play The Matrix, continue watching, sign out; live TV and catch-up; a full plan stopping the other stream; changing the password; two-factor sign-in on and off; the setup card) and axe on thirteen pages in Arabic/light and English/dark at 390 px; needs `make media-ready` and `make live-ready`. Report in `dist/portal-e2e` |
 | `make visual` | Visual regression: 12 key admin and portal pages in English/light and Arabic/dark, at 1440 and 390 px, against the committed screenshots, from recorded API fixtures under a fixed clock. `UPDATE=1` rewrites changed baselines; `RECORD=1` records the fixtures again from the dev stack first. Report in `dist/admin-visual` and `dist/portal-visual` |
 
@@ -400,6 +408,7 @@ sudo bash install.sh
 | Turn CrowdSec on (or off) | `sudo /opt/iptv/scripts/install.sh --update --crowdsec` (`--no-crowdsec`) |
 | Add the PostgreSQL read replica (or remove it) | `sudo /opt/iptv/scripts/install.sh --update --replica` (`--no-replica`); [docs/runbooks/database-replica.md](docs/runbooks/database-replica.md) |
 | Add a media edge on another server | admin → **Edges** → Add, then on that server `sudo bash install.sh --edge --control-url https://edges.<domain> --edge-id … --edge-domain …`; [docs/runbooks/add-edge.md](docs/runbooks/add-edge.md) |
+| Import films from your storage or a direct link | admin → **Libraries** → **Import** ([docs/runbooks/import-media.md](docs/runbooks/import-media.md): S3, B2, R2, SFTP, WebDAV, Google Drive, Dropbox and OneDrive with `rclone authorize`, links, sizing, the rsync alternative) |
 | Update the server from a checkout | `make deploy DEPLOY_HOST=root@<server>` (the pushed `main`; [docs/runbooks/deploy.md](docs/runbooks/deploy.md)) |
 | Back up now, or run the restore drill | admin → **Backups**, or `docker compose ... exec web python manage.py backup_now --wait` (`restore_drill --wait`) |
 | Restore the database to a point in time, undo an update | [docs/runbooks/backups.md](docs/runbooks/backups.md), [docs/runbooks/rollback.md](docs/runbooks/rollback.md) |
@@ -458,7 +467,7 @@ Everything you change while running the service lives in the admin, like any end
 | Where | What |
 |---|---|
 | **Settings → Integrations** | TMDB, TheTVDB, email (SMTP), Stripe, Moyasar, Telegram, the S3 origin, Bunny and live ingest (MediaMTX): one card each with its status (configured, from server config, incomplete, not set) and a **Test**: a test email to yourself, a key check against the provider, a test Telegram message. Save, then Test. |
-| **Settings** | Every setting, grouped: branding (names, logos, support contacts, language, time zone), Xtream, playback, library and transcoding, metadata, email, notifications, billing, trials, security, feature flags, live TV, monitoring. Each shows where its value comes from. |
+| **Settings** | Every setting, grouped: branding (names, logos, support contacts, language, time zone), Xtream, playback, library, imports and transcoding, metadata, email, notifications, billing, trials, security, feature flags, live TV, monitoring. Each shows where its value comes from. |
 | **Settings → System** | Read-only: version and commit, hosts, folders, monitoring and live ingest, the settings still read from `.env`, the bootstrap secrets (where each lives and why) and key rotations. |
 
 **Secrets** (SMTP password, TMDB token, payment keys, the Telegram bot token) are encrypted in the database with `FIELD_ENCRYPTION_KEY`, never sent back to the browser, never logged, and audited as "changed" without values. Inputs are never prefilled: **Replace**, **Clear**, and for a value from `.env`, **Move into settings** or **Turn off**.
@@ -489,6 +498,7 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 | M13 | Monitoring & logging | Dashboards, alerts, Loki with verified redaction | ✅ Done |
 | CFG | Dynamic configuration | Encrypted secret settings with the `.env` fallback, Integrations page with Tests, System page, branding, Alertmanager's fallback from Django, installer writes settings | ✅ Done |
 | M14 | Security hardening | Rate limits, CrowdSec, CSP, re-authentication, key rotation, backup and restore drill, ZAP baseline, STRIDE threat model | ✅ Done: operations (M14b) and application security (M14a: CSP, WebAuthn, step-up, IP allowlist, sharing detection, rate limits, dependency/Semgrep/ZAP checks, threat model v2) |
+| I1 | Import from storage | Admin-started imports from S3-compatible buckets, SFTP, WebDAV, Google Drive, Dropbox, OneDrive (rclone) or a direct link: space and type checks, staged atomic moves, resume, checksums, progress, cancel, rights recorded and applied, `make import-test` | ✅ Done |
 | M15 | Scale & CDN | Standalone edges, S3 origin, Bunny CDN token auth, Postgres replica, load-test report at 1,000+ virtual users | ✅ Done: edges on other servers with their own TLS, the S3 origin, Bunny (vectors only), the read replica, zero-downtime updates, load tests at 100/500/1,000 (5,000 extrapolated; [report](docs/benchmarks/load.md)) |
 | Later | Beyond v1 | Native TV apps, pluggable ML recommender | Ideas |
 
@@ -497,7 +507,7 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 ```
 backend/     Django apps: accounts, billing, catalog, library, metadata, media,
              playback, xtream_api, live, engagement, search, notifications, audit, dashboard,
-             antisharing
+             antisharing, ops, edges, imports
 frontend/    pnpm workspace: packages/ui (design system), packages/api (generated client),
              apps/admin, apps/portal
 streaming/   Nginx edge config, njs token verification, FFmpeg rendition profiles

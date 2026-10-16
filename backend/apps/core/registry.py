@@ -638,6 +638,18 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("library.rendition_retention_days", _K.INT, 7,
                "Days the renditions of a removed file are kept before cleanup deletes them.",
                "library", min_value=0, max_value=365),
+    # --- I1 (ADR-0025): imports from storage and direct links ---
+    SettingDef("library.import_max_concurrent", _K.INT, 1,
+               "Imports that copy at the same time; the others wait in the queue.", "library",
+               min_value=1, max_value=2),
+    SettingDef("library.import_reserve_gb", _K.INT, 10,
+               "Free space (GB) an import must leave on the library's disk; an import that "
+               "wouldn't is refused before it copies anything.", "library",
+               min_value=0, max_value=100_000),
+    SettingDef("library.import_bandwidth_mbit", _K.INT, 0,
+               "Bandwidth limit for imports in Mbit/s (0: no limit).", "library",
+               min_value=0, max_value=100_000),
+    # --- end I1 ---
     # Metadata matching (SPEC §7.2)
     SettingDef("metadata.match_auto_accept", _K.FLOAT, 0.85,
                "Minimum confidence to accept a metadata match automatically.", "metadata",

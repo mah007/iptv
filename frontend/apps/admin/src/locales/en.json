@@ -790,7 +790,13 @@
       "monitoring_fire_drill": "Alert fire drill",
       "customer_mfa_enable": "Customer two-factor on",
       "customer_mfa_disable": "Customer two-factor off",
-      "customer_mfa_reset": "Customer two-factor reset by support"
+      "customer_mfa_reset": "Customer two-factor reset by support",
+      "import_start": "Import started",
+      "import_finish": "Import finished",
+      "import_cancel": "Import cancelled",
+      "import_source_create": "Import source added",
+      "import_source_update": "Import source changed",
+      "import_source_delete": "Import source deleted"
     },
     "targets": {
       "accounts_user": "User",
@@ -815,7 +821,9 @@
       "media_transcodejob": "Transcode job",
       "media_audiotrack": "Audio track",
       "media_subtitletrack": "Subtitle track",
-      "catalog_mediaimage": "Artwork"
+      "catalog_mediaimage": "Artwork",
+      "imports_importjob": "Import",
+      "imports_importsource": "Import source"
     }
   },
   "settings": {
@@ -1064,6 +1072,18 @@
         "capped_compat_mp4": {
           "label": "Capped MP4s for IPTV apps",
           "description": "A 720p or 480p MP4 remuxed from the ladder (seconds per title, no encode), so IPTV apps on plans capped there get an MP4. Auto: only the ceilings plans use."
+        },
+        "import_max_concurrent": {
+          "label": "Imports at once",
+          "description": "How many imports copy at the same time (1 or 2); the others wait in the queue."
+        },
+        "import_reserve_gb": {
+          "label": "Free space kept by imports (GB)",
+          "description": "An import that would leave less free space than this on the library's disk is refused before it copies anything."
+        },
+        "import_bandwidth_mbit": {
+          "label": "Import bandwidth (Mbit/s)",
+          "description": "The most an import may download per second; 0 for no limit."
         }
       },
       "metadata": {
@@ -1971,7 +1991,8 @@
       "pathRequired": "Enter a folder under /media.",
       "pathTooLong": "Use at most 500 characters.",
       "interval": "Enter whole minutes from 1 to 10080."
-    }
+    },
+    "import": "Import"
   },
   "titles": {
     "movie": {
@@ -2464,7 +2485,21 @@
     "invalid_ingest_user": "Use 1 to 64 letters, digits, dots, dashes or underscores.",
     "invalid_ingest_password": "Use 8 to 200 printable characters without spaces.",
     "ordering_needs_tvdb_id": "TMDB doesn't know this series' TheTVDB id, so TheTVDB's orders can't apply.",
-    "placement_tvdb_unavailable": "This series follows a TheTVDB order: save a TheTVDB key in Settings → Integrations, then try again."
+    "placement_tvdb_unavailable": "This series follows a TheTVDB order: save a TheTVDB key in Settings → Integrations, then try again.",
+    "invalid_path": "Use a plain folder path, without .. or names starting with a dot.",
+    "invalid_port": "Enter a port from 1 to 65535.",
+    "invalid_host_key": "Paste the server's public host key, e.g. ssh-ed25519 AAAA…",
+    "invalid_token": "Paste the JSON that rclone authorize printed.",
+    "invalid_name": "Give a plain file name, such as Metropolis (1927).mp4.",
+    "unsupported_type": "Only video files and subtitles can be imported.",
+    "invalid_checksum": "Give a SHA-256, SHA-1 or MD5 checksum in hexadecimal.",
+    "nothing_selected": "Choose files or folders to import.",
+    "kind_fixed": "A source's kind can't change; add a new source.",
+    "library_missing": "The library's folder isn't there.",
+    "link_not_https": "Use an https:// link.",
+    "source_name_taken": "Another source already has this name.",
+    "unknown_option": "This kind of source doesn't take this field.",
+    "too_many_items": "Too many items for one import."
   },
   "activity": {
     "label": "Activity",
@@ -4560,6 +4595,278 @@
       "title": "No one is locked out",
       "description": "Lockouts show here when sign-ins fail too often.",
       "customer": "Nothing of this customer's is locked."
+    }
+  },
+  "imports": {
+    "title": "Import media",
+    "breadcrumb": "Import",
+    "description": "Copy files you own or are licensed to distribute from your own storage, or from one direct link, into a library. The server downloads them itself, at its own speed, then scans, matches and transcodes them as usual.",
+    "offline": {
+      "title": "The importer isn't running",
+      "description": "Imports wait in the queue until it starts. On a server, run install.sh --update."
+    },
+    "limits": {
+      "concurrent_one": "One import at a time",
+      "concurrent_other": "{{count}} imports at a time",
+      "reserve": "{{size}} kept free on the library's disk",
+      "bandwidth": "Bandwidth limit {{rate}}",
+      "unlimited": "No bandwidth limit"
+    },
+    "kinds": {
+      "s3": "S3-compatible bucket",
+      "sftp": "SFTP",
+      "webdav": "WebDAV",
+      "drive": "Google Drive",
+      "dropbox": "Dropbox",
+      "onedrive": "OneDrive"
+    },
+    "providers": {
+      "aws": "Amazon S3",
+      "b2": "Backblaze B2",
+      "r2": "Cloudflare R2",
+      "wasabi": "Wasabi",
+      "minio": "MinIO",
+      "other": "Another S3-compatible service"
+    },
+    "vendors": {
+      "other": "Other WebDAV server",
+      "nextcloud": "Nextcloud",
+      "owncloud": "ownCloud",
+      "sharepoint": "SharePoint Online",
+      "sharepoint-ntlm": "SharePoint (NTLM, on premises)"
+    },
+    "driveTypes": {
+      "auto": "Find it after the Test",
+      "personal": "Personal",
+      "business": "Business",
+      "documentLibrary": "SharePoint document library"
+    },
+    "testStatus": {
+      "ok": "Reachable",
+      "auth_failed": "Sign-in refused",
+      "not_found": "Not found",
+      "unreachable": "Unreachable",
+      "timeout": "Timed out",
+      "tls_failed": "Certificate not trusted",
+      "unsafe_destination": "Not allowed",
+      "unexpected": "Failed"
+    },
+    "queue": {
+      "title": "Queue",
+      "description": "Imports copying now or waiting their turn.",
+      "empty": "Nothing is being imported.",
+      "andMore_one": "{{name}} and {{count}} more",
+      "andMore_other": "{{name}} and {{count}} more",
+      "into": "into {{library}}",
+      "intoFolder": "into {{library}} / {{folder}}",
+      "waiting": "Waiting for its turn",
+      "retrying": "Trying again",
+      "phases": {
+        "planning": "Listing and checking",
+        "copying": "Copying",
+        "moving": "Moving into the library"
+      },
+      "progress": "{{done}} of {{total}}",
+      "files": "{{done}} of {{total}} files",
+      "speed": "{{rate}}",
+      "cancel": "Cancel",
+      "cancelLabel": "Cancel the import of {{name}}",
+      "cancelTitle": "Cancel this import?",
+      "cancelDescription": "The copy stops and what was copied so far is deleted. Files already moved into the library stay there.",
+      "cancelConfirm": "Cancel import",
+      "cancelled": "Import cancelled"
+    },
+    "sources": {
+      "title": "Sources",
+      "description": "Storage you control: buckets, servers and cloud drives. Credentials are encrypted and never shown again.",
+      "new": "Add source",
+      "empty": "No sources yet",
+      "emptyDescription": "Add an S3-compatible bucket, an SFTP or WebDAV server, or Google Drive, Dropbox or OneDrive. For a single file, use a direct link instead.",
+      "neverTested": "Not tested",
+      "lastTest": "Tested",
+      "test": "Test",
+      "testing": "Testing…",
+      "testOk": "Reachable",
+      "testOkDescription": "The importer listed the source's folder.",
+      "testFailed": "The test failed",
+      "hostKeyPinned": "Pinned host key:",
+      "browse": "Browse",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteTitle": "Delete {{name}}?",
+      "deleteDescription": "Its credentials are deleted. The history of its imports stays.",
+      "deleteConfirm": "Delete source",
+      "deleted": "{{name}} deleted"
+    },
+    "sheet": {
+      "newTitle": "Add source",
+      "editTitle": "Edit source",
+      "description": "The importer copies from here only the files you choose. Adding or changing credentials asks you to confirm it's you.",
+      "kind": "Kind",
+      "kindHelp": {
+        "s3": "Amazon S3, Backblaze B2, Cloudflare R2, Wasabi, MinIO or another S3-compatible service.",
+        "sftp": "A server you reach over SSH: a password or a private key.",
+        "webdav": "Nextcloud, ownCloud, SharePoint or another WebDAV server.",
+        "drive": "Through rclone: paste the token rclone authorize \"drive\" prints on your computer.",
+        "dropbox": "Through rclone: paste the token rclone authorize \"dropbox\" prints on your computer.",
+        "onedrive": "Through rclone: paste the token rclone authorize \"onedrive\" prints on your computer."
+      },
+      "name": "Name",
+      "provider": "Provider",
+      "endpoint": "Endpoint",
+      "endpointHelp": {
+        "b2": "Your bucket's S3 endpoint, e.g. https://s3.eu-central-003.backblazeb2.com.",
+        "r2": "https://<account id>.r2.cloudflarestorage.com",
+        "wasabi": "e.g. https://s3.eu-central-1.wasabisys.com",
+        "minio": "e.g. http://nas.lan:9000",
+        "other": "The service's S3 address."
+      },
+      "region": "Region",
+      "regionHelp": "Optional for most providers, e.g. eu-central-1.",
+      "pathStyle": "Path-style addresses",
+      "pathStyleHelp": "For MinIO and services that don't support bucket subdomains.",
+      "accessKeyId": "Access key ID",
+      "secretAccessKey": "Secret access key",
+      "host": "Host",
+      "port": "Port",
+      "username": "User name",
+      "password": "Password",
+      "passwordOrKey": "A password, a private key, or both.",
+      "privateKey": "Private key",
+      "keyPassphrase": "Key passphrase",
+      "hostKeys": "Host key",
+      "hostKeysHelp": "Optional: the server's public key (ssh-keyscan's output). Left empty, the first successful Test pins the key it sees.",
+      "url": "Address",
+      "vendor": "Server software",
+      "token": "Token",
+      "tokenHelp": {
+        "drive": "On your computer, run rclone authorize \"drive\", sign in to Google and paste the JSON it prints. Your password never reaches the server.",
+        "dropbox": "On your computer, run rclone authorize \"dropbox\", sign in to Dropbox and paste the JSON it prints.",
+        "onedrive": "On your computer, run rclone authorize \"onedrive\", sign in to Microsoft and paste the JSON it prints; the first Test finds your drive."
+      },
+      "rootFolderId": "Folder ID",
+      "rootFolderIdHelp": "Optional: start in this Drive folder (the last part of its address).",
+      "driveId": "Drive ID",
+      "driveIdHelp": "Optional: found by the first Test.",
+      "driveType": "Drive type",
+      "clientId": "Client ID",
+      "clientIdHelp": "Only if you authorized rclone with your own OAuth app.",
+      "clientSecret": "Client secret",
+      "root": "Start folder",
+      "rootHelp": "Optional: the folder the browser starts in.",
+      "rootHelpS3": "A bucket, or bucket/folder. Empty: the browser lists your buckets.",
+      "secretSaved": "Saved; leave empty to keep it",
+      "stepUpNote": "Credentials are encrypted on the server and never shown again.",
+      "create": "Add source",
+      "saved": "{{name}} saved"
+    },
+    "browser": {
+      "title": "Browse {{name}}",
+      "description": "Choose files or folders. Folders bring their video files and subtitles only.",
+      "location": "Folder",
+      "top": "Top",
+      "up": "Up",
+      "loading": "Listing the folder…",
+      "empty": "This folder is empty.",
+      "failed": "The folder couldn't be listed",
+      "noAnswer": "The importer didn't answer. Check that it's running.",
+      "choose": "Choose",
+      "name": "Name",
+      "size": "Size",
+      "select": "Choose {{name}}",
+      "notImportable": "not a video or subtitle",
+      "truncated": "Only the first 2,000 entries are shown.",
+      "noneSelected": "Nothing chosen yet.",
+      "selected_one": "{{count}} item chosen ({{size}} in files)",
+      "selected_other": "{{count}} items chosen ({{size}} in files)",
+      "next": "Next",
+      "back": "Back"
+    },
+    "form": {
+      "title": "Where and under which rights",
+      "description_one": "{{count}} item. Its files are recorded with these rights.",
+      "description_other": "{{count}} items. Their files are recorded with these rights.",
+      "library": "Library",
+      "libraryPlaceholder": "Choose a library",
+      "libraryFree": "{{free}} free of {{total}}; {{reserve}} stays free.",
+      "subfolder": "Folder inside the library",
+      "subfolderHelp": "Optional, e.g. Classics. Folders you chose keep their names inside it.",
+      "rightsHolder": "Rights holder",
+      "rightsHolderHelp": "Who owns the rights or licensed them to you. For a public-domain film, write Public domain.",
+      "licenseRef": "Licence reference",
+      "licenseRefHelp": "The contract or licence number; for a public-domain film, the page that shows it, e.g. its Internet Archive item.",
+      "licenseExpires": "Licence ends",
+      "licenseExpiresHelp": "Optional. The titles hide when it passes.",
+      "rightsNote": "The rights are recorded with the import and given to the titles its files are matched to (fields a title already has are kept).",
+      "start": "Start import",
+      "started": "Import queued"
+    },
+    "link": {
+      "button": "Direct link",
+      "title": "Import from a direct link",
+      "description": "One file over HTTPS, such as a public-domain film's download link on the Internet Archive. An interrupted download resumes where it stopped.",
+      "url": "Link",
+      "urlHelp": "https:// only. Links into this server's own network are refused.",
+      "fileName": "File name",
+      "fileNameHelp": "Optional; otherwise taken from the link or the server.",
+      "checksum": "Checksum",
+      "checksumHelp": "Optional SHA-256, SHA-1 or MD5, checked after the download."
+    },
+    "history": {
+      "title": "History",
+      "description": "Who imported what, from where and under which rights.",
+      "empty": "No imports yet.",
+      "what": "Import",
+      "status": "Status",
+      "rights": "Rights",
+      "size": "Files",
+      "when": "When",
+      "details": "Details",
+      "detailsTitle": "Import details",
+      "fromTo": "{{from}} to {{to}}",
+      "fromToBy": "{{from}} to {{to}} · {{name}}",
+      "filesSize_one": "{{count}} file, {{size}}",
+      "filesSize_other": "{{count}} files, {{size}}",
+      "from": "From",
+      "into": "Into",
+      "by": "Started by",
+      "system": "The system",
+      "noExpiry": "No end date",
+      "skipped_one": "{{count}} file of another type was left out.",
+      "skipped_other": "{{count}} files of other types were left out.",
+      "filesPlaced": "Files placed in the library",
+      "noFiles": "No files were placed."
+    },
+    "errors": {
+      "insufficient_space": "Not enough free space for this import and the reserve.",
+      "insufficient_space_sizes": "Not enough free space: it needs {{needed}}, {{reserve}} must stay free, and {{free}} is free.",
+      "target_exists": "Files with these names are already in the library.",
+      "target_exists_names": "Already in the library: {{names}}",
+      "unsupported_type": "Only video files and subtitles can be imported.",
+      "unsupported_type_names": "Only video files and subtitles can be imported: {{names}}",
+      "nothing_to_import": "No video or subtitle files were found.",
+      "auth_failed": "The source refused the sign-in.",
+      "not_found": "Nothing is at that path.",
+      "unreachable": "The source couldn't be reached.",
+      "timeout": "The source took too long to answer.",
+      "tls_failed": "The server's certificate couldn't be verified.",
+      "unsafe_destination": "That address is never fetched from.",
+      "checksum_mismatch": "The file's checksum doesn't match the one given.",
+      "transfer_failed": "The copy failed.",
+      "worker_lost": "The importer stopped during the import.",
+      "source_missing": "The source was deleted.",
+      "library_missing": "The library or its folder is gone.",
+      "unreadable_link": "The link can't be read any more (the encryption key changed).",
+      "invalid_path": "That path isn't allowed.",
+      "unexpected": "Something went wrong; see the importer's log.",
+      "too_many_items": "Too many files for one import."
+    },
+    "validation": {
+      "nameRequired": "Give the source a name.",
+      "libraryRequired": "Choose a library.",
+      "rightsHolderRequired": "Say who holds the rights.",
+      "licenseRefRequired": "Give the licence reference, or the public-domain source.",
+      "urlRequired": "Paste the link."
     }
   }
 }

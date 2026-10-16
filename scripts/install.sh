@@ -1173,6 +1173,41 @@ prepare_media() {
   fi
 }
 
+# The importer (ADR-0025) runs as the app user (uid 10001) and moves imported files into
+# the libraries, so it needs write access to the media folder. An ACL gives it that for
+# the folder and everything in it, and (as a default ACL) for whatever arrives later,
+# without changing who owns the files; other services keep mounting it read-only.
+# Idempotent; a file system without ACLs gets a warning, and imports then fail with a
+# permission error until the folder is writable for uid 10001.
+APP_UID=10001
+grant_media_writes() {
+  if ((DRY_RUN)); then
+    info "${DIM}would let the importer (uid $APP_UID) write $MEDIA_ROOT (setfacl, default ACL)${R}"
+    return 0
+  fi
+  [[ -d "$MEDIA_ROOT" ]] || return 0
+  if ! command -v setfacl >/dev/null; then
+    if command -v apt-get >/dev/null; then
+      run "Installing acl (setfacl)" env DEBIAN_FRONTEND=noninteractive \
+        sh -c "apt-get update -q && apt-get install -yq acl"
+    else
+      warn "setfacl is missing: give uid $APP_UID write access to $MEDIA_ROOT for imports."
+      return 0
+    fi
+  fi
+  if getfacl -cp "$MEDIA_ROOT" 2>/dev/null | grep -q "^default:user:$APP_UID:rwx"; then
+    ok "The importer may write $MEDIA_ROOT"
+    return 0
+  fi
+  printf '  Letting the importer write %s… ' "$MEDIA_ROOT"
+  if setfacl -R -m "u:$APP_UID:rwX,d:u:$APP_UID:rwX" "$MEDIA_ROOT" >> "$LOG_FILE" 2>&1; then
+    printf '%sdone%s\n' "$GREEN" "$R"
+  else
+    printf '%sfailed%s\n' "$YELLOW" "$R"
+    warn "No ACLs on $MEDIA_ROOT's file system: give uid $APP_UID write access for imports."
+  fi
+}
+
 start_stack() {
   if [[ "$MODE" == install ]]; then
     info "The first build compiles the images and takes about 10–20 minutes."
@@ -1713,6 +1748,7 @@ main() {
     fi
     info "Monitoring: $(monitoring_enabled && echo "on (grafana.$DOMAIN)" || echo off)"
     info "Read replica: $(replica_enabled && echo on || echo off)"
+    grant_media_writes
     update_stack
     drop_replica_slot
     # A recipient the admin already chose in Settings wins over .env's.
@@ -1738,6 +1774,7 @@ main() {
   write_config
   show_passphrase
   prepare_media
+  grant_media_writes
   start_stack
   drop_replica_slot
   write_integration_settings

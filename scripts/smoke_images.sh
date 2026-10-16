@@ -8,6 +8,7 @@ cd "$(dirname "$0")/.."
 version="${APP_VERSION:-dev}"
 app_image="smart-iptv/app:$version"
 media_image="smart-iptv/media:$version"
+importer_image="smart-iptv/importer:$version"
 frontend_image="smart-iptv/frontend:$version"
 suffix="$$"
 app_name="smart-iptv-smoke-app-$suffix"
@@ -111,6 +112,15 @@ if docker run --rm --entrypoint sh "$media_image" -c \
   echo "  ok    ffprobe and ffmpeg (libx264) run as the app user"
 else
   echo "  FAIL  FFmpeg in $media_image" >&2
+  exit 1
+fi
+# The importer image (ADR-0025) runs rclone as a separate process, as the app user.
+echo "rclone in the importer image:"
+if docker run --rm --entrypoint sh "$importer_image" -c \
+  'rclone version | head -1 && test "$(id -u)" = 10001 && ! command -v ffmpeg >/dev/null'; then
+  echo "  ok    rclone runs as the app user; no FFmpeg in this image"
+else
+  echo "  FAIL  rclone in $importer_image" >&2
   exit 1
 fi
 echo "Image smoke test passed."

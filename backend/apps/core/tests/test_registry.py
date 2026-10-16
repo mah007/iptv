@@ -44,6 +44,10 @@ EXPECTED_DEFAULTS = {
     "library.uhd_enabled": True,
     "library.uhd_cpu_encode": False,
     "library.rendition_retention_days": 7,
+    # I1 (ADR-0025): imports.
+    "library.import_max_concurrent": 1,
+    "library.import_reserve_gb": 10,
+    "library.import_bandwidth_mbit": 0,
     "billing.vat_rate": 0.15,
     "billing.currency": "SAR",
     "billing.grace_days": 3,

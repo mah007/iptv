@@ -36,6 +36,7 @@ import type {
   BackupsRunsParams,
   BillingKpis,
   Branding,
+  BrowseRequestRequest,
   BulkEnableRequest,
   Candidate,
   CategoriesListParams,
@@ -78,6 +79,12 @@ import type {
   GeoLookupRequestRequest,
   Health,
   ImageAddRequest,
+  ImportJob,
+  ImportJobDetail,
+  ImportJobsListParams,
+  ImportSource,
+  ImportSourceWriteRequest,
+  ImportStatus,
   Integration,
   IntegrationTestResult,
   Invoice,
@@ -88,6 +95,7 @@ import type {
   LibrariesListParams,
   Library,
   LibraryWriteRequest,
+  LinkJobCreateRequest,
   LiveChannel,
   LiveChannelWriteRequest,
   LiveChannelsListParams,
@@ -129,6 +137,7 @@ import type {
   PaginatedCustomerSummaryList,
   PaginatedDeviceList,
   PaginatedDeviceListItemList,
+  PaginatedImportJobList,
   PaginatedInvoiceList,
   PaginatedLibraryList,
   PaginatedLiveChannelList,
@@ -151,6 +160,7 @@ import type {
   PatchedCustomerProfileRequest,
   PatchedEdgeWriteRequest,
   PatchedEpgSourceWriteRequest,
+  PatchedImportSourceWriteRequest,
   PatchedLibraryWriteRequest,
   PatchedLiveChannelWriteRequest,
   PatchedLiveIntegrationWriteRequest,
@@ -179,9 +189,11 @@ import type {
   RefundRequest,
   RematchRequest,
   RematchResult,
+  RemoteAnswer,
   ReorderRequest,
   ReprocessRequest,
   ReprocessResult,
+  RequestQueued,
   ResetResult,
   ResolveRequest,
   Review,
@@ -204,6 +216,7 @@ import type {
   SessionsStreamParams,
   SettingEntry,
   SettingImageRequest,
+  SourceJobCreateRequest,
   SourceTestQueued,
   SourceTestRequestRequest,
   SourceTestResult,
@@ -7216,6 +7229,1557 @@ export function useSystemHealth<
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getSystemHealthQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getImportJobsListUrl = (params?: ImportJobsListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/imports/jobs?${stringifiedParams}`
+    : `/api/v1/admin/imports/jobs`;
+};
+
+/**
+ * @summary Imports, newest first: the queue (state=active) or the history
+ */
+export const importJobsList = async (
+  params?: ImportJobsListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedImportJobList> => {
+  return apiFetch<PaginatedImportJobList>(getImportJobsListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getImportJobsListQueryKey = (params?: ImportJobsListParams) => {
+  return [`/api/v1/admin/imports/jobs`, ...(params ? [params] : [])] as const;
+};
+
+export const getImportJobsListQueryOptions = <
+  TData = Awaited<ReturnType<typeof importJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ImportJobsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importJobsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getImportJobsListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof importJobsList>>> = ({ signal }) =>
+    importJobsList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof importJobsList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ImportJobsListQueryResult = NonNullable<Awaited<ReturnType<typeof importJobsList>>>;
+export type ImportJobsListQueryError = ErrorType<Problem>;
+
+export function useImportJobsList<
+  TData = Awaited<ReturnType<typeof importJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | ImportJobsListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof importJobsList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importJobsList>>,
+          TError,
+          Awaited<ReturnType<typeof importJobsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportJobsList<
+  TData = Awaited<ReturnType<typeof importJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ImportJobsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importJobsList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importJobsList>>,
+          TError,
+          Awaited<ReturnType<typeof importJobsList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportJobsList<
+  TData = Awaited<ReturnType<typeof importJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ImportJobsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importJobsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Imports, newest first: the queue (state=active) or the history
+ */
+
+export function useImportJobsList<
+  TData = Awaited<ReturnType<typeof importJobsList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: ImportJobsListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importJobsList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getImportJobsListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getImportJobsCreateUrl = () => {
+  return `/api/v1/admin/imports/jobs`;
+};
+
+/**
+ * @summary Import files or folders of a source into a library, under the stated rights
+ */
+export const importJobsCreate = async (
+  sourceJobCreateRequest: SourceJobCreateRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportJob> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<ImportJob>(getImportJobsCreateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(sourceJobCreateRequest),
+  });
+};
+
+export const getImportJobsCreateMutationKey = () => ["importJobsCreate"] as const;
+
+export const getImportJobsCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importJobsCreate>>,
+    TError,
+    ImportJobsCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importJobsCreate>>,
+  TError,
+  ImportJobsCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getImportJobsCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importJobsCreate>>,
+    ImportJobsCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return importJobsCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportJobsCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importJobsCreate>>
+>;
+export type ImportJobsCreateMutationBody = SourceJobCreateRequest;
+export type ImportJobsCreateMutationError = ErrorType<Problem>;
+export type ImportJobsCreateMutationVariables = { data: SourceJobCreateRequest };
+
+/**
+ * @summary Import files or folders of a source into a library, under the stated rights
+ */
+export const useImportJobsCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof importJobsCreate>>,
+      TError,
+      ImportJobsCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof importJobsCreate>>,
+  TError,
+  ImportJobsCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getImportJobsCreateMutationOptions(options), queryClient);
+};
+
+export const getImportJobsRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/imports/jobs/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One import with the files it placed (library-relative paths)
+ */
+export const importJobsRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportJobDetail> => {
+  return apiFetch<ImportJobDetail>(getImportJobsRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getImportJobsRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/imports/jobs/${id}`] as const;
+};
+
+export const getImportJobsRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof importJobsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importJobsRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getImportJobsRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof importJobsRetrieve>>> = ({ signal }) =>
+    importJobsRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof importJobsRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type ImportJobsRetrieveQueryResult = NonNullable<
+  Awaited<ReturnType<typeof importJobsRetrieve>>
+>;
+export type ImportJobsRetrieveQueryError = ErrorType<Problem>;
+
+export function useImportJobsRetrieve<
+  TData = Awaited<ReturnType<typeof importJobsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof importJobsRetrieve>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importJobsRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof importJobsRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportJobsRetrieve<
+  TData = Awaited<ReturnType<typeof importJobsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importJobsRetrieve>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importJobsRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof importJobsRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportJobsRetrieve<
+  TData = Awaited<ReturnType<typeof importJobsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importJobsRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One import with the files it placed (library-relative paths)
+ */
+
+export function useImportJobsRetrieve<
+  TData = Awaited<ReturnType<typeof importJobsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importJobsRetrieve>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getImportJobsRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getImportJobsCancelUrl = (id: string) => {
+  return `/api/v1/admin/imports/jobs/${encodeURIComponent(String(id))}/cancel`;
+};
+
+/**
+ * @summary Cancel an import: a queued one ends now, a running one within seconds
+ */
+export const importJobsCancel = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportJob> => {
+  return apiFetch<ImportJob>(getImportJobsCancelUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getImportJobsCancelMutationKey = () => ["importJobsCancel"] as const;
+
+export const getImportJobsCancelMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importJobsCancel>>,
+    TError,
+    ImportJobsCancelMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importJobsCancel>>,
+  TError,
+  ImportJobsCancelMutationVariables,
+  TContext
+> => {
+  const mutationKey = getImportJobsCancelMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importJobsCancel>>,
+    ImportJobsCancelMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return importJobsCancel(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportJobsCancelMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importJobsCancel>>
+>;
+
+export type ImportJobsCancelMutationError = ErrorType<Problem>;
+export type ImportJobsCancelMutationVariables = { id: string };
+
+/**
+ * @summary Cancel an import: a queued one ends now, a running one within seconds
+ */
+export const useImportJobsCancel = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof importJobsCancel>>,
+      TError,
+      ImportJobsCancelMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof importJobsCancel>>,
+  TError,
+  ImportJobsCancelMutationVariables,
+  TContext
+> => {
+  return useMutation(getImportJobsCancelMutationOptions(options), queryClient);
+};
+
+export const getImportLinksCreateUrl = () => {
+  return `/api/v1/admin/imports/links`;
+};
+
+/**
+ * @summary Import one file from a direct HTTPS link into a library, under the stated rights
+ */
+export const importLinksCreate = async (
+  linkJobCreateRequest: LinkJobCreateRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportJob> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<ImportJob>(getImportLinksCreateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(linkJobCreateRequest),
+  });
+};
+
+export const getImportLinksCreateMutationKey = () => ["importLinksCreate"] as const;
+
+export const getImportLinksCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importLinksCreate>>,
+    TError,
+    ImportLinksCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importLinksCreate>>,
+  TError,
+  ImportLinksCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getImportLinksCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importLinksCreate>>,
+    ImportLinksCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return importLinksCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportLinksCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importLinksCreate>>
+>;
+export type ImportLinksCreateMutationBody = LinkJobCreateRequest;
+export type ImportLinksCreateMutationError = ErrorType<Problem>;
+export type ImportLinksCreateMutationVariables = { data: LinkJobCreateRequest };
+
+/**
+ * @summary Import one file from a direct HTTPS link into a library, under the stated rights
+ */
+export const useImportLinksCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof importLinksCreate>>,
+      TError,
+      ImportLinksCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof importLinksCreate>>,
+  TError,
+  ImportLinksCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getImportLinksCreateMutationOptions(options), queryClient);
+};
+
+export const getImportRequestsRetrieveUrl = (requestId: string) => {
+  return `/api/v1/admin/imports/requests/${encodeURIComponent(String(requestId))}`;
+};
+
+/**
+ * @summary The answer to a Test or a browse (pending until the importer is done)
+ */
+export const importRequestsRetrieve = async (
+  requestId: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<RemoteAnswer> => {
+  return apiFetch<RemoteAnswer>(getImportRequestsRetrieveUrl(requestId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getImportRequestsRetrieveQueryKey = (requestId: string) => {
+  return [`/api/v1/admin/imports/requests/${requestId}`] as const;
+};
+
+export const getImportRequestsRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof importRequestsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importRequestsRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getImportRequestsRetrieveQueryKey(requestId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof importRequestsRetrieve>>> = ({ signal }) =>
+    importRequestsRetrieve(requestId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: requestId !== null && requestId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof importRequestsRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type ImportRequestsRetrieveQueryResult = NonNullable<
+  Awaited<ReturnType<typeof importRequestsRetrieve>>
+>;
+export type ImportRequestsRetrieveQueryError = ErrorType<Problem>;
+
+export function useImportRequestsRetrieve<
+  TData = Awaited<ReturnType<typeof importRequestsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importRequestsRetrieve>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importRequestsRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof importRequestsRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportRequestsRetrieve<
+  TData = Awaited<ReturnType<typeof importRequestsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importRequestsRetrieve>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importRequestsRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof importRequestsRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportRequestsRetrieve<
+  TData = Awaited<ReturnType<typeof importRequestsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importRequestsRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The answer to a Test or a browse (pending until the importer is done)
+ */
+
+export function useImportRequestsRetrieve<
+  TData = Awaited<ReturnType<typeof importRequestsRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  requestId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importRequestsRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getImportRequestsRetrieveQueryOptions(requestId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getImportSourcesListUrl = () => {
+  return `/api/v1/admin/imports/sources`;
+};
+
+/**
+ * @summary Import sources (credentials never included)
+ */
+export const importSourcesList = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportSource[]> => {
+  return apiFetch<ImportSource[]>(getImportSourcesListUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getImportSourcesListQueryKey = () => {
+  return [`/api/v1/admin/imports/sources`] as const;
+};
+
+export const getImportSourcesListQueryOptions = <
+  TData = Awaited<ReturnType<typeof importSourcesList>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importSourcesList>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getImportSourcesListQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof importSourcesList>>> = ({ signal }) =>
+    importSourcesList({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof importSourcesList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ImportSourcesListQueryResult = NonNullable<
+  Awaited<ReturnType<typeof importSourcesList>>
+>;
+export type ImportSourcesListQueryError = ErrorType<Problem>;
+
+export function useImportSourcesList<
+  TData = Awaited<ReturnType<typeof importSourcesList>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof importSourcesList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importSourcesList>>,
+          TError,
+          Awaited<ReturnType<typeof importSourcesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportSourcesList<
+  TData = Awaited<ReturnType<typeof importSourcesList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importSourcesList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importSourcesList>>,
+          TError,
+          Awaited<ReturnType<typeof importSourcesList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportSourcesList<
+  TData = Awaited<ReturnType<typeof importSourcesList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importSourcesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Import sources (credentials never included)
+ */
+
+export function useImportSourcesList<
+  TData = Awaited<ReturnType<typeof importSourcesList>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importSourcesList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getImportSourcesListQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getImportSourcesCreateUrl = () => {
+  return `/api/v1/admin/imports/sources`;
+};
+
+/**
+ * @summary Add an import source (needs a recent confirmation)
+ */
+export const importSourcesCreate = async (
+  importSourceWriteRequest?: ImportSourceWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportSource> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<ImportSource>(getImportSourcesCreateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(importSourceWriteRequest),
+  });
+};
+
+export const getImportSourcesCreateMutationKey = () => ["importSourcesCreate"] as const;
+
+export const getImportSourcesCreateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importSourcesCreate>>,
+    TError,
+    ImportSourcesCreateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importSourcesCreate>>,
+  TError,
+  ImportSourcesCreateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getImportSourcesCreateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importSourcesCreate>>,
+    ImportSourcesCreateMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return importSourcesCreate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportSourcesCreateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importSourcesCreate>>
+>;
+export type ImportSourcesCreateMutationBody = ImportSourceWriteRequest | undefined;
+export type ImportSourcesCreateMutationError = ErrorType<Problem>;
+export type ImportSourcesCreateMutationVariables = { data?: ImportSourceWriteRequest };
+
+/**
+ * @summary Add an import source (needs a recent confirmation)
+ */
+export const useImportSourcesCreate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof importSourcesCreate>>,
+      TError,
+      ImportSourcesCreateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof importSourcesCreate>>,
+  TError,
+  ImportSourcesCreateMutationVariables,
+  TContext
+> => {
+  return useMutation(getImportSourcesCreateMutationOptions(options), queryClient);
+};
+
+export const getImportSourcesRetrieveUrl = (id: string) => {
+  return `/api/v1/admin/imports/sources/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary One import source
+ */
+export const importSourcesRetrieve = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportSource> => {
+  return apiFetch<ImportSource>(getImportSourcesRetrieveUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getImportSourcesRetrieveQueryKey = (id: string) => {
+  return [`/api/v1/admin/imports/sources/${id}`] as const;
+};
+
+export const getImportSourcesRetrieveQueryOptions = <
+  TData = Awaited<ReturnType<typeof importSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importSourcesRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getImportSourcesRetrieveQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof importSourcesRetrieve>>> = ({ signal }) =>
+    importSourcesRetrieve(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: id !== null && id !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof importSourcesRetrieve>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type ImportSourcesRetrieveQueryResult = NonNullable<
+  Awaited<ReturnType<typeof importSourcesRetrieve>>
+>;
+export type ImportSourcesRetrieveQueryError = ErrorType<Problem>;
+
+export function useImportSourcesRetrieve<
+  TData = Awaited<ReturnType<typeof importSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importSourcesRetrieve>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importSourcesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof importSourcesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportSourcesRetrieve<
+  TData = Awaited<ReturnType<typeof importSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importSourcesRetrieve>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importSourcesRetrieve>>,
+          TError,
+          Awaited<ReturnType<typeof importSourcesRetrieve>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportSourcesRetrieve<
+  TData = Awaited<ReturnType<typeof importSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importSourcesRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary One import source
+ */
+
+export function useImportSourcesRetrieve<
+  TData = Awaited<ReturnType<typeof importSourcesRetrieve>>,
+  TError = ErrorType<Problem>,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof importSourcesRetrieve>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getImportSourcesRetrieveQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getImportSourcesUpdateUrl = (id: string) => {
+  return `/api/v1/admin/imports/sources/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Change a source; new credentials or a new address need a recent confirmation
+ */
+export const importSourcesUpdate = async (
+  id: string,
+  patchedImportSourceWriteRequest?: PatchedImportSourceWriteRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportSource> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<ImportSource>(getImportSourcesUpdateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(patchedImportSourceWriteRequest),
+  });
+};
+
+export const getImportSourcesUpdateMutationKey = () => ["importSourcesUpdate"] as const;
+
+export const getImportSourcesUpdateMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importSourcesUpdate>>,
+    TError,
+    ImportSourcesUpdateMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importSourcesUpdate>>,
+  TError,
+  ImportSourcesUpdateMutationVariables,
+  TContext
+> => {
+  const mutationKey = getImportSourcesUpdateMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importSourcesUpdate>>,
+    ImportSourcesUpdateMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return importSourcesUpdate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportSourcesUpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importSourcesUpdate>>
+>;
+export type ImportSourcesUpdateMutationBody = PatchedImportSourceWriteRequest | undefined;
+export type ImportSourcesUpdateMutationError = ErrorType<Problem>;
+export type ImportSourcesUpdateMutationVariables = {
+  id: string;
+  data?: PatchedImportSourceWriteRequest;
+};
+
+/**
+ * @summary Change a source; new credentials or a new address need a recent confirmation
+ */
+export const useImportSourcesUpdate = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof importSourcesUpdate>>,
+      TError,
+      ImportSourcesUpdateMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof importSourcesUpdate>>,
+  TError,
+  ImportSourcesUpdateMutationVariables,
+  TContext
+> => {
+  return useMutation(getImportSourcesUpdateMutationOptions(options), queryClient);
+};
+
+export const getImportSourcesDeleteUrl = (id: string) => {
+  return `/api/v1/admin/imports/sources/${encodeURIComponent(String(id))}`;
+};
+
+/**
+ * @summary Delete a source (the history of its imports stays)
+ */
+export const importSourcesDelete = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getImportSourcesDeleteUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getImportSourcesDeleteMutationKey = () => ["importSourcesDelete"] as const;
+
+export const getImportSourcesDeleteMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importSourcesDelete>>,
+    TError,
+    ImportSourcesDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importSourcesDelete>>,
+  TError,
+  ImportSourcesDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getImportSourcesDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importSourcesDelete>>,
+    ImportSourcesDeleteMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return importSourcesDelete(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportSourcesDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importSourcesDelete>>
+>;
+
+export type ImportSourcesDeleteMutationError = ErrorType<Problem>;
+export type ImportSourcesDeleteMutationVariables = { id: string };
+
+/**
+ * @summary Delete a source (the history of its imports stays)
+ */
+export const useImportSourcesDelete = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof importSourcesDelete>>,
+      TError,
+      ImportSourcesDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof importSourcesDelete>>,
+  TError,
+  ImportSourcesDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getImportSourcesDeleteMutationOptions(options), queryClient);
+};
+
+export const getImportSourcesBrowseUrl = (id: string) => {
+  return `/api/v1/admin/imports/sources/${encodeURIComponent(String(id))}/browse`;
+};
+
+/**
+ * @summary List one folder of a source (sizes included); poll the answer
+ */
+export const importSourcesBrowse = async (
+  id: string,
+  browseRequestRequest?: BrowseRequestRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<RequestQueued> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<RequestQueued>(getImportSourcesBrowseUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(browseRequestRequest),
+  });
+};
+
+export const getImportSourcesBrowseMutationKey = () => ["importSourcesBrowse"] as const;
+
+export const getImportSourcesBrowseMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importSourcesBrowse>>,
+    TError,
+    ImportSourcesBrowseMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importSourcesBrowse>>,
+  TError,
+  ImportSourcesBrowseMutationVariables,
+  TContext
+> => {
+  const mutationKey = getImportSourcesBrowseMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importSourcesBrowse>>,
+    ImportSourcesBrowseMutationVariables
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return importSourcesBrowse(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportSourcesBrowseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importSourcesBrowse>>
+>;
+export type ImportSourcesBrowseMutationBody = BrowseRequestRequest | undefined;
+export type ImportSourcesBrowseMutationError = ErrorType<Problem>;
+export type ImportSourcesBrowseMutationVariables = { id: string; data?: BrowseRequestRequest };
+
+/**
+ * @summary List one folder of a source (sizes included); poll the answer
+ */
+export const useImportSourcesBrowse = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof importSourcesBrowse>>,
+      TError,
+      ImportSourcesBrowseMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof importSourcesBrowse>>,
+  TError,
+  ImportSourcesBrowseMutationVariables,
+  TContext
+> => {
+  return useMutation(getImportSourcesBrowseMutationOptions(options), queryClient);
+};
+
+export const getImportSourcesTestUrl = (id: string) => {
+  return `/api/v1/admin/imports/sources/${encodeURIComponent(String(id))}/test`;
+};
+
+/**
+ * @summary Test a source: the importer lists its root folder; poll the answer
+ */
+export const importSourcesTest = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<RequestQueued> => {
+  return apiFetch<RequestQueued>(getImportSourcesTestUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getImportSourcesTestMutationKey = () => ["importSourcesTest"] as const;
+
+export const getImportSourcesTestMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importSourcesTest>>,
+    TError,
+    ImportSourcesTestMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importSourcesTest>>,
+  TError,
+  ImportSourcesTestMutationVariables,
+  TContext
+> => {
+  const mutationKey = getImportSourcesTestMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importSourcesTest>>,
+    ImportSourcesTestMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return importSourcesTest(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportSourcesTestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importSourcesTest>>
+>;
+
+export type ImportSourcesTestMutationError = ErrorType<Problem>;
+export type ImportSourcesTestMutationVariables = { id: string };
+
+/**
+ * @summary Test a source: the importer lists its root folder; poll the answer
+ */
+export const useImportSourcesTest = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof importSourcesTest>>,
+      TError,
+      ImportSourcesTestMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof importSourcesTest>>,
+  TError,
+  ImportSourcesTestMutationVariables,
+  TContext
+> => {
+  return useMutation(getImportSourcesTestMutationOptions(options), queryClient);
+};
+
+export const getImportsStatusUrl = () => {
+  return `/api/v1/admin/imports/status`;
+};
+
+/**
+ * @summary The importer's state, the import settings and each library's free space
+ */
+export const importsStatus = async (
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportStatus> => {
+  return apiFetch<ImportStatus>(getImportsStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getImportsStatusQueryKey = () => {
+  return [`/api/v1/admin/imports/status`] as const;
+};
+
+export const getImportsStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof importsStatus>>,
+  TError = ErrorType<Problem>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importsStatus>>, TError, TData>>;
+  request?: SecondParameter<typeof apiFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getImportsStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof importsStatus>>> = ({ signal }) =>
+    importsStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof importsStatus>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ImportsStatusQueryResult = NonNullable<Awaited<ReturnType<typeof importsStatus>>>;
+export type ImportsStatusQueryError = ErrorType<Problem>;
+
+export function useImportsStatus<
+  TData = Awaited<ReturnType<typeof importsStatus>>,
+  TError = ErrorType<Problem>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof importsStatus>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importsStatus>>,
+          TError,
+          Awaited<ReturnType<typeof importsStatus>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportsStatus<
+  TData = Awaited<ReturnType<typeof importsStatus>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importsStatus>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof importsStatus>>,
+          TError,
+          Awaited<ReturnType<typeof importsStatus>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useImportsStatus<
+  TData = Awaited<ReturnType<typeof importsStatus>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importsStatus>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The importer's state, the import settings and each library's free space
+ */
+
+export function useImportsStatus<
+  TData = Awaited<ReturnType<typeof importsStatus>>,
+  TError = ErrorType<Problem>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof importsStatus>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getImportsStatusQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

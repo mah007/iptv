@@ -41,6 +41,7 @@ INTERNAL_HOSTS = frozenset(
         "beat",
         "watcher",
         "transcoder",
+        "importer",
         "nginx-stream",
         "traefik",
         "live",

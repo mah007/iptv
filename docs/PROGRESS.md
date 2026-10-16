@@ -20,8 +20,66 @@
 | M15 Scale & CDN | Done: the Edges page and per-session selection, standalone edges (`install.sh --edge`, own Let's Encrypt TLS, control channel, stream-auth over TLS), the private S3 origin (our SigV4, generations, height-tagged rungs), Bunny token auth (verified against vectors only), the read replica with a rehearsed failover, zero-downtime updates (`scripts/rollout.sh`, `make deploy`), load tests at 100/500/1,000 (5,000 extrapolated) and a web connection pool; G-44 fixed, G-17 fixed in part ([ADR-0022](adr/0022-scale-edges-origin-replica-and-rollouts.md)) | — |
 | Q1 Follow-ups | Done: TheTVDB fallback, admin Devices and Lockouts, subscription status, own passwords, my streams, portal live TV and catch-up, legal pages, MediaMTX sign-ins in the admin, capped MP4s for capped plans, the settings-cache healer ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md)) | — |
 | V1 Last open items | Done: visual regression in `make ci` (48 baselines), G-17's byte flagging, G-25's setup cards, optional customer two-factor sign-in, TheTVDB's DVD and absolute orders for TMDB series ([ADR-0024](adr/0024-visual-regression-byte-flagging-setup-cards-customer-2fa-tvdb-orders.md)) | — |
-| M10 client matrix (needs the owner's devices) | Planned | — |
+| I1 Import from storage | Done: admin-started imports from S3-compatible buckets, SFTP, WebDAV, Google Drive, Dropbox and OneDrive (rclone in the new `importer` service, the only one that writes the libraries) or one direct HTTPS link; space and type checks first, staged atomic moves, resume, checksums, progress, cancel, one retry, rights recorded and applied to matched titles, `make import-test` in `make ci` ([ADR-0025](adr/0025-imports-from-storage-and-direct-links.md)) | — |
+| M10 client matrix (needs the owner's devices) | In progress: on an LG TV (webOS), the owner's own test (2026-10-16), Xtream sign-in and movie playback work. Still to test: series, seeking and subtitles on LG; Smarters (Android, iOS), TiviMate, XCIPTV, OTT Navigator, UHF; then the ar/en setup guides | — |
 
+
+## I1: import from storage (2026-10-16)
+
+### Done ([ADR-0025](adr/0025-imports-from-storage-and-direct-links.md))
+- **Why:** the owner's films are 100+ GB each; the server now pulls them itself, at datacentre speed, from storage the owner controls or from one link the owner pastes. Every import is started by an admin for chosen files or one URL, and records who, what, from where and under which rights (rights holder and licence reference required). No torrents, indexers, search-and-download or automation.
+- **Sources** (Libraries → Import → Add source; credentials Fernet-encrypted, write-only, step-up to add or change them):
+  - S3-compatible: AWS, Backblaze B2, Cloudflare R2, Wasabi, MinIO, other;
+  - SFTP: password or key, the host key pinned by the admin or by the first successful Test;
+  - WebDAV;
+  - Google Drive, Dropbox, OneDrive: the token from `rclone authorize`; OneDrive's drive found on the first Test; refreshed tokens are written back.
+  
+  Each has a Test (reachable, sign-in refused, not found, unreachable, timeout, certificate not trusted, not allowed) and a folder browser with sizes, both run in the importer and polled. Hosts and URLs go through the egress guard: the static check when saved, the full check with DNS before each run.
+- **Engine:** rclone v1.75.2 (MIT, latest stable, pinned by the release's SHA-256), a separate process.
+  - The new `importer` service: base, dev and prod compose, a Celery worker on the `import` queue only (4 threads), `backend` and `egress` networks, `cap_drop: ALL`, `no-new-privileges`, and a read-only root with a tmpfs `/tmp` in production.
+  - It is the only service with the media root read-write; `make hardening-test` now fails any other.
+  - Credentials reach rclone only through a per-run 0600 config in a private tmp folder: never argv, never env, never logs. Messages are scrubbed of every secret.
+- **Jobs:**
+  1. **Plan:** list the items and keep videos and subtitle sidecars only (other files in a folder are counted as skipped; a chosen file of another type is refused). Refuse names already in the library, and refuse a copy that with the other running imports and `library.import_reserve_gb` (10 GB) wouldn't fit. Nothing is copied first.
+  2. **Copy** into `<library>/.smart-iptv-import/<job>/`: rclone with retries, checksums where the backend has them, `library.import_bandwidth_mbit`, and JSON progress (bytes, speed, ETA) every 2 s. Links use our own guarded downloader instead, with HTTP Range resume and an optional checksum.
+  3. **Move** atomically (a hard link, never overwriting; subtitles first), then queue `scan_path`.
+  4. **Rights:** the job's rights fill the matched title's empty, unlocked fields (`apps.imports.rights`, called from `accept_movie` and `link_episode_file`).
+  
+  `library.import_max_concurrent` (1, at most 2) at once; one retry on transient errors, resuming; cancel stops within seconds and deletes the staged data. Audited as `import.start`, `import.finish` and `import.cancel` (and `import.source.*`), without credentials. The sweeper (beat, every minute, in the importer) requeues the job of a stopped importer, removes orphan staging folders and beats `hb:importer`.
+- **Admin:** Libraries → **Import** (`/libraries/import`): the importer's state and limits, the queue (progress, speed, ETA, Cancel), sources (Test, Browse, Edit, Delete), the history with details, and the **Direct link** dialog. In en/ar, both themes, RTL. `library.view` reads and `library.manage` changes. Three settings in Settings → Library with en/ar labels.
+- **`make import-test`** (in `make ci`): a throwaway container from the dev image serves synthetic FFmpeg clips over SFTP and HTTPS (rclone serve; a throwaway CA the dev importer trusts with DEBUG only). A folder (clip, subtitle, a poster that stays behind) and a link go through the real importer into a library and are probed by the scanner. Then everything is removed. No image pulled, no internet.
+- **Server:** `install.sh` (install and `--update`) gives uid 10001 write access to `MEDIA_ROOT` with an ACL (default ACL included, ownership untouched; it installs `acl` if missing and warns where ACLs aren't supported).
+- **Docs:** [runbook](runbooks/import-media.md) (S3, B2, R2, Wasabi, MinIO, SFTP, WebDAV, Drive, Dropbox and OneDrive with `rclone authorize`, links, sizing, the rsync alternative, troubleshooting), README, CLAUDE.md.
+
+### Evidence (dev stack, lane 2)
+- **Backend:**
+  - One full run in lane 2: 3,476 passed and 2 failed, at 92.79% coverage. The two failures were exhaustive lists the new code had to join: the declared queues (`import`) and key rotation's encrypted fields (`ImportSource.credentials_encrypted`, `ImportJob.url_encrypted`). Both were fixed, and their files then passed (20 tests).
+  - `apps/imports`: 74 tests against real `rclone serve sftp|webdav|s3` on loopback and a local HTTPS server with a throwaway certificate. They cover Tests and failure codes, host-key pinning, the browser, credentials absent from argv and the environment, folder and file imports, the type, target and space checks, cancel, retry once, recovery, token write-back, OneDrive discovery (rclone's answers simulated), drop and resume with Range, checksums, the guard (loopback, metadata, internal names, an HTTP redirect, DNS to loopback), TLS, and the API (RBAC, step-up, no secrets in responses or audit, query counts). Rights at match time are covered too.
+  - Ruff, `ruff format --check`, mypy and `makemigrations --check` are clean.
+- **Frontend:** Vitest admin 199 passed (7 new: queue and history, offline importer, adding an S3 source with a server refusal, browse and import, a direct link, read-only, the Libraries link). ESLint, Prettier and tsc are clean, and `make api-client` regenerated (`api-client-check` up to date).
+- **`make import-test`:** passed in 4 to 9 s (35 s once, when a code edit had just restarted the dev importer).
+- **`make e2e-admin`:** 134 passed, 1 skipped (monitoring off).
+  - `/libraries/import` passes axe in en/light and ar/dark, and has no sideways scroll at 390 px.
+  - The new journey: add a WebDAV source (step-up), Test it (refused: `.invalid` never resolves, so no internet), queue a direct link, read its failure and rights in the history, then delete the source.
+  - A first full run found that the fixture's step-up handler broke whenever the dialog really appeared: the apostrophe in its role-name regex broke Playwright's selector parser. It is fixed, and the journey now locks the step-up first, so the handler runs every time.
+- **`make visual`:** 24 + 24 passed; no baseline changed (the Libraries and Import pages aren't among the visual pages, and the settings fixture is unchanged).
+- **`make semgrep`:** clean. Its `storage_key` rule caught a serializer `source="storage_key"`; it now reads a `relative_path` property, as `MediaFile` does.
+- **`make hardening-test`:** passes with the new media-writers rule, which fails a test service that mounts `/media` writable.
+- **Images:** the production `smart-iptv/importer` image builds (567 MB). Trivy: no fixable HIGH or CRITICAL findings, rclone's Go binary included. rclone runs as uid 10001, and the image has no FFmpeg.
+- **Installer:** ShellCheck is clean (`install.sh`, `import_test.sh`, `smoke_images.sh`). `--update --dry-run` in `ubuntu:24.04` shows the new ACL step. The ACL step itself, run in a Debian container, left existing and later root-created folders writable for uid 10001.
+
+### For the production server
+`install.sh --update` covers it:
+- it builds the new `smart-iptv/importer` image (the runtime plus the 85 MB rclone binary) and starts the `importer` service (`compose up --remove-orphans` picks it up);
+- migration `imports/0001` adds three new tables, backward compatible;
+- the new `import` queue and the `imports-sweep` beat entry come with the code; the three `library.import_*` settings start at their defaults;
+- the new `grant_media_writes` step gives uid 10001 write access to `MEDIA_ROOT` with an ACL.
+
+No `.env` change. Optional: tune the three settings (Settings → Library); create read-only keys at the storage providers before adding sources.
+
+### Still open
+- Google Drive, Dropbox and OneDrive (including the OneDrive drive discovery) follow rclone's documented flows, but aren't verified against real accounts: this machine has none, and the tests never use the internet. The owner's first Test of such a source is the check.
+- A media folder on a file system without ACLs needs its permissions for uid 10001 set by hand (the installer warns).
 
 ## V1: the last open items (2026-10-16)
 
