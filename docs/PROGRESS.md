@@ -75,6 +75,21 @@ Nothing to do by hand. Optional:
 - The visual baselines belong to this machine's Chrome (155): a Chrome update that moves text needs `make visual UPDATE=1`.
 - Live HLS segments served straight from the edge aren't counted (live isn't checked against a runtime).
 
+## Last items deployed (2026-10-16)
+
+- **Gate:** `make ci ALLOW_DIRTY=1 BUILD_FLAGS="--pull --no-cache"` passed for the tree committed as `1cf4dae` in 1395 s. It covered:
+  - the backend: 3405 tests at 93.3% coverage;
+  - Vitest: ui 168, admin 192, portal 71;
+  - the Xtream contract: offline 161, `compat-live` 212, IPTVnator 9;
+  - the browser suites: `e2e-admin` 130 passed with 1 skipped, `e2e-portal` 8;
+  - `make visual` 24 + 24;
+  - Semgrep, the dependency audit, ZAP, `edge-test`, `mediamtx-test`, `restore-test`, `hardening-test`, `monitoring-test`;
+  - images, Trivy and the licence gate.
+- **Production:** after a `pg_dump` safety copy, `install.sh --update` rolled the web replicas with no errors, with HTTPS green on seven hosts.
+  - Unsigned media gives 403, and failed Xtream sign-in returns `{"user_info":{"auth":0}}`.
+  - The live contract suite gives 195 passed and 4 skipped.
+- **Open items:** none in code. What remains is the owner's list under "Final state": M10 real devices, M11b payment sandboxes and the go-live checklist.
+
 ## Owner decision: GPU is optional (2026-10-16)
 
 > "No need for a GPU option; make it optional. Online servers usually come with no GPU."

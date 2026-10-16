@@ -15,6 +15,7 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-16:** the last items deployed to tv.mah007.net with a rolling update (no errors, 7 hosts green, contract suite 195 passed). Every planned feature is built and live.
 - **2026-10-16:** the last open items (ADR-0024):
   - **Screenshot regression tests:** `make visual`, 48 baselines across 12 pages in both languages and themes, in `make ci`.
   - **Sharing checks:** media edges now count bytes per session, and sessions that download far more than the title explains are flagged (G-17).
