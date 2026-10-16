@@ -15,6 +15,7 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-16:** Import from storage deployed to tv.mah007.net with a rolling update (no errors, 7 hosts green, contract suite 195 passed, the new importer healthy and the only service that can write the media folder). Next: adding titles by hand when TMDB has no match.
 - **2026-10-16:** **Import from storage** (ADR-0025): Libraries → Import pulls films straight onto the server from S3-compatible buckets (AWS, Backblaze B2, Cloudflare R2, Wasabi), SFTP, WebDAV, Google Drive, Dropbox and OneDrive, or from one direct HTTPS link. It checks space and file types first, resumes, verifies checksums, shows live progress and records the rights of every import. No uploads from your own computer needed. The first real-device test also passed: Xtream sign-in and movie playback work on an LG TV.
 - **2026-10-16:** the last items deployed to tv.mah007.net with a rolling update (no errors, 7 hosts green, contract suite 195 passed). Every planned feature is built and live.
 - **2026-10-16:** the last open items (ADR-0024):

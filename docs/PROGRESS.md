@@ -77,6 +77,9 @@
 
 No `.env` change. Optional: tune the three settings (Settings → Library); create read-only keys at the storage providers before adding sources.
 
+### Deployed (2026-10-16)
+- bf78dba on tv.mah007.net through `install.sh --update` (pg_dump first, `/root/pre-i1.dump`): no errors, 7 hosts green, contract suite 195 passed and 4 skipped, every service healthy including `importer`, migration `imports/0001` applied. The ACL gives uid 10001 `rwx` (with the default ACL) on `/srv/media`: the importer writes, and web's mount stays read-only.
+
 ### Still open
 - Google Drive, Dropbox and OneDrive (including the OneDrive drive discovery) follow rclone's documented flows, but aren't verified against real accounts: this machine has none, and the tests never use the internet. The owner's first Test of such a source is the check.
 - A media folder on a file system without ACLs needs its permissions for uid 10001 set by hand (the installer warns).
