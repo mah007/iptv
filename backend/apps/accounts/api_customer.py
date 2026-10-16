@@ -21,7 +21,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts import customer_auth, customer_services, services, stepup
+from apps.accounts import customer_auth, customer_mfa, customer_services, services, stepup
 from apps.accounts.customer_auth import (
     CUSTOMER_AUTHENTICATION,
     BearerTokenAuthentication,
@@ -45,6 +45,8 @@ from apps.accounts.serializers_customer import (
     CustomerMeSerializer,
     CustomerMeUpdateSerializer,
     ForgotPasswordSerializer,
+    MfaConfirmSerializer,
+    MfaSetupSerializer,
     MyCredentialResetSerializer,
     MyDeviceCreateSerializer,
     MyDeviceSerializer,
@@ -56,6 +58,7 @@ from apps.accounts.serializers_customer import (
     TokenPairSerializer,
 )
 from apps.accounts.stepup import CustomerStepUp
+from apps.core.errors import ErrorCode, ProblemError
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
 from apps.core.throttling import DeviceCredentialThrottle
@@ -105,7 +108,8 @@ class PortalLoginView(AnonymousView):
         operation_id="auth_login",
         summary="Sign in to the portal (session cookie)",
         description="Opens a session after `GET auth/csrf`; send the CSRF token as "
-        "X-CSRFToken. The session lasts security.customer_session_days of idle time.",
+        "X-CSRFToken. The session lasts security.customer_session_days of idle time. A "
+        "customer with two-factor sign-in gets 403 MFA_REQUIRED until `code` is sent too.",
         auth=[],
         request=CustomerLoginSerializer,
         responses={200: CustomerMeSerializer, **problems(400, 403, 429)},
@@ -114,7 +118,10 @@ class PortalLoginView(AnonymousView):
         payload = CustomerLoginSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
         user = customer_auth.portal_login(
-            request._request, payload.validated_data["login"], payload.validated_data["password"]
+            request._request,
+            payload.validated_data["login"],
+            payload.validated_data["password"],
+            payload.validated_data["code"],
         )
         return no_store(Response(me_body(user)))
 
@@ -145,9 +152,11 @@ class AppLoginView(AnonymousView):
     @extend_schema(
         operation_id="auth_token_login",
         summary="Sign in an app: access and refresh tokens",
+        description="A customer with two-factor sign-in gets 403 MFA_REQUIRED until `code` "
+        "is sent too; refreshing never asks for it (ADR-0024).",
         request=AppLoginSerializer,
         auth=[],
-        responses={200: AppSignInSerializer, **problems(400, 429)},
+        responses={200: AppSignInSerializer, **problems(400, 403, 429)},
     )
     def post(self, request: Request) -> Response:
         payload = AppLoginSerializer(data=request.data)
@@ -157,6 +166,7 @@ class AppLoginView(AnonymousView):
             payload.validated_data["login"],
             payload.validated_data["password"],
             device_name=payload.validated_data["device_name"],
+            code=payload.validated_data["code"],
         )
         body = {**tokens_body(signed_in.tokens), "user": me_body(signed_in.user)}
         return no_store(Response(body))
@@ -338,6 +348,56 @@ class MyPasswordView(CustomerView):
         return Response(status=204)
 
 
+class MyMfaView(CustomerView):
+    """me/mfa (ADR-0024): optional two-factor sign-in. POST starts setting it up (a new
+    secret waiting for its first code at me/mfa/confirm); DELETE switches it off. Both
+    after the password step-up. Sign-ins already open keep working."""
+
+    permission_classes = (IsCustomer, CustomerStepUp)
+    step_up_methods = frozenset({"POST", "DELETE"})
+
+    @extend_schema(
+        operation_id="me_mfa_setup",
+        summary="Start setting up two-factor sign-in: the authenticator app's URI",
+        request=None,
+        responses={200: MfaSetupSerializer, **problems(401, 403, 409)},
+    )
+    def post(self, request: Request) -> Response:
+        uri = customer_mfa.begin(customer_of(request))
+        return no_store(Response(MfaSetupSerializer({"otpauth_uri": uri}).data))
+
+    @extend_schema(
+        operation_id="me_mfa_remove",
+        summary="Switch two-factor sign-in off",
+        request=None,
+        responses={204: OpenApiResponse(description="Off."), **problems(401, 403)},
+    )
+    def delete(self, request: Request) -> Response:
+        user = customer_of(request)
+        customer_mfa.remove(user, actor=user, ip=client_ip(request), action="customer.mfa_disable")
+        return Response(status=204)
+
+
+class MyMfaConfirmView(CustomerView):
+    """me/mfa/confirm (ADR-0024): the first code switches two-factor sign-in on."""
+
+    permission_classes = (IsCustomer, CustomerStepUp)
+    step_up_methods = frozenset({"POST"})
+
+    @extend_schema(
+        operation_id="me_mfa_confirm",
+        summary="Switch two-factor sign-in on with the app's first code",
+        request=MfaConfirmSerializer,
+        responses={200: CustomerMeSerializer, **problems(400, 401, 403, 409, 429)},
+    )
+    def post(self, request: Request) -> Response:
+        payload = MfaConfirmSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        user = customer_of(request)
+        customer_mfa.confirm(user, payload.validated_data["code"], ip=client_ip(request))
+        return no_store(Response(me_body(user)))
+
+
 class MyDeviceListView(CustomerView):
     throttle_classes = (DeviceCredentialThrottle,)
     permission_classes = (IsCustomer, CustomerStepUp)
@@ -470,6 +530,36 @@ class CustomerPasswordInviteView(APIView):
             }
         )
         return no_store(Response(body.data))
+
+
+class CustomerResetMfaView(APIView):
+    """POST /api/v1/admin/customers/{id}/reset-mfa (admin host; ADR-0024): support's
+    recovery for a customer who lost their authenticator app. Their next sign-in needs
+    the password alone; audited as `customer.mfa_reset`."""
+
+    permission_classes = (HasPermission,)
+    required_permissions: ClassVar[Requirements] = {"POST": "customers.edit"}
+    step_up_methods = frozenset({"POST"})
+
+    @extend_schema(
+        operation_id="customers_reset_mfa",
+        summary="Switch a customer's two-factor sign-in off (support's recovery)",
+        request=None,
+        responses={
+            204: OpenApiResponse(description="Off; the next sign-in needs the password only."),
+            **problems(401, 403, 404, 409),
+        },
+    )
+    def post(self, request: Request, pk: UUID) -> Response:
+        user = get_object_or_404(User.objects.filter(is_staff=False), pk=pk)
+        removed = customer_mfa.remove(
+            user, actor=acting_user(request), ip=client_ip(request), action="customer.mfa_reset"
+        )
+        if not removed:
+            raise ProblemError(
+                ErrorCode.CONFLICT, "Two-factor sign-in is not on for this customer.", status=409
+            )
+        return Response(status=204)
 
 
 # --- OpenAPI: the two customer authentication schemes -------------------------------------------

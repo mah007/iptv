@@ -104,6 +104,10 @@ python3 streaming/tools/sign_token.py sign --keys new.json --session <32 hex> \
     --title <asset> --rendition compat --ttl 7200 [--client-ip 203.0.113.7]
 ```
 
+## Bytes per session (G-17, ADR-0024)
+
+stream-auth runs before the response, so it can't carry a byte count. `njs/bytes.js` counts afterwards instead: `$edge_bytes_note`, referenced only by the `edge_bytes` access log (to `/dev/null`), adds each token response's `$bytes_sent` (200 and 206) to its session in the shared dictionary `edge_bytes`. Every 15 s the local edge posts what piled up to Django's `/internal/stream-bytes` (with `X-Edge-Auth`); a standalone edge sends it as `session_bytes` in its control poll. A report that fails is kept for the next one, for up to an hour. Live and catch-up streams are left to the live relay, which sends `X-Bytes` on its own stream-auth calls.
+
 ## Tests
 
 ```sh
@@ -111,9 +115,9 @@ bash streaming/tests/run.sh
 ```
 
 (`make edge-test`, part of `make ci`.) It checks the vectors against both implementations (Python reference and njs, plus 600 fuzz cases) and the SigV4 vectors (AWS's example included). Then it runs every edge against a stub of stream-auth, the control plane and a private S3 origin that checks presigned reads:
-- local disk mode with live TV and CDN pulls;
+- local disk mode with live TV, CDN pulls and its byte reports (G-17);
 - S3 origin mode;
-- a standalone edge with its own TLS, its control channel, key rotation without a reload, G-17's rate, a kick across hosts, and CDN pulls;
+- a standalone edge with its own TLS, its control channel (byte reports included), key rotation without a reload, G-17's rate, a kick across hosts, and CDN pulls;
 - the same edge with Let's Encrypt (`EDGE_TLS=acme`) against Pebble, Let's Encrypt's test server: issuance, and the same certificate after a restart.
 
 Finally it checks the captured logs. It uses standalone containers named `prework-*` on `127.0.0.1:18080-18086`, removed on exit. `tests/make_vectors.py` regenerates `tests/vectors.json`. The backend's M7 signer and stream-auth verifier must pass the same file.

@@ -12,18 +12,24 @@ has already verified; the reply decides whether bytes flow:
 Redis only: this view never touches Postgres (a test proves it), never logs the
 token and only ever names a session by its 16-hex prefix. It is routed on the
 internal URLconf alone, so Traefik never exposes it.
+
+`POST /internal/stream-bytes` takes the local edge's byte reports (G-17, ADR-0024),
+Redis only as well.
 """
 
 import ipaddress
+import json
 import re
 import time
 
 import structlog
 from django.http import HttpRequest, HttpResponse
-from django.views.decorators.http import require_safe
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST, require_safe
 from redis.exceptions import RedisError
 
 from apps.antisharing import streams
+from apps.playback import bytes as served
 from apps.playback import concurrency, edge_auth, tokens
 from apps.playback.tokens import Verdict
 
@@ -33,6 +39,8 @@ logger = structlog.get_logger(__name__)
 _PUBLIC_VERDICTS = {Verdict.EXPIRED: "expired", Verdict.IP_MISMATCH: "ip_mismatch"}
 _EDGE_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
 _MAX_BYTES = 1 << 53
+# A byte report: at most `served.MAX_SESSIONS` pairs of 32 hex digits and a number.
+_MAX_REPORT_BODY = 512 * 1024
 
 
 def _clock() -> float:
@@ -152,3 +160,32 @@ async def stream_auth(request: HttpRequest) -> HttpResponse:
         logger.warning("stream_auth.caller_refused")
         return _deny("invalid")
     return await authorize(request, client_ip=_client_ip(request), edge=_edge_id(request))
+
+
+@csrf_exempt
+@require_POST
+def stream_bytes(request: HttpRequest) -> HttpResponse:
+    """`POST /internal/stream-bytes`: the local edge's byte report (G-17, ADR-0024).
+
+    `{"sessions": {"<session>": bytes}}`, what the edge served each session since its last
+    report. Redis only (`apps.playback.bytes`); the same `X-Edge-Auth` as stream-auth.
+    204 when taken, 400 for a body that isn't a report, 503 without Redis."""
+    if not edge_auth.authenticated(request):
+        logger.warning("stream_bytes.caller_refused")
+        return _deny("invalid")
+    if len(request.body) > _MAX_REPORT_BODY:
+        return HttpResponse(status=413)
+    try:
+        body = json.loads(request.body or b"{}")
+    except ValueError:
+        return HttpResponse(status=400)
+    if not isinstance(body, dict):
+        return HttpResponse(status=400)
+    try:
+        served.add(served.clean(body.get("sessions")))
+    except RedisError:
+        logger.exception("stream_bytes.redis_unavailable")
+        return _unavailable()
+    response = HttpResponse(status=204)
+    response["Cache-Control"] = "no-store"
+    return response

@@ -363,11 +363,24 @@ function OverviewCard({ title }: { title: TitleDetail }) {
   );
 }
 
+/** A TheTVDB series keeps TheTVDB's orders (ADR-0023). */
 const TVDB_ORDERS: readonly EpisodeOrderingEnum[] = ["tvdb_aired", "tvdb_dvd"];
+/** A TMDB series with a TheTVDB id may read its file names in TheTVDB's order (ADR-0024). */
+const TMDB_ORDERS: readonly EpisodeOrderingEnum[] = ["tmdb_default", "tvdb_dvd", "tvdb_absolute"];
 
 type TitlePatch = PatchedMovieUpdateRequest | PatchedSeriesUpdateRequest;
 
-/** A TheTVDB series' episode order (ADR-0023): editable when it was built from TheTVDB. */
+/** The orders this series may follow; none to choose from when it has only one. */
+export function orderingChoices(series: SeriesDetail): readonly EpisodeOrderingEnum[] {
+  if (series.metadata_source === "tvdb") return TVDB_ORDERS;
+  return series.tvdb_id === null ? [] : TMDB_ORDERS;
+}
+
+/**
+ * A series' episode order. A TheTVDB series: aired or DVD (its episodes are renumbered,
+ * ADR-0023). A TMDB series with a TheTVDB id: TMDB's, or file names read in TheTVDB's DVD
+ * or absolute order and mapped to TMDB's episodes (its files are placed again, ADR-0024).
+ */
 function OrderingItem({
   series,
   onSave,
@@ -377,34 +390,45 @@ function OrderingItem({
 }) {
   const { t } = useTranslation();
   const field = useId();
-  const editable = onSave !== null && series.metadata_source === "tvdb";
+  const choices = orderingChoices(series);
+  const editable = onSave !== null && choices.length > 1;
+  const tvdbSource = series.metadata_source === "tvdb";
   return (
     <DescriptionItem label={<label htmlFor={field}>{t("titles.detail.ordering")}</label>}>
       {editable ? (
-        <Select
-          value={series.episode_ordering}
-          onValueChange={(value) => {
-            void onSave({ episode_ordering: value as EpisodeOrderingEnum }).then(
-              () => {
-                toast.success(t("titles.detail.orderingSaved"));
-              },
-              (error: unknown) => {
-                notifyError(t, error);
-              },
-            );
-          }}
-        >
-          <SelectTrigger id={field} className="h-8 w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TVDB_ORDERS.map((value) => (
-              <SelectItem key={value} value={value}>
-                {t(`titles.orderings.${value}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="grid min-w-0 gap-1">
+          <Select
+            value={series.episode_ordering}
+            onValueChange={(value) => {
+              void onSave({ episode_ordering: value as EpisodeOrderingEnum }).then(
+                () => {
+                  toast.success(
+                    t(
+                      tvdbSource ? "titles.detail.orderingSaved" : "titles.detail.orderingReplaced",
+                    ),
+                  );
+                },
+                (error: unknown) => {
+                  notifyError(t, error);
+                },
+              );
+            }}
+          >
+            <SelectTrigger id={field} className="h-8 w-full max-w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {choices.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {t(tvdbSource ? `titles.orderings.${value}` : `titles.tmdbOrderings.${value}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {tvdbSource ? null : (
+            <span className="text-xs text-muted-foreground">{t("titles.detail.orderingHint")}</span>
+          )}
+        </div>
       ) : (
         <span id={field}>{t(`titles.orderings.${series.episode_ordering}`)}</span>
       )}

@@ -4,7 +4,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.antisharing.models import FlagStatus, RiskFlag, Sighting
+from apps.antisharing.models import ExcessBytes, FlagStatus, RiskFlag, Sighting
 
 
 class SignalSerializer(serializers.Serializer[Any]):
@@ -96,12 +96,43 @@ class SightingSerializer(serializers.ModelSerializer[Sighting]):
         return sighting.device.app_hint if sighting.device is not None else ""
 
 
+class ExcessBytesSerializer(serializers.ModelSerializer[ExcessBytes]):
+    """A session served far more than its title explains (G-17, ADR-0024)."""
+
+    device_name = serializers.SerializerMethodField()
+    started_at = serializers.DateTimeField(source="session.started_at", read_only=True)
+    ended_at = serializers.DateTimeField(source="session.ended_at", read_only=True, allow_null=True)
+
+    class Meta:
+        model = ExcessBytes
+        fields = (
+            "id",
+            "session",
+            "title_name",
+            "rendition",
+            "network",
+            "device",
+            "device_name",
+            "bytes_sent",
+            "expected_bytes",
+            "ratio",
+            "detected_at",
+            "started_at",
+            "ended_at",
+        )
+        read_only_fields = fields
+
+    def get_device_name(self, row: ExcessBytes) -> str:
+        return row.device.name if row.device is not None else ""
+
+
 class RiskOverviewSerializer(serializers.Serializer[Any]):
     enabled = serializers.BooleanField()
     geoip_installed = serializers.BooleanField()
     flag = RiskFlagSerializer(allow_null=True)
     assessment = AssessmentSerializer()
     sightings = SightingSerializer(many=True)
+    excess_bytes = ExcessBytesSerializer(many=True)
     attribution_url = serializers.URLField()
 
 

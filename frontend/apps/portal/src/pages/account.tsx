@@ -46,6 +46,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
+import { TwoFactorCard } from "../features/account/two-factor";
 import { changeErrorKeys } from "../features/auth/errors";
 import { useSignOut } from "../layout/account-menu";
 import { useMe } from "../lib/auth";
@@ -446,6 +447,7 @@ export function AccountPage() {
             </CardContent>
           </Card>
           <PasswordCard me={me} />
+          <TwoFactorCard me={me} />
         </div>
         <AccountLinks />
       </div>

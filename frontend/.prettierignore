@@ -6,3 +6,5 @@ packages/api/src/generated/**
 packages/api-portal/src/generated/**
 # pnpm on the host may put its store here; never checked.
 .pnpm-store/
+# Visual regression fixtures are recorded API responses (make visual RECORD=1), never hand-edited.
+apps/*/e2e/visual/fixtures/**

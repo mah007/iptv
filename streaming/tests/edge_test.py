@@ -914,7 +914,53 @@ def run_local(args: argparse.Namespace) -> int:
     check_cdn(
         c, lambda method, path, headers: request(edge, method, path, headers), work, mode="local"
     )
+    check_byte_reports(c, edge, control, work)
     return c.finish()
+
+
+def byte_report(control: str) -> dict[str, Any]:
+    result: dict[str, Any] = control_json(control, "/__control/bytes")
+    return result
+
+
+def check_byte_reports(c: Checks, edge: str, control: str, work: Work) -> None:
+    """G-17 (ADR-0024): the local edge reports what it served each session, every 15 s."""
+    data = work.file("compat.mp4")
+    token = work.token(rendition="compat")
+    session = session_of(token)
+    whole = request(edge, "GET", f"/v/{token}/compat.mp4")
+    part = request(edge, "GET", f"/v/{token}/compat.mp4", {"Range": "bytes=0-99"})
+    denied = request(edge, "GET", f"/v/{work.foreign(tamper_signature(token))}/compat.mp4")
+    c.check(
+        "bytes: a whole file, a range and a refused request",
+        (whole.status, part.status, denied.status) == (200, 206, 403),
+        (whole.status, part.status, denied.status),
+    )
+    reported = wait_for(
+        lambda: byte_report(control)["sessions"].get(session, 0) >= len(data) + 100, 40
+    )
+    report = byte_report(control)
+    sent = report["sessions"].get(session, 0)
+    c.check(
+        "bytes: reported within 40 s, the body and headers of both answers",
+        reported and len(data) + 100 <= sent < len(data) + 100 + 4096,
+        (sent, len(data)),
+    )
+    last = report.get("last") or {}
+    internal = (work.root / "edge_token").read_text().strip()
+    c.check(
+        "bytes: the report names the edge and carries X-Edge-Auth and EDGE_AUTH_HOST",
+        last.get("x-edge-id") == "edge-test-local"
+        and last.get("x-edge-auth") == internal
+        and last.get("host") == "auth",
+        sorted(last),
+    )
+    time.sleep(16)
+    c.check(
+        "bytes: counted once (the next report doesn't repeat them)",
+        byte_report(control)["sessions"].get(session, 0) == sent,
+        byte_report(control)["sessions"].get(session, 0),
+    )
 
 
 # ------------------------------------------------------------------------------ s3
@@ -1233,6 +1279,18 @@ def run_control(args: argparse.Namespace) -> int:
     )
     c.check(
         "the client's forwarding header isn't trusted", seen.get("x-edge-client-ip") != CLIENT_V4
+    )
+
+    session = session_of(token)
+    in_polls = wait_for(
+        lambda: sum(p["body"].get("session_bytes", {}).get(session, 0) for p in polls(control))
+        >= len(data),
+        40,
+    )
+    c.check(
+        "G-17 bytes: a later poll reports what the session was served",
+        in_polls,
+        [p["body"].get("session_bytes") for p in polls(control)][-3:],
     )
 
     started = time.monotonic()

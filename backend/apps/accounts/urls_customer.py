@@ -45,6 +45,9 @@ token_auth = [
 urlpatterns = [
     path("me", api_customer.MeView.as_view(), name="customer-me"),
     path("me/password", api_customer.MyPasswordView.as_view(), name="customer-password"),
+    # Optional two-factor sign-in (ADR-0024).
+    path("me/mfa", api_customer.MyMfaView.as_view(), name="customer-mfa"),
+    path("me/mfa/confirm", api_customer.MyMfaConfirmView.as_view(), name="customer-mfa-confirm"),
     path("me/devices", api_customer.MyDeviceListView.as_view(), name="customer-devices"),
     path(
         "me/devices/<uuid:pk>",

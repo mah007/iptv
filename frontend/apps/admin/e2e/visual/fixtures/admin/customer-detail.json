@@ -1,0 +1,315 @@
+{
+  "path": "/customers/01a14464-c197-72d9-ba90-42ea2f070948",
+  "responses": {
+    "GET /api/v1/auth/me [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+        "username": "e2e-admin",
+        "name": "End-to-end checks",
+        "email": "e2e-admin@example.test",
+        "locale": "ar",
+        "timezone": "Asia/Riyadh",
+        "mfa_enabled": true,
+        "roles": [
+          "owner"
+        ],
+        "permissions": [
+          "admins.manage",
+          "audit.view",
+          "backups.run",
+          "backups.view",
+          "billing.manage",
+          "billing.refund",
+          "billing.view",
+          "customers.edit",
+          "customers.view",
+          "dashboard.view",
+          "devices.manage",
+          "edges.manage",
+          "edges.view",
+          "library.manage",
+          "library.review",
+          "library.view",
+          "lockouts.manage",
+          "lockouts.view",
+          "monitoring.view",
+          "notifications.manage",
+          "notifications.view",
+          "plans.edit",
+          "plans.view",
+          "roles.manage",
+          "sessions.kill",
+          "settings.edit",
+          "settings.view",
+          "subscriptions.edit",
+          "subscriptions.view"
+        ],
+        "idle_timeout_min": 30,
+        "step_up_window_min": 5,
+        "step_up_until": "2026-10-16T11:15:00+00:00",
+        "mfa_methods": [
+          "totp"
+        ],
+        "webauthn_enrolment_required": false
+      }
+    },
+    "GET /api/v1/branding [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    },
+    "GET /api/v1/admin/dashboard/kpis [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "customers_total": 7,
+        "customers_active": 7,
+        "customers_grace": 0,
+        "customers_expired": 0,
+        "customers_suspended": 0,
+        "expiring_7d": 0,
+        "devices_total": 52,
+        "devices_blocked": 0,
+        "streams_now": 0,
+        "stream_users_now": 0,
+        "reviews_open": 0,
+        "transcode_queued": 0,
+        "transcode_running": 0,
+        "transcode_failed_24h": 0,
+        "as_of": "2026-10-16T11:10:34.192424Z"
+      }
+    },
+    "GET /api/v1/admin/review-queue?page_size=1&status=open [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 0,
+        "next": null,
+        "previous": null,
+        "results": []
+      }
+    },
+    "GET /api/v1/admin/customers?page_size=25 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 7,
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "id": "01a14464-c197-72d9-ba90-42ea2f070948",
+            "username": "e2e-acct-mvav4rdq",
+            "name": "E2E Admin mvav4rdq",
+            "email": "",
+            "phone": "",
+            "status": "active",
+            "subscription_status": "active",
+            "status_source": "profile",
+            "subscription_plan": null,
+            "ends_at": "2026-11-16T20:59:59Z",
+            "access_status": "active",
+            "expires_at": "2026-11-16T20:59:59Z",
+            "max_devices": 2,
+            "device_count": 1,
+            "last_seen": "2026-10-16T11:07:05.007252Z",
+            "risk_flagged": false,
+            "created_at": "2026-10-16T11:06:56.280603Z"
+          },
+          {
+            "id": "01a141ec-82b9-72a1-b92f-9bcdf8562fa3",
+            "username": "e2e-acct-mva6go2z",
+            "name": "E2E Admin mva6go2z",
+            "email": "",
+            "phone": "",
+            "status": "active",
+            "subscription_status": "active",
+            "status_source": "profile",
+            "subscription_plan": null,
+            "ends_at": "2026-11-16T20:59:59Z",
+            "access_status": "active",
+            "expires_at": "2026-11-16T20:59:59Z",
+            "max_devices": 2,
+            "device_count": 1,
+            "last_seen": "2026-10-15T23:36:30.559291Z",
+            "risk_flagged": false,
+            "created_at": "2026-10-15T23:36:21.434843Z"
+          },
+          {
+            "id": "01a141d9-f560-7bf0-9b60-a09184ec9339",
+            "username": "e2e-acct-mva5qlxd",
+            "name": "E2E Admin mva5qlxd",
+            "email": "",
+            "phone": "",
+            "status": "active",
+            "subscription_status": "active",
+            "status_source": "profile",
+            "subscription_plan": null,
+            "ends_at": "2026-11-16T20:59:59Z",
+            "access_status": "active",
+            "expires_at": "2026-11-16T20:59:59Z",
+            "max_devices": 2,
+            "device_count": 1,
+            "last_seen": "2026-10-15T23:16:14.475175Z",
+            "risk_flagged": false,
+            "created_at": "2026-10-15T23:16:05.601469Z"
+          },
+          {
+            "id": "01a141cc-e321-7992-836c-2bef42b413ac",
+            "username": "cus-izczagqg",
+            "name": "Xtream contract checks (720p)",
+            "email": "xtream-contract-720@example.com",
+            "phone": "",
+            "status": "active",
+            "subscription_status": "active",
+            "status_source": "profile",
+            "subscription_plan": null,
+            "ends_at": null,
+            "access_status": "active",
+            "expires_at": null,
+            "max_devices": 2,
+            "device_count": 1,
+            "last_seen": "2026-10-15T23:31:24.840271Z",
+            "risk_flagged": false,
+            "created_at": "2026-10-15T23:01:48.962154Z"
+          },
+          {
+            "id": "01a141cc-dd71-714d-8269-dee7bdb31682",
+            "username": "cus-ar5rmxqo",
+            "name": "Xtream contract checks",
+            "email": "xtream-contract@example.com",
+            "phone": "",
+            "status": "active",
+            "subscription_status": "active",
+            "status_source": "profile",
+            "subscription_plan": null,
+            "ends_at": null,
+            "access_status": "active",
+            "expires_at": null,
+            "max_devices": 2,
+            "device_count": 1,
+            "last_seen": "2026-10-15T23:31:22.967643Z",
+            "risk_flagged": false,
+            "created_at": "2026-10-15T23:01:47.506406Z"
+          },
+          {
+            "id": "01a141a7-14c1-73ef-bd76-2e078c580fe4",
+            "username": "e2e-portal",
+            "name": "Portal end-to-end checks",
+            "email": "e2e-portal@example.com",
+            "phone": "",
+            "status": "active",
+            "subscription_status": "active",
+            "status_source": "profile",
+            "subscription_plan": null,
+            "ends_at": null,
+            "access_status": "active",
+            "expires_at": null,
+            "max_devices": 2,
+            "device_count": 46,
+            "last_seen": "2026-10-16T11:02:03.559819Z",
+            "risk_flagged": false,
+            "created_at": "2026-10-15T22:20:31.298096Z"
+          },
+          {
+            "id": "01a14192-7e85-7041-82a9-a639f30dd567",
+            "username": "e2e-acct-mva2y831",
+            "name": "E2E Admin mva2y831",
+            "email": "",
+            "phone": "",
+            "status": "active",
+            "subscription_status": "active",
+            "status_source": "profile",
+            "subscription_plan": null,
+            "ends_at": "2026-11-16T20:59:59Z",
+            "access_status": "active",
+            "expires_at": "2026-11-16T20:59:59Z",
+            "max_devices": 2,
+            "device_count": 1,
+            "last_seen": "2026-10-15T21:58:07.721133Z",
+            "risk_flagged": false,
+            "created_at": "2026-10-15T21:58:02.118679Z"
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/customers/01a14464-c197-72d9-ba90-42ea2f070948 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a14464-c197-72d9-ba90-42ea2f070948",
+        "username": "e2e-acct-mvav4rdq",
+        "name": "E2E Admin mvav4rdq",
+        "email": "",
+        "phone": "",
+        "status": "active",
+        "locale": "ar",
+        "timezone": "Asia/Riyadh",
+        "notes": "",
+        "marketing_opt_in": false,
+        "mfa_enabled": false,
+        "access": {
+          "status": "active",
+          "expires_at": "2026-11-16T20:59:59Z",
+          "max_streams": 1,
+          "max_devices": 2,
+          "max_quality": 1080,
+          "concurrency_policy": "reject",
+          "allow_movies": true,
+          "allow_series": true,
+          "allow_live": true,
+          "categories": [],
+          "updated_at": "2026-10-16T11:06:56.283647Z"
+        },
+        "devices": [
+          {
+            "id": "01a14464-c1a6-745a-a2e6-826a715dcee1",
+            "kind": "xtream",
+            "name": "Living room TV",
+            "app_hint": "other",
+            "status": "active",
+            "approved": true,
+            "blocked": false,
+            "blocked_reason": "",
+            "revoked_at": null,
+            "xtream_username": "e2e-tv-mvav4rdq",
+            "first_seen": "2026-10-16T11:07:05.007252Z",
+            "last_seen": "2026-10-16T11:07:05.007252Z",
+            "last_ip": "172.20.0.1",
+            "last_country": "",
+            "created_at": "2026-10-16T11:06:56.294390Z"
+          }
+        ],
+        "last_login": null,
+        "created_at": "2026-10-16T11:06:56.280603Z",
+        "updated_at": "2026-10-16T11:06:56.280609Z"
+      }
+    },
+    "GET /api/v1/admin/subscriptions?ordering=-ends_at&page_size=1&status=active&status=grace&status=pending&status=suspended&user=01a14464-c197-72d9-ba90-42ea2f070948 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 0,
+        "next": null,
+        "previous": null,
+        "results": []
+      }
+    }
+  }
+}

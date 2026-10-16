@@ -73,6 +73,27 @@ test("reset a device's password and see the new one once", async ({ page }) => {
   const issued = page.getByRole("dialog", { name: "New password issued" });
   await expect(issued).toBeVisible();
   await expect(issued.getByRole("textbox", { name: "Username" })).toHaveValue(customer.login);
+  // The setup card (G-25, ADR-0024): the card alone when printed, without the password when
+  // the box is cleared. The browser's print dialog is stubbed; the print stylesheet isn't.
+  await page.evaluate(() => {
+    window.print = () => undefined;
+  });
+  await issued.getByRole("checkbox", { name: "Include the password" }).click();
+  await issued.getByRole("button", { name: "Print setup card" }).click();
+  const waiting = page.locator("[data-print-root] [data-slot='setup-card']");
+  await expect(waiting).toBeHidden();
+  await page.emulateMedia({ media: "print" });
+  const card = page.getByRole("article", { name: "TV app setup card" });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText(customer.login);
+  await expect(card).not.toContainText(customer.password);
+  await expect(
+    card.getByRole("img", { name: "QR code with the server and username" }),
+  ).toBeVisible();
+  await expect(issued).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
+  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+  await expect(waiting).toHaveCount(0);
   await issued.getByRole("button", { name: "Done" }).click();
   await expect(issued).toBeHidden();
 });

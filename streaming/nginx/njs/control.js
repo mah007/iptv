@@ -6,7 +6,8 @@
  *
  *     POST <EDGE_CONTROL_URL>/edge/v1/poll
  *     Authorization: Bearer <the edge's secret>    X-Edge-Id: <EDGE_ID>
- *     {"kids": [...], "connections": {...}, "tx_bytes": n, "version": "...", "origin_url": "..."}
+ *     {"kids": [...], "connections": {...}, "tx_bytes": n, "version": "...", "origin_url": "...",
+ *      "session_bytes": {"<session>": bytes, ...}}
  *
  * and keeps what comes back in the shared dictionary `edge_ctl`:
  *   keys     the media token key set (current and previous), as the key file holds it
@@ -25,6 +26,7 @@
  * `cdn_secret` (a static CDN origin secret). Nothing here logs.
  */
 import fs from 'fs';
+import bytes from 'bytes.js';
 import token from 'token.js';
 
 const POLL_EVERY_MS = 15000;
@@ -142,12 +144,15 @@ async function poll(s) {
         return;
     }
     store.set('attempted', String(now));
+    // What this edge served each playback session since the last poll (G-17, ADR-0024).
+    var served = bytes.take();
     var body = {
         kids: loadedKids(),
         connections: await connections(),
         tx_bytes: txBytes(),
         version: 'nginx/' + s.variables.nginx_version + ' njs/' + njs.version,
         origin_url: s.variables.edge_origin_url || '',
+        session_bytes: served,
     };
     var headers = {
         Authorization: 'Bearer ' + secret('control_token'),
@@ -166,6 +171,7 @@ async function poll(s) {
             max_response_body_size: 65536,
         });
         if (reply.status !== 200) {
+            bytes.restore(served);
             store.set('error', 'http_' + reply.status);
             return;
         }
@@ -180,6 +186,7 @@ async function poll(s) {
         store.set('polled', String(now));
         store.set('error', '');
     } catch (e) {
+        bytes.restore(served);
         store.set('error', 'unreachable');
     }
 }

@@ -25,6 +25,14 @@ from apps.playback.entitlements import EntitlementStatus
 class CustomerLoginSerializer(serializers.Serializer[Any]):
     login = serializers.CharField(max_length=254, help_text="Username, email or phone number.")
     password = serializers.CharField(max_length=1024, trim_whitespace=False)
+    code = serializers.CharField(
+        max_length=16,
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="The authenticator app's code, for customers with two-factor sign-in: "
+        "without it they get 403 MFA_REQUIRED (ADR-0024).",
+    )
 
 
 class AppLoginSerializer(CustomerLoginSerializer):
@@ -95,9 +103,13 @@ class CustomerMeSerializer(serializers.ModelSerializer[User]):
             "timezone",
             "marketing_opt_in",
             "status",
+            "mfa_enabled",
             "access",
         )
         read_only_fields = fields
+        extra_kwargs = {  # noqa: RUF012 (DRF reads it as a class attribute)
+            "mfa_enabled": {"help_text": "Two-factor sign-in (an authenticator app) is on."},
+        }
 
     @extend_schema_field(CustomerAccessSummarySerializer(allow_null=True))
     def get_access(self, user: User) -> dict[str, Any] | None:
@@ -229,3 +241,16 @@ class PasswordInvitationSerializer(serializers.Serializer[Any]):
     url = serializers.URLField(help_text="The single-use link that sets the password.")
     expires_at = serializers.DateTimeField()
     emailed = serializers.BooleanField()
+
+
+# --- Two-factor sign-in (ADR-0024) -----------------------------------------------------------
+
+
+class MfaSetupSerializer(serializers.Serializer[Any]):
+    otpauth_uri = serializers.CharField(
+        help_text="The authenticator app's otpauth:// URI (show it as a QR code); shown once."
+    )
+
+
+class MfaConfirmSerializer(serializers.Serializer[Any]):
+    code = serializers.CharField(max_length=16, help_text="The first code the app shows.")

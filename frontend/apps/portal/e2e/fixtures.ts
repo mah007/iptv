@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test as base, type Page } from "@playwright/test";
 
@@ -42,6 +44,20 @@ export { expect };
 /** The customer `make e2e-portal` creates (manage.py e2e_portal_account). */
 export const login = process.env.E2E_PORTAL_USER ?? "";
 export const password = process.env.E2E_PORTAL_PASS ?? "";
+
+/**
+ * The customer's next authenticator code (two-factor sign-in, ADR-0024), from the
+ * DEBUG-only `manage.py totp_code`: `make e2e-portal` passes its argv as E2E_TOTP_COMMAND.
+ */
+export function totpCode(): string {
+  const argv = JSON.parse(process.env.E2E_TOTP_COMMAND ?? "[]") as string[];
+  const [command, ...args] = argv;
+  if (command === undefined) throw new Error("Set E2E_TOTP_COMMAND (make e2e-portal does).");
+  const output = execFileSync(command, [...args, login], { encoding: "utf8" });
+  const code = /\b(\d{6})\s*$/u.exec(output)?.[1];
+  if (code === undefined) throw new Error("totp_code printed no code.");
+  return code;
+}
 
 /** WCAG 2.2 AA checks on what is on screen; the page must have none. */
 export async function expectAccessible(page: Page, name: string): Promise<void> {

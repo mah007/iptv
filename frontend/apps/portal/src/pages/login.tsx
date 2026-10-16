@@ -26,10 +26,13 @@ import { useTranslation } from "react-i18next";
 
 import { authErrorKey, resetErrorKeys } from "../features/auth/errors";
 import {
+  codeSchema,
   forgotSchema,
   loginSchema,
   newPasswordSchema,
   PASSWORD_MIN_LENGTH,
+  type CodeInput,
+  type CodeValues,
   type ForgotValues,
   type LoginInput,
   type LoginValues,
@@ -74,6 +77,9 @@ export function LoginPage() {
   const queryClient = useQueryClient();
   const search = loginApi.useSearch();
   const [error, setError] = useState<unknown>(null);
+  // Two-factor sign-in (ADR-0024): the right password answers MFA_REQUIRED; the code step
+  // sends it again with the code. Held in memory only, dropped on "Back".
+  const [needsCode, setNeedsCode] = useState<LoginValues | null>(null);
   const login = useAuthLogin();
   const form = useForm<LoginInput, unknown, LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -81,17 +87,42 @@ export function LoginPage() {
   });
   const submitting = form.formState.isSubmitting;
 
-  async function onSubmit(values: LoginValues): Promise<void> {
+  async function signIn(values: LoginValues, code?: string): Promise<void> {
     setError(null);
     try {
-      const me = await login.mutateAsync({ data: values });
+      const me = await login.mutateAsync({
+        data: code === undefined ? values : { ...values, code },
+      });
       // A different customer may sign in on this browser: start from a clean cache.
       queryClient.clear();
       queryClient.setQueryData(meQueryOptions().queryKey, me);
       await navigate({ href: safeRedirect(search.redirect), replace: true });
     } catch (failure) {
+      if (code === undefined && isApiError(failure) && failure.code === "MFA_REQUIRED") {
+        setNeedsCode(values);
+        return;
+      }
       setError(failure);
     }
+  }
+
+  async function onSubmit(values: LoginValues): Promise<void> {
+    await signIn(values);
+  }
+
+  if (needsCode !== null) {
+    return (
+      <CodeStep
+        error={error}
+        pending={login.isPending}
+        onSubmit={(code) => signIn(needsCode, code)}
+        onBack={() => {
+          setNeedsCode(null);
+          setError(null);
+          form.resetField("password");
+        }}
+      />
+    );
   }
 
   return (
@@ -159,6 +190,70 @@ export function LoginPage() {
           </Button>
         </form>
       </Form>
+    </AuthCard>
+  );
+}
+
+/** The sign-in's second step for customers with two-factor sign-in (ADR-0024). */
+function CodeStep({
+  error,
+  pending,
+  onSubmit,
+  onBack,
+}: {
+  error: unknown;
+  pending: boolean;
+  onSubmit: (code: string) => Promise<void>;
+  onBack: () => void;
+}) {
+  const { t } = useTranslation();
+  const form = useForm<CodeInput, unknown, CodeValues>({
+    resolver: zodResolver(codeSchema),
+    defaultValues: { code: "" },
+  });
+  return (
+    <AuthCard title={t("auth.code.title")} subtitle={t("auth.code.subtitle")}>
+      {error !== null ? <Alert tone="danger">{t(authErrorKey(error))}</Alert> : null}
+      <Form {...form}>
+        <form
+          noValidate
+          className="grid gap-4"
+          onSubmit={(event) =>
+            void form.handleSubmit(async (values) => {
+              await onSubmit(values.code);
+              form.resetField("code");
+            })(event)
+          }
+        >
+          <FormField
+            control={form.control}
+            name="code"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("auth.code.label")}</FormLabel>
+                <FormControl>
+                  <Input
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    dir="ltr"
+                    autoFocus
+                    maxLength={8}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" size="lg" className="mt-1 w-full" pending={pending}>
+            {t("auth.code.submit")}
+          </Button>
+          <Button type="button" variant="ghost" onClick={onBack}>
+            {t("auth.code.back")}
+          </Button>
+        </form>
+      </Form>
+      <p className="text-ui text-muted-foreground">{t("auth.code.lostPhone")}</p>
     </AuthCard>
   );
 }

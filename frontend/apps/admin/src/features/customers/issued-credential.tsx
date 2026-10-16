@@ -1,8 +1,18 @@
 import type { IssuedCredential } from "@smart-iptv/api";
-import { Alert, Button, CopyField, QRCodeCard, SecretReveal, useCopy } from "@smart-iptv/ui";
+import {
+  Alert,
+  Button,
+  CopyField,
+  PrintSetupCard,
+  QRCodeCard,
+  SecretReveal,
+  useCopy,
+} from "@smart-iptv/ui";
 import { ClipboardCopy, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { useBrand } from "../../layout/brand";
 
 /**
  * What the QR code encodes (SPEC §8.3.2): the three things an IPTV app asks
@@ -26,6 +36,7 @@ export function IssuedCredentialPanel({ credential }: { credential: IssuedCreden
   const { t } = useTranslation();
   const [hidden, setHidden] = useState(false);
   const { copy } = useCopy();
+  const brand = useBrand();
   const details = [
     `${t("credential.server")}: ${credential.server_url}`,
     `${t("credential.username")}: ${credential.username}`,
@@ -62,18 +73,30 @@ export function IssuedCredentialPanel({ credential }: { credential: IssuedCreden
           />
         )}
       </div>
-      <Button
-        type="button"
-        variant="secondary"
-        className="justify-self-start"
-        disabled={hidden}
-        onClick={() => {
-          void copy(details);
-        }}
-      >
-        <ClipboardCopy aria-hidden="true" />
-        {t("credential.copyAll")}
-      </Button>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={hidden}
+          onClick={() => {
+            void copy(details);
+          }}
+        >
+          <ClipboardCopy aria-hidden="true" />
+          {t("credential.copyAll")}
+        </Button>
+        {/* G-25 (ADR-0024): a printable card, drawn in the browser while the password is here. */}
+        <PrintSetupCard
+          disabled={hidden}
+          login={{
+            serviceName: brand.name,
+            serverUrl: credential.server_url,
+            username: credential.username,
+            password: credential.password,
+            deviceName: credential.device.name,
+          }}
+        />
+      </div>
     </div>
   );
 }

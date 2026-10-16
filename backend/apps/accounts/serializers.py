@@ -626,6 +626,7 @@ class CustomerDetailSerializer(serializers.ModelSerializer[User]):
             "timezone",
             "notes",
             "marketing_opt_in",
+            "mfa_enabled",
             "access",
             "devices",
             "last_login",
@@ -633,6 +634,11 @@ class CustomerDetailSerializer(serializers.ModelSerializer[User]):
             "updated_at",
         )
         read_only_fields = fields
+        extra_kwargs = {  # noqa: RUF012 (DRF reads it as a class attribute)
+            "mfa_enabled": {
+                "help_text": "The customer signs in with an authenticator code too (ADR-0024)."
+            },
+        }
 
     @extend_schema_field(AccessProfileSerializer(allow_null=True))
     def access_of(self, user: User) -> dict[str, Any] | None:

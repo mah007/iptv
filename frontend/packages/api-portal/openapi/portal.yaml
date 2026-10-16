@@ -27,7 +27,8 @@ paths:
     post:
       operationId: auth_login
       description: Opens a session after `GET auth/csrf`; send the CSRF token as X-CSRFToken.
-        The session lasts security.customer_session_days of idle time.
+        The session lasts security.customer_session_days of idle time. A customer
+        with two-factor sign-in gets 403 MFA_REQUIRED until `code` is sent too.
       summary: Sign in to the portal (session cookie)
       tags:
         - auth
@@ -1300,6 +1301,143 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/mfa:
+    post:
+      operationId: me_mfa_setup
+      description: |-
+        me/mfa (ADR-0024): optional two-factor sign-in. POST starts setting it up (a new
+        secret waiting for its first code at me/mfa/confirm); DELETE switches it off. Both
+        after the password step-up. Sign-ins already open keep working.
+      summary: "Start setting up two-factor sign-in: the authenticator app's URI"
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaSetup"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: me_mfa_remove
+      description: |-
+        me/mfa (ADR-0024): optional two-factor sign-in. POST starts setting it up (a new
+        secret waiting for its first code at me/mfa/confirm); DELETE switches it off. Both
+        after the password step-up. Sign-ins already open keep working.
+      summary: Switch two-factor sign-in off
+      tags:
+        - me
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "204":
+          description: Off.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/mfa/confirm:
+    post:
+      operationId: me_mfa_confirm
+      description: "me/mfa/confirm (ADR-0024): the first code switches two-factor
+        sign-in on."
+      summary: Switch two-factor sign-in on with the app's first code
+      tags:
+        - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaConfirmRequest"
+        required: true
+      security:
+        - bearerToken: []
+        - portalSession: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerMe"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too many attempts (ACCOUNT_LOCKED, RATE_LIMITED); see Retry-After.
         default:
           description: Error (RFC 9457 problem details).
           content:
@@ -2771,6 +2909,12 @@ components:
           type: string
           minLength: 1
           maxLength: 1024
+        code:
+          type: string
+          default: ""
+          description: "The authenticator app's code, for customers with two-factor
+            sign-in: without it they get 403 MFA_REQUIRED (ADR-0024)."
+          maxLength: 16
       required:
         - login
         - password
@@ -2811,6 +2955,10 @@ components:
           allOf:
             - $ref: "#/components/schemas/UserStatus"
           readOnly: true
+        mfa_enabled:
+          type: boolean
+          readOnly: true
+          description: Two-factor sign-in (an authenticator app) is on.
         access:
           oneOf:
             - $ref: "#/components/schemas/CustomerAccessSummary"
@@ -2822,6 +2970,7 @@ components:
         - id
         - locale
         - marketing_opt_in
+        - mfa_enabled
         - name
         - phone
         - status
@@ -3410,6 +3559,25 @@ components:
         - tmdb
         - tvdb
       type: string
+    MfaConfirmRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          description: The first code the app shows.
+          maxLength: 16
+      required:
+        - code
+    MfaSetup:
+      type: object
+      properties:
+        otpauth_uri:
+          type: string
+          description: The authenticator app's otpauth:// URI (show it as a QR code);
+            shown once.
+      required:
+        - otpauth_uri
     MovieDetail:
       type: object
       description: A movie or a series in a grid or a row.

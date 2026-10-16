@@ -187,6 +187,9 @@ EXPECTED_DEFAULTS = {
     "antisharing.travel_min_km": 500,
     "antisharing.flag_score": 4,
     "antisharing.notify_admins": True,
+    # G-17's byte flagging (ADR-0024).
+    "antisharing.bytes_ratio": 4.0,
+    "antisharing.bytes_min_mb": 500,
     "privacy.antisharing_retention_days": 90,
     # M15 (ADR-0022): edges, the S3 origin, Bunny and the read replica.
     "edges.stale_after_s": 60,

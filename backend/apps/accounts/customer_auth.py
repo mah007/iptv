@@ -57,7 +57,7 @@ from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
-from apps.accounts import customer_tokens, passwords, services, stepup
+from apps.accounts import customer_mfa, customer_tokens, passwords, services, stepup
 from apps.accounts.customer_tokens import AccessGrant, RefreshOutcome, TokenPair
 from apps.accounts.lockout import LOGIN_USERNAME_ATTR
 from apps.accounts.models import Device, DeviceKind, User, UserStatus
@@ -251,9 +251,10 @@ def _invalid() -> ProblemError:
     )
 
 
-def check_password(request: HttpRequest, login_value: str, password: str) -> User:
+def check_password(request: HttpRequest, login_value: str, password: str, code: str = "") -> User:
     """The customer these credentials name. Raises INVALID_CREDENTIALS, ACCOUNT_LOCKED or
-    RATE_LIMITED."""
+    RATE_LIMITED; for a customer with two-factor sign-in, MFA_REQUIRED without `code` and
+    MFA_INVALID with a wrong one (ADR-0024)."""
     ip = client_ip(request)
     _check_ip(ip)
     customer = find_customer(login_value)
@@ -267,6 +268,7 @@ def check_password(request: HttpRequest, login_value: str, password: str) -> Use
     if not _is_customer(user):
         _count_ip(ip)
         raise _invalid()
+    customer_mfa.check_sign_in(request, cast("User", user), code)
     return cast("User", user)
 
 
@@ -307,8 +309,8 @@ def confirm_password(request: Request, user: User, password: str) -> int:
 # --- The portal (session) ---------------------------------------------------------------------
 
 
-def portal_login(request: HttpRequest, login_value: str, password: str) -> User:
-    user = check_password(request, login_value, password)
+def portal_login(request: HttpRequest, login_value: str, password: str, code: str = "") -> User:
+    user = check_password(request, login_value, password, code)
     login(request, user, backend=MODEL_BACKEND)  # a new session key
     days = int(cast("int", get_setting("security.customer_session_days")))
     request.session.set_expiry(days * 86400)
@@ -343,10 +345,16 @@ class AppSignIn:
 
 
 def app_login(
-    request: HttpRequest, login_value: str, password: str, *, device_name: str = ""
+    request: HttpRequest,
+    login_value: str,
+    password: str,
+    *,
+    device_name: str = "",
+    code: str = "",
 ) -> AppSignIn:
-    """Check the password and start a token family on a new `app` device."""
-    user = check_password(request, login_value, password)
+    """Check the password (and the code, with two-factor sign-in) and start a token family
+    on a new `app` device."""
+    user = check_password(request, login_value, password, code)
     ip = client_ip(request)
     now = timezone.now()
     device = Device.objects.create(

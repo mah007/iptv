@@ -377,7 +377,7 @@ def test_artwork_from_another_host_is_refused() -> None:
         http.get("https://image.tmdb.org/t/p/w185/x.jpg")
 
 
-def test_the_episode_order_is_editable_for_tvdb_series_only(
+def test_the_episode_order_follows_the_series_source(
     shows: Library,
     owner_client: Any,
     monkeypatch: pytest.MonkeyPatch,
@@ -393,14 +393,24 @@ def test_the_episode_order_is_editable_for_tvdb_series_only(
     services.match_file(quimica)
     tvdb_built = Series.objects.get(tvdb_id=9100001)
     tmdb_built = Series.objects.get(tmdb_id=1396)
+    # A TMDB series may read names in TheTVDB's DVD or absolute order (ADR-0024), not in
+    # TheTVDB's aired one (TMDB's is that already); a TheTVDB series has no TMDB order.
     refused = owner_client.patch(
         f"/api/v1/admin/series/{tmdb_built.pk}",
-        {"episode_ordering": "tvdb_dvd"},
+        {"episode_ordering": "tvdb_aired"},
         format="json",
         headers=ADMIN,
     )
     assert refused.status_code == 400
     assert refused.json()["field_error_codes"] == {"episode_ordering": ["ordering_source"]}
+    for wanted in ("tmdb_default", "tvdb_absolute"):
+        refused = owner_client.patch(
+            f"/api/v1/admin/series/{tvdb_built.pk}",
+            {"episode_ordering": wanted},
+            format="json",
+            headers=ADMIN,
+        )
+        assert refused.json()["field_error_codes"] == {"episode_ordering": ["ordering_source"]}
     with django_capture_on_commit_callbacks(execute=True):
         changed = owner_client.patch(
             f"/api/v1/admin/series/{tvdb_built.pk}",

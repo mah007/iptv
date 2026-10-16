@@ -5,3 +5,13 @@ upstream edge_auth {
     server ${EDGE_AUTH_UPSTREAM} resolve;
     keepalive 16;
 }
+
+# Where the local edge reports the bytes it served each playback session (bytes.js;
+# G-17, ADR-0024): Django's internal endpoint, with the same Host as stream-auth.
+map "" $edge_bytes_url {
+    default "http://${EDGE_AUTH_UPSTREAM}/internal/stream-bytes";
+}
+
+map "" $edge_bytes_host {
+    default "${EDGE_AUTH_HOST}";
+}

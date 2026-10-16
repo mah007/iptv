@@ -68,7 +68,7 @@ Clients see `X-Reason: expired`, `ip_mismatch`, `invalid` (any other verdict) or
   - `X-Real-IP` (the client address the edge used);
   - `X-Request-ID` and `X-Edge-Id`.
 
-  No client header is forwarded (cookies, Authorization, Range, X-Forwarded-For), and the endpoint is not reachable through Traefik. `X-Bytes` is not sent: the edge only knows the bytes after the response, and they are in the access log (`bytes_sent`).
+  No client header is forwarded (cookies, Authorization, Range, X-Forwarded-For), and the endpoint is not reachable through Traefik. `X-Bytes` is not sent: the edge only knows the bytes after the response, and they are in the access log (`bytes_sent`). (Since ADR-0024 the edge reports each session's bytes separately, every 15 s.)
 - **Django:** re-verifies the token by §2 (defence in depth), checks `kick:{session}`, refreshes `conc` and `sess` (TTL 120 s), then answers:
   - **204** to allow;
   - **403** with `X-Reason: <[a-z_]{1,32}>` (e.g. `kicked`, `session_ended`) to deny; the edge passes the reason to the client.

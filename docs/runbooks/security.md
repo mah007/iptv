@@ -192,8 +192,13 @@ Country rules and the sharing score use DB-IP's free country and ASN databases (
 - **Unknown country** (an address the database doesn't know): `geoip.unknown_country_policy`, `deny` by default when country rules allow only some countries.
 - **Missing database:** admins get a *GeoIpDatabaseMissing* message after an hour ([alerts.md](alerts.md#geoipdatabasemissing)).
 
+## Customer two-factor sign-in (ADR-0024)
+- **Optional, per customer:** in the portal under **Account → Two-factor sign-in**, after their password again. Once on, every new sign-in (the portal and apps on the API host) asks for the authenticator app's code with the password; apps already signed in stay signed in. TV logins (Xtream) are not affected: they have their own passwords.
+- **Wrong codes** count like wrong passwords (django-axes) and against the account (10 in 15 minutes); they show on **Lockouts**, where they can be cleared.
+- **Lost phone:** support opens the customer → **Security** → **Switch two-factor off** (*customers.edit*, then a code). Check that it is really the customer asking first (their email, phone, recent payments). It's audited as `customer.mfa_reset`; their next sign-in needs the password alone, and they can set it up again.
+
 ## Credential sharing
-The sharing score and its flags are in [leaked-credential.md](leaked-credential.md#sharing-flags).
+The sharing score and its flags are in [leaked-credential.md](leaked-credential.md#sharing-flags). Since ADR-0024 it also counts movie and episode sessions that were served far more bytes than their title explains (`antisharing.bytes_ratio`, `antisharing.bytes_min_mb` in Settings → Anti-sharing).
 
 ## Mail authentication: SPF, DKIM, DMARC (G-33)
 Customers trust the service's emails (password links, new-login notices), so make forging them hard. In the DNS of the domain in **Settings → Email** (the *From* address):

@@ -204,6 +204,7 @@ run_edge "$EDGE" 18080 \
     -e EDGE_LIVE_ROOT=/srv/live -e EDGE_LIVE_RELAY=auth:8000 \
     -e EDGE_CDN=on -e EDGE_CDN_SECRET_FILE=/run/secrets/cdn_secret \
     -v "$WORK/cdn_secret:/run/secrets/cdn_secret:ro" \
+    -v "$WORK/edge_token:/run/secrets/edge_auth_token:ro" \
     -v "$WORK/media:/srv/media:ro" -v "$WORK/live:/srv/live:ro"
 run_edge "$EDGE_S3" 18082 \
     -e EDGE_ID=edge-test-s3 -e EDGE_MODE=s3 -e EDGE_ORIGIN_URL=http://origin:8000/origin \

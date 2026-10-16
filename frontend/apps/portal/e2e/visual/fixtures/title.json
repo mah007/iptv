@@ -1,0 +1,899 @@
+{
+  "path": "/movies/01a1418b-1cd9-7e14-90b9-19db3f129568",
+  "responses": {
+    "GET /api/v1/me [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a141a7-14c1-73ef-bd76-2e078c580fe4",
+        "username": "e2e-portal",
+        "name": "Portal end-to-end checks",
+        "email": "e2e-portal@example.com",
+        "phone": "",
+        "locale": "en",
+        "timezone": "Asia/Riyadh",
+        "marketing_opt_in": false,
+        "status": "active",
+        "mfa_enabled": false,
+        "access": {
+          "status": "active",
+          "expires_at": null,
+          "max_streams": 1,
+          "max_devices": 2,
+          "max_quality": 1080,
+          "allow_movies": true,
+          "allow_series": true,
+          "allow_live": true
+        }
+      }
+    },
+    "GET /api/v1/branding [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    },
+    "GET /api/v1/genres?kind=movie [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": [
+        {
+          "id": "01a1418b-1cdd-7ea0-b984-3154f8df53d2",
+          "name": "Action"
+        },
+        {
+          "id": "01a1418b-1ecc-7992-ac4c-b1b604ee39c9",
+          "name": "Adventure"
+        },
+        {
+          "id": "01a1418b-182c-7fc1-97f3-6f6eba7167e7",
+          "name": "Drama"
+        },
+        {
+          "id": "01a1418b-182b-7146-bb6e-5ea9fe89ceb5",
+          "name": "Science Fiction"
+        }
+      ]
+    },
+    "GET /api/v1/categories?kind=vod [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": [
+        {
+          "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+          "kind": "vod",
+          "slug": "sci-fi",
+          "name": "Science Fiction",
+          "sort": 10,
+          "parent_id": null
+        },
+        {
+          "id": "01a1418b-1832-7e19-9b7b-6729cf762062",
+          "kind": "vod",
+          "slug": "drama",
+          "name": "Drama",
+          "sort": 20,
+          "parent_id": null
+        },
+        {
+          "id": "01a1418b-1ce3-7649-a77d-e9750e97c760",
+          "kind": "vod",
+          "slug": "action",
+          "name": "Action",
+          "sort": 30,
+          "parent_id": null
+        },
+        {
+          "id": "01a1418b-1ed0-70c4-82ec-7bc9664f3180",
+          "kind": "vod",
+          "slug": "adventure",
+          "name": "Adventure",
+          "sort": 40,
+          "parent_id": null
+        }
+      ]
+    },
+    "GET /api/v1/me/subscription [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "subscription": null,
+        "pending": null
+      }
+    },
+    "GET /api/v1/movies?page_size=30 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "type": "movie",
+            "id": "01a1418b-2100-7526-afb8-ae7717697e19",
+            "title": "Wadjda",
+            "original_title": "وجدة",
+            "year": 2012,
+            "rating": 7.2,
+            "certification": "G",
+            "runtime_min": 98,
+            "poster": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w500.aa6220c5e4b28d6e.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w185.d9605d09876ce55b.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w185.73d47f482e605f12.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w500.37da93bcd84f11af.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w500.aa6220c5e4b28d6e.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/original.0526026c99d2a9d2.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/original.565984484b25d24f.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TnHDJ:t6fQ3uX4fQxaj[fQXgfjfQ"
+            },
+            "backdrop": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/backdrop/w1280.9acdcb54f0f46175.webp",
+              "sizes": {
+                "w780": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/backdrop/w780.d5e485b254b253fd.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/backdrop/w780.e6d769d701f9cf7f.webp"
+                },
+                "w1280": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/backdrop/w1280.bee7f2030c0e23c0.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/backdrop/w1280.9acdcb54f0f46175.webp"
+                }
+              },
+              "width": 1280,
+              "height": 720,
+              "blurhash": "L+6eTwkBfQkBudf*fQf*l5fjfQfj"
+            }
+          },
+          {
+            "type": "movie",
+            "id": "01a1418b-1ec8-7b91-acfd-47d5c530b780",
+            "title": "Inception",
+            "original_title": "Inception",
+            "year": 2010,
+            "rating": 8.4,
+            "certification": "PG-13",
+            "runtime_min": 148,
+            "poster": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.208190dfd7c809c7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.14369a65e344e01e.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.a8acb0898f74a77d.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.c63d09131325c786.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.960ca1e278965b5a.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TZEUi^s;fQ}VoKfQ$hjtfQxGjtfQ"
+            },
+            "backdrop": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w1280.5ed68473c2177183.webp",
+              "sizes": {
+                "w780": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w780.bbf1b893417f2046.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w780.0227bff47b66f896.webp"
+                },
+                "w1280": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w1280.3182354efe98b8ba.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w1280.5ed68473c2177183.webp"
+                }
+              },
+              "width": 1280,
+              "height": 720,
+              "blurhash": "LZBuAFo_fQo_*DkAfQkAoxfjfQfj"
+            }
+          },
+          {
+            "type": "movie",
+            "id": "01a1418b-1cd9-7e14-90b9-19db3f129568",
+            "title": "The Matrix",
+            "original_title": "The Matrix",
+            "year": 1999,
+            "rating": 8.2,
+            "certification": "R15",
+            "runtime_min": 136,
+            "poster": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.24c05e59cb519f46.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.4c18d4522e0e0cb8.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.da65c1122baf21f7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.0773333b6aef41f4.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.9b0cbe4b95e5f839.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TEF.^%$ifQ3fW.fQkUfjfQovfjfQ"
+            },
+            "backdrop": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w1280.2ff48667878a8abc.webp",
+              "sizes": {
+                "w780": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w780.33bf49688111fd7b.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w780.ad3bce35865c3941.webp"
+                },
+                "w1280": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w1280.831e23ad5a8f73b9.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w1280.2ff48667878a8abc.webp"
+                }
+              },
+              "width": 1280,
+              "height": 720,
+              "blurhash": "LcK01xs:fQs:45W;fQW;b[fjfQfj"
+            }
+          },
+          {
+            "type": "movie",
+            "id": "01a1418b-1824-7cd5-b113-f59f97b57da7",
+            "title": "Blade Runner 2049",
+            "original_title": "Blade Runner 2049",
+            "year": 2017,
+            "rating": 7.6,
+            "certification": "R18",
+            "runtime_min": 164,
+            "poster": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.64df253a33e059ad.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.7d4a79f384540c70.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.6165dfd8cedb8823.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.bbe394486159c67b.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.2841860eba57f050.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TF7yYLo#fQxhj=fQj[fQfQoyfjfQ"
+            },
+            "backdrop": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.d64a5b9f819cf7b6.webp",
+              "sizes": {
+                "w780": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.739f56d8ef175438.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.475440fb4943b83c.webp"
+                },
+                "w1280": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.19d18e810281d20f.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.d64a5b9f819cf7b6.webp"
+                }
+              },
+              "width": 1280,
+              "height": 720,
+              "blurhash": "LWG+got7fQt7{Xn+fQn+wOjufQju"
+            }
+          }
+        ]
+      }
+    },
+    "GET /api/v1/movies/01a1418b-1cd9-7e14-90b9-19db3f129568 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "type": "movie",
+        "id": "01a1418b-1cd9-7e14-90b9-19db3f129568",
+        "title": "The Matrix",
+        "original_title": "The Matrix",
+        "year": 1999,
+        "rating": 8.2,
+        "certification": "R15",
+        "runtime_min": 136,
+        "poster": {
+          "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp",
+          "sizes": {
+            "w185": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.24c05e59cb519f46.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.4c18d4522e0e0cb8.webp"
+            },
+            "w500": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.da65c1122baf21f7.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp"
+            },
+            "original": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.0773333b6aef41f4.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.9b0cbe4b95e5f839.webp"
+            }
+          },
+          "width": 600,
+          "height": 900,
+          "blurhash": "TEF.^%$ifQ3fW.fQkUfjfQovfjfQ"
+        },
+        "backdrop": {
+          "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w1280.2ff48667878a8abc.webp",
+          "sizes": {
+            "w780": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w780.33bf49688111fd7b.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w780.ad3bce35865c3941.webp"
+            },
+            "w1280": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w1280.831e23ad5a8f73b9.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w1280.2ff48667878a8abc.webp"
+            }
+          },
+          "width": 1280,
+          "height": 720,
+          "blurhash": "LcK01xs:fQs:45W;fQW;b[fjfQfj"
+        },
+        "overview": "Synthetic overview of The Matrix for offline testing; not TMDB text.",
+        "tagline": "Synthetic tagline.",
+        "vote_count": 26000,
+        "original_language": "en",
+        "countries": [
+          "US"
+        ],
+        "trailer_youtube_key": "",
+        "logo": {
+          "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w500.1743708b2b978346.webp",
+          "sizes": {
+            "w185": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w185.bd047432798f0fd2.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w185.785d574693a5823d.webp"
+            },
+            "w500": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w500.aa0d19776da266d0.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w500.1743708b2b978346.webp"
+            },
+            "original": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/original.aa0d19776da266d0.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/original.1743708b2b978346.webp"
+            }
+          },
+          "width": 500,
+          "height": 200,
+          "blurhash": "Ls6M-wkVfQkVpMflfQflj{fRfQfR"
+        },
+        "genres": [
+          {
+            "id": "01a1418b-1cdd-7ea0-b984-3154f8df53d2",
+            "name": "Action"
+          },
+          {
+            "id": "01a1418b-182b-7146-bb6e-5ea9fe89ceb5",
+            "name": "Science Fiction"
+          }
+        ],
+        "categories": [
+          {
+            "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+            "kind": "vod",
+            "slug": "sci-fi",
+            "name": "Science Fiction",
+            "sort": 10,
+            "parent_id": null
+          },
+          {
+            "id": "01a1418b-1ce3-7649-a77d-e9750e97c760",
+            "kind": "vod",
+            "slug": "action",
+            "name": "Action",
+            "sort": 30,
+            "parent_id": null
+          }
+        ],
+        "directors": [
+          {
+            "id": "01a1418b-1ce5-70ab-af69-97c284db6a53",
+            "name": "Lana Wachowski",
+            "profile": null
+          },
+          {
+            "id": "01a1418b-1ce5-72c4-b670-4a146fa90c1a",
+            "name": "Lilly Wachowski",
+            "profile": null
+          }
+        ],
+        "writers": [
+          {
+            "id": "01a1418b-1ce5-70ab-af69-97c284db6a53",
+            "name": "Lana Wachowski",
+            "profile": null
+          },
+          {
+            "id": "01a1418b-1ce5-72c4-b670-4a146fa90c1a",
+            "name": "Lilly Wachowski",
+            "profile": null
+          }
+        ],
+        "cast": [
+          {
+            "id": "01a1418b-1ce5-700e-b96f-2b7af8164b40",
+            "name": "Keanu Reeves",
+            "profile": null,
+            "character": "Thomas A. Anderson / Neo"
+          },
+          {
+            "id": "01a1418b-1ce5-78fa-8ae3-96891d712cfd",
+            "name": "Laurence Fishburne",
+            "profile": null,
+            "character": "Morpheus"
+          },
+          {
+            "id": "01a1418b-1ce5-7e05-8b19-d22784c14df2",
+            "name": "Carrie-Anne Moss",
+            "profile": null,
+            "character": "Trinity"
+          },
+          {
+            "id": "01a1418b-1ce5-7871-8188-b7b0b7675805",
+            "name": "Hugo Weaving",
+            "profile": null,
+            "character": "Agent Smith"
+          }
+        ],
+        "quality": {
+          "height": 1080,
+          "badge": "FHD"
+        },
+        "tracks": {
+          "audio": [
+            "eng"
+          ],
+          "subtitles": []
+        },
+        "viewer": {
+          "favorite": false,
+          "rating": null,
+          "progress": null
+        },
+        "similar": [
+          {
+            "type": "movie",
+            "id": "01a1418b-1ec8-7b91-acfd-47d5c530b780",
+            "title": "Inception",
+            "original_title": "Inception",
+            "year": 2010,
+            "rating": 8.4,
+            "certification": "PG-13",
+            "runtime_min": 148,
+            "poster": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.208190dfd7c809c7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.14369a65e344e01e.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.a8acb0898f74a77d.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.c63d09131325c786.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.960ca1e278965b5a.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TZEUi^s;fQ}VoKfQ$hjtfQxGjtfQ"
+            },
+            "backdrop": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w1280.5ed68473c2177183.webp",
+              "sizes": {
+                "w780": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w780.bbf1b893417f2046.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w780.0227bff47b66f896.webp"
+                },
+                "w1280": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w1280.3182354efe98b8ba.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w1280.5ed68473c2177183.webp"
+                }
+              },
+              "width": 1280,
+              "height": 720,
+              "blurhash": "LZBuAFo_fQo_*DkAfQkAoxfjfQfj"
+            }
+          },
+          {
+            "type": "movie",
+            "id": "01a1418b-1824-7cd5-b113-f59f97b57da7",
+            "title": "Blade Runner 2049",
+            "original_title": "Blade Runner 2049",
+            "year": 2017,
+            "rating": 7.6,
+            "certification": "R18",
+            "runtime_min": 164,
+            "poster": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.64df253a33e059ad.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.7d4a79f384540c70.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.6165dfd8cedb8823.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.bbe394486159c67b.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.2841860eba57f050.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TF7yYLo#fQxhj=fQj[fQfQoyfjfQ"
+            },
+            "backdrop": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.d64a5b9f819cf7b6.webp",
+              "sizes": {
+                "w780": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.739f56d8ef175438.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.475440fb4943b83c.webp"
+                },
+                "w1280": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.19d18e810281d20f.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.d64a5b9f819cf7b6.webp"
+                }
+              },
+              "width": 1280,
+              "height": 720,
+              "blurhash": "LWG+got7fQt7{Xn+fQn+wOjufQju"
+            }
+          }
+        ],
+        "attribution": "tmdb",
+        "release_date": "1999-03-31"
+      }
+    },
+    "GET /api/v1/me [ar]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a141a7-14c1-73ef-bd76-2e078c580fe4",
+        "username": "e2e-portal",
+        "name": "Portal end-to-end checks",
+        "email": "e2e-portal@example.com",
+        "phone": "",
+        "locale": "en",
+        "timezone": "Asia/Riyadh",
+        "marketing_opt_in": false,
+        "status": "active",
+        "mfa_enabled": false,
+        "access": {
+          "status": "active",
+          "expires_at": null,
+          "max_streams": 1,
+          "max_devices": 2,
+          "max_quality": 1080,
+          "allow_movies": true,
+          "allow_series": true,
+          "allow_live": true
+        }
+      }
+    },
+    "GET /api/v1/branding [ar]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    },
+    "GET /api/v1/me/subscription [ar]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "subscription": null,
+        "pending": null
+      }
+    },
+    "GET /api/v1/movies/01a1418b-1cd9-7e14-90b9-19db3f129568 [ar]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "type": "movie",
+        "id": "01a1418b-1cd9-7e14-90b9-19db3f129568",
+        "title": "المصفوفة",
+        "original_title": "The Matrix",
+        "year": 1999,
+        "rating": 8.2,
+        "certification": "R15",
+        "runtime_min": 136,
+        "poster": {
+          "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp",
+          "sizes": {
+            "w185": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.24c05e59cb519f46.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.4c18d4522e0e0cb8.webp"
+            },
+            "w500": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.da65c1122baf21f7.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp"
+            },
+            "original": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.0773333b6aef41f4.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.9b0cbe4b95e5f839.webp"
+            }
+          },
+          "width": 600,
+          "height": 900,
+          "blurhash": "TEF.^%$ifQ3fW.fQkUfjfQovfjfQ"
+        },
+        "backdrop": {
+          "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w1280.2ff48667878a8abc.webp",
+          "sizes": {
+            "w780": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w780.33bf49688111fd7b.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w780.ad3bce35865c3941.webp"
+            },
+            "w1280": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w1280.831e23ad5a8f73b9.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/backdrop/w1280.2ff48667878a8abc.webp"
+            }
+          },
+          "width": 1280,
+          "height": 720,
+          "blurhash": "LcK01xs:fQs:45W;fQW;b[fjfQfj"
+        },
+        "overview": "ملخص اصطناعي للاختبار دون اتصال؛ ليس نصًا من TMDB.",
+        "tagline": "شعار اصطناعي للاختبار.",
+        "vote_count": 26000,
+        "original_language": "en",
+        "countries": [
+          "US"
+        ],
+        "trailer_youtube_key": "",
+        "logo": {
+          "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w500.1743708b2b978346.webp",
+          "sizes": {
+            "w185": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w185.bd047432798f0fd2.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w185.785d574693a5823d.webp"
+            },
+            "w500": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w500.aa0d19776da266d0.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/w500.1743708b2b978346.webp"
+            },
+            "original": {
+              "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/original.aa0d19776da266d0.avif",
+              "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/logo/original.1743708b2b978346.webp"
+            }
+          },
+          "width": 500,
+          "height": 200,
+          "blurhash": "Ls6M-wkVfQkVpMflfQflj{fRfQfR"
+        },
+        "genres": [
+          {
+            "id": "01a1418b-1cdd-7ea0-b984-3154f8df53d2",
+            "name": "أكشن"
+          },
+          {
+            "id": "01a1418b-182b-7146-bb6e-5ea9fe89ceb5",
+            "name": "خيال علمي"
+          }
+        ],
+        "categories": [
+          {
+            "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+            "kind": "vod",
+            "slug": "sci-fi",
+            "name": "خيال علمي",
+            "sort": 10,
+            "parent_id": null
+          },
+          {
+            "id": "01a1418b-1ce3-7649-a77d-e9750e97c760",
+            "kind": "vod",
+            "slug": "action",
+            "name": "أكشن",
+            "sort": 30,
+            "parent_id": null
+          }
+        ],
+        "directors": [
+          {
+            "id": "01a1418b-1ce5-70ab-af69-97c284db6a53",
+            "name": "Lana Wachowski",
+            "profile": null
+          },
+          {
+            "id": "01a1418b-1ce5-72c4-b670-4a146fa90c1a",
+            "name": "Lilly Wachowski",
+            "profile": null
+          }
+        ],
+        "writers": [
+          {
+            "id": "01a1418b-1ce5-70ab-af69-97c284db6a53",
+            "name": "Lana Wachowski",
+            "profile": null
+          },
+          {
+            "id": "01a1418b-1ce5-72c4-b670-4a146fa90c1a",
+            "name": "Lilly Wachowski",
+            "profile": null
+          }
+        ],
+        "cast": [
+          {
+            "id": "01a1418b-1ce5-700e-b96f-2b7af8164b40",
+            "name": "Keanu Reeves",
+            "profile": null,
+            "character": "Thomas A. Anderson / Neo"
+          },
+          {
+            "id": "01a1418b-1ce5-78fa-8ae3-96891d712cfd",
+            "name": "Laurence Fishburne",
+            "profile": null,
+            "character": "Morpheus"
+          },
+          {
+            "id": "01a1418b-1ce5-7e05-8b19-d22784c14df2",
+            "name": "Carrie-Anne Moss",
+            "profile": null,
+            "character": "Trinity"
+          },
+          {
+            "id": "01a1418b-1ce5-7871-8188-b7b0b7675805",
+            "name": "Hugo Weaving",
+            "profile": null,
+            "character": "Agent Smith"
+          }
+        ],
+        "quality": {
+          "height": 1080,
+          "badge": "FHD"
+        },
+        "tracks": {
+          "audio": [
+            "eng"
+          ],
+          "subtitles": []
+        },
+        "viewer": {
+          "favorite": false,
+          "rating": null,
+          "progress": null
+        },
+        "similar": [
+          {
+            "type": "movie",
+            "id": "01a1418b-1ec8-7b91-acfd-47d5c530b780",
+            "title": "استهلال",
+            "original_title": "Inception",
+            "year": 2010,
+            "rating": 8.4,
+            "certification": "PG-13",
+            "runtime_min": 148,
+            "poster": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.208190dfd7c809c7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.14369a65e344e01e.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.a8acb0898f74a77d.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.c63d09131325c786.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.960ca1e278965b5a.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TZEUi^s;fQ}VoKfQ$hjtfQxGjtfQ"
+            },
+            "backdrop": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w1280.5ed68473c2177183.webp",
+              "sizes": {
+                "w780": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w780.bbf1b893417f2046.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w780.0227bff47b66f896.webp"
+                },
+                "w1280": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w1280.3182354efe98b8ba.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/backdrop/w1280.5ed68473c2177183.webp"
+                }
+              },
+              "width": 1280,
+              "height": 720,
+              "blurhash": "LZBuAFo_fQo_*DkAfQkAoxfjfQfj"
+            }
+          },
+          {
+            "type": "movie",
+            "id": "01a1418b-1824-7cd5-b113-f59f97b57da7",
+            "title": "بليد رانر 2049",
+            "original_title": "Blade Runner 2049",
+            "year": 2017,
+            "rating": 7.6,
+            "certification": "R18",
+            "runtime_min": 164,
+            "poster": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.64df253a33e059ad.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.7d4a79f384540c70.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.6165dfd8cedb8823.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.bbe394486159c67b.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.2841860eba57f050.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TF7yYLo#fQxhj=fQj[fQfQoyfjfQ"
+            },
+            "backdrop": {
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.d64a5b9f819cf7b6.webp",
+              "sizes": {
+                "w780": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.739f56d8ef175438.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.475440fb4943b83c.webp"
+                },
+                "w1280": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.19d18e810281d20f.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.d64a5b9f819cf7b6.webp"
+                }
+              },
+              "width": 1280,
+              "height": 720,
+              "blurhash": "LWG+got7fQt7{Xn+fQn+wOjufQju"
+            }
+          }
+        ],
+        "attribution": "tmdb",
+        "release_date": "1999-03-31"
+      }
+    }
+  }
+}

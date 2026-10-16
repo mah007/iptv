@@ -31,7 +31,7 @@ from uuid import UUID
 
 import structlog
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import F, QuerySet
 from django.utils import timezone
 
 from apps.accounts.models import Device, User, UserStatus
@@ -42,6 +42,7 @@ from apps.core.metrics import ACTIVE_STREAMS, CONCURRENCY_REJECTIONS, KICKS, STR
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
 from apps.edges import services as edges
+from apps.playback import bytes as served
 from apps.playback import concurrency, conf, entitlements, records, rules, tokens
 from apps.playback.concurrency import KickReason, SlotStatus
 from apps.playback.entitlements import Entitlement, EntitlementStatus
@@ -828,6 +829,26 @@ def _sync_open_rows(now_s: float) -> tuple[int, int]:
     return orphans, sum(int(count) for count in gauge.values())
 
 
+def _add_late_bytes() -> int:
+    """Bytes the edges reported after a session's record was gone (G-17, ADR-0024): a
+    whole file pulled in one request is counted when that request ends. Added to the
+    session's latest row; bytes of sessions without a row (an edge Test) are dropped."""
+    late = served.drain_late()
+    updated = 0
+    for session, sent in late.items():
+        row = (
+            PlaybackSession.objects.filter(session_key=session)
+            .order_by("-started_at")
+            .values_list("pk", flat=True)
+            .first()
+        )
+        if row is not None:
+            updated += PlaybackSession.objects.filter(pk=row).update(
+                bytes_sent=F("bytes_sent") + sent, updated_at=timezone.now()
+            )
+    return updated
+
+
 def sweep(*, now: float | None = None) -> SweepResult:
     """Every minute (beat): end sessions idle past their record's idle time
     (120 s, or the runtime plus slack for progressive ones) and keep open rows
@@ -840,6 +861,7 @@ def sweep(*, now: float | None = None) -> SweepResult:
             reaped.append(item)
     closed = _close_reaped(reaped)
     orphans, live = _sync_open_rows(now_s)
+    _add_late_bytes()
     if closed or orphans:
         logger.info("playback.swept", idle=closed, orphans=orphans, live=live)
     return SweepResult(reaped=closed, orphans=orphans, live=live)

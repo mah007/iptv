@@ -336,3 +336,32 @@
     text-align: right;
   }
 }
+
+/*
+ * Setup cards (G-25, ADR-0024; setup-card.tsx): the card waits in its own root at the
+ * end of <body>, hidden on screen. While it prints, <html> has `printing-setup-card` and
+ * the page shows nothing else, so the browser's print dialog (or "Save as PDF") gets the
+ * card alone, black on white.
+ */
+[data-print-root] {
+  display: none;
+}
+
+@media print {
+  html.printing-setup-card,
+  html.printing-setup-card body {
+    background: #ffffff !important;
+  }
+
+  html.printing-setup-card body > :not([data-print-root]) {
+    display: none !important;
+  }
+
+  html.printing-setup-card [data-print-root] {
+    display: block;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+}

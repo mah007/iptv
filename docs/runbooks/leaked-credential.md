@@ -26,7 +26,7 @@ alias dc='docker compose --project-directory . -f docker/compose.yml -f docker/c
 | **SSH access to the server** | Remove the key from `~/.ssh/authorized_keys` of every user; check `last` and `/var/log/auth.log` | Assume the server is compromised: [incident-response.md](incident-response.md#a-compromised-server) |
 
 ## Sharing flags
-The sharing score (ADR-0021) runs every 5 minutes over the networks (ASNs), countries and TV logins each customer was seen on, from IP geolocation (DB-IP Lite). It flags a customer when the points reach `antisharing.flag_score` (4):
+The sharing score (ADR-0021) runs every 5 minutes over the networks (ASNs), countries and TV logins each customer was seen on, from IP geolocation (DB-IP Lite), and over the bytes their sessions were served (ADR-0024). It flags a customer when the points reach `antisharing.flag_score` (4):
 
 | Signal | Points | Limit (setting) |
 |---|---|---|
@@ -35,8 +35,9 @@ The sharing score (ADR-0021) runs every 5 minutes over the networks (ASNs), coun
 | Countries in the last 24 hours | 2 for each one above the limit | `antisharing.max_countries_24h` (1) |
 | Impossible journeys: two countries further apart than `antisharing.travel_min_km` (500 km) in less time than `antisharing.travel_speed_kmh` (900 km/h) allows | 3 for each, counting up to 3 | |
 | Networks one TV login was used from in an hour (address changes within one provider count only when the networks were used at the same time) | 2 for each one above the limit | `antisharing.max_networks_per_credential_1h` (2) |
+| Movie or episode sessions served far more than the title explains (runtime times the bitrate of what was played) in the last 24 hours: a re-served link or a file pulled again and again ([ADR-0024](../adr/0024-visual-regression-byte-flagging-setup-cards-customer-2fa-tvdb-orders.md)) | 4 for each | `antisharing.bytes_ratio` (4.0 times), from `antisharing.bytes_min_mb` (500 MB) |
 
-A phone on mobile data and a TV on home broadband in one country score nothing. **A flag never blocks anything.** Admins with *customers.view* see it in **Customers** (filter *Sharing: flagged*) and on the customer's **Security** tab, with the evidence; with `antisharing.notify_admins`, the alert recipients and Telegram are told once per flag.
+A phone on mobile data and a TV on home broadband in one country score nothing. Sessions served too many bytes are listed on the customer's **Security** tab with what was served, what the title explains and the network. **A flag never blocks anything.** Admins with *customers.view* see it in **Customers** (filter *Sharing: flagged*) and on the customer's **Security** tab, with the evidence; with `antisharing.notify_admins`, the alert recipients and Telegram are told once per flag.
 
 What to do, step by step (each step is audited and the customer gets an email):
 1. **Look first:** a trip abroad, a VPN, or a family member at university explain many flags. If so, **Mark reviewed** with a note.

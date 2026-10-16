@@ -7,6 +7,7 @@ const AUTH_CODES = new Set([
   "ACCOUNT_SUSPENDED",
   "RATE_LIMITED",
   "NETWORK_ERROR",
+  "MFA_INVALID",
 ]);
 
 /** Translation key for a failed sign-in or password request. */

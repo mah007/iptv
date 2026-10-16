@@ -41,3 +41,10 @@ location = /_auth {
                          X-Accel-Redirect X-Accel-Limit-Rate X-Accel-Buffering
                          X-Accel-Charset;
 }
+
+# The bytes served each playback session, reported every 15 s by worker 0 (bytes.js;
+# G-17, ADR-0024). A failed report is kept for the next one.
+location @edge_bytes {
+    js_periodic bytes.report interval=15s;
+    js_fetch_timeout 10s;
+}

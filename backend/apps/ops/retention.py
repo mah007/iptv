@@ -151,10 +151,16 @@ def webhook_payloads(now: datetime) -> dict[str, int]:
 
 def antisharing_sightings(now: datetime) -> dict[str, int]:
     """Anti-sharing evidence (networks and countries per customer; M14a, ADR-0021)."""
-    from apps.antisharing.models import Sighting  # noqa: PLC0415
+    from apps.antisharing.models import ExcessBytes, Sighting  # noqa: PLC0415
 
     cutoff = now - _days("privacy.antisharing_retention_days")
-    return {"sightings_deleted": delete_in_batches(Sighting.objects.filter(last_seen__lt=cutoff))}
+    return {
+        "sightings_deleted": delete_in_batches(Sighting.objects.filter(last_seen__lt=cutoff)),
+        # Sessions served too many bytes (G-17, ADR-0024): the same evidence, the same days.
+        "excess_bytes_deleted": delete_in_batches(
+            ExcessBytes.objects.filter(detected_at__lt=cutoff)
+        ),
+    }
 
 
 def django_sessions() -> dict[str, int]:

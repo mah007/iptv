@@ -52,6 +52,15 @@ def refresh_title(self: Task, kind: str, title_id: str) -> None:
         raise self.retry(countdown=_retry_delay(exc), exc=exc) from None
 
 
+@shared_task(name="apps.metadata.tasks.replace_series_files")
+def replace_series_files(series_id: str) -> dict[str, int]:
+    """A TMDB series' order changed (TheTVDB's DVD or absolute, ADR-0024): place its files
+    again from their names in the new order."""
+    from apps.metadata import tvdb_order  # noqa: PLC0415 (it imports tvdb_series)
+
+    return tvdb_order.replace_series_files(series_id)
+
+
 @shared_task(bind=True, name="apps.metadata.tasks.fetch_title_images", max_retries=MAX_RETRIES)
 def fetch_title_images(self: Task, kind: str, title_id: str) -> None:
     """Download and convert a title's artwork into the media volume."""

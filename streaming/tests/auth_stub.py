@@ -27,6 +27,9 @@ edges host for a standalone edge (ADR-0022), over HTTPS:
     GET  /edge/v1/stream-auth   bearer + X-Edge-Id, then the stream-auth contract, with
                                 the client address in X-Edge-Client-IP
 
+POST /internal/stream-bytes takes the local edge's byte reports (G-17, ADR-0024): the
+X-Edge-Auth header and {"sessions": {...}} are recorded and added up; 204.
+
 Test control (not part of any contract):
     POST /__control/kick?session=<id>     later checks for that session get 403
     POST /__control/unkick?session=<id>
@@ -36,6 +39,7 @@ Test control (not part of any contract):
     GET  /__control/relay                 {"requests": [{"path", "headers"}, ...]}
     GET  /__control/health
     GET  /__control/polls                 {"polls": [{"headers", "body"}, ...]}
+    GET  /__control/bytes                 {"sessions": {id: total}, "reports": n, "last": {header: value}}
     POST /__control/keys                  replace the key set the control plane hands out
 """
 
@@ -75,6 +79,8 @@ class State:
         self.origin: list[dict[str, Any]] = []
         self.relay: list[dict[str, Any]] = []
         self.polls: list[dict[str, Any]] = []
+        self.bytes: dict[str, int] = {}
+        self.byte_reports: list[dict[str, str]] = []
 
     def reset(self) -> None:
         with self.lock:
@@ -83,6 +89,8 @@ class State:
             self.origin.clear()
             self.relay.clear()
             self.polls.clear()
+            self.bytes.clear()
+            self.byte_reports.clear()
 
 
 STATE = State()
@@ -216,6 +224,12 @@ class Handler(BaseHTTPRequestHandler):
             with STATE.lock:
                 relayed = list(STATE.relay)
             self._json({"requests": relayed})
+        elif url.path == "/__control/bytes":
+            with STATE.lock:
+                totals, reports = dict(STATE.bytes), list(STATE.byte_reports)
+            self._json(
+                {"sessions": totals, "reports": len(reports), "last": reports[-1] if reports else None}
+            )
         elif url.path == "/__control/health":
             self._reply(200, b"ok\n")
         else:
@@ -254,6 +268,9 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/edge/v1/poll":
             self._poll()
             return
+        if url.path == "/internal/stream-bytes":
+            self._stream_bytes()
+            return
         if url.path == "/__control/keys":
             length = int(self.headers.get("Content-Length", "0") or 0)
             new_keys = json.loads(self.rfile.read(length))
@@ -272,6 +289,16 @@ class Handler(BaseHTTPRequestHandler):
                 return
         if url.path == "/__control/reset":
             STATE.reset()
+        self._reply(204)
+
+    def _stream_bytes(self) -> None:
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        body = json.loads(self.rfile.read(length) or b"{}") if length else {}
+        sessions = body.get("sessions") if isinstance(body, dict) else None
+        with STATE.lock:
+            STATE.byte_reports.append({name.lower(): value for name, value in self.headers.items()})
+            for session, sent in (sessions or {}).items():
+                STATE.bytes[session] = STATE.bytes.get(session, 0) + int(sent)
         self._reply(204)
 
     def _stream_auth(self, client_header: str = "X-Real-IP") -> None:

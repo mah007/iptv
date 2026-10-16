@@ -1,0 +1,1595 @@
+{
+  "path": "/",
+  "responses": {
+    "GET /api/v1/auth/me [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+        "username": "e2e-admin",
+        "name": "End-to-end checks",
+        "email": "e2e-admin@example.test",
+        "locale": "ar",
+        "timezone": "Asia/Riyadh",
+        "mfa_enabled": true,
+        "roles": [
+          "owner"
+        ],
+        "permissions": [
+          "admins.manage",
+          "audit.view",
+          "backups.run",
+          "backups.view",
+          "billing.manage",
+          "billing.refund",
+          "billing.view",
+          "customers.edit",
+          "customers.view",
+          "dashboard.view",
+          "devices.manage",
+          "edges.manage",
+          "edges.view",
+          "library.manage",
+          "library.review",
+          "library.view",
+          "lockouts.manage",
+          "lockouts.view",
+          "monitoring.view",
+          "notifications.manage",
+          "notifications.view",
+          "plans.edit",
+          "plans.view",
+          "roles.manage",
+          "sessions.kill",
+          "settings.edit",
+          "settings.view",
+          "subscriptions.edit",
+          "subscriptions.view"
+        ],
+        "idle_timeout_min": 30,
+        "step_up_window_min": 5,
+        "step_up_until": "2026-10-16T11:15:00+00:00",
+        "mfa_methods": [
+          "totp"
+        ],
+        "webauthn_enrolment_required": false
+      }
+    },
+    "GET /api/v1/branding [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    },
+    "GET /api/v1/admin/review-queue?page_size=1&status=open [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 0,
+        "next": null,
+        "previous": null,
+        "results": []
+      }
+    },
+    "GET /api/v1/admin/dashboard/kpis [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "customers_total": 7,
+        "customers_active": 7,
+        "customers_grace": 0,
+        "customers_expired": 0,
+        "customers_suspended": 0,
+        "expiring_7d": 0,
+        "devices_total": 52,
+        "devices_blocked": 0,
+        "streams_now": 0,
+        "stream_users_now": 0,
+        "reviews_open": 0,
+        "transcode_queued": 0,
+        "transcode_running": 0,
+        "transcode_failed_24h": 0,
+        "as_of": "2026-10-16T11:10:00.936205Z"
+      }
+    },
+    "GET /api/v1/admin/customers?expiring_within_days=7&ordering=expires_at&page_size=6 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 0,
+        "next": null,
+        "previous": null,
+        "results": []
+      }
+    },
+    "GET /api/v1/admin/series?ordering=-created_at&page_size=6 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 2,
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "id": "01a1418b-1d66-78e6-9706-600fc864dae3",
+            "xc_id": 11,
+            "tmdb_id": 9000001,
+            "title": "Show",
+            "title_ar": "العرض",
+            "original_title": "Show",
+            "year": 2020,
+            "status": "ready",
+            "rating": 6,
+            "popularity": 1.5,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-1e2d-72c6-9811-147f3b0b950b",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w500.49ff2ca94aa82dba.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w185.f15293987544bc68.avif",
+                  "webp": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w185.b8161c7682982cc5.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w500.d4a2a82530e25854.avif",
+                  "webp": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w500.49ff2ca94aa82dba.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/original.314a4b19aa2b2a2c.avif",
+                  "webp": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/original.f15656aa77424798.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TyEPb;o|fQ*^jYfQsFjufQs+jtfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-186c-70a4-ba70-780859f60330",
+                "kind": "series",
+                "name_en": "Drama",
+                "name_ar": "دراما"
+              }
+            ],
+            "file_count": 1,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:58.503307Z",
+            "updated_at": "2026-10-15T21:50:35.830630Z",
+            "episode_count": 2
+          },
+          {
+            "id": "01a1418b-1864-77c9-b28e-bd37684745c7",
+            "xc_id": 2,
+            "tmdb_id": 1396,
+            "title": "Breaking Bad",
+            "title_ar": "بريكنج باد",
+            "original_title": "Breaking Bad",
+            "year": 2008,
+            "status": "ready",
+            "rating": 8.9,
+            "popularity": 300.4,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-1a20-7679-9322-f9fc6c67cc0c",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/series/01a1418b-1864-77c9-b28e-bd37684745c7/poster/w500.952556697138abb3.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/series/01a1418b-1864-77c9-b28e-bd37684745c7/poster/w185.7ecae2c5af289660.avif",
+                  "webp": "http://media.localhost:8080/images/series/01a1418b-1864-77c9-b28e-bd37684745c7/poster/w185.721af86b64fa4717.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/series/01a1418b-1864-77c9-b28e-bd37684745c7/poster/w500.87e144da80ef3236.avif",
+                  "webp": "http://media.localhost:8080/images/series/01a1418b-1864-77c9-b28e-bd37684745c7/poster/w500.952556697138abb3.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/series/01a1418b-1864-77c9-b28e-bd37684745c7/poster/original.9e2edbe65081561b.avif",
+                  "webp": "http://media.localhost:8080/images/series/01a1418b-1864-77c9-b28e-bd37684745c7/poster/original.64294bc3526a9305.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TJ6,RYoxfQl]e:fQg1fjfQjZfQfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-186c-70a4-ba70-780859f60330",
+                "kind": "series",
+                "name_en": "Drama",
+                "name_ar": "دراما"
+              },
+              {
+                "id": "01a1418b-186d-75df-a328-2be7abb08ab3",
+                "kind": "series",
+                "name_en": "Crime",
+                "name_ar": "جريمة"
+              }
+            ],
+            "file_count": 2,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:57.220967Z",
+            "updated_at": "2026-10-15T21:50:29.802478Z",
+            "episode_count": 7
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/movies?ordering=-created_at&page_size=6 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 4,
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "id": "01a1418b-2100-7526-afb8-ae7717697e19",
+            "xc_id": 15,
+            "tmdb_id": 129112,
+            "title": "Wadjda",
+            "title_ar": "وجدة",
+            "original_title": "وجدة",
+            "year": 2012,
+            "status": "ready",
+            "rating": 7.2,
+            "popularity": 9.1,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-2203-75b0-834b-05fa5f348683",
+              "kind": "poster",
+              "language": "ar",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w500.aa6220c5e4b28d6e.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w185.d9605d09876ce55b.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w185.73d47f482e605f12.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w500.37da93bcd84f11af.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w500.aa6220c5e4b28d6e.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/original.0526026c99d2a9d2.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/original.565984484b25d24f.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TnHDJ:t6fQ3uX4fQxaj[fQXgfjfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-1832-7e19-9b7b-6729cf762062",
+                "kind": "vod",
+                "name_en": "Drama",
+                "name_ar": "دراما"
+              }
+            ],
+            "file_count": 1,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:59.426645Z",
+            "updated_at": "2026-10-15T21:50:36.904738Z",
+            "runtime_min": 98
+          },
+          {
+            "id": "01a1418b-1ec8-7b91-acfd-47d5c530b780",
+            "xc_id": 14,
+            "tmdb_id": 27205,
+            "title": "Inception",
+            "title_ar": "استهلال",
+            "original_title": "Inception",
+            "year": 2010,
+            "status": "ready",
+            "rating": 8.4,
+            "popularity": 95.2,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-1f98-7823-a7a9-b6f04fa91674",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.208190dfd7c809c7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.14369a65e344e01e.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.a8acb0898f74a77d.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.c63d09131325c786.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.960ca1e278965b5a.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TZEUi^s;fQ}VoKfQ$hjtfQxGjtfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+                "kind": "vod",
+                "name_en": "Science Fiction",
+                "name_ar": "خيال علمي"
+              },
+              {
+                "id": "01a1418b-1ce3-7649-a77d-e9750e97c760",
+                "kind": "vod",
+                "name_en": "Action",
+                "name_ar": "أكشن"
+              },
+              {
+                "id": "01a1418b-1ed0-70c4-82ec-7bc9664f3180",
+                "kind": "vod",
+                "name_en": "Adventure",
+                "name_ar": "مغامرة"
+              }
+            ],
+            "file_count": 1,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:58.857238Z",
+            "updated_at": "2026-10-15T21:50:36.724652Z",
+            "runtime_min": 148
+          },
+          {
+            "id": "01a1418b-1cd9-7e14-90b9-19db3f129568",
+            "xc_id": 10,
+            "tmdb_id": 603,
+            "title": "The Matrix",
+            "title_ar": "المصفوفة",
+            "original_title": "The Matrix",
+            "year": 1999,
+            "status": "ready",
+            "rating": 8.2,
+            "popularity": 80.5,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-1d6c-7ec5-8617-491201e07f0d",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.24c05e59cb519f46.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.4c18d4522e0e0cb8.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.da65c1122baf21f7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.0773333b6aef41f4.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.9b0cbe4b95e5f839.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TEF.^%$ifQ3fW.fQkUfjfQovfjfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+                "kind": "vod",
+                "name_en": "Science Fiction",
+                "name_ar": "خيال علمي"
+              },
+              {
+                "id": "01a1418b-1ce3-7649-a77d-e9750e97c760",
+                "kind": "vod",
+                "name_en": "Action",
+                "name_ar": "أكشن"
+              }
+            ],
+            "file_count": 2,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:58.362039Z",
+            "updated_at": "2026-10-15T21:50:35.668840Z",
+            "runtime_min": 136
+          },
+          {
+            "id": "01a1418b-1824-7cd5-b113-f59f97b57da7",
+            "xc_id": 1,
+            "tmdb_id": 335984,
+            "title": "Blade Runner 2049",
+            "title_ar": "بليد رانر 2049",
+            "original_title": "Blade Runner 2049",
+            "year": 2017,
+            "status": "ready",
+            "rating": 7.6,
+            "popularity": 60.3,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-18d2-766f-972c-82426be39f3c",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.64df253a33e059ad.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.7d4a79f384540c70.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.6165dfd8cedb8823.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.bbe394486159c67b.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.2841860eba57f050.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TF7yYLo#fQxhj=fQj[fQfQoyfjfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+                "kind": "vod",
+                "name_en": "Science Fiction",
+                "name_ar": "خيال علمي"
+              },
+              {
+                "id": "01a1418b-1832-7e19-9b7b-6729cf762062",
+                "kind": "vod",
+                "name_en": "Drama",
+                "name_ar": "دراما"
+              }
+            ],
+            "file_count": 1,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:57.157158Z",
+            "updated_at": "2026-10-15T21:50:29.242503Z",
+            "runtime_min": 164
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/dashboard/activity?page_size=8 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 148,
+        "next": "http://admin.localhost:8080/api/v1/admin/dashboard/activity?page=2&page_size=8",
+        "previous": null,
+        "results": [
+          {
+            "id": "01a14465-1b77-785d-84b1-b83be1187a62",
+            "at": "2026-10-16T11:07:19.287347Z",
+            "action": "live.channel.delete",
+            "actor": {
+              "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+              "name": "End-to-end checks"
+            },
+            "target_type": "live.livechannel",
+            "target_id": "01a14465-1a62-759e-b5cc-0f625df94683",
+            "target_label": "",
+            "customer": null,
+            "before": {
+              "name": "E2E Channel mvav4rdq",
+              "sort": 10,
+              "group": "01a1418b-a0b1-7767-a286-1d8d04074349",
+              "origin": "manual",
+              "output": "ts",
+              "source": "rtsp://mediamtx",
+              "enabled": true,
+              "name_ar": "",
+              "always_on": false,
+              "transcode": "copy",
+              "epg_source": null,
+              "license_ref": "",
+              "catchup_days": 0,
+              "rights_holder": "Smart IPTV (synthetic test media)",
+              "epg_channel_id": "",
+              "license_expires_at": null
+            },
+            "after": null
+          },
+          {
+            "id": "01a14465-1a6a-736f-b530-7dc754c7460c",
+            "at": "2026-10-16T11:07:19.018954Z",
+            "action": "live.channel.create",
+            "actor": {
+              "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+              "name": "End-to-end checks"
+            },
+            "target_type": "live.livechannel",
+            "target_id": "01a14465-1a62-759e-b5cc-0f625df94683",
+            "target_label": "",
+            "customer": null,
+            "before": null,
+            "after": {
+              "name": "E2E Channel mvav4rdq",
+              "sort": 10,
+              "group": "01a1418b-a0b1-7767-a286-1d8d04074349",
+              "origin": "manual",
+              "output": "ts",
+              "source": "rtsp://mediamtx",
+              "enabled": true,
+              "name_ar": "",
+              "always_on": false,
+              "transcode": "copy",
+              "epg_source": null,
+              "license_ref": "",
+              "catchup_days": 0,
+              "rights_holder": "Smart IPTV (synthetic test media)",
+              "epg_channel_id": "",
+              "license_expires_at": null
+            }
+          },
+          {
+            "id": "01a14465-05fb-7203-b298-32d9d33ef47f",
+            "at": "2026-10-16T11:07:13.787073Z",
+            "action": "lockout.unlock",
+            "actor": {
+              "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+              "name": "End-to-end checks"
+            },
+            "target_type": "lockout",
+            "target_id": "xtream_login:160326e8098cd5e62b486e54babfe59b:172.20.0.0",
+            "target_label": "",
+            "customer": null,
+            "before": null,
+            "after": {
+              "kind": "xtream_login",
+              "network": "172.20.0.0"
+            }
+          },
+          {
+            "id": "01a14464-f751-7bb0-b963-0728cc07cc80",
+            "at": "2026-10-16T11:07:10.033040Z",
+            "action": "device.unblock",
+            "actor": {
+              "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+              "name": "End-to-end checks"
+            },
+            "target_type": "accounts.device",
+            "target_id": "01a14464-c1a6-745a-a2e6-826a715dcee1",
+            "target_label": "Living room TV",
+            "customer": {
+              "id": "01a14464-c197-72d9-ba90-42ea2f070948",
+              "name": "E2E Admin mvav4rdq"
+            },
+            "before": {
+              "blocked": true,
+              "blocked_reason": "E2E check"
+            },
+            "after": {
+              "blocked": false,
+              "blocked_reason": ""
+            }
+          },
+          {
+            "id": "01a14464-f5f9-763d-9194-a58625c0b3ab",
+            "at": "2026-10-16T11:07:09.689212Z",
+            "action": "device.block",
+            "actor": {
+              "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+              "name": "End-to-end checks"
+            },
+            "target_type": "accounts.device",
+            "target_id": "01a14464-c1a6-745a-a2e6-826a715dcee1",
+            "target_label": "Living room TV",
+            "customer": {
+              "id": "01a14464-c197-72d9-ba90-42ea2f070948",
+              "name": "E2E Admin mvav4rdq"
+            },
+            "before": {
+              "blocked": false,
+              "blocked_reason": ""
+            },
+            "after": {
+              "blocked": true,
+              "blocked_reason": "E2E check"
+            }
+          },
+          {
+            "id": "01a14464-e893-7661-8a3a-82cc5c476b66",
+            "at": "2026-10-16T11:07:06.259554Z",
+            "action": "session.kill",
+            "actor": {
+              "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+              "name": "End-to-end checks"
+            },
+            "target_type": "playback.playbacksession",
+            "target_id": "01a14464-e3e4-7f46-81d1-c10e8add5a1a",
+            "target_label": "Inception",
+            "customer": {
+              "id": "01a14464-c197-72d9-ba90-42ea2f070948",
+              "name": "E2E Admin mvav4rdq"
+            },
+            "before": {
+              "ended_at": null
+            },
+            "after": {
+              "ended_at": "2026-10-16T11:07:06.257Z",
+              "end_reason": "kicked"
+            }
+          },
+          {
+            "id": "01a14464-e28e-7d98-87f1-03f3b0910761",
+            "at": "2026-10-16T11:07:04.718924Z",
+            "action": "review.resolve",
+            "actor": {
+              "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+              "name": "End-to-end checks"
+            },
+            "target_type": "catalog.matchreview",
+            "target_id": "01a14460-c311-7dc4-8fb8-5553dd828a6f",
+            "target_label": "",
+            "customer": null,
+            "before": null,
+            "after": {
+              "file": "01a1418b-178d-7192-8e45-35e2ad3c1640",
+              "kind": "movie",
+              "tmdb_id": 603
+            }
+          },
+          {
+            "id": "01a14464-dd96-7097-8645-54662598ecf7",
+            "at": "2026-10-16T11:07:03.446376Z",
+            "action": "library.scan",
+            "actor": {
+              "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+              "name": "End-to-end checks"
+            },
+            "target_type": "library.library",
+            "target_id": "01a1418b-16dc-711e-8b94-1fa58d23097e",
+            "target_label": "Movies",
+            "customer": null,
+            "before": null,
+            "after": {
+              "job": "01a14464-dd95-79e3-883f-5b5fe4ba4567"
+            }
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/dashboard/billing [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "active_subscribers": 0,
+        "grace": 0,
+        "suspended": 0,
+        "trials_active": 0,
+        "trial_requests": 0,
+        "expiring_7d": 0,
+        "new_subscriptions_30d": 0,
+        "churned_30d": 0,
+        "mrr": [],
+        "mrr_net": [],
+        "revenue_mtd": [],
+        "revenue_last_month": [],
+        "by_plan": [],
+        "as_of": "2026-10-16T11:10:03.197850Z"
+      }
+    },
+    "GET /api/v1/admin/dashboard/timeseries [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "as_of": "2026-10-16T11:10:03.158816Z",
+        "time_zone": "Asia/Riyadh",
+        "bucket_minutes": 15,
+        "streams": [
+          {
+            "at": "2026-10-15T11:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T11:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T11:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T12:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T12:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T12:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T12:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T13:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T13:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T13:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T13:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T14:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T14:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T14:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T14:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T15:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T15:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T15:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T15:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T16:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T16:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T16:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T16:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T17:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T17:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T17:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T17:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T18:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T18:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T18:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T18:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T19:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T19:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T19:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T19:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T20:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T20:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T20:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T20:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T21:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T21:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T21:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T21:45:00Z",
+            "streams": 1
+          },
+          {
+            "at": "2026-10-15T22:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T22:15:00Z",
+            "streams": 13
+          },
+          {
+            "at": "2026-10-15T22:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T22:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-15T23:00:00Z",
+            "streams": 5
+          },
+          {
+            "at": "2026-10-15T23:15:00Z",
+            "streams": 6
+          },
+          {
+            "at": "2026-10-15T23:30:00Z",
+            "streams": 14
+          },
+          {
+            "at": "2026-10-15T23:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T00:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T00:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T00:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T00:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T01:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T01:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T01:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T01:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T02:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T02:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T02:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T02:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T03:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T03:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T03:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T03:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T04:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T04:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T04:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T04:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T05:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T05:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T05:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T05:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T06:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T06:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T06:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T06:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T07:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T07:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T07:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T07:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T08:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T08:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T08:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T08:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T09:00:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T09:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T09:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T09:45:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T10:00:00Z",
+            "streams": 4
+          },
+          {
+            "at": "2026-10-16T10:15:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T10:30:00Z",
+            "streams": 0
+          },
+          {
+            "at": "2026-10-16T10:45:00Z",
+            "streams": 3
+          },
+          {
+            "at": "2026-10-16T11:00:00Z",
+            "streams": 9
+          }
+        ],
+        "streams_peak": 14,
+        "streams_peak_at": "2026-10-15T23:30:00Z",
+        "days": [
+          {
+            "date": "2026-09-17",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-18",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-19",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-20",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-21",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-22",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-23",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-24",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-25",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-26",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-27",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-28",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-29",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-09-30",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-01",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-02",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-03",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-04",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-05",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-06",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-07",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-08",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-09",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-10",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-11",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-12",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-13",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-14",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-15",
+            "signups": 0,
+            "churned": 0,
+            "plays": 0,
+            "watch_hours": 0
+          },
+          {
+            "date": "2026-10-16",
+            "signups": 7,
+            "churned": 0,
+            "plays": 54,
+            "watch_hours": 0.09
+          }
+        ],
+        "categories": [
+          {
+            "id": "01a1418b-1ce3-7649-a77d-e9750e97c760",
+            "kind": "vod",
+            "name_en": "Action",
+            "name_ar": "أكشن",
+            "plays": 22
+          },
+          {
+            "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+            "kind": "vod",
+            "name_en": "Science Fiction",
+            "name_ar": "خيال علمي",
+            "plays": 22
+          },
+          {
+            "id": "01a1418b-1ed0-70c4-82ec-7bc9664f3180",
+            "kind": "vod",
+            "name_en": "Adventure",
+            "name_ar": "مغامرة",
+            "plays": 9
+          },
+          {
+            "id": "01a1418b-186c-70a4-ba70-780859f60330",
+            "kind": "series",
+            "name_en": "Drama",
+            "name_ar": "دراما",
+            "plays": 3
+          }
+        ],
+        "top_titles": [
+          {
+            "kind": "movie",
+            "id": "01a1418b-1cd9-7e14-90b9-19db3f129568",
+            "title": "The Matrix",
+            "title_ar": "المصفوفة",
+            "year": 1999,
+            "plays": 13,
+            "watch_hours": 0.05,
+            "poster": {
+              "id": "01a1418b-1d6c-7ec5-8617-491201e07f0d",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.24c05e59cb519f46.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.4c18d4522e0e0cb8.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.da65c1122baf21f7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.0773333b6aef41f4.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.9b0cbe4b95e5f839.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TEF.^%$ifQ3fW.fQkUfjfQovfjfQ",
+              "is_primary": true
+            }
+          },
+          {
+            "kind": "movie",
+            "id": "01a1418b-1ec8-7b91-acfd-47d5c530b780",
+            "title": "Inception",
+            "title_ar": "استهلال",
+            "year": 2010,
+            "plays": 9,
+            "watch_hours": 0,
+            "poster": {
+              "id": "01a1418b-1f98-7823-a7a9-b6f04fa91674",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.208190dfd7c809c7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.14369a65e344e01e.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.a8acb0898f74a77d.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.c63d09131325c786.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.960ca1e278965b5a.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TZEUi^s;fQ}VoKfQ$hjtfQxGjtfQ",
+              "is_primary": true
+            }
+          },
+          {
+            "kind": "series",
+            "id": "01a1418b-1d66-78e6-9706-600fc864dae3",
+            "title": "Show",
+            "title_ar": "العرض",
+            "year": 2020,
+            "plays": 3,
+            "watch_hours": 0,
+            "poster": {
+              "id": "01a1418b-1e2d-72c6-9811-147f3b0b950b",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w500.49ff2ca94aa82dba.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w185.f15293987544bc68.avif",
+                  "webp": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w185.b8161c7682982cc5.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w500.d4a2a82530e25854.avif",
+                  "webp": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/w500.49ff2ca94aa82dba.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/original.314a4b19aa2b2a2c.avif",
+                  "webp": "http://media.localhost:8080/images/series/01a1418b-1d66-78e6-9706-600fc864dae3/poster/original.f15656aa77424798.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TyEPb;o|fQ*^jYfQsFjufQs+jtfQ",
+              "is_primary": true
+            }
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/health [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "as_of": "2026-10-16T11:10:17.101463Z",
+        "status": "ok",
+        "services": [
+          {
+            "name": "postgres",
+            "status": "ok",
+            "latency_ms": 2.9,
+            "age_s": null,
+            "error": ""
+          },
+          {
+            "name": "redis_state",
+            "status": "ok",
+            "latency_ms": 4,
+            "age_s": null,
+            "error": ""
+          },
+          {
+            "name": "redis_cache",
+            "status": "ok",
+            "latency_ms": 19.8,
+            "age_s": null,
+            "error": ""
+          },
+          {
+            "name": "meilisearch",
+            "status": "ok",
+            "latency_ms": 23.8,
+            "age_s": null,
+            "error": ""
+          },
+          {
+            "name": "workers",
+            "status": "ok",
+            "latency_ms": null,
+            "age_s": 9,
+            "error": ""
+          },
+          {
+            "name": "watcher",
+            "status": "ok",
+            "latency_ms": null,
+            "age_s": 5,
+            "error": ""
+          },
+          {
+            "name": "transcoders",
+            "status": "ok",
+            "latency_ms": null,
+            "age_s": null,
+            "error": ""
+          },
+          {
+            "name": "edge:nginx-stream",
+            "status": "ok",
+            "latency_ms": 30.4,
+            "age_s": null,
+            "error": ""
+          }
+        ],
+        "queues": [
+          {
+            "name": "default",
+            "depth": 0
+          },
+          {
+            "name": "scan",
+            "depth": 0
+          },
+          {
+            "name": "metadata",
+            "depth": 0
+          },
+          {
+            "name": "images",
+            "depth": 0
+          },
+          {
+            "name": "notify",
+            "depth": 0
+          },
+          {
+            "name": "publish",
+            "depth": 0
+          },
+          {
+            "name": "transcode.cpu",
+            "depth": 0
+          },
+          {
+            "name": "transcode.qsv",
+            "depth": 0
+          },
+          {
+            "name": "transcode.vaapi",
+            "depth": 0
+          },
+          {
+            "name": "transcode.nvenc",
+            "depth": 0
+          }
+        ],
+        "transcoders": [
+          {
+            "host": "f360e5c22444",
+            "best": "cpu",
+            "queues": [
+              "transcode.cpu"
+            ],
+            "backends": {
+              "cpu": [
+                "h264",
+                "hevc"
+              ]
+            },
+            "gpus": [],
+            "ffmpeg": "8.1.3-Jellyfin",
+            "checked_at": "2026-10-16T07:53:12.880503Z"
+          }
+        ],
+        "redis": [
+          {
+            "name": "redis_state",
+            "status": "ok",
+            "used_memory": 2659944,
+            "max_memory": 1073741824,
+            "policy": "noeviction",
+            "evicted_keys": 0,
+            "error": ""
+          },
+          {
+            "name": "redis_cache",
+            "status": "ok",
+            "used_memory": 2242104,
+            "max_memory": 268435456,
+            "policy": "allkeys-lru",
+            "evicted_keys": 0,
+            "error": ""
+          }
+        ],
+        "database": {
+          "status": "ok",
+          "connections": 19,
+          "max_connections": 100,
+          "error": ""
+        },
+        "grafana_url": ""
+      }
+    },
+    "GET /api/v1/admin/sessions/stream [en]": {
+      "status": 200,
+      "contentType": "text/event-stream",
+      "body": "retry: 5000\nevent: snapshot\ndata: {\"sessions\":[]}\n\n"
+    }
+  }
+}

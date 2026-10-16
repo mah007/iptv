@@ -18,6 +18,16 @@ export const loginSchema = z.object({
 export type LoginInput = z.input<typeof loginSchema>;
 export type LoginValues = z.output<typeof loginSchema>;
 
+/** The authenticator app's six digits; spaces are allowed ("123 456"). ADR-0024. */
+export const codeSchema = z.object({
+  code: z
+    .string()
+    .transform((value) => value.replace(/\s+/gu, ""))
+    .pipe(z.string().regex(/^[0-9]{6}$/u, "auth.validation.codeFormat")),
+});
+export type CodeInput = z.input<typeof codeSchema>;
+export type CodeValues = z.output<typeof codeSchema>;
+
 export const forgotSchema = z.object({
   login: z
     .string()

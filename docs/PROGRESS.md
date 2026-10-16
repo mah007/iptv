@@ -19,8 +19,61 @@
 | M14a Application security | Done: strict nonce CSP on both SPAs and per-host headers, admin security keys and passkeys (WebAuthn) with an optional per-role requirement, step-up for sensitive actions (admins: code or key; customers: password before TV logins), idle timeout from `/auth/me`, admin IP allowlist, sharing detection with DB-IP Lite (scores, flags, evidence, warn/reset/suspend), per-account and progressive Xtream rate limits, *revoke by app*, payment confirmation and disputes, `make semgrep`/`audit`/`zap` in `make ci`, Renovate config, threat model v2 with a status for every gap ([ADR-0021](adr/0021-application-security.md)) | — |
 | M15 Scale & CDN | Done: the Edges page and per-session selection, standalone edges (`install.sh --edge`, own Let's Encrypt TLS, control channel, stream-auth over TLS), the private S3 origin (our SigV4, generations, height-tagged rungs), Bunny token auth (verified against vectors only), the read replica with a rehearsed failover, zero-downtime updates (`scripts/rollout.sh`, `make deploy`), load tests at 100/500/1,000 (5,000 extrapolated) and a web connection pool; G-44 fixed, G-17 fixed in part ([ADR-0022](adr/0022-scale-edges-origin-replica-and-rollouts.md)) | — |
 | Q1 Follow-ups | Done: TheTVDB fallback, admin Devices and Lockouts, subscription status, own passwords, my streams, portal live TV and catch-up, legal pages, MediaMTX sign-ins in the admin, capped MP4s for capped plans, the settings-cache healer ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md)) | — |
+| V1 Last open items | Done: visual regression in `make ci` (48 baselines), G-17's byte flagging, G-25's setup cards, optional customer two-factor sign-in, TheTVDB's DVD and absolute orders for TMDB series ([ADR-0024](adr/0024-visual-regression-byte-flagging-setup-cards-customer-2fa-tvdb-orders.md)) | — |
 | M10 client matrix (needs the owner's devices) | Planned | — |
 
+
+## V1: the last open items (2026-10-16)
+
+### Done ([ADR-0024](adr/0024-visual-regression-byte-flagging-setup-cards-customer-2fa-tvdb-orders.md))
+- **Visual regression (SPEC §15), `make visual`, in `make ci`:**
+  - pages: admin dashboard, customers, a customer, a movie, live TV and settings; portal sign-in, home, a title, the player's chrome, account and live TV;
+  - each in English (light) and Arabic (dark), at 1440 and 390 px: 48 baselines in `frontend/apps/*/e2e/visual/baselines/` (6.9 MB);
+  - pages replay API fixtures recorded from the dev stack (`make visual RECORD=1`; signed media URLs rewritten, a 4 KB synthetic clip for the player) under a fixed clock, with animations off, lazy rows mounted, images loaded, and relative times, live durations and avatars masked; a request without a fixture fails the test;
+  - it found a real bug at once: the dashboard scrolled sideways at 390 px in English (a chart's `sr-only` table ignores the 1 px width); fixed in `@smart-iptv/ui`.
+- **G-17's second half (sessions served too many bytes):**
+  - the edges count each token response's bytes per session (njs `bytes.js`, at the end of the request) and report them every 15 s: the local edge to `POST /internal/stream-bytes` (`X-Edge-Auth`, Redis only), a standalone edge in its control poll (`session_bytes`);
+  - Django adds them to the session's live record (`apps.playback.bytes`); bytes reported after a session closed go to its row through the sweeper;
+  - every 5 minutes, movie and episode sessions served `antisharing.bytes_ratio` (4.0) times what the runtime and the played rendition's bitrate explain, from `antisharing.bytes_min_mb` (500), become `ExcessBytes` rows (migration `antisharing/0002`), the score signal `excess_bytes_24h` (4 points: a flag on its own) and a table on the customer's Security tab. Never a lock;
+  - both settings in the admin with en/ar labels; rows follow `privacy.antisharing_retention_days`.
+- **G-25's setup card:**
+  - **Print setup card** with **Include the password** on every one-time credential reveal (admin: create, add, reset; portal: Add TV app, new password);
+  - the card (service, device, server, username, password if ticked, a QR code, steps, a warning) is printed alone through a print stylesheet, black on white, in the page's language and direction; "Save as PDF" in the browser's dialog makes the PDF;
+  - nothing reaches the server, and there is no new dependency.
+- **Customer two-factor sign-in (optional):**
+  - the portal's account page sets it up (QR code and key, the first code switches it on) and turns it off, each after the password step-up (`me/mfa`, `me/mfa/confirm`);
+  - sign-ins on the portal and the API host take an optional `code`: an enrolled customer gets 403 `MFA_REQUIRED` without it and 400 `MFA_INVALID` with a wrong one (counted by axes and per account, shown on Lockouts); codes work once; apps signed in before keep refreshing;
+  - support's recovery: **Switch two-factor off** on the customer's Security tab (`customers.edit`, step-up, audited as `customer.mfa_reset`);
+  - `e2e_portal_account` switches it off between runs and `totp_code` serves customers.
+- **TheTVDB's DVD or absolute order for TMDB series:**
+  - `episode_ordering` gains `tvdb_absolute` (migration `catalog/0006`); a TMDB series with a TheTVDB id may choose TMDB's order, TheTVDB's DVD order or its absolute order on the series page;
+  - file numbers are read in that order and mapped through TheTVDB's episode ids to the aired numbers TMDB uses (`apps.metadata.tvdb_order`); a change places the series' files again (`replace_series_files`); files TheTVDB can't place go to review (`tvdb_unavailable`, `episode_not_found`);
+  - synthetic TheTVDB fixtures for Breaking Bad's three orders.
+- **Smaller:** `make lint` and `make fmt` give type-aware ESLint 2.5 GB of heap (it needs about 1.8 GB now; Node's default in the frontend container is 1.7 GB); the admin's series ordering control fits 390 px.
+
+### Evidence (dev stack, lane 2)
+- **Backend:** 3,405 tests passed at 93.31% coverage in one full run (lane 2). New suites: `test_stream_bytes` (Redis only, the database forbidden), `test_bytes` (expected bytes per kind, the check, the signal and the flag, the Security tab API, late bytes, the standalone poll, retention), `test_customer_mfa` (set up, sign in with codes on both hosts, replays, lockouts, old app sign-ins, step-up, support's reset), `test_tvdb_order` (DVD and absolute mapping, two seasons in one file, no key, matching to review, re-placement, the order rules). Ruff, `ruff format --check`, mypy and `makemigrations --check` clean.
+- **Vitest:** ui 168, admin 192, portal 71 (fresh containers). ESLint, Prettier and tsc clean (`make lint`, `make typecheck`); `make api-client` regenerated.
+- **`make edge-test`:** all steps passed: local disk mode 174 checks (a whole file and a range reported within 40 s with the edge's id, `X-Edge-Auth` and Host, counted once), the standalone edge 48 (a later poll carries the session's bytes).
+- **`make e2e-portal`:** 8 passed: the setup card printed alone under print media; the new two-factor journey (set up with an authenticator code, sign out, a wrong code refused, sign in with a code, switch off) with axe on the set-up dialog and the code step. No CSP violation.
+- **`make e2e-admin`:** 129 passed, 1 skipped (monitoring overlay off) in the full run; one fit check failed there (the series page's new ordering select was 3 px too wide at 390 px), fixed and rerun on its own. The device-reset journey prints a card without the password.
+- **`make visual`:** 24 + 24 passed three runs in a row after recording.
+- **`make compat`** 161 passed, **`make compat-live`** 212 passed, **`make semgrep`** clean.
+- On the dev stack, after the portal journey, The Matrix's HLS session had 7.6 MB in `bytes_sent` from the edge's reports.
+
+### For the production server
+`install.sh --update` covers it:
+- migrations `antisharing/0002` (a new table) and `catalog/0006` (a new choice), both backward compatible;
+- the edge's new `nginx.conf` and `bytes.js` arrive with the update. Standalone edges keep working before their own `install.sh --update`; they report bytes after it.
+
+Nothing to do by hand. Optional:
+- tune `antisharing.bytes_ratio` and `antisharing.bytes_min_mb` (Settings → Anti-sharing);
+- a TheTVDB key is needed for series set to TheTVDB's DVD or absolute order;
+- support staff with `customers.edit` can reset customers' two-factor sign-in.
+
+### Still open
+- The visual baselines belong to this machine's Chrome (155): a Chrome update that moves text needs `make visual UPDATE=1`.
+- Live HLS segments served straight from the edge aren't counted (live isn't checked against a runtime).
 
 ## Owner decision: GPU is optional (2026-10-16)
 
@@ -108,7 +161,7 @@ M5 (the TheTVDB fallback) and M11 (Devices, Lockouts, subscription status, field
 
 ### Still open
 - Real TheTVDB responses: none recorded until a key is available (fixtures are synthetic, built from the published v4 schema).
-- TheTVDB's DVD or absolute ordering for series matched on TMDB (only TheTVDB-sourced series use TheTVDB's order).
+- TheTVDB's DVD or absolute ordering for series matched on TMDB (only TheTVDB-sourced series use TheTVDB's order). Done in V1 (ADR-0024).
 - A capped MP4 gets subtitles added later only when it is reprocessed.
 - The legal texts are templates for a lawyer to review.
 - Xtream `status_of` during grace (an ADR-0012 follow-up, outside Q1).

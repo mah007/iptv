@@ -1946,6 +1946,58 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/customers/{id}/reset-mfa:
+    post:
+      operationId: customers_reset_mfa
+      description: |-
+        POST /api/v1/admin/customers/{id}/reset-mfa (admin host; ADR-0024): support's
+        recovery for a customer who lost their authenticator app. Their next sign-in needs
+        the password alone; audited as `customer.mfa_reset`.
+      summary: Switch a customer's two-factor sign-in off (support's recovery)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - customers
+      security:
+        - sessionAuth: []
+      responses:
+        "204":
+          description: Off; the next sign-in needs the password only.
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/customers/{id}/risk:
     get:
       operationId: customers_risk
@@ -12707,6 +12759,10 @@ components:
         marketing_opt_in:
           type: boolean
           readOnly: true
+        mfa_enabled:
+          type: boolean
+          readOnly: true
+          description: The customer signs in with an authenticator code too (ADR-0024).
         access:
           oneOf:
             - $ref: "#/components/schemas/AccessProfile"
@@ -12740,6 +12796,7 @@ components:
         - last_login
         - locale
         - marketing_opt_in
+        - mfa_enabled
         - name
         - notes
         - phone
@@ -13840,11 +13897,81 @@ components:
         - tmdb_default
         - tvdb_aired
         - tvdb_dvd
+        - tvdb_absolute
       type: string
       description: |-
         * `tmdb_default` - TMDB default
         * `tvdb_aired` - TVDB aired
         * `tvdb_dvd` - TVDB DVD
+        * `tvdb_absolute` - TVDB absolute
+    ExcessBytes:
+      type: object
+      description: A session served far more than its title explains (G-17, ADR-0024).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        session:
+          type: string
+          format: uuid
+          readOnly: true
+        title_name:
+          type: string
+          readOnly: true
+        rendition:
+          type: string
+          readOnly: true
+        network:
+          type: string
+          readOnly: true
+        device:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+        device_name:
+          type: string
+          readOnly: true
+        bytes_sent:
+          type: integer
+          readOnly: true
+        expected_bytes:
+          type: integer
+          readOnly: true
+        ratio:
+          type: number
+          format: double
+          readOnly: true
+        detected_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ended_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          readOnly: true
+      required:
+        - bytes_sent
+        - detected_at
+        - device
+        - device_name
+        - ended_at
+        - expected_bytes
+        - id
+        - network
+        - ratio
+        - rendition
+        - session
+        - started_at
+        - title_name
     ExtendRequest:
       type: object
       properties:
@@ -17655,6 +17782,7 @@ components:
             * `tmdb_default` - TMDB default
             * `tvdb_aired` - TVDB aired
             * `tvdb_dvd` - TVDB DVD
+            * `tvdb_absolute` - TVDB absolute
     PatchedSettingRequest:
       type: object
       description: "PATCH body. Partial like any PATCH: without `value` nothing changes."
@@ -19060,6 +19188,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Sighting"
+        excess_bytes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExcessBytes"
         attribution_url:
           type: string
           format: uri
@@ -19067,6 +19199,7 @@ components:
         - assessment
         - attribution_url
         - enabled
+        - excess_bytes
         - flag
         - geoip_installed
         - sightings

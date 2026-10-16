@@ -44,6 +44,8 @@ import type {
   LiveListing,
   MeInvoiceDocumentParams,
   MeInvoicesParams,
+  MfaConfirmRequest,
+  MfaSetup,
   MovieDetail,
   MoviesListParams,
   MyCredentialResetRequest,
@@ -220,7 +222,7 @@ export const getAuthLoginUrl = () => {
 };
 
 /**
- * Opens a session after `GET auth/csrf`; send the CSRF token as X-CSRFToken. The session lasts security.customer_session_days of idle time.
+ * Opens a session after `GET auth/csrf`; send the CSRF token as X-CSRFToken. The session lasts security.customer_session_days of idle time. A customer with two-factor sign-in gets 403 MFA_REQUIRED until `code` is sent too.
  * @summary Sign in to the portal (session cookie)
  */
 export const authLogin = async (
@@ -3468,6 +3470,225 @@ export function useMeInvoiceDocument<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export const getMeMfaSetupUrl = () => {
+  return `/api/v1/me/mfa`;
+};
+
+/**
+ * me/mfa (ADR-0024): optional two-factor sign-in. POST starts setting it up (a new
+ * secret waiting for its first code at me/mfa/confirm); DELETE switches it off. Both
+ * after the password step-up. Sign-ins already open keep working.
+ * @summary Start setting up two-factor sign-in: the authenticator app's URI
+ */
+export const meMfaSetup = async (options?: Parameters<typeof apiFetch>[1]): Promise<MfaSetup> => {
+  return apiFetch<MfaSetup>(getMeMfaSetupUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getMeMfaSetupMutationKey = () => ["meMfaSetup"] as const;
+
+export const getMeMfaSetupMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof meMfaSetup>>, TError, void, TContext>;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof meMfaSetup>>, TError, void, TContext> => {
+  const mutationKey = getMeMfaSetupMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof meMfaSetup>>, void> = () => {
+    return meMfaSetup(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MeMfaSetupMutationResult = NonNullable<Awaited<ReturnType<typeof meMfaSetup>>>;
+
+export type MeMfaSetupMutationError = ErrorType<Problem>;
+
+/**
+ * @summary Start setting up two-factor sign-in: the authenticator app's URI
+ */
+export const useMeMfaSetup = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof meMfaSetup>>, TError, void, TContext>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof meMfaSetup>>, TError, void, TContext> => {
+  return useMutation(getMeMfaSetupMutationOptions(options), queryClient);
+};
+
+export const getMeMfaRemoveUrl = () => {
+  return `/api/v1/me/mfa`;
+};
+
+/**
+ * me/mfa (ADR-0024): optional two-factor sign-in. POST starts setting it up (a new
+ * secret waiting for its first code at me/mfa/confirm); DELETE switches it off. Both
+ * after the password step-up. Sign-ins already open keep working.
+ * @summary Switch two-factor sign-in off
+ */
+export const meMfaRemove = async (options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+  return apiFetch<void>(getMeMfaRemoveUrl(), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getMeMfaRemoveMutationKey = () => ["meMfaRemove"] as const;
+
+export const getMeMfaRemoveMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof meMfaRemove>>, TError, void, TContext>;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof meMfaRemove>>, TError, void, TContext> => {
+  const mutationKey = getMeMfaRemoveMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof meMfaRemove>>, void> = () => {
+    return meMfaRemove(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MeMfaRemoveMutationResult = NonNullable<Awaited<ReturnType<typeof meMfaRemove>>>;
+
+export type MeMfaRemoveMutationError = ErrorType<Problem>;
+
+/**
+ * @summary Switch two-factor sign-in off
+ */
+export const useMeMfaRemove = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof meMfaRemove>>, TError, void, TContext>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof meMfaRemove>>, TError, void, TContext> => {
+  return useMutation(getMeMfaRemoveMutationOptions(options), queryClient);
+};
+
+export const getMeMfaConfirmUrl = () => {
+  return `/api/v1/me/mfa/confirm`;
+};
+
+/**
+ * me/mfa/confirm (ADR-0024): the first code switches two-factor sign-in on.
+ * @summary Switch two-factor sign-in on with the app's first code
+ */
+export const meMfaConfirm = async (
+  mfaConfirmRequest: MfaConfirmRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<CustomerMe> => {
+  const getHeaders = (
+    h?: NonNullable<RequestInit["headers"]>,
+  ): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(
+          h as Iterable<Iterable<string>>,
+          (entry) => Array.from(entry) as [string, string],
+        ),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+  return apiFetch<CustomerMe>(getMeMfaConfirmUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders(options?.headers) },
+    body: JSON.stringify(mfaConfirmRequest),
+  });
+};
+
+export const getMeMfaConfirmMutationKey = () => ["meMfaConfirm"] as const;
+
+export const getMeMfaConfirmMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof meMfaConfirm>>,
+    TError,
+    MeMfaConfirmMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof meMfaConfirm>>,
+  TError,
+  MeMfaConfirmMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMeMfaConfirmMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof meMfaConfirm>>,
+    MeMfaConfirmMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return meMfaConfirm(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MeMfaConfirmMutationResult = NonNullable<Awaited<ReturnType<typeof meMfaConfirm>>>;
+export type MeMfaConfirmMutationBody = MfaConfirmRequest;
+export type MeMfaConfirmMutationError = ErrorType<Problem>;
+export type MeMfaConfirmMutationVariables = { data: MfaConfirmRequest };
+
+/**
+ * @summary Switch two-factor sign-in on with the app's first code
+ */
+export const useMeMfaConfirm = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof meMfaConfirm>>,
+      TError,
+      MeMfaConfirmMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof meMfaConfirm>>,
+  TError,
+  MeMfaConfirmMutationVariables,
+  TContext
+> => {
+  return useMutation(getMeMfaConfirmMutationOptions(options), queryClient);
+};
 
 export const getMePasswordChangeUrl = () => {
   return `/api/v1/me/password`;

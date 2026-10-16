@@ -411,6 +411,11 @@ export interface CustomerLoginRequest {
    * @maxLength 1024
    */
   password: string;
+  /**
+   * The authenticator app's code, for customers with two-factor sign-in: without it they get 403 MFA_REQUIRED (ADR-0024).
+   * @maxLength 16
+   */
+  code?: string;
 }
 
 /**
@@ -448,6 +453,8 @@ export interface CustomerMe {
   readonly timezone: string;
   readonly marketing_opt_in: boolean;
   readonly status: UserStatus;
+  /** Two-factor sign-in (an authenticator app) is on. */
+  readonly mfa_enabled: boolean;
   readonly access: CustomerAccessSummary | null;
 }
 
@@ -754,6 +761,20 @@ export const MetadataProvider = {
   tmdb: "tmdb",
   tvdb: "tvdb",
 } as const;
+
+export interface MfaConfirmRequest {
+  /**
+   * The first code the app shows.
+   * @minLength 1
+   * @maxLength 16
+   */
+  code: string;
+}
+
+export interface MfaSetup {
+  /** The authenticator app's otpauth:// URI (show it as a QR code); shown once. */
+  otpauth_uri: string;
+}
 
 export interface PersonBrief {
   id: string;

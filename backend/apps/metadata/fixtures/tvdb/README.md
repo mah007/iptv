@@ -11,7 +11,9 @@ transport removes it before serving.
   season 1, a poster, a background, a clear logo and episode stills.
 - Breaking Bad (81189) carries its real TheTVDB, TMDB (1396) and IMDb IDs; its alias
   "La Química" is made up, so a search that TMDB's fixtures miss finds it on TheTVDB and
-  is handed back to TMDB (the cross-walk).
+  is handed back to TMDB (the cross-walk). Its episode lists in the `official`, `dvd` and
+  `absolute` orders (ADR-0024) cover TMDB's two seasons with invented episode ids and
+  names; the DVD order is invented too (its season 1 ends with what aired as S02E01).
 - Overviews, aliases, artwork paths, ratings and character names are made up. Artwork
   paths end in `-{width}x{height}`; the fixture transport answers `artworks.thetvdb.com`
   requests for them with generated placeholder art.

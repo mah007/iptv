@@ -8,7 +8,7 @@ export function useBranding(): Branding | undefined {
 }
 
 /** The service's name and logo for this language and theme; the built-in ones without. */
-function useBrand(): { name: string; logo: string | null } {
+export function useBrand(): { name: string; logo: string | null } {
   const { t, i18n } = useTranslation();
   const [theme] = useTheme();
   const data = useBranding();

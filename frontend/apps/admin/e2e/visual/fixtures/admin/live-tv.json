@@ -1,0 +1,208 @@
+{
+  "path": "/live",
+  "responses": {
+    "GET /api/v1/auth/me [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+        "username": "e2e-admin",
+        "name": "End-to-end checks",
+        "email": "e2e-admin@example.test",
+        "locale": "ar",
+        "timezone": "Asia/Riyadh",
+        "mfa_enabled": true,
+        "roles": [
+          "owner"
+        ],
+        "permissions": [
+          "admins.manage",
+          "audit.view",
+          "backups.run",
+          "backups.view",
+          "billing.manage",
+          "billing.refund",
+          "billing.view",
+          "customers.edit",
+          "customers.view",
+          "dashboard.view",
+          "devices.manage",
+          "edges.manage",
+          "edges.view",
+          "library.manage",
+          "library.review",
+          "library.view",
+          "lockouts.manage",
+          "lockouts.view",
+          "monitoring.view",
+          "notifications.manage",
+          "notifications.view",
+          "plans.edit",
+          "plans.view",
+          "roles.manage",
+          "sessions.kill",
+          "settings.edit",
+          "settings.view",
+          "subscriptions.edit",
+          "subscriptions.view"
+        ],
+        "idle_timeout_min": 30,
+        "step_up_window_min": 5,
+        "step_up_until": "2026-10-16T11:15:00+00:00",
+        "mfa_methods": [
+          "totp"
+        ],
+        "webauthn_enrolment_required": false
+      }
+    },
+    "GET /api/v1/branding [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    },
+    "GET /api/v1/admin/review-queue?page_size=1&status=open [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 0,
+        "next": null,
+        "previous": null,
+        "results": []
+      }
+    },
+    "GET /api/v1/admin/dashboard/kpis [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "customers_total": 7,
+        "customers_active": 7,
+        "customers_grace": 0,
+        "customers_expired": 0,
+        "customers_suspended": 0,
+        "expiring_7d": 0,
+        "devices_total": 52,
+        "devices_blocked": 0,
+        "streams_now": 0,
+        "stream_users_now": 0,
+        "reviews_open": 0,
+        "transcode_queued": 0,
+        "transcode_running": 0,
+        "transcode_failed_24h": 0,
+        "as_of": "2026-10-16T11:10:34.192424Z"
+      }
+    },
+    "GET /api/v1/admin/categories?kind=live&page_size=100 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 1,
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "id": "01a1418b-a0b1-7767-a286-1d8d04074349",
+            "xc_id": 7,
+            "kind": "live",
+            "name_en": "Showcase",
+            "name_ar": "عروض",
+            "slug": "showcase",
+            "sort": 0,
+            "is_adult": false,
+            "visible_in_xtream": true,
+            "icon": "",
+            "parent": null
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/live/overview [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "packager_running": true,
+        "running_channels": 1,
+        "archive_bytes": 1022065008,
+        "archive_budget_bytes": 1073741824,
+        "viewers": 0,
+        "channels": 1,
+        "enabled_channels": 1,
+        "catchup_channels": 1
+      }
+    },
+    "GET /api/v1/admin/live/channels?page_size=100 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 1,
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "id": "01a1418b-a0bc-7a29-9aa0-b0189b0dd3c2",
+            "xc_id": 16,
+            "name": "Test Pattern",
+            "name_ar": "نمط الاختبار",
+            "group": {
+              "id": "01a1418b-a0b1-7767-a286-1d8d04074349",
+              "xc_id": 7,
+              "name_en": "Showcase",
+              "name_ar": "عروض",
+              "sort": 0,
+              "is_adult": false,
+              "visible_in_xtream": true
+            },
+            "sort": 0,
+            "epg_channel_id": "test-pattern.smart-iptv",
+            "epg_source": "01a1418b-a0b5-7d51-b84f-0914d9a3b3ad",
+            "logo_url": "",
+            "source_info": {
+              "scheme": "rtsp",
+              "host": "mediamtx",
+              "port": 8554
+            },
+            "output": "ts",
+            "transcode": "copy",
+            "catchup_days": 1,
+            "always_on": false,
+            "enabled": true,
+            "rights_holder": "Smart IPTV (synthetic test media)",
+            "license_ref": "sample-media",
+            "license_expires_at": null,
+            "license_valid": true,
+            "origin": "manual",
+            "origin_ref": "",
+            "integration": null,
+            "probe": null,
+            "status": {
+              "state": "live",
+              "since": "2026-10-16T07:53:13Z",
+              "error": "",
+              "detail": "",
+              "bitrate_kbps": 712,
+              "viewers": 0,
+              "recording": true,
+              "archive_bytes": 1022065008,
+              "archive_from": "2026-10-16T08:00:00.112000Z"
+            },
+            "created_at": "2026-10-15T21:50:32.127528Z",
+            "updated_at": "2026-10-15T23:31:19.531604Z"
+          }
+        ]
+      }
+    }
+  }
+}

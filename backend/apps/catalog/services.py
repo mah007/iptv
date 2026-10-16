@@ -305,23 +305,41 @@ def update_title(  # noqa: PLR0912 (one branch per kind of change)
     return title
 
 
+#: The orders a series may follow, by where its metadata comes from (ADR-0023, ADR-0024):
+#: one built from TheTVDB keeps TheTVDB's aired or DVD order; a TMDB series keeps TMDB's,
+#: or reads its file names in TheTVDB's DVD or absolute order when it has a TheTVDB id.
+TVDB_SERIES_ORDERS: Final = frozenset({EpisodeOrdering.TVDB_AIRED, EpisodeOrdering.TVDB_DVD})
+TMDB_SERIES_TVDB_ORDERS: Final = frozenset(
+    {EpisodeOrdering.TVDB_DVD, EpisodeOrdering.TVDB_ABSOLUTE}
+)
+
+
+def _ordering_refused(message: str, code: str) -> ProblemError:
+    return ProblemError(
+        ErrorCode.VALIDATION_ERROR,
+        message,
+        field_errors={"episode_ordering": [field_error(message, code=code)]},
+    )
+
+
 def _check_ordering(title: Movie | Series, changes: Mapping[str, Any]) -> bool:
-    """A TheTVDB order applies to a series built from TheTVDB (ADR-0023); a new order
-    renumbers its episodes, so the series is fetched again. True when it changes."""
+    """Whether the series' order changes, refusing an order its source can't follow.
+    True when it changes: a TheTVDB-built series is fetched again (its episodes are
+    renumbered); a TMDB series' files are placed again (`_queue_reorder`)."""
     if not isinstance(title, Series) or "episode_ordering" not in changes:
         return False
     wanted = changes["episode_ordering"]
-    tvdb_orders = {EpisodeOrdering.TVDB_AIRED, EpisodeOrdering.TVDB_DVD}
-    if (title.metadata_source == MetadataSource.TVDB) != (wanted in tvdb_orders):
-        raise ProblemError(
-            ErrorCode.VALIDATION_ERROR,
-            "TheTVDB orders apply to series built from TheTVDB; TMDB series use TMDB's.",
-            field_errors={
-                "episode_ordering": [
-                    field_error("Choose an order this series' source has.", code="ordering_source")
-                ]
-            },
-        )
+    if title.metadata_source == MetadataSource.TVDB:
+        if wanted not in TVDB_SERIES_ORDERS:
+            raise _ordering_refused("Choose an order this series' source has.", "ordering_source")
+    elif wanted in TMDB_SERIES_TVDB_ORDERS:
+        if title.tvdb_id is None:
+            raise _ordering_refused(
+                "TMDB doesn't know this series' TheTVDB id, so TheTVDB's orders can't apply.",
+                "ordering_needs_tvdb_id",
+            )
+    elif wanted != EpisodeOrdering.TMDB_DEFAULT:
+        raise _ordering_refused("Choose an order this series' source has.", "ordering_source")
     return bool(wanted != title.episode_ordering)
 
 
@@ -329,7 +347,11 @@ def _queue_refresh(series: Series) -> None:
     from apps.metadata import tasks  # noqa: PLC0415 (metadata builds on the catalog)
 
     series_id = str(series.pk)
-    transaction.on_commit(lambda: tasks.refresh_title.delay("series", series_id))
+    if series.metadata_source == MetadataSource.TVDB:
+        transaction.on_commit(lambda: tasks.refresh_title.delay("series", series_id))
+    else:
+        # A TMDB series keeps its episodes; its files move to the episodes the new order names.
+        transaction.on_commit(lambda: tasks.replace_series_files.delay(series_id))
 
 
 # --- Admin edits of categories --------------------------------------------------------------------

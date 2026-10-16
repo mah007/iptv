@@ -1,4 +1,5 @@
-"""Print an admin's current TOTP code. DEBUG only: for end-to-end tests and demos.
+"""Print an account's current TOTP code (an admin's, or a customer's with two-factor sign-in,
+ADR-0024). DEBUG only: for end-to-end tests and demos.
 
 The code printed is one the server will accept next: when the current 30-second
 step was already used (codes are single-use), it is the next step's code, which
@@ -17,7 +18,7 @@ from apps.accounts.models import MfaTotp
 
 
 class Command(BaseCommand):
-    help = "Print the next acceptable TOTP code of an admin (refuses unless DEBUG is on)."
+    help = "Print the next acceptable TOTP code of an account (refuses unless DEBUG is on)."
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("username")
@@ -32,7 +33,7 @@ class Command(BaseCommand):
             .first()
         )
         if totp is None:
-            msg = "That admin has no authenticator yet: sign in with the password first."
+            msg = "That account has no authenticator yet."
             raise CommandError(msg)
         secret = crypto.decrypt(totp.secret_encrypted)
         now_step = mfa.current_step()

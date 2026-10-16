@@ -9,7 +9,8 @@ time, so the "stop the other stream" journey meets the limit (ADR-0023); streams
 earlier run left open are stopped. Failed sign-ins of earlier runs are
 cleared, and the customer's watch history, favourites and ratings are emptied, so
 "continue watching" shows only what this run played. TV logins left by an earlier run
-that stopped halfway are revoked, so the device limit leaves room for this run's.
+that stopped halfway are revoked, so the device limit leaves room for this run's, and
+two-factor sign-in such a run left on is switched off (ADR-0024).
 """
 
 import os
@@ -20,8 +21,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from apps.accounts import services
-from apps.accounts.models import Device, DeviceKind, User, UserStatus
+from apps.accounts import customer_mfa, services, stepup
+from apps.accounts.models import Device, DeviceKind, MfaTotp, User, UserStatus
 from apps.engagement.models import Favorite, Rating, WatchProgress
 from apps.playback import entitlements
 from apps.playback.concurrency import KickReason
@@ -72,7 +73,10 @@ class Command(BaseCommand):
                 services.update_access(user, ACCESS, category_ids=[], actor=None)
             user.status = UserStatus.ACTIVE
             user.set_password(password)
-            user.save(update_fields=["status", "password", "updated_at"])
+            # Two-factor sign-in left on by a run that stopped halfway (ADR-0024) is off.
+            MfaTotp.objects.filter(user=user).delete()
+            user.mfa_enabled = False
+            user.save(update_fields=["status", "password", "mfa_enabled", "updated_at"])
             WatchProgress.objects.filter(user=user).delete()
             Favorite.objects.filter(user=user).delete()
             Rating.objects.filter(user=user).delete()
@@ -84,4 +88,6 @@ class Command(BaseCommand):
             stop_user_sessions(user.pk, KickReason.STOPPED)
             entitlements.schedule_refresh(user.pk)
         axes_reset(username=username)
+        customer_mfa.clear_failures(user)
+        stepup.clear_failures(user)
         self.stdout.write(f"{'Created' if created else 'Updated'} the portal customer {username}.")

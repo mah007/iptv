@@ -1238,6 +1238,8 @@ export interface CustomerDetail {
   readonly timezone: string;
   readonly notes: string;
   readonly marketing_opt_in: boolean;
+  /** The customer signs in with an authenticator code too (ADR-0024). */
+  readonly mfa_enabled: boolean;
   readonly access: AccessProfile | null;
   readonly devices: readonly Device[];
   /** @nullable */
@@ -1806,6 +1808,7 @@ export interface Episode {
  * * `tmdb_default` - TMDB default
  * * `tvdb_aired` - TVDB aired
  * * `tvdb_dvd` - TVDB DVD
+ * * `tvdb_absolute` - TVDB absolute
  */
 export type EpisodeOrderingEnum = (typeof EpisodeOrderingEnum)[keyof typeof EpisodeOrderingEnum];
 
@@ -1813,7 +1816,29 @@ export const EpisodeOrderingEnum = {
   tmdb_default: "tmdb_default",
   tvdb_aired: "tvdb_aired",
   tvdb_dvd: "tvdb_dvd",
+  tvdb_absolute: "tvdb_absolute",
 } as const;
+
+/**
+ * A session served far more than its title explains (G-17, ADR-0024).
+ */
+export interface ExcessBytes {
+  readonly id: string;
+  readonly session: string;
+  readonly title_name: string;
+  readonly rendition: string;
+  readonly network: string;
+  /** @nullable */
+  readonly device: string | null;
+  readonly device_name: string;
+  readonly bytes_sent: number;
+  readonly expected_bytes: number;
+  readonly ratio: number;
+  readonly detected_at: string;
+  readonly started_at: string;
+  /** @nullable */
+  readonly ended_at: string | null;
+}
 
 export interface ExtendRequest {
   /**
@@ -4270,6 +4295,7 @@ export interface PatchedSeriesUpdateRequest {
    * * `tmdb_default` - TMDB default
    * * `tvdb_aired` - TVDB aired
    * * `tvdb_dvd` - TVDB DVD
+   * * `tvdb_absolute` - TVDB absolute
    */
   episode_ordering?: EpisodeOrderingEnum;
 }
@@ -4781,6 +4807,7 @@ export interface RiskOverview {
   flag: RiskFlag | null;
   assessment: Assessment;
   sightings: Sighting[];
+  excess_bytes: ExcessBytes[];
   attribution_url: string;
 }
 

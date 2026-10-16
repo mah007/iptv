@@ -11,9 +11,10 @@ network (/24 or /64), source and clock hour:
   stream-auth, G-18), and `collect_stream_networks` turns them into sightings.
 
 **Scoring.** `score_recent` (beat, every 5 minutes) assesses every customer seen in the
-last 24 hours (`apps.antisharing.scoring`). A score at `antisharing.flag_score` opens or
-raises the customer's flag and tells the admins (alert recipients and Telegram) once per
-rise. Flags never lock an account.
+last 24 hours (`apps.antisharing.scoring`), and every customer with a movie or episode
+session served far more bytes than its title explains (`apps.antisharing.bytes`, G-17).
+A score at `antisharing.flag_score` opens or raises the customer's flag and tells the
+admins (alert recipients and Telegram) once per rise. Flags never lock an account.
 
 **The ladder** is manual and audited, and each step tells the customer: `warn` (the
 `sharing_warning` message), `reset_credentials` (every IPTV app login gets an unknown
@@ -36,6 +37,7 @@ from django.utils import timezone
 
 from apps.accounts import services as accounts
 from apps.accounts.models import Device, DeviceKind, User
+from apps.antisharing import bytes as served
 from apps.antisharing import scoring
 from apps.antisharing.models import FlagStatus, RiskFlag, Sighting, SightingSource
 from apps.audit import services as audit
@@ -231,7 +233,10 @@ def _seen(rows: Iterable[Sighting]) -> list[scoring.Seen]:
 def assess(user_id: UUID | str, now: datetime | None = None) -> scoring.Assessment:
     moment = now or timezone.now()
     return scoring.assess(
-        _seen(sightings_of(user_id, moment - timedelta(hours=24))), moment, limits()
+        _seen(sightings_of(user_id, moment - timedelta(hours=24))),
+        moment,
+        limits(),
+        excess_sessions=served.recent_count(user_id, moment),
     )
 
 
@@ -264,18 +269,26 @@ def score_recent(now: datetime | None = None) -> dict[str, int]:
         return {"assessed": 0, "flagged": 0}
     moment = now or timezone.now()
     collect_stream_networks(moment)
-    user_ids = list(
+    served.check(moment)
+    seen_users = list(
         Sighting.objects.filter(last_seen__gte=moment - timedelta(hours=24))
         .exclude(network="local")
         .order_by()
         .values_list("user_id", flat=True)
         .distinct()[:USERS_PER_RUN]
     )
+    # Customers whose sessions were served too many bytes, wherever they were seen.
+    user_ids = list(dict.fromkeys([*seen_users, *served.recent_users(moment)]))[:USERS_PER_RUN]
     current_limits = limits()
     flagged = 0
     for user_id in user_ids:
         rows = sightings_of(user_id, moment - timedelta(hours=24))
-        assessment = scoring.assess(_seen(rows), moment, current_limits)
+        assessment = scoring.assess(
+            _seen(rows),
+            moment,
+            current_limits,
+            excess_sessions=served.recent_count(user_id, moment),
+        )
         if assessment.flagged:
             flagged += 1
             _raise_flag(user_id, assessment, rows, moment)

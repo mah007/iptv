@@ -185,6 +185,28 @@ test("adding a TV app asks for the password again once the confirmation is old",
 
   const done = page.getByRole("dialog", { name: "Your TV app login" });
   await expect(done).toBeVisible();
+
+  // The setup card (G-25, ADR-0024): printed from the browser, the card alone on the page.
+  // The print dialog itself is stubbed: what matters is what the page would print.
+  await page.evaluate(() => {
+    window.print = () => undefined;
+  });
+  await done.getByRole("button", { name: "Print setup card" }).click();
+  // Off screen until the page is printed.
+  const waiting = page.locator("[data-print-root] [data-slot='setup-card']");
+  await expect(waiting).toBeAttached();
+  await expect(waiting).toBeHidden();
+  await page.emulateMedia({ media: "print" });
+  const card = page.getByRole("article", { name: "TV app setup card" });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("Keep this card private");
+  await expect(
+    card.getByRole("img", { name: "QR code with the server, username and password" }),
+  ).toBeVisible();
+  await expect(done).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
+  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+  await expect(waiting).toHaveCount(0);
   await done.getByRole("button", { name: "Done" }).click();
 
   // Leave the account as it was: the login is removed again (no confirmation needed).

@@ -110,6 +110,8 @@ class EpisodeOrdering(models.TextChoices):
     TMDB_DEFAULT = "tmdb_default", "TMDB default"
     TVDB_AIRED = "tvdb_aired", "TVDB aired"
     TVDB_DVD = "tvdb_dvd", "TVDB DVD"
+    #: TheTVDB's absolute numbers mapped onto TMDB's seasons (TMDB series only, ADR-0024).
+    TVDB_ABSOLUTE = "tvdb_absolute", "TVDB absolute"
 
 
 class Title(BaseModel):

@@ -1043,6 +1043,14 @@ _DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("antisharing.notify_admins", _K.BOOL, True,
                "Tell the admins (alert recipients and Telegram) when a customer is flagged.",
                "antisharing"),
+    # G-17's byte flagging (ADR-0024): bytes served per session against the title.
+    SettingDef("antisharing.bytes_ratio", _K.FLOAT, 4.0,
+               "A movie or episode session served more than this many times the bytes its "
+               "runtime and rendition bitrate explain counts as a sharing or ripping signal.",
+               "antisharing", min_value=1.5, max_value=50.0),
+    SettingDef("antisharing.bytes_min_mb", _K.INT, 500,
+               "Sessions that were served less than this, in MB, are never checked against "
+               "their title.", "antisharing", min_value=16, max_value=100000),
     SettingDef("privacy.antisharing_retention_days", _K.INT, 90,
                "Days the networks and countries seen per customer (anti-sharing evidence) "
                "are kept.", "privacy", min_value=7, max_value=3650),

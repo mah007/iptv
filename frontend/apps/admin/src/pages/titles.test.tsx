@@ -124,6 +124,47 @@ describe("movies and series", () => {
     expect(await screen.findByRole("button", { name: "Show" })).toBeTruthy();
   });
 
+  it("lets a TMDB series read file names in TheTVDB's order (ADR-0024)", async () => {
+    const tmdbSeries = seriesDetail({ metadata_source: "tmdb", tvdb_id: 81189 });
+    const api = mockApi(
+      mediaSignedIn({
+        "GET /api/v1/admin/series/series-1": { body: tmdbSeries },
+        "PATCH /api/v1/admin/series/series-1": {
+          body: { ...tmdbSeries, episode_ordering: "tvdb_absolute" },
+        },
+      }),
+    );
+    const { user } = renderApp("/series/series-1");
+    const order = await screen.findByRole("combobox", { name: "Episode order" });
+    await user.click(order);
+    await user.click(
+      await screen.findByRole("option", { name: "File names in TheTVDB's absolute order" }),
+    );
+    expect(
+      (
+        await screen.findAllByText(
+          "Episode order changed. The series' files are being placed again.",
+        )
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(api.sent("PATCH", "/api/v1/admin/series/series-1")[0]?.body).toEqual({
+      episode_ordering: "tvdb_absolute",
+    });
+  });
+
+  it("keeps TMDB's order when TMDB doesn't know the TheTVDB id", async () => {
+    mockApi(
+      mediaSignedIn({
+        "GET /api/v1/admin/series/series-1": {
+          body: seriesDetail({ metadata_source: "tmdb", tvdb_id: null }),
+        },
+      }),
+    );
+    renderApp("/series/series-1");
+    expect(await screen.findByText("Episode order")).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "Episode order" })).toBeNull();
+  });
+
   it("shows a series' seasons with each episode's file or its absence", async () => {
     mockApi(mediaSignedIn({ "GET /api/v1/admin/series/series-1": { body: seriesDetail() } }));
     renderApp("/series/series-1");

@@ -4159,6 +4159,94 @@ export const useCustomersReactivate = <TError = ErrorType<Problem>, TContext = u
   return useMutation(getCustomersReactivateMutationOptions(options), queryClient);
 };
 
+export const getCustomersResetMfaUrl = (id: string) => {
+  return `/api/v1/admin/customers/${encodeURIComponent(String(id))}/reset-mfa`;
+};
+
+/**
+ * POST /api/v1/admin/customers/{id}/reset-mfa (admin host; ADR-0024): support's
+ * recovery for a customer who lost their authenticator app. Their next sign-in needs
+ * the password alone; audited as `customer.mfa_reset`.
+ * @summary Switch a customer's two-factor sign-in off (support's recovery)
+ */
+export const customersResetMfa = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<void> => {
+  return apiFetch<void>(getCustomersResetMfaUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCustomersResetMfaMutationKey = () => ["customersResetMfa"] as const;
+
+export const getCustomersResetMfaMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof customersResetMfa>>,
+    TError,
+    CustomersResetMfaMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof customersResetMfa>>,
+  TError,
+  CustomersResetMfaMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCustomersResetMfaMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof customersResetMfa>>,
+    CustomersResetMfaMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return customersResetMfa(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CustomersResetMfaMutationResult = NonNullable<
+  Awaited<ReturnType<typeof customersResetMfa>>
+>;
+
+export type CustomersResetMfaMutationError = ErrorType<Problem>;
+export type CustomersResetMfaMutationVariables = { id: string };
+
+/**
+ * @summary Switch a customer's two-factor sign-in off (support's recovery)
+ */
+export const useCustomersResetMfa = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof customersResetMfa>>,
+      TError,
+      CustomersResetMfaMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof customersResetMfa>>,
+  TError,
+  CustomersResetMfaMutationVariables,
+  TContext
+> => {
+  return useMutation(getCustomersResetMfaMutationOptions(options), queryClient);
+};
+
 export const getCustomersRiskUrl = (id: string) => {
   return `/api/v1/admin/customers/${encodeURIComponent(String(id))}/risk`;
 };

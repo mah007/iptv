@@ -382,6 +382,17 @@
       "subscription": "Subscription",
       "profile": "Access profile",
       "none": "No subscription"
+    },
+    "twoFactor": {
+      "title": "Two-factor sign-in",
+      "on": "On",
+      "off": "Off",
+      "onHint": "The customer signs in to the portal and apps with their password and an authenticator code. TV logins are not affected.",
+      "offHint": "The customer can switch it on in the portal (Account). Their password alone signs them in.",
+      "reset": "Switch two-factor off",
+      "resetTitle": "Switch off two-factor sign-in for {{name}}?",
+      "resetDescription": "For a customer who lost their phone. Check who is asking first: afterwards their password alone signs them in, until they set it up again. This is recorded in the audit log.",
+      "resetDone": "Two-factor sign-in is off for {{name}}."
     }
   },
   "credential": {
@@ -776,7 +787,10 @@
       "transcode_job_priority": "Transcode priority changed",
       "transcode_job_retry": "Transcode job retried",
       "monitoring_sign_in": "Monitoring opened",
-      "monitoring_fire_drill": "Alert fire drill"
+      "monitoring_fire_drill": "Alert fire drill",
+      "customer_mfa_enable": "Customer two-factor on",
+      "customer_mfa_disable": "Customer two-factor off",
+      "customer_mfa_reset": "Customer two-factor reset by support"
     },
     "targets": {
       "accounts_user": "User",
@@ -1688,6 +1702,14 @@
         "notify_admins": {
           "label": "Tell the admins",
           "description": "Tell the admins (alert recipients and Telegram) when a customer is flagged."
+        },
+        "bytes_ratio": {
+          "label": "Bytes per session, times the title",
+          "description": "A movie or episode session served more than this many times the bytes its runtime and rendition bitrate explain counts as a sharing or ripping signal."
+        },
+        "bytes_min_mb": {
+          "label": "Check sessions from (MB)",
+          "description": "Sessions that were served less than this, in MB, are never checked against their title."
         }
       },
       "legal": {
@@ -2038,7 +2060,9 @@
       "categories": "Categories",
       "tvdb": "TheTVDB",
       "ordering": "Episode order",
-      "orderingSaved": "Episode order changed. The series is being fetched again."
+      "orderingSaved": "Episode order changed. The series is being fetched again.",
+      "orderingReplaced": "Episode order changed. The series' files are being placed again.",
+      "orderingHint": "Files named after the DVDs or with absolute numbers are mapped to TMDB's episodes through TheTVDB."
     },
     "files": {
       "title": "Files",
@@ -2089,7 +2113,13 @@
     "orderings": {
       "tmdb_default": "TMDB",
       "tvdb_aired": "TheTVDB aired order",
-      "tvdb_dvd": "TheTVDB DVD order"
+      "tvdb_dvd": "TheTVDB DVD order",
+      "tvdb_absolute": "TheTVDB absolute order"
+    },
+    "tmdbOrderings": {
+      "tmdb_default": "TMDB (as aired)",
+      "tvdb_dvd": "File names in TheTVDB's DVD order",
+      "tvdb_absolute": "File names in TheTVDB's absolute order"
     }
   },
   "review": {
@@ -2114,7 +2144,8 @@
       "no_candidates": "No candidates",
       "classification": "Movie or episode?",
       "numbering": "No episode number",
-      "episode_not_found": "Episode not found"
+      "episode_not_found": "Episode not found",
+      "tvdb_unavailable": "Needs TheTVDB"
     },
     "skip": "Skip",
     "skippedToast": "File skipped",
@@ -2431,7 +2462,9 @@
     "password_too_similar": "This password is too close to your name or email.",
     "too_long": "Too long: keep it under {{max}} characters.",
     "invalid_ingest_user": "Use 1 to 64 letters, digits, dots, dashes or underscores.",
-    "invalid_ingest_password": "Use 8 to 200 printable characters without spaces."
+    "invalid_ingest_password": "Use 8 to 200 printable characters without spaces.",
+    "ordering_needs_tvdb_id": "TMDB doesn't know this series' TheTVDB id, so TheTVDB's orders can't apply.",
+    "placement_tvdb_unavailable": "This series follows a TheTVDB order: save a TheTVDB key in Settings → Integrations, then try again."
   },
   "activity": {
     "label": "Activity",
@@ -4330,7 +4363,8 @@
       "asns_24h": "Providers in the last 24 hours",
       "countries_24h": "Countries in the last 24 hours",
       "impossible_travel": "Impossible journeys",
-      "networks_per_credential_1h": "Networks per TV app login (1 hour)"
+      "networks_per_credential_1h": "Networks per TV app login (1 hour)",
+      "excess_bytes_24h": "Sessions served too many bytes (24 h)"
     },
     "travel": "{{from}} → {{to}}: {{km}} km in {{hours}} h",
     "actions": {
@@ -4385,6 +4419,18 @@
       "noteLabel": "Note (optional)",
       "confirm": "Mark reviewed",
       "done": "Flag marked reviewed."
+    },
+    "excess": {
+      "title": "Sessions served too many bytes",
+      "description": "Movies and episodes served far more than their runtime and bitrate explain, in the last 7 days: a shared link or a file pulled again and again. Nothing is blocked.",
+      "empty": "No session was served more than its title explains.",
+      "titleColumn": "Title",
+      "served": "Served",
+      "expected": "Its title explains",
+      "ratio": "Ratio",
+      "detected": "Detected",
+      "playing": "Playing",
+      "times": "{{ratio}}×"
     }
   },
   "geoip": {

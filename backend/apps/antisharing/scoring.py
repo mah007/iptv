@@ -15,6 +15,9 @@ The signals, over rolling windows:
 - **Networks per IPTV login in 1 h:** networks of the same ASN count once unless they
   were used at the same time, so an ISP changing the address within one provider or city
   is ignored (§11.1).
+- **Sessions served too many bytes in 24 h** (G-17, ADR-0024): movie or episode sessions
+  served at least `antisharing.bytes_ratio` times what the title's runtime and bitrate
+  explain (`apps.antisharing.bytes`); every one counts.
 
 Unknown ASNs count per network; local network sightings (no ASN, no country) are left
 out. Flags never lock an account: the score only decides what the admin sees.
@@ -37,6 +40,9 @@ WEIGHTS: Final = {
     "countries_24h": 2,
     "impossible_travel": 3,
     "networks_per_credential_1h": 2,
+    # G-17 (ADR-0024): one session served far more than its title explains flags alone
+    # at the default `antisharing.flag_score`.
+    "excess_bytes_24h": 4,
 }
 MAX_TRAVEL_EVENTS: Final = 3
 EARTH_RADIUS_KM: Final = 6371.0
@@ -218,7 +224,9 @@ def networks_per_credential(sightings: Iterable[Seen]) -> int:
     return best
 
 
-def assess(sightings: Iterable[Seen], now: datetime, limits: Limits) -> Assessment:
+def assess(
+    sightings: Iterable[Seen], now: datetime, limits: Limits, *, excess_sessions: int = 0
+) -> Assessment:
     window_24h = [s for s in sightings if s.last >= now - timedelta(hours=24)]
     window_24h = [s for s in window_24h if not _is_local(s)]
     window_1h = [s for s in window_24h if s.last >= now - timedelta(hours=1)]
@@ -242,6 +250,7 @@ def assess(sightings: Iterable[Seen], now: datetime, limits: Limits) -> Assessme
             networks_per_credential(window_1h),
             limits.max_networks_per_credential_1h,
         ),
+        _signal("excess_bytes_24h", max(0, excess_sessions), 0),
     )
     score = sum(signal.points for signal in signals)
     return Assessment(score, score >= limits.flag_score, signals, tuple(travel))

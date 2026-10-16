@@ -1,0 +1,43 @@
+{
+  "path": "/login",
+  "responses": {
+    "GET /api/v1/branding [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    },
+    "GET /api/v1/branding [ar]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    }
+  }
+}

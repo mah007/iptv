@@ -1,0 +1,191 @@
+{
+  "path": "/live",
+  "responses": {
+    "GET /api/v1/me [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a141a7-14c1-73ef-bd76-2e078c580fe4",
+        "username": "e2e-portal",
+        "name": "Portal end-to-end checks",
+        "email": "e2e-portal@example.com",
+        "phone": "",
+        "locale": "en",
+        "timezone": "Asia/Riyadh",
+        "marketing_opt_in": false,
+        "status": "active",
+        "mfa_enabled": false,
+        "access": {
+          "status": "active",
+          "expires_at": null,
+          "max_streams": 1,
+          "max_devices": 2,
+          "max_quality": 1080,
+          "allow_movies": true,
+          "allow_series": true,
+          "allow_live": true
+        }
+      }
+    },
+    "GET /api/v1/branding [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    },
+    "GET /api/v1/me/subscription [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "subscription": null,
+        "pending": null
+      }
+    },
+    "GET /api/v1/live/channels [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "groups": [
+          {
+            "id": "01a1418b-a0b1-7767-a286-1d8d04074349",
+            "name": "Showcase"
+          }
+        ],
+        "channels": [
+          {
+            "id": "01a1418b-a0bc-7a29-9aa0-b0189b0dd3c2",
+            "number": 16,
+            "name": "Test Pattern",
+            "logo_url": null,
+            "group_id": "01a1418b-a0b1-7767-a286-1d8d04074349",
+            "catchup_days": 1,
+            "archive_from": "2026-10-16T08:00:00.112000Z",
+            "web_playable": true,
+            "now": {
+              "id": "1503374412888473",
+              "title": "Studio Notes",
+              "description": "Short notes from the production team.",
+              "start": "2026-10-16T11:00:00Z",
+              "stop": "2026-10-16T11:30:00Z",
+              "catchup": false
+            },
+            "next": {
+              "id": "4111393516068874",
+              "title": "Inside the Studio",
+              "description": "How a title reaches your screen.",
+              "start": "2026-10-16T11:30:00Z",
+              "stop": "2026-10-16T12:00:00Z",
+              "catchup": false
+            }
+          }
+        ]
+      }
+    },
+    "GET /api/v1/me [ar]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a141a7-14c1-73ef-bd76-2e078c580fe4",
+        "username": "e2e-portal",
+        "name": "Portal end-to-end checks",
+        "email": "e2e-portal@example.com",
+        "phone": "",
+        "locale": "en",
+        "timezone": "Asia/Riyadh",
+        "marketing_opt_in": false,
+        "status": "active",
+        "mfa_enabled": false,
+        "access": {
+          "status": "active",
+          "expires_at": null,
+          "max_streams": 1,
+          "max_devices": 2,
+          "max_quality": 1080,
+          "allow_movies": true,
+          "allow_series": true,
+          "allow_live": true
+        }
+      }
+    },
+    "GET /api/v1/branding [ar]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    },
+    "GET /api/v1/me/subscription [ar]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "subscription": null,
+        "pending": null
+      }
+    },
+    "GET /api/v1/live/channels [ar]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "groups": [
+          {
+            "id": "01a1418b-a0b1-7767-a286-1d8d04074349",
+            "name": "عروض"
+          }
+        ],
+        "channels": [
+          {
+            "id": "01a1418b-a0bc-7a29-9aa0-b0189b0dd3c2",
+            "number": 16,
+            "name": "نمط الاختبار",
+            "logo_url": null,
+            "group_id": "01a1418b-a0b1-7767-a286-1d8d04074349",
+            "catchup_days": 1,
+            "archive_from": "2026-10-16T08:00:00.112000Z",
+            "web_playable": true,
+            "now": {
+              "id": "1503374412888473",
+              "title": "ملاحظات الاستوديو",
+              "description": "Short notes from the production team.",
+              "start": "2026-10-16T11:00:00Z",
+              "stop": "2026-10-16T11:30:00Z",
+              "catchup": false
+            },
+            "next": {
+              "id": "4111393516068874",
+              "title": "داخل الاستوديو",
+              "description": "How a title reaches your screen.",
+              "start": "2026-10-16T11:30:00Z",
+              "stop": "2026-10-16T12:00:00Z",
+              "catchup": false
+            }
+          }
+        ]
+      }
+    }
+  }
+}

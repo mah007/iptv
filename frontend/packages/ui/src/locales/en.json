@@ -233,5 +233,25 @@
     "naturalEarth": "Country locations for travel checks: Natural Earth (public domain).",
     "tvdb": "Metadata provided by TheTVDB. Please consider adding missing information or subscribing.",
     "tvdbShort": "Metadata provided by TheTVDB"
+  },
+  "setupCard": {
+    "print": "Print setup card",
+    "includePassword": "Include the password",
+    "title": "TV app setup card",
+    "device": "For: {{name}}",
+    "server": "Server",
+    "username": "Username",
+    "password": "Password",
+    "passwordNotPrinted": "Not printed: use the one you saved",
+    "qrHint": "Scan with the app, or type the details in.",
+    "qrWithPassword": "QR code with the server, username and password",
+    "qrWithoutPassword": "QR code with the server and username",
+    "steps": {
+      "app": "Open your IPTV app on the TV or phone.",
+      "xtream": "Choose to add a playlist with an Xtream Codes login.",
+      "enter": "Enter the server, username and password above, or scan the code."
+    },
+    "keepSafe": "Keep this card private: anyone who has it can watch on your account.",
+    "printedAt": "Printed {{date}}"
   }
 }

@@ -1,6 +1,7 @@
 """Admin API of anti-sharing and IP geolocation (SPEC §11.1; G-27, ADR-0021).
 
-- GET  customers/{id}/risk                    flag, live assessment and 7 days of sightings
+- GET  customers/{id}/risk                    flag, live assessment, 7 days of sightings and
+                                              of sessions served too many bytes (G-17)
 - POST customers/{id}/risk/review             mark the open flag reviewed (with a note)
 - POST customers/{id}/risk/warn               ladder step 1: warn the customer
 - POST customers/{id}/risk/reset-credentials  ladder step 2: every IPTV login reset (step-up)
@@ -23,7 +24,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.accounts.permissions import HasPermission, Requirements
 from apps.antisharing import services
-from apps.antisharing.models import Sighting
+from apps.antisharing.models import ExcessBytes, Sighting
 from apps.antisharing.serializers import (
     GeoIpQueuedSerializer,
     GeoIpStatusSerializer,
@@ -41,6 +42,7 @@ from apps.core.schema import problems
 from apps.core.services import get_setting
 
 SIGHTINGS_SHOWN = 200
+EXCESS_SHOWN = 50
 
 
 class AdminView(APIView):
@@ -74,6 +76,11 @@ class CustomerRiskView(AdminView):
             "flag": services.open_flag(user) or services.latest_flag(user),
             "assessment": services.assess(user.pk, now).as_dict(),
             "sightings": list(sightings),
+            "excess_bytes": list(
+                ExcessBytes.objects.filter(user=user, detected_at__gte=now - timedelta(days=7))
+                .select_related("device", "session")
+                .order_by("-detected_at")[:EXCESS_SHOWN]
+            ),
             "attribution_url": geoip.ATTRIBUTION_URL,
         }
         return Response(RiskOverviewSerializer(body).data)

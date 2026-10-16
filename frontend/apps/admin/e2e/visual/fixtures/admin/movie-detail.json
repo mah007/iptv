@@ -1,0 +1,1277 @@
+{
+  "path": "/movies/01a1418b-1824-7cd5-b113-f59f97b57da7",
+  "responses": {
+    "GET /api/v1/auth/me [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a1418e-9530-72bc-b1e0-2dd15c97fd8a",
+        "username": "e2e-admin",
+        "name": "End-to-end checks",
+        "email": "e2e-admin@example.test",
+        "locale": "ar",
+        "timezone": "Asia/Riyadh",
+        "mfa_enabled": true,
+        "roles": [
+          "owner"
+        ],
+        "permissions": [
+          "admins.manage",
+          "audit.view",
+          "backups.run",
+          "backups.view",
+          "billing.manage",
+          "billing.refund",
+          "billing.view",
+          "customers.edit",
+          "customers.view",
+          "dashboard.view",
+          "devices.manage",
+          "edges.manage",
+          "edges.view",
+          "library.manage",
+          "library.review",
+          "library.view",
+          "lockouts.manage",
+          "lockouts.view",
+          "monitoring.view",
+          "notifications.manage",
+          "notifications.view",
+          "plans.edit",
+          "plans.view",
+          "roles.manage",
+          "sessions.kill",
+          "settings.edit",
+          "settings.view",
+          "subscriptions.edit",
+          "subscriptions.view"
+        ],
+        "idle_timeout_min": 30,
+        "step_up_window_min": 5,
+        "step_up_until": "2026-10-16T11:15:00+00:00",
+        "mfa_methods": [
+          "totp"
+        ],
+        "webauthn_enrolment_required": false
+      }
+    },
+    "GET /api/v1/branding [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "service_name": {
+          "en": "Smart IPTV",
+          "ar": "سمارت IPTV"
+        },
+        "accent_color": "#0F766E",
+        "logo_light_url": null,
+        "logo_dark_url": null,
+        "support": {
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        },
+        "default_language": "ar"
+      }
+    },
+    "GET /api/v1/admin/review-queue?page_size=1&status=open [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 0,
+        "next": null,
+        "previous": null,
+        "results": []
+      }
+    },
+    "GET /api/v1/admin/dashboard/kpis [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "customers_total": 7,
+        "customers_active": 7,
+        "customers_grace": 0,
+        "customers_expired": 0,
+        "customers_suspended": 0,
+        "expiring_7d": 0,
+        "devices_total": 52,
+        "devices_blocked": 0,
+        "streams_now": 0,
+        "stream_users_now": 0,
+        "reviews_open": 0,
+        "transcode_queued": 0,
+        "transcode_running": 0,
+        "transcode_failed_24h": 0,
+        "as_of": "2026-10-16T11:10:34.192424Z"
+      }
+    },
+    "GET /api/v1/admin/movies?page_size=48 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 4,
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "id": "01a1418b-1824-7cd5-b113-f59f97b57da7",
+            "xc_id": 1,
+            "tmdb_id": 335984,
+            "title": "Blade Runner 2049",
+            "title_ar": "بليد رانر 2049",
+            "original_title": "Blade Runner 2049",
+            "year": 2017,
+            "status": "ready",
+            "rating": 7.6,
+            "popularity": 60.3,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-18d2-766f-972c-82426be39f3c",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.64df253a33e059ad.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.7d4a79f384540c70.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.6165dfd8cedb8823.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.bbe394486159c67b.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.2841860eba57f050.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TF7yYLo#fQxhj=fQj[fQfQoyfjfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+                "kind": "vod",
+                "name_en": "Science Fiction",
+                "name_ar": "خيال علمي"
+              },
+              {
+                "id": "01a1418b-1832-7e19-9b7b-6729cf762062",
+                "kind": "vod",
+                "name_en": "Drama",
+                "name_ar": "دراما"
+              }
+            ],
+            "file_count": 1,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:57.157158Z",
+            "updated_at": "2026-10-15T21:50:29.242503Z",
+            "runtime_min": 164
+          },
+          {
+            "id": "01a1418b-1ec8-7b91-acfd-47d5c530b780",
+            "xc_id": 14,
+            "tmdb_id": 27205,
+            "title": "Inception",
+            "title_ar": "استهلال",
+            "original_title": "Inception",
+            "year": 2010,
+            "status": "ready",
+            "rating": 8.4,
+            "popularity": 95.2,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-1f98-7823-a7a9-b6f04fa91674",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.208190dfd7c809c7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w185.14369a65e344e01e.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.a8acb0898f74a77d.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/w500.8a3a486b0b67d5a5.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.c63d09131325c786.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1ec8-7b91-acfd-47d5c530b780/poster/original.960ca1e278965b5a.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TZEUi^s;fQ}VoKfQ$hjtfQxGjtfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+                "kind": "vod",
+                "name_en": "Science Fiction",
+                "name_ar": "خيال علمي"
+              },
+              {
+                "id": "01a1418b-1ce3-7649-a77d-e9750e97c760",
+                "kind": "vod",
+                "name_en": "Action",
+                "name_ar": "أكشن"
+              },
+              {
+                "id": "01a1418b-1ed0-70c4-82ec-7bc9664f3180",
+                "kind": "vod",
+                "name_en": "Adventure",
+                "name_ar": "مغامرة"
+              }
+            ],
+            "file_count": 1,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:58.857238Z",
+            "updated_at": "2026-10-15T21:50:36.724652Z",
+            "runtime_min": 148
+          },
+          {
+            "id": "01a1418b-1cd9-7e14-90b9-19db3f129568",
+            "xc_id": 10,
+            "tmdb_id": 603,
+            "title": "The Matrix",
+            "title_ar": "المصفوفة",
+            "original_title": "The Matrix",
+            "year": 1999,
+            "status": "ready",
+            "rating": 8.2,
+            "popularity": 80.5,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-1d6c-7ec5-8617-491201e07f0d",
+              "kind": "poster",
+              "language": "en",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.24c05e59cb519f46.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w185.4c18d4522e0e0cb8.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.da65c1122baf21f7.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/w500.d87f46a06f872703.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.0773333b6aef41f4.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-1cd9-7e14-90b9-19db3f129568/poster/original.9b0cbe4b95e5f839.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TEF.^%$ifQ3fW.fQkUfjfQovfjfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+                "kind": "vod",
+                "name_en": "Science Fiction",
+                "name_ar": "خيال علمي"
+              },
+              {
+                "id": "01a1418b-1ce3-7649-a77d-e9750e97c760",
+                "kind": "vod",
+                "name_en": "Action",
+                "name_ar": "أكشن"
+              }
+            ],
+            "file_count": 2,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:58.362039Z",
+            "updated_at": "2026-10-15T21:50:35.668840Z",
+            "runtime_min": 136
+          },
+          {
+            "id": "01a1418b-2100-7526-afb8-ae7717697e19",
+            "xc_id": 15,
+            "tmdb_id": 129112,
+            "title": "Wadjda",
+            "title_ar": "وجدة",
+            "original_title": "وجدة",
+            "year": 2012,
+            "status": "ready",
+            "rating": 7.2,
+            "popularity": 9.1,
+            "metadata_source": "synthetic",
+            "synthetic": true,
+            "poster": {
+              "id": "01a1418b-2203-75b0-834b-05fa5f348683",
+              "kind": "poster",
+              "language": "ar",
+              "url": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w500.aa6220c5e4b28d6e.webp",
+              "sizes": {
+                "w185": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w185.d9605d09876ce55b.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w185.73d47f482e605f12.webp"
+                },
+                "w500": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w500.37da93bcd84f11af.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/w500.aa6220c5e4b28d6e.webp"
+                },
+                "original": {
+                  "avif": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/original.0526026c99d2a9d2.avif",
+                  "webp": "http://media.localhost:8080/images/movie/01a1418b-2100-7526-afb8-ae7717697e19/poster/original.565984484b25d24f.webp"
+                }
+              },
+              "width": 600,
+              "height": 900,
+              "blurhash": "TnHDJ:t6fQ3uX4fQxaj[fQXgfjfQ",
+              "is_primary": true
+            },
+            "categories": [
+              {
+                "id": "01a1418b-1832-7e19-9b7b-6729cf762062",
+                "kind": "vod",
+                "name_en": "Drama",
+                "name_ar": "دراما"
+              }
+            ],
+            "file_count": 1,
+            "has_arabic_overview": true,
+            "created_at": "2026-10-15T21:49:59.426645Z",
+            "updated_at": "2026-10-15T21:50:36.904738Z",
+            "runtime_min": 98
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/libraries?page_size=100 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 2,
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "id": "01a1418b-16dc-711e-8b94-1fa58d23097e",
+            "name": "Movies",
+            "kind": "movies",
+            "path": "/media/movies",
+            "processing_policy": "ingest",
+            "default_categories": [],
+            "scan_interval_min": 15,
+            "enabled": true,
+            "last_scan_at": "2026-10-16T11:07:03.467267Z",
+            "stats": {
+              "files": 5,
+              "bytes": 14411076,
+              "movies": 4,
+              "series": 0,
+              "episodes": 0,
+              "review": 0,
+              "errors": 0,
+              "pending": 0
+            },
+            "last_scan": {
+              "id": "01a14464-dd95-79e3-883f-5b5fe4ba4567",
+              "library": {
+                "id": "01a1418b-16dc-711e-8b94-1fa58d23097e",
+                "name": "Movies"
+              },
+              "trigger": "manual",
+              "status": "done",
+              "path": "",
+              "found": 5,
+              "new": 0,
+              "changed": 0,
+              "moved": 0,
+              "removed": 0,
+              "errors": 0,
+              "started_at": "2026-10-16T11:07:03.461373Z",
+              "finished_at": "2026-10-16T11:07:03.477718Z",
+              "log": "",
+              "created_at": "2026-10-16T11:07:03.445888Z"
+            },
+            "created_at": "2026-10-15T21:49:56.828425Z",
+            "updated_at": "2026-10-16T11:07:03.476820Z"
+          },
+          {
+            "id": "01a1418b-171f-7be4-9040-cb7794c1b8ea",
+            "name": "Series",
+            "kind": "series",
+            "path": "/media/series",
+            "processing_policy": "ingest",
+            "default_categories": [],
+            "scan_interval_min": 15,
+            "enabled": true,
+            "last_scan_at": "2026-10-16T11:07:07.869652Z",
+            "stats": {
+              "files": 3,
+              "bytes": 8334008,
+              "movies": 0,
+              "series": 2,
+              "episodes": 4,
+              "review": 0,
+              "errors": 0,
+              "pending": 0
+            },
+            "last_scan": {
+              "id": "01a14464-eec4-75cf-bcbb-6b2a52dcd687",
+              "library": {
+                "id": "01a1418b-171f-7be4-9040-cb7794c1b8ea",
+                "name": "Series"
+              },
+              "trigger": "schedule",
+              "status": "done",
+              "path": "",
+              "found": 3,
+              "new": 0,
+              "changed": 0,
+              "moved": 0,
+              "removed": 0,
+              "errors": 0,
+              "started_at": "2026-10-16T11:07:07.860810Z",
+              "finished_at": "2026-10-16T11:07:07.882021Z",
+              "log": "",
+              "created_at": "2026-10-16T11:07:07.844597Z"
+            },
+            "created_at": "2026-10-15T21:49:56.895486Z",
+            "updated_at": "2026-10-16T11:07:07.880516Z"
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/categories?kind=vod&page_size=100 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "count": 4,
+        "next": null,
+        "previous": null,
+        "results": [
+          {
+            "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+            "xc_id": 1,
+            "kind": "vod",
+            "name_en": "Science Fiction",
+            "name_ar": "خيال علمي",
+            "slug": "sci-fi",
+            "sort": 10,
+            "is_adult": false,
+            "visible_in_xtream": true,
+            "icon": "",
+            "parent": null
+          },
+          {
+            "id": "01a1418b-1832-7e19-9b7b-6729cf762062",
+            "xc_id": 2,
+            "kind": "vod",
+            "name_en": "Drama",
+            "name_ar": "دراما",
+            "slug": "drama",
+            "sort": 20,
+            "is_adult": false,
+            "visible_in_xtream": true,
+            "icon": "",
+            "parent": null
+          },
+          {
+            "id": "01a1418b-1ce3-7649-a77d-e9750e97c760",
+            "xc_id": 5,
+            "kind": "vod",
+            "name_en": "Action",
+            "name_ar": "أكشن",
+            "slug": "action",
+            "sort": 30,
+            "is_adult": false,
+            "visible_in_xtream": true,
+            "icon": "",
+            "parent": null
+          },
+          {
+            "id": "01a1418b-1ed0-70c4-82ec-7bc9664f3180",
+            "xc_id": 6,
+            "kind": "vod",
+            "name_en": "Adventure",
+            "name_ar": "مغامرة",
+            "slug": "adventure",
+            "sort": 40,
+            "is_adult": false,
+            "visible_in_xtream": true,
+            "icon": "",
+            "parent": null
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/movies/01a1418b-1824-7cd5-b113-f59f97b57da7 [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "id": "01a1418b-1824-7cd5-b113-f59f97b57da7",
+        "xc_id": 1,
+        "tmdb_id": 335984,
+        "imdb_id": "tt1856101",
+        "title": "Blade Runner 2049",
+        "title_ar": "بليد رانر 2049",
+        "original_title": "Blade Runner 2049",
+        "alt_titles": [
+          "بليد رانر 2049"
+        ],
+        "overview": "Synthetic overview of Blade Runner 2049 for offline testing; not TMDB text.",
+        "overview_ar": "ملخص اصطناعي للاختبار دون اتصال؛ ليس نصًا من TMDB.",
+        "tagline": "Synthetic tagline.",
+        "tagline_ar": "شعار اصطناعي للاختبار.",
+        "year": 2017,
+        "rating": 7.6,
+        "vote_count": 14000,
+        "certification": "R18",
+        "original_language": "en",
+        "countries": [
+          "US"
+        ],
+        "trailer_youtube_key": "",
+        "popularity": 60.3,
+        "status": "ready",
+        "featured": false,
+        "rights_holder": "",
+        "license_ref": "",
+        "license_expires_at": null,
+        "metadata_source": "synthetic",
+        "synthetic": true,
+        "metadata_locked_fields": [],
+        "metadata_refreshed_at": "2026-10-15T21:49:57.156563Z",
+        "genres": [
+          {
+            "id": "01a1418b-182c-7fc1-97f3-6f6eba7167e7",
+            "tmdb_id": 18,
+            "name_en": "Drama",
+            "name_ar": "دراما"
+          },
+          {
+            "id": "01a1418b-182b-7146-bb6e-5ea9fe89ceb5",
+            "tmdb_id": 878,
+            "name_en": "Science Fiction",
+            "name_ar": "خيال علمي"
+          }
+        ],
+        "categories": [
+          {
+            "id": "01a1418b-1831-7ec8-9d83-03a807673fa6",
+            "kind": "vod",
+            "name_en": "Science Fiction",
+            "name_ar": "خيال علمي"
+          },
+          {
+            "id": "01a1418b-1832-7e19-9b7b-6729cf762062",
+            "kind": "vod",
+            "name_en": "Drama",
+            "name_ar": "دراما"
+          }
+        ],
+        "images": [
+          {
+            "id": "01a1418b-199c-7b2b-a7d7-3870dfd9cd7f",
+            "kind": "backdrop",
+            "language": "",
+            "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.475440fb4943b83c.webp",
+            "sizes": {
+              "w780": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.739f56d8ef175438.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.475440fb4943b83c.webp"
+              },
+              "w1280": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.19d18e810281d20f.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.d64a5b9f819cf7b6.webp"
+              }
+            },
+            "width": 1280,
+            "height": 720,
+            "blurhash": "LWG+got7fQt7{Xn+fQn+wOjufQju",
+            "is_primary": true
+          },
+          {
+            "id": "01a1418b-19c1-7ff4-b513-84edf6e293f8",
+            "kind": "logo",
+            "language": "en",
+            "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w500.24717017bf53ecc6.webp",
+            "sizes": {
+              "w185": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w185.9d8f858a2d392411.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w185.8c1b6a9d3018d7ac.webp"
+              },
+              "w500": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w500.b97e7d102922f36e.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w500.24717017bf53ecc6.webp"
+              },
+              "original": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/original.b97e7d102922f36e.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/original.24717017bf53ecc6.webp"
+              }
+            },
+            "width": 500,
+            "height": 200,
+            "blurhash": "LGQQ|o-qfQ-qIia$fQa$NHazfQaz",
+            "is_primary": true
+          },
+          {
+            "id": "01a1418b-18d2-766f-972c-82426be39f3c",
+            "kind": "poster",
+            "language": "en",
+            "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp",
+            "sizes": {
+              "w185": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.64df253a33e059ad.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.7d4a79f384540c70.webp"
+              },
+              "w500": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.6165dfd8cedb8823.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp"
+              },
+              "original": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.bbe394486159c67b.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.2841860eba57f050.webp"
+              }
+            },
+            "width": 600,
+            "height": 900,
+            "blurhash": "TF7yYLo#fQxhj=fQj[fQfQoyfjfQ",
+            "is_primary": true
+          },
+          {
+            "id": "01a1418b-1930-712d-b662-77316806982f",
+            "kind": "poster",
+            "language": "ar",
+            "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.8f21ad2eba978267.webp",
+            "sizes": {
+              "w185": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.bdcd3ef834e44807.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.3ccba7e29950945d.webp"
+              },
+              "w500": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.fbba078b828f9792.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.8f21ad2eba978267.webp"
+              },
+              "original": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.51382212fab92313.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.32ed7cbf5c72dd80.webp"
+              }
+            },
+            "width": 600,
+            "height": 900,
+            "blurhash": "TxI^$espfQ}8oJfQxFjtfQw_jtfQ",
+            "is_primary": false
+          }
+        ],
+        "credits": [
+          {
+            "person": {
+              "id": "01a1418b-1834-763b-8838-2e3e8005e6c7",
+              "tmdb_id": 30614,
+              "name": "Ryan Gosling",
+              "name_ar": ""
+            },
+            "role": "cast",
+            "character": "K",
+            "order": 0
+          },
+          {
+            "person": {
+              "id": "01a1418b-1834-766f-94eb-9eece79cc63c",
+              "tmdb_id": 3,
+              "name": "Harrison Ford",
+              "name_ar": ""
+            },
+            "role": "cast",
+            "character": "Rick Deckard",
+            "order": 1
+          },
+          {
+            "person": {
+              "id": "01a1418b-1834-7016-97ed-660f4e1de328",
+              "tmdb_id": 224513,
+              "name": "Ana de Armas",
+              "name_ar": ""
+            },
+            "role": "cast",
+            "character": "Joi",
+            "order": 2
+          },
+          {
+            "person": {
+              "id": "01a1418b-1834-7a88-864a-29be2ef51efb",
+              "tmdb_id": 131,
+              "name": "Jared Leto",
+              "name_ar": ""
+            },
+            "role": "cast",
+            "character": "Niander Wallace",
+            "order": 3
+          },
+          {
+            "person": {
+              "id": "01a1418b-1834-7e0e-b66d-25af1855b492",
+              "tmdb_id": 137427,
+              "name": "Denis Villeneuve",
+              "name_ar": ""
+            },
+            "role": "director",
+            "character": "Director",
+            "order": 4
+          }
+        ],
+        "created_at": "2026-10-15T21:49:57.157158Z",
+        "updated_at": "2026-10-15T21:50:29.242503Z",
+        "release_date": "2017-10-04",
+        "runtime_min": 164,
+        "files": [
+          {
+            "id": "01a1418b-177d-7f10-8bcf-e0a97fc8b73a",
+            "library": {
+              "id": "01a1418b-16dc-711e-8b94-1fa58d23097e",
+              "name": "Movies"
+            },
+            "relative_path": "Blade.Runner.2049.2017.2160p.UHD.BluRay.x265.10bit.HDR.mkv",
+            "size": 3127322,
+            "mtime": "2026-10-03T21:42:15.392036Z",
+            "container": "mkv",
+            "duration_ms": 30000,
+            "bitrate": 833952,
+            "video_codec": "hevc",
+            "video_profile": "Main 10",
+            "video_level": 150,
+            "width": 3840,
+            "height": 2160,
+            "fps": 23.976,
+            "hdr": "hdr10",
+            "audio": [
+              {
+                "codec": "eac3",
+                "title": null,
+                "forced": false,
+                "default": true,
+                "channels": 6,
+                "language": "eng",
+                "stream_index": 1
+              }
+            ],
+            "subtitles": [],
+            "direct_play": false,
+            "match_confidence": 1,
+            "state": "matched",
+            "error": "",
+            "version_label": "",
+            "is_primary": true,
+            "removed_at": null,
+            "created_at": "2026-10-15T21:49:56.989278Z"
+          }
+        ]
+      }
+    },
+    "GET /api/v1/admin/titles/01a1418b-1824-7cd5-b113-f59f97b57da7/images [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "title": {
+          "kind": "movie",
+          "id": "01a1418b-1824-7cd5-b113-f59f97b57da7",
+          "name": "Blade Runner 2049"
+        },
+        "images": [
+          {
+            "id": "01a1418b-199c-7b2b-a7d7-3870dfd9cd7f",
+            "kind": "backdrop",
+            "language": "",
+            "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.475440fb4943b83c.webp",
+            "sizes": {
+              "w780": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.739f56d8ef175438.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w780.475440fb4943b83c.webp"
+              },
+              "w1280": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.19d18e810281d20f.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/backdrop/w1280.d64a5b9f819cf7b6.webp"
+              }
+            },
+            "width": 1280,
+            "height": 720,
+            "blurhash": "LWG+got7fQt7{Xn+fQn+wOjufQju",
+            "is_primary": true
+          },
+          {
+            "id": "01a1418b-19c1-7ff4-b513-84edf6e293f8",
+            "kind": "logo",
+            "language": "en",
+            "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w500.24717017bf53ecc6.webp",
+            "sizes": {
+              "w185": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w185.9d8f858a2d392411.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w185.8c1b6a9d3018d7ac.webp"
+              },
+              "w500": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w500.b97e7d102922f36e.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/w500.24717017bf53ecc6.webp"
+              },
+              "original": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/original.b97e7d102922f36e.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/logo/original.24717017bf53ecc6.webp"
+              }
+            },
+            "width": 500,
+            "height": 200,
+            "blurhash": "LGQQ|o-qfQ-qIia$fQa$NHazfQaz",
+            "is_primary": true
+          },
+          {
+            "id": "01a1418b-18d2-766f-972c-82426be39f3c",
+            "kind": "poster",
+            "language": "en",
+            "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp",
+            "sizes": {
+              "w185": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.64df253a33e059ad.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.7d4a79f384540c70.webp"
+              },
+              "w500": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.6165dfd8cedb8823.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.97a5cd176420f545.webp"
+              },
+              "original": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.bbe394486159c67b.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.2841860eba57f050.webp"
+              }
+            },
+            "width": 600,
+            "height": 900,
+            "blurhash": "TF7yYLo#fQxhj=fQj[fQfQoyfjfQ",
+            "is_primary": true
+          },
+          {
+            "id": "01a1418b-1930-712d-b662-77316806982f",
+            "kind": "poster",
+            "language": "ar",
+            "url": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.8f21ad2eba978267.webp",
+            "sizes": {
+              "w185": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.bdcd3ef834e44807.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w185.3ccba7e29950945d.webp"
+              },
+              "w500": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.fbba078b828f9792.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/w500.8f21ad2eba978267.webp"
+              },
+              "original": {
+                "avif": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.51382212fab92313.avif",
+                "webp": "http://media.localhost:8080/images/movie/01a1418b-1824-7cd5-b113-f59f97b57da7/poster/original.32ed7cbf5c72dd80.webp"
+              }
+            },
+            "width": 600,
+            "height": 900,
+            "blurhash": "TxI^$espfQ}8oJfQxFjtfQw_jtfQ",
+            "is_primary": false
+          }
+        ],
+        "alternatives": [
+          {
+            "kind": "backdrop",
+            "path": "/synthetic-movie-335984-backdrop-en-1280x720.jpg",
+            "language": "en",
+            "width": 1280,
+            "height": 720,
+            "preview_url": "https://image.tmdb.org/t/p/w185/synthetic-movie-335984-backdrop-en-1280x720.jpg"
+          }
+        ],
+        "alternatives_error": null
+      }
+    },
+    "GET /api/v1/admin/titles/01a1418b-1824-7cd5-b113-f59f97b57da7/renditions [en]": {
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "title": {
+          "kind": "movie",
+          "id": "01a1418b-1824-7cd5-b113-f59f97b57da7",
+          "name": "Blade Runner 2049"
+        },
+        "files": [
+          {
+            "id": "01a1418b-177d-7f10-8bcf-e0a97fc8b73a",
+            "relative_path": "Blade.Runner.2049.2017.2160p.UHD.BluRay.x265.10bit.HDR.mkv",
+            "library": "Movies",
+            "size": 3127322,
+            "duration_ms": 30000,
+            "video_codec": "hevc",
+            "width": 3840,
+            "height": 2160,
+            "hdr": "hdr10",
+            "is_primary": true,
+            "disk_bytes": 25603865,
+            "renditions": [
+              {
+                "id": "01a141cc-e548-70b7-9c57-5c1ebaf8bda7",
+                "kind": "compat_capped",
+                "name": "compat720",
+                "status": "ready",
+                "width": 1280,
+                "height": 720,
+                "bitrate": 1163277,
+                "codec": "h264",
+                "container": "mp4",
+                "size": 4366945,
+                "disk_bytes": 4366945,
+                "encoder_used": "copy",
+                "duration_s": 30.032,
+                "error": "",
+                "details": {
+                  "rung": "v1",
+                  "audio": 1,
+                  "ceiling": 720,
+                  "subtitles": 0
+                },
+                "ready_at": "2026-10-15T23:01:49.511310Z",
+                "created_at": "2026-10-15T23:01:49.512766Z"
+              },
+              {
+                "id": "01a1418b-1f0b-7295-8918-234c0ee27cd3",
+                "kind": "compat_mp4",
+                "name": "compat",
+                "status": "ready",
+                "width": 1920,
+                "height": 1080,
+                "bitrate": 874511,
+                "codec": "h264",
+                "container": "mp4",
+                "size": 3280622,
+                "disk_bytes": 3280622,
+                "encoder_used": "libx264",
+                "duration_s": 30.011,
+                "error": "",
+                "details": {
+                  "remux": false,
+                  "subtitles": 0
+                },
+                "ready_at": "2026-10-15T21:50:29.237640Z",
+                "created_at": "2026-10-15T21:49:58.923969Z"
+              },
+              {
+                "id": "01a1418b-1f13-71f9-a5fc-013df91f9c77",
+                "kind": "hls_master",
+                "name": "hls",
+                "status": "ready",
+                "width": 1920,
+                "height": 1080,
+                "bitrate": 1690564,
+                "codec": "h264",
+                "container": "m3u8",
+                "size": 2053554,
+                "disk_bytes": 2053554,
+                "encoder_used": "libx264",
+                "duration_s": 30,
+                "error": "",
+                "details": {
+                  "audio": [
+                    {
+                      "dir": "a0",
+                      "name": "eng",
+                      "codec": "aac",
+                      "group": "aac",
+                      "default": true,
+                      "channels": 2,
+                      "language": "eng",
+                      "peak_bps": 232879,
+                      "average_bps": 161987,
+                      "source_index": 1,
+                      "source_channels": 6
+                    },
+                    {
+                      "dir": "a1",
+                      "name": "eng",
+                      "codec": "eac3",
+                      "group": "eac3",
+                      "default": true,
+                      "channels": 6,
+                      "language": "eng",
+                      "peak_bps": 384246,
+                      "average_bps": 384246,
+                      "source_index": 1,
+                      "source_channels": 6
+                    }
+                  ],
+                  "rungs": 4,
+                  "segment_s": 6
+                },
+                "ready_at": "2026-10-15T21:51:38.108919Z",
+                "created_at": "2026-10-15T21:49:58.931127Z"
+              },
+              {
+                "id": "01a1418c-a2e8-787e-8531-598051e7a34f",
+                "kind": "hls_master",
+                "name": "hls2160",
+                "status": "ready",
+                "width": null,
+                "height": 2160,
+                "bitrate": null,
+                "codec": "hls",
+                "container": "m3u8",
+                "size": 2022,
+                "disk_bytes": 2022,
+                "encoder_used": "",
+                "duration_s": null,
+                "error": "",
+                "details": {
+                  "ceiling": 2160
+                },
+                "ready_at": "2026-10-15T23:01:49.524508Z",
+                "created_at": "2026-10-15T21:51:38.216889Z"
+              },
+              {
+                "id": "01a1418c-a283-721b-ab7f-2202c1d1be7c",
+                "kind": "hls_master",
+                "name": "hls480",
+                "status": "ready",
+                "width": null,
+                "height": 480,
+                "bitrate": null,
+                "codec": "hls",
+                "container": "m3u8",
+                "size": 648,
+                "disk_bytes": 648,
+                "encoder_used": "",
+                "duration_s": null,
+                "error": "",
+                "details": {
+                  "ceiling": 480
+                },
+                "ready_at": "2026-10-15T23:01:49.520972Z",
+                "created_at": "2026-10-15T21:51:38.115776Z"
+              },
+              {
+                "id": "01a1418c-a285-76e0-a7ca-3386c0efe976",
+                "kind": "hls_master",
+                "name": "hls720",
+                "status": "ready",
+                "width": null,
+                "height": 720,
+                "bitrate": null,
+                "codec": "hls",
+                "container": "m3u8",
+                "size": 1328,
+                "disk_bytes": 1328,
+                "encoder_used": "",
+                "duration_s": null,
+                "error": "",
+                "details": {
+                  "ceiling": 720
+                },
+                "ready_at": "2026-10-15T23:01:49.522866Z",
+                "created_at": "2026-10-15T21:51:38.117560Z"
+              },
+              {
+                "id": "01a1418c-a2de-729c-b59f-8b1278fc2095",
+                "kind": "hls_variant",
+                "name": "uhd",
+                "status": "ready",
+                "width": 3840,
+                "height": 2160,
+                "bitrate": 448799,
+                "codec": "hevc",
+                "container": "m4s",
+                "size": 1687238,
+                "disk_bytes": 1687238,
+                "encoder_used": "copy",
+                "duration_s": 30,
+                "error": "",
+                "details": {
+                  "codecs": "hvc1.2.4.L150.90",
+                  "default": false,
+                  "peak_bps": 458016,
+                  "box_height": 2160,
+                  "frame_rate": 23.976,
+                  "average_bps": 448799,
+                  "video_range": "PQ"
+                },
+                "ready_at": "2026-10-15T21:51:38.206060Z",
+                "created_at": "2026-10-15T21:51:38.206902Z"
+              },
+              {
+                "id": "01a1418c-a27a-7753-8617-f19ac2bb8465",
+                "kind": "hls_variant",
+                "name": "v0",
+                "status": "ready",
+                "width": 1920,
+                "height": 1080,
+                "bitrate": 1690564,
+                "codec": "h264",
+                "container": "m4s",
+                "size": 6338380,
+                "disk_bytes": 6338380,
+                "encoder_used": "libx264",
+                "duration_s": 30,
+                "error": "",
+                "details": {
+                  "rung": "1080p",
+                  "codecs": "avc1.640029",
+                  "default": false,
+                  "peak_bps": 1790861,
+                  "box_height": 1080,
+                  "frame_rate": 23.976,
+                  "average_bps": 1690564,
+                  "video_range": "SDR"
+                },
+                "ready_at": "2026-10-15T21:51:38.106485Z",
+                "created_at": "2026-10-15T21:51:38.106622Z"
+              },
+              {
+                "id": "01a1418c-a27b-77c3-9116-0eed707c430d",
+                "kind": "hls_variant",
+                "name": "v1",
+                "status": "ready",
+                "width": 1280,
+                "height": 720,
+                "bitrate": 1001186,
+                "codec": "h264",
+                "container": "m4s",
+                "size": 3754173,
+                "disk_bytes": 3754173,
+                "encoder_used": "libx264",
+                "duration_s": 30,
+                "error": "",
+                "details": {
+                  "rung": "720p",
+                  "codecs": "avc1.640029",
+                  "default": false,
+                  "peak_bps": 1057120,
+                  "box_height": 720,
+                  "frame_rate": 23.976,
+                  "average_bps": 1001186,
+                  "video_range": "SDR"
+                },
+                "ready_at": "2026-10-15T21:51:38.107056Z",
+                "created_at": "2026-10-15T21:51:38.107171Z"
+              },
+              {
+                "id": "01a1418c-a27b-7eee-9451-e0c84053d513",
+                "kind": "hls_variant",
+                "name": "v2",
+                "status": "ready",
+                "width": 960,
+                "height": 540,
+                "bitrate": 713292,
+                "codec": "h264",
+                "container": "m4s",
+                "size": 2674995,
+                "disk_bytes": 2674995,
+                "encoder_used": "libx264",
+                "duration_s": 30,
+                "error": "",
+                "details": {
+                  "rung": "540p",
+                  "codecs": "avc1.640029",
+                  "default": true,
+                  "peak_bps": 750710,
+                  "box_height": 540,
+                  "frame_rate": 23.976,
+                  "average_bps": 713292,
+                  "video_range": "SDR"
+                },
+                "ready_at": "2026-10-15T21:51:38.107501Z",
+                "created_at": "2026-10-15T21:51:38.107601Z"
+              },
+              {
+                "id": "01a1418c-a27b-7984-befd-1e7b15c2937f",
+                "kind": "hls_variant",
+                "name": "v3",
+                "status": "ready",
+                "width": 640,
+                "height": 360,
+                "bitrate": 380381,
+                "codec": "h264",
+                "container": "m4s",
+                "size": 1427067,
+                "disk_bytes": 1427067,
+                "encoder_used": "libx264",
+                "duration_s": 30,
+                "error": "",
+                "details": {
+                  "rung": "360p",
+                  "codecs": "avc1.640029",
+                  "default": false,
+                  "peak_bps": 395725,
+                  "box_height": 360,
+                  "frame_rate": 23.976,
+                  "average_bps": 380381,
+                  "video_range": "SDR"
+                },
+                "ready_at": "2026-10-15T21:51:38.107983Z",
+                "created_at": "2026-10-15T21:51:38.108076Z"
+              },
+              {
+                "id": "01a1418b-959d-7abf-95ad-87561648ffe7",
+                "kind": "thumbnails",
+                "name": "thumbs",
+                "status": "ready",
+                "width": 160,
+                "height": 90,
+                "bitrate": null,
+                "codec": "mjpeg",
+                "container": "vtt",
+                "size": 16893,
+                "disk_bytes": 16893,
+                "encoder_used": "mjpeg",
+                "duration_s": 30.011,
+                "error": "",
+                "details": {
+                  "rows": 10,
+                  "tiles": 4,
+                  "sheets": 1,
+                  "columns": 10,
+                  "interval_s": 10
+                },
+                "ready_at": "2026-10-15T21:50:37.548502Z",
+                "created_at": "2026-10-15T21:50:29.277617Z"
+              },
+              {
+                "id": "01a1418b-1f17-7b30-a369-5264347e9f8b",
+                "kind": "uhd",
+                "name": "uhd",
+                "status": "ready",
+                "width": 3840,
+                "height": 2160,
+                "bitrate": 833952,
+                "codec": "hevc",
+                "container": "mkv",
+                "size": 3127322,
+                "disk_bytes": 0,
+                "encoder_used": "copy",
+                "duration_s": 30,
+                "error": "",
+                "details": {
+                  "mode": "keep_source",
+                  "linked": true,
+                  "video_range": "PQ"
+                },
+                "ready_at": "2026-10-15T21:51:38.205504Z",
+                "created_at": "2026-10-15T21:49:58.936085Z"
+              }
+            ],
+            "audio": [
+              {
+                "id": "01a1418b-1f04-793b-92f8-f03c1ba55135",
+                "stream_index": 1,
+                "language": "eng",
+                "codec": "eac3",
+                "channels": 6,
+                "title": "",
+                "default": true,
+                "forced": false,
+                "commentary": false
+              }
+            ],
+            "subtitles": [],
+            "jobs": []
+          }
+        ]
+      }
+    }
+  }
+}

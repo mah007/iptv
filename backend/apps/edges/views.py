@@ -1,8 +1,9 @@
 """The edges host, `edges.<domain>` (ADR-0022): what standalone edges call over TLS.
 
 - `POST /edge/v1/poll`: the control channel. The edge reports its loaded key ids, its
-  connections and its byte counter; it gets the media token keys, the S3 origin's
-  read-only credentials and the CDN origin secret. Postgres (it records the report).
+  connections, its byte counter and the bytes it served each playback session
+  (`session_bytes`, G-17); it gets the media token keys, the S3 origin's read-only
+  credentials and the CDN origin secret. Postgres (it records the report).
 - `GET /edge/v1/stream-auth`: stream-auth for that edge. Redis only, like the internal
   one: the bearer secret's hash comes from `edges:auth` in redis-state. The edge sends
   the client address as `X-Edge-Client-IP`, because Traefik rewrites `X-Real-IP`.
@@ -31,12 +32,14 @@ from redis.exceptions import RedisError
 
 from apps.edges import services
 from apps.edges.models import Edge, EdgeKind, EdgeStorage
+from apps.playback import bytes as served
 from apps.playback import concurrency, tokens
 from apps.playback import views as playback_views
 from config.origins import origin
 
 _EDGE_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
-_MAX_BODY = 64 * 1024
+# The report and, since G-17 (ADR-0024), up to 2,000 sessions' served bytes.
+_MAX_BODY = 256 * 1024
 
 
 def _no_store(response: HttpResponse) -> HttpResponse:
@@ -80,6 +83,12 @@ def poll(request: HttpRequest) -> HttpResponse:
     except ValueError:
         body = {}
     services.record_report(edge, body)
+    # What the edge served each playback session since its last poll (G-17, ADR-0024).
+    sessions = served.clean(body.get("session_bytes") if isinstance(body, dict) else None)
+    try:
+        served.add(sessions)
+    except RedisError:
+        return _no_store(HttpResponse(status=503))
     try:
         answer = services.poll_answer(edge)
     except tokens.KeySetError:

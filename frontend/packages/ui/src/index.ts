@@ -194,6 +194,13 @@ export {
   type PageHeaderProps,
 } from "./components/page-header";
 export { QRCodeCard, type QRCodeCardProps } from "./components/qr-code-card";
+export {
+  PRINTING_CLASS,
+  PrintSetupCard,
+  SetupCard,
+  setupCardQrValue,
+  type SetupCardLogin,
+} from "./components/setup-card";
 export { SecretReveal, type SecretRevealProps } from "./components/secret-reveal";
 export { StatTile, type StatTileProps } from "./components/stat-tile";
 export { Stepper, type StepperProps } from "./components/stepper";

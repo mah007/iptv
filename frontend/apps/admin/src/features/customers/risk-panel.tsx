@@ -8,6 +8,7 @@ import {
   useCustomersRiskSuspend,
   useCustomersRiskWarn,
   type Assessment,
+  type ExcessBytes,
   type RiskFlag,
   type Sighting,
 } from "@smart-iptv/api";
@@ -37,7 +38,7 @@ import {
   useFormatters,
 } from "@smart-iptv/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { Globe2, Plane, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Gauge, Globe2, Plane, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -139,6 +140,73 @@ function SightingsTable({ sightings }: { sightings: readonly Sighting[] }) {
               <TableCell className="text-end tabular-nums">{format.number(item.hits)}</TableCell>
               <TableCell>
                 <RelativeTime value={item.last_seen} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+/**
+ * Sessions served far more bytes than their title explains (G-17, ADR-0024): re-served
+ * signed URLs or files pulled again and again. A signal for the admin, never a lock.
+ */
+function ExcessBytesTable({ rows }: { rows: readonly ExcessBytes[] }) {
+  const { t } = useTranslation();
+  const format = useFormatters();
+  if (rows.length === 0) {
+    return <EmptyState className="py-6" icon={<Gauge />} title={t("risk.excess.empty")} />;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("risk.excess.titleColumn")}</TableHead>
+            <TableHead>{t("risk.sightings.device")}</TableHead>
+            <TableHead className="text-end">{t("risk.excess.served")}</TableHead>
+            <TableHead className="text-end">{t("risk.excess.expected")}</TableHead>
+            <TableHead className="text-end">{t("risk.excess.ratio")}</TableHead>
+            <TableHead>{t("risk.sightings.network")}</TableHead>
+            <TableHead>{t("risk.excess.detected")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.id}>
+              <TableCell className="max-w-56 truncate" dir="auto">
+                {row.title_name || "—"}
+                {row.ended_at === null ? (
+                  <Badge tone="info" className="ms-2">
+                    {t("risk.excess.playing")}
+                  </Badge>
+                ) : null}
+              </TableCell>
+              <TableCell className="max-w-40 truncate">{row.device_name || "—"}</TableCell>
+              <TableCell className="text-end tabular-nums">
+                {format.bytes(row.bytes_sent)}
+              </TableCell>
+              <TableCell className="text-end tabular-nums">
+                {format.bytes(row.expected_bytes)}
+              </TableCell>
+              <TableCell className="text-end">
+                <Badge tone="warning">
+                  <span dir="ltr" className="tabular-nums">
+                    {t("risk.excess.times", {
+                      ratio: format.number(row.ratio, { maximumFractionDigits: 1 }),
+                    })}
+                  </span>
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <span dir="ltr" className="font-mono text-xs">
+                  {row.network === "local" ? t("risk.sightings.local") : row.network || "—"}
+                </span>
+              </TableCell>
+              <TableCell>
+                <RelativeTime value={row.detected_at} />
               </TableCell>
             </TableRow>
           ))}
@@ -356,6 +424,11 @@ export function RiskPanel({ customerId, active }: { customerId: string; active: 
             <div className="grid gap-2">
               <h3 className="text-ui font-medium text-foreground">{t("risk.sightings.title")}</h3>
               <SightingsTable sightings={query.data.sightings} />
+            </div>
+            <div className="grid gap-2">
+              <h3 className="text-ui font-medium text-foreground">{t("risk.excess.title")}</h3>
+              <p className="text-ui text-muted-foreground">{t("risk.excess.description")}</p>
+              <ExcessBytesTable rows={query.data.excess_bytes} />
             </div>
             <DbipAttribution />
           </>

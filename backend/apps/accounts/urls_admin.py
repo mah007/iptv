@@ -33,6 +33,12 @@ urlpatterns = [
         api_customer.CustomerPasswordInviteView.as_view(),
         name="admin-customers-password-invite",
     ),
+    # ADR-0024: support's recovery of a customer's two-factor sign-in.
+    path(
+        "customers/<uuid:pk>/reset-mfa",
+        api_customer.CustomerResetMfaView.as_view(),
+        name="admin-customers-reset-mfa",
+    ),
     # Q1 (ADR-0023): the Devices and Lockouts pages.
     path("devices", api.DeviceListView.as_view(), name="admin-devices-list"),
     path("devices/bulk", api.DeviceBulkView.as_view(), name="admin-devices-bulk"),

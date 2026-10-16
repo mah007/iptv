@@ -46,6 +46,7 @@ export const ME: CustomerMe = {
   timezone: "Asia/Riyadh",
   marketing_opt_in: false,
   status: "active",
+  mfa_enabled: false,
   access: ACCESS,
 };
 

@@ -46,6 +46,7 @@ const RISK: RiskOverview = {
       { name: "asns_1h", value: 4, limit: 2, points: 2 },
       { name: "countries_24h", value: 3, limit: 1, points: 2 },
       { name: "impossible_travel", value: 1, limit: 0, points: 3 },
+      { name: "excess_bytes_24h", value: 1, limit: 0, points: 4 },
     ],
     travel: [{ from_country: "SA", to_country: "GB", km: 4_900, hours: 1, at: NOW }],
   },
@@ -63,6 +64,23 @@ const RISK: RiskOverview = {
       first_seen: NOW,
       last_seen: NOW,
       hits: 12,
+    },
+  ],
+  excess_bytes: [
+    {
+      id: "x-1",
+      session: "session-1",
+      title_name: "The Matrix",
+      rendition: "compat",
+      network: "81.2.69.0/24",
+      device: "dev-1",
+      device_name: "Living room TV",
+      bytes_sent: 15_000_000_000,
+      expected_bytes: 2_700_000_000,
+      ratio: 5.56,
+      detected_at: NOW,
+      started_at: NOW,
+      ended_at: null,
     },
   ],
   attribution_url: "https://db-ip.com",
@@ -214,6 +232,14 @@ describe("sharing detection", () => {
     expect(within(panel).getByText("Providers in the last hour")).toBeTruthy();
     expect(within(panel).getByText(/Saudi Arabia → United Kingdom/)).toBeTruthy();
     expect(within(panel).getByText("Andrews & Arnold")).toBeTruthy();
+    // G-17 (ADR-0024): a session served far more than its title explains.
+    expect(within(panel).getByText("Sessions served too many bytes (24 h)")).toBeTruthy();
+    const excess = within(panel).getByRole("heading", { name: "Sessions served too many bytes" });
+    const table = excess.parentElement?.querySelector("table");
+    if (!table) throw new Error("No table of sessions served too many bytes.");
+    expect(within(table).getByText("The Matrix")).toBeTruthy();
+    expect(within(table).getByText("5.6×")).toBeTruthy();
+    expect(within(table).getByText("Playing")).toBeTruthy();
     expect(within(panel).getByRole("link", { name: /DB-IP/ })).toBeTruthy();
     await user.click(within(panel).getByRole("button", { name: "Reset app logins" }));
     const confirm = await screen.findByRole("alertdialog", { name: "Reset every TV app login?" });
@@ -222,6 +248,38 @@ describe("sharing detection", () => {
     expect(api.sent("POST", "/api/v1/admin/customers/cust-1/risk/reset-credentials")).toHaveLength(
       1,
     );
+  });
+
+  it("switches a customer's two-factor sign-in off for support (ADR-0024)", async () => {
+    let enabled = true;
+    const api = mockApi(
+      signedIn({
+        "GET /api/v1/admin/customers/cust-1": () => ({
+          body: customerDetail({ mfa_enabled: enabled }),
+        }),
+        "GET /api/v1/admin/customers/cust-1/risk": { body: RISK },
+        "GET /api/v1/admin/access-rules": { body: page([]) },
+        "POST /api/v1/admin/customers/cust-1/reset-mfa": () => {
+          enabled = false;
+          return { status: 204 };
+        },
+      }),
+    );
+    const { user } = renderApp("/customers/cust-1?tab=security");
+    const heading = await screen.findByRole("heading", { name: /Two-factor sign-in/u });
+    const card = heading.closest<HTMLElement>("[data-slot='card']");
+    if (card === null) throw new Error("No two-factor card.");
+    expect(within(card).getByText("On")).toBeTruthy();
+    await user.click(within(card).getByRole("button", { name: "Switch two-factor off" }));
+    const confirm = await screen.findByRole("alertdialog", {
+      name: "Switch off two-factor sign-in for Sara Ahmed?",
+    });
+    await user.click(within(confirm).getByRole("button", { name: "Switch two-factor off" }));
+    expect(
+      (await screen.findAllByText("Two-factor sign-in is off for Sara Ahmed.")).length,
+    ).toBeGreaterThan(0);
+    expect(await within(card).findByText("Off")).toBeTruthy();
+    expect(api.sent("POST", "/api/v1/admin/customers/cust-1/reset-mfa")).toHaveLength(1);
   });
 
   it("filters the customers list to flagged customers", async () => {

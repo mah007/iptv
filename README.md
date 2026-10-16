@@ -15,6 +15,12 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-16:** the last open items (ADR-0024):
+  - **Screenshot regression tests:** `make visual`, 48 baselines across 12 pages in both languages and themes, in `make ci`.
+  - **Sharing checks:** media edges now count bytes per session, and sessions that download far more than the title explains are flagged (G-17).
+  - **TV logins:** a printable setup card with a QR code, printed in the browser (G-25).
+  - **Customer accounts:** optional two-factor sign-in, which support can reset.
+  - **Episode order:** TheTVDB's DVD and absolute orders for series matched on TMDB.
 - **2026-10-16:** GPU is optional by the owner's decision: servers transcode on the CPU by default, and a GPU server can opt in with a compose overlay. M8 is tagged.
 - **2026-10-16:** the follow-ups deployed to tv.mah007.net with a rolling update (no errors, 7 hosts green, contract suite 195 passed). Live TV, privacy and terms pages are live in the portal. Milestones M5 and M11 are tagged; every planned feature is built.
 - **2026-10-16:** the last follow-ups (ADR-0023):
@@ -118,6 +124,7 @@ From a file on disk to a TV screen:
 - ✅ TMDB matching with a confidence score: confident matches publish automatically, and doubtful ones go to a review queue.
 - ✅ Metadata in English and Arabic, with posters in WebP/AVIF and blurhash placeholders.
 - ✅ **TheTVDB as the TV fallback:** when TMDB has no confident match for a series, TheTVDB is asked (our own v4 client, rate-limited and cached). A series that names its TMDB id is matched there; otherwise it is built from TheTVDB with its aired order and shown with TheTVDB's credit. Reviews, search and rematch can choose either provider. Off until its key is saved.
+- ✅ **TheTVDB's DVD or absolute order for TMDB series:** files named after the DVDs or with absolute numbers (anime) are mapped to TMDB's episodes through TheTVDB; set it on the series page, and the series' files are placed again.
 
 **Media processing**
 - ✅ **Transcode at ingest and direct-play at runtime.** Each title produces a compatible MP4 (H.264/AAC), an adaptive HLS ladder (1080p/720p/540p/360p) and an optional UHD variant.
@@ -137,6 +144,7 @@ From a file on disk to a TV screen:
 - ✅ **A private S3 origin (M15):** finished renditions publish to an S3-compatible bucket (SeaweedFS in development; R2, B2 or AWS in production) with our own SigV4 client. Edges read it with a separate read-only key and keep 4 MB slices in their cache. A re-encode publishes a new generation, so caches never serve stale bytes.
 - ✅ **Bunny CDN (M15)**, verified against test vectors only (no live pull zone yet): signed URLs with Bunny's token authentication, and pulls from one of our edges with a shared secret. The trade-offs are in [docs/runbooks/cdn-bunny.md](docs/runbooks/cdn-bunny.md).
 - ✅ Per-connection rate limits on every edge (after a 16 MB burst), so a whole film can't be pulled at line rate.
+- ✅ **Sessions served too many bytes:** the edges count what each playback session was served; a movie or episode session served several times what its runtime and bitrate explain (a shared link, a file pulled again and again) raises a sharing flag with the details on the customer's Security tab. The ratio is a setting; nothing is blocked.
 
 **Xtream compatibility**
 - ✅ `player_api.php`, `get.php` (M3U) and `/movie` and `/series` play URLs, with field types that exactly match the PHP panels apps expect.
@@ -155,6 +163,9 @@ From a file on disk to a TV screen:
 - ✅ Admin SPA in Arabic (RTL) and English, with dark and light themes, a ⌘K command palette, keyboard shortcuts and live dashboards.
 - ✅ Customer web portal with a Shaka Player-based player, Continue Watching, search, recommendations, device and TV-app management, and checkout. When the plan's streams are all in use, the player lists them and stops one; customers and admins change their own passwords; a title being prepared says when it'll be ready.
 - ✅ **Privacy policy and terms:** editable in the admin (Markdown, English and Arabic), starting from templates to review with a lawyer, and shown at `/privacy` and `/terms`, linked from every footer and the checkout.
+- ✅ **Printable setup cards:** when a TV login is shown once (in the admin or the portal's *Add TV app*), **Print setup card** prints the server, username, a QR code and, if ticked, the password, in Arabic or English; the browser prints it or saves it as a PDF, and nothing reaches the server.
+- ✅ **Optional two-factor sign-in for customers:** an authenticator app, set up in the portal's account page; every new sign-in on the portal and in apps then asks for its code. Support can switch it off for a customer who lost their phone (audited).
+- ✅ **Visual regression tests:** key admin and portal pages in both themes and both directions, at desktop and phone width, compared with committed screenshots in `make ci`.
 
 **Business**
 - ✅ Plans, subscriptions, trials, a grace period and expiry reminders.
@@ -320,7 +331,8 @@ Demo data and media:
 | `make compat` · `make compat-live` · `make e2e-iptvnator` | Xtream contract suite: offline, against the running stack (a 720p plan's `.mp4` must be a capped MP4), and an IPTVnator journey that signs in and plays |
 | `make mediamtx-test` | Live ingest sign-ins: the production MediaMTX asks a throwaway web process about publishing and reading (about 15 s; part of `make ci`) |
 | `make e2e-admin` | Admin journeys in Playwright with the host's Chrome (MFA sign-in, create a customer, reset a device, scan, resolve a review, stop a session, add a live channel, set SMTP to Mailpit and send a test email from Integrations) and axe on every page in English/light and Arabic/dark, plus a 390 px check; needs `make media-ready`. Report in `dist/admin-e2e` |
-| `make e2e-portal` | Portal journeys in Playwright (sign in, Arabic search, play The Matrix, continue watching, sign out; live TV and catch-up; a full plan stopping the other stream; changing the password) and axe on thirteen pages in Arabic/light and English/dark at 390 px; needs `make media-ready` and `make live-ready`. Report in `dist/portal-e2e` |
+| `make e2e-portal` | Portal journeys in Playwright (sign in, Arabic search, play The Matrix, continue watching, sign out; live TV and catch-up; a full plan stopping the other stream; changing the password; two-factor sign-in on and off; the setup card) and axe on thirteen pages in Arabic/light and English/dark at 390 px; needs `make media-ready` and `make live-ready`. Report in `dist/portal-e2e` |
+| `make visual` | Visual regression: 12 key admin and portal pages in English/light and Arabic/dark, at 1440 and 390 px, against the committed screenshots, from recorded API fixtures under a fixed clock. `UPDATE=1` rewrites changed baselines; `RECORD=1` records the fixtures again from the dev stack first. Report in `dist/admin-visual` and `dist/portal-visual` |
 
 ## Connecting an IPTV app
 
@@ -510,6 +522,7 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, threat model, client setup
   - the monitoring checks and the container hardening check;
   - tests, then a backup and a restore drill on the dev stack;
   - sample media scanned and transcoded, live Xtream contract checks, and the IPTVnator journey;
+  - the admin and portal browser journeys with axe, and the visual regression screenshots;
   - production images, started and health-checked with `check --deploy`;
   - a Trivy CVE and secret scan, and the licence gate.
 
@@ -523,10 +536,10 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, threat model, client setup
 - Per-device Xtream credentials hashed with Argon2id. Failed logins look identical whether the user or the password was wrong.
 - Short-lived HMAC-signed media URLs with key rotation, and optional IP binding.
 - Server-side concurrency limits, with sessions killable within 60 seconds.
-- Admin MFA with an authenticator app or security keys and passkeys (WebAuthn, can be required per role), "confirm it's you" before sensitive actions, an idle timeout and an optional IP allowlist; customers confirm their password before adding a TV app.
+- Admin MFA with an authenticator app or security keys and passkeys (WebAuthn, can be required per role), "confirm it's you" before sensitive actions, an idle timeout and an optional IP allowlist; customers confirm their password before adding a TV app and can turn on two-factor sign-in.
 - Rate limiting at Traefik and in Django (per IP and per account), progressive Xtream sign-in pauses, CrowdSec, and an append-only audit log.
 - A strict Content-Security-Policy with per-request nonces and no inline script on both apps, `default-src 'none'` on the API and media, and the other security headers per host (`make smoke` checks them).
-- Sharing detection with DB-IP Lite geolocation: flags with evidence and a manual warn, reset, suspend ladder; never an automatic lock.
+- Sharing detection with DB-IP Lite geolocation and the bytes each session was served: flags with evidence and a manual warn, reset, suspend ladder; never an automatic lock.
 - Supply chain: pinned lockfiles, a licence gate, Trivy, pip-audit and pnpm audit, the project's own Semgrep rules and a ZAP baseline, all in `make ci`. The STRIDE [threat model](docs/security/threat-model.md) gives every finding its status.
 - Least privilege on the server: the app uses a database role that can't change the schema or rewrite the audit log, and Valkey users without dangerous commands; only two allowlisting proxies reach the Docker socket; every container drops all capabilities, can't gain privileges, has a read-only root and a digest-pinned image (`make hardening-test` enforces it).
 - Encrypted backups with point-in-time recovery and a weekly restore drill; scripted rotation of every key and password; personal-data retention jobs.

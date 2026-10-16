@@ -87,7 +87,8 @@
       "passwordRequired": "Enter your password.",
       "passwordShort": "Use at least 12 characters.",
       "passwordMismatch": "The passwords don't match.",
-      "tooLong": "This is too long."
+      "tooLong": "This is too long.",
+      "codeFormat": "Enter the six digits from your authenticator app."
     },
     "errors": {
       "INVALID_CREDENTIALS": "That login and password don't match. Check them and try again.",
@@ -95,7 +96,8 @@
       "ACCOUNT_SUSPENDED": "This account is suspended. Contact support.",
       "RATE_LIMITED": "Too many requests from this network. Wait a few minutes and try again.",
       "NETWORK_ERROR": "Can't reach the service. Check your connection.",
-      "UNEXPECTED": "Something went wrong. Try again in a moment."
+      "UNEXPECTED": "Something went wrong. Try again in a moment.",
+      "MFA_INVALID": "That code didn't work. Enter the newest code from your app; if it keeps failing, check the phone's clock."
     },
     "passwordErrors": {
       "password_too_short": "Use at least 12 characters.",
@@ -103,6 +105,14 @@
       "password_too_common": "This password is too common. Choose another.",
       "password_entirely_numeric": "Use letters too, not only numbers.",
       "invalid": "This password can't be used. Choose another."
+    },
+    "code": {
+      "title": "Enter your code",
+      "subtitle": "Open your authenticator app and enter the six-digit code it shows for this account.",
+      "label": "Authentication code",
+      "submit": "Verify and sign in",
+      "back": "Back",
+      "lostPhone": "Lost your phone? Contact support: they can switch two-factor sign-in off so you can sign in with your password."
     }
   },
   "home": {
@@ -693,7 +703,7 @@
   },
   "stepUp": {
     "title": "Confirm your password",
-    "description": "For your safety, enter your password again before adding a TV app or a new TV login.",
+    "description": "For your safety, enter your password again before changing how you sign in or adding a TV app login.",
     "password": "Password",
     "confirm": "Confirm",
     "errors": {
@@ -745,5 +755,37 @@
     "terms": "Terms of service",
     "updated": "Last updated {{date}}",
     "more": "More"
+  },
+  "twoFactor": {
+    "title": "Two-factor sign-in",
+    "on": "On",
+    "off": "Off",
+    "offHint": "Ask for a code from an authenticator app as well as your password whenever you sign in, here or in an app.",
+    "onHint": "Every new sign-in, here or in an app, asks for the code from your authenticator app. TV logins keep their own passwords.",
+    "lostPhone": "If you lose your phone, contact support: they can switch it off for you.",
+    "setUp": "Set up two-factor sign-in",
+    "setupTitle": "Set up two-factor sign-in",
+    "setupDescription": "You'll need an authenticator app on your phone, such as Google Authenticator, Microsoft Authenticator or 2FAS.",
+    "begin": "Continue",
+    "steps": {
+      "install": "Install an authenticator app on your phone.",
+      "scan": "Scan the code with the app, or type the key in.",
+      "code": "Enter the six-digit code the app shows."
+    },
+    "qrLabel": "QR code for your authenticator app",
+    "manualKey": "Key",
+    "code": "Code from the app",
+    "turnOn": "Turn on",
+    "cancel": "Cancel",
+    "enabled": "Two-factor sign-in is on.",
+    "offTitle": "Turn off two-factor sign-in?",
+    "offDescription": "Your password alone will sign you in again. Apps that are signed in stay signed in.",
+    "turnOff": "Turn off",
+    "disabled": "Two-factor sign-in is off.",
+    "errors": {
+      "MFA_INVALID": "That code didn't work. Enter the newest code from your app.",
+      "RATE_LIMITED": "Too many attempts. Wait a few minutes, then try again.",
+      "UNEXPECTED": "Something went wrong. Try again in a moment."
+    }
   }
 }

@@ -86,7 +86,7 @@ from apps.metadata.scoring import (
 )
 from apps.metadata.tmdb import JSONObject, TMDBClient, TMDBError, TMDBNotFoundError, image_url
 from apps.metadata.tmdb.factory import client_for, tmdb_config
-from apps.metadata.tvdb import is_artwork_url
+from apps.metadata.tvdb import TVDBClient, is_artwork_url
 
 logger = logging.getLogger(__name__)
 
@@ -400,7 +400,7 @@ def accept_movie(
     return movie
 
 
-def accept_episode(  # noqa: PLR0913 (the actor is keyword-only)
+def accept_episode(  # noqa: PLR0913 (the actor and TheTVDB's client are keyword-only)
     file: MediaFile,
     tmdb_id: int,
     parsed: ParseResult,
@@ -408,21 +408,43 @@ def accept_episode(  # noqa: PLR0913 (the actor is keyword-only)
     client: TMDBClient | None = None,
     *,
     actor: User | None = None,
+    tvdb_client: TVDBClient | None = None,
 ) -> Series:
     """Link an episode file to its episodes of the TMDB series `tmdb_id` (several for a
-    multi-episode file), creating the series, season and episodes if needed."""
+    multi-episode file), creating the series, season and episodes if needed.
+
+    A series that follows TheTVDB's DVD or absolute order (ADR-0024) reads the file's
+    numbers in that order and maps them to TMDB's through TheTVDB (`tvdb_order`)."""
+    from apps.metadata import tvdb_order  # noqa: PLC0415 (it builds on this module)
+
     client = client or tmdb()
-    if parsed.season is None or not parsed.episodes:
+    known = Series.objects.filter(tmdb_id=tmdb_id).first()
+    ordered = known is not None and tvdb_order.applies(known)
+    if not ordered and (parsed.season is None or not parsed.episodes):
         raise PlacementError(
             "numbering",
             "The name has no season and episode numbers (absolute or dated numbering).",
         )
     series = upsert_series(tmdb_id, client)
-    season = ensure_season(series, parsed.season, client)
+    placed = tvdb_order.aired_numbers(series, parsed, tvdb_client)
+    if placed is None:
+        if parsed.season is None or not parsed.episodes:
+            raise PlacementError(
+                "numbering",
+                "The name has no numbers the series' order uses (absolute or dated numbering).",
+            )
+        numbers = [(parsed.season, number) for number in parsed.episodes]
+    else:
+        numbers = list(placed.numbers)
+    episodes: list[Episode] = []
+    for season_number in dict.fromkeys(season for season, _ in numbers):
+        season = ensure_season(series, season_number, client)
+        wanted = tuple(number for season_of, number in numbers if season_of == season_number)
+        episodes += episodes_of(season, replace(parsed, season=season_number, episodes=wanted))
     link_episode_file(
         file,
         series,
-        episodes_of(season, parsed),
+        episodes,
         confidence,
         actor=actor,
         provider="tmdb",

@@ -54,7 +54,7 @@ BUILD_FLAGS ?= --pull
 .PHONY: help secrets up down ps logs migrate backup restore-test crowdsec-test hardening-test seed sample-media shell smoke test test-backend test-frontend \
 	lint lint-backend lint-frontend fmt typecheck typecheck-backend typecheck-frontend \
 	api-client api-client-check build smoke-images scan licenses ci ci-steps audit semgrep zap \
-	media-ready compat compat-live mediamtx-test e2e-iptvnator e2e-admin e2e-portal \
+	media-ready compat compat-live mediamtx-test e2e-iptvnator e2e-admin e2e-portal visual visual-record \
 	edge-test s3-dev edge-dev rollout rollout-test loadtest deploy \
 	monitoring-test monitoring-dashboards monitoring-smoke monitoring-firedrill
 
@@ -201,13 +201,17 @@ lint-backend:
 	$(RUN_BACKEND) ruff format --check .
 	$(RUN_BACKEND) python manage.py makemigrations --check --dry-run
 
+# Type-aware ESLint holds every package's TypeScript program at once (about 1.8 GB by
+# ADR-0024); Node's default heap in the 3 GB frontend container is 1.7 GB.
+ESLINT_HEAP := -e NODE_OPTIONS=--max-old-space-size=2560
+
 lint-frontend:
-	$(RUN_FRONTEND) pnpm lint
+	$(COMPOSE) run --rm --no-deps -T $(ESLINT_HEAP) frontend pnpm lint
 
 fmt: ## Format and auto-fix backend and frontend
 	$(RUN_BACKEND) ruff format .
 	$(RUN_BACKEND) ruff check --fix .
-	$(RUN_FRONTEND) pnpm fmt
+	$(COMPOSE) run --rm --no-deps -T $(ESLINT_HEAP) frontend pnpm fmt
 
 typecheck: typecheck-backend typecheck-frontend ## mypy (backend) and tsc (frontend)
 
@@ -323,11 +327,39 @@ e2e-admin: ## Admin journeys (MFA sign-in, customer, device, scan, review, kill)
 PORTAL_URL = http://app.$$(sed -n 's/^DOMAIN=//p' .env)$$(port=$$(sed -n 's/^HTTP_PORT=//p' .env); \
 	[ "$$port" = "80" ] || echo ":$$port")
 
-e2e-portal: ## Portal journeys (sign in, Arabic search, play, continue watching, sign out; live TV and catch-up; a full plan; my password) and axe checks in Playwright (needs media-ready and live-ready)
+e2e-portal: ## Portal journeys (sign in, Arabic search, play, continue watching, sign out; live TV and catch-up; a full plan; my password; two-factor sign-in; the setup card) and axe checks in Playwright (needs media-ready and live-ready)
 	@export E2E_PORTAL_USER=e2e-portal E2E_PORTAL_PASS="$$(openssl rand -hex 16)"; \
 	$(COMPOSE) exec -T -e E2E_PORTAL_USER -e E2E_PORTAL_PASS web python manage.py e2e_portal_account; \
-	export PORTAL_URL="$(PORTAL_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/portal-e2e"; \
+	export PORTAL_URL="$(PORTAL_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/portal-e2e" \
+	  E2E_TOTP_COMMAND='$(E2E_TOTP_COMMAND)'; \
 	cd frontend/apps/portal && node_modules/.bin/playwright test --config e2e/playwright.config.ts
+
+# --- Visual regression (frontend/apps/*/e2e/visual, ADR-0024) -----------------------------
+# Key admin and portal pages against committed baselines, in en/light and ar/dark at
+# desktop and 390 px, with the host's Chrome. Pages replay recorded API fixtures under a
+# fixed clock, so only the SPAs come from the dev stack. UPDATE=1 rewrites the baselines
+# that changed; RECORD=1 records the fixtures again from the dev stack first (needs
+# media-ready and live-ready; the end-to-end admin and customer sign in, fresh passwords).
+VISUAL_SNAPSHOTS = $(if $(UPDATE),--update-snapshots=changed,)
+
+visual: ## Visual regression of key admin and portal pages (en/light, ar/dark; desktop, 390 px); UPDATE=1 rewrites baselines, RECORD=1 re-records fixtures
+	@if [ -n "$(RECORD)" ]; then $(MAKE) --no-print-directory visual-record; fi
+	@export ADMIN_URL="$(ADMIN_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/admin-visual"; \
+	cd frontend/apps/admin && node_modules/.bin/playwright test --config e2e/visual.config.ts $(VISUAL_SNAPSHOTS)
+	@export PORTAL_URL="$(PORTAL_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/portal-visual"; \
+	cd frontend/apps/portal && node_modules/.bin/playwright test --config e2e/visual.config.ts $(VISUAL_SNAPSHOTS)
+
+visual-record: ## Record the visual suites' API fixtures from the dev stack (make visual RECORD=1 runs this first)
+	rm -rf frontend/apps/admin/e2e/visual/fixtures frontend/apps/portal/e2e/visual/fixtures
+	@export E2E_ADMIN_USER=e2e-admin E2E_ADMIN_PASS="$$(openssl rand -hex 16)"; \
+	$(COMPOSE) exec -T -e E2E_ADMIN_USER -e E2E_ADMIN_PASS web python manage.py e2e_admin_account; \
+	export ADMIN_URL="$(ADMIN_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/admin-visual" VISUAL_RECORD=1 \
+	  E2E_TOTP_COMMAND='$(E2E_TOTP_COMMAND)'; \
+	cd frontend/apps/admin && node_modules/.bin/playwright test --config e2e/visual.config.ts
+	@export E2E_PORTAL_USER=e2e-portal E2E_PORTAL_PASS="$$(openssl rand -hex 16)"; \
+	$(COMPOSE) exec -T -e E2E_PORTAL_USER -e E2E_PORTAL_PASS web python manage.py e2e_portal_account; \
+	export PORTAL_URL="$(PORTAL_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/portal-visual" VISUAL_RECORD=1; \
+	cd frontend/apps/portal && node_modules/.bin/playwright test --config e2e/visual.config.ts
 
 # --- Monitoring (docker/compose.monitoring*.yml, monitoring/, ADR-0018) -------------------
 # The tools run in the images the overlay pins; ruff matches the backend's version.
@@ -438,7 +470,7 @@ ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitt
 	@$(MAKE) ci-steps || { echo "make ci FAILED. Service status and recent logs:" >&2; \
 	  $(COMPOSE) ps >&2 || true; $(COMPOSE) logs --no-color --tail=60 >&2 || true; exit 1; }
 	@echo ""
-	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Semgrep, dependency audit, ZAP baseline, Xtream contract, media edges, monitoring configs and log redaction, types, API client, tests, live Xtream checks, IPTVnator, admin and portal E2E with axe, images, Trivy, licences."
+	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Semgrep, dependency audit, ZAP baseline, Xtream contract, media edges, monitoring configs and log redaction, types, API client, tests, live Xtream checks, IPTVnator, admin and portal E2E with axe, visual regression, images, Trivy, licences."
 
 ci-steps:
 	$(MAKE) up
@@ -462,6 +494,7 @@ ci-steps:
 	$(MAKE) e2e-iptvnator
 	$(MAKE) e2e-admin
 	$(MAKE) e2e-portal
+	$(MAKE) visual
 	$(MAKE) build
 	$(MAKE) smoke-images
 	$(MAKE) scan

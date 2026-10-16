@@ -95,3 +95,41 @@ class RiskFlag(BaseModel):
 
     def __str__(self) -> str:
         return f"flag:{self.user_id}:{self.status}:{self.score}"
+
+
+class ExcessBytes(BaseModel):
+    """A playback session that was served far more bytes than its title explains (G-17).
+
+    `expected_bytes` is the title's runtime times the bitrate of the rendition the session
+    played (the highest, for HLS); `ratio` is `bytes_sent / expected_bytes`. Re-serving a
+    signed URL to other viewers, or pulling a file again and again, shows up here; a
+    player that buffers ahead or seeks back stays far below `antisharing.bytes_ratio`.
+    One row per session, updated while the session keeps growing; it counts towards the
+    customer's score (signal `excess_bytes_24h`) and never locks anything. Rows are kept
+    for `privacy.antisharing_retention_days`, like sightings.
+    """
+
+    user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="excess_bytes")
+    session = models.OneToOneField(
+        "playback.PlaybackSession", on_delete=models.CASCADE, related_name="excess_bytes"
+    )
+    device = models.ForeignKey(
+        "accounts.Device", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    title_name = models.CharField(max_length=255, blank=True)
+    rendition = models.CharField(max_length=32, blank=True)
+    network = models.CharField(max_length=48, blank=True)
+    bytes_sent = models.BigIntegerField()
+    expected_bytes = models.BigIntegerField()
+    ratio = models.FloatField()
+    detected_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ("-detected_at",)
+        indexes = (
+            models.Index(fields=("user", "-detected_at"), name="antisharing_excess_user"),
+            models.Index(fields=("detected_at",), name="antisharing_excess_detected"),
+        )
+
+    def __str__(self) -> str:
+        return f"excess:{self.user_id}:{self.ratio:.1f}x"

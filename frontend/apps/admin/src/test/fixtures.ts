@@ -109,6 +109,7 @@ export function customerDetail(overrides: Partial<CustomerDetail> = {}): Custome
     timezone: "Asia/Riyadh",
     notes: "",
     marketing_opt_in: false,
+    mfa_enabled: false,
     access: {
       status: "active",
       expires_at: IN_20_DAYS,

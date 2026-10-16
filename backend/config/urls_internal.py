@@ -13,12 +13,14 @@ from apps.core.security import frontend_csp
 from apps.live.views_internal import mediamtx_auth
 from apps.notifications.views_internal import alert_fallback, alert_webhook
 from apps.ops.views_internal import agent_job, agent_poll
-from apps.playback.views import stream_auth
+from apps.playback.views import stream_auth, stream_bytes
 
 urlpatterns = [
     path("internal/health/live", views.live, name="health-live"),
     path("internal/health/ready", views.ready, name="health-ready"),
     path("internal/stream-auth", stream_auth, name="stream-auth"),
+    # What the local edge served each playback session (G-17, ADR-0024).
+    path("internal/stream-bytes", stream_bytes, name="stream-bytes"),
     # Traefik's forward-auth for grafana.<domain> (ADR-0018).
     path("internal/monitoring-auth", forward_auth, name="monitoring-auth"),
     # Alertmanager's webhook: alerts go out by email and Telegram from the settings.
