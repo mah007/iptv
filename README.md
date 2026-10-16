@@ -2,16 +2,12 @@
 
 **A self-hosted OTT/VOD subscription platform with an Xtream Codes-compatible API.** It brings library management like Plex/Jellyfin together with an IPTV panel. IPTV Smarters, TiviMate, XCIPTV, OTT Navigator and similar apps work with it out of the box.
 
-> 🚧 **Status: the VOD platform is built and runs in production at tv.mah007.net, with optional monitoring. Live TV with EPG and catch-up is built (M12), and so is security hardening (M14); scale-out comes next.**
-> - **Working end to end:** an admin signs in with MFA and creates a customer, typing the IPTV username and password or generating them. Media is scanned, matched on TMDB (English and Arabic), transcoded and served by the signed-URL edge, and IPTV apps log in and play over the Xtream API. The contract suite and an automated IPTVnator journey prove it.
-> - **Also done:** billing (plans, subscriptions, invoices, payments, emails); the HLS ladder with per-plan quality ceilings, 4K/HDR, subtitles and seek thumbnails; the complete admin panel; and the customer portal (browse, Arabic search, a Shaka-based player with resume, TV-app logins with QR codes, checkout); and monitoring (M13): seven Grafana dashboards, logs in Loki with credentials redacted, and alerts by email and Telegram, opened from the admin and configured in its Settings; and live TV (M12): your own licensed channels with an XMLTV guide, catch-up and timeshift, played by IPTV apps over the Xtream live URLs and managed in the admin; and dynamic configuration: TMDB, email, payments, Telegram, branding and every other setting are edited in the admin (secrets encrypted, each integration with a Test), with `.env` kept for bootstrap only; and operations security (M14b): encrypted backups with point-in-time restore and a weekly restore drill, CrowdSec, least-privilege database and Valkey users, hardened containers and scripted key rotation; and application security (M14a): a strict nonce-based CSP, security keys and passkeys for admins, "confirm it's you" before sensitive actions, an optional admin IP allowlist, sharing detection with IP geolocation, rate limits everywhere, and dependency, Semgrep and ZAP checks in the quality gate.
-> - **Scale-out (M15), built and tested on the dev stack, not yet used in production:**
->   - media edges on other servers with their own TLS, fed by a private S3 origin;
->   - a Bunny CDN option (verified against test vectors only);
->   - a PostgreSQL read replica with a rehearsed failover;
->   - updates without downtime;
->   - load tests ([docs/benchmarks/load.md](docs/benchmarks/load.md)).
-> - **Still to come:** testing on real TVs and phones (M10).
+> ✅ **Status: feature-complete and running in production at tv.mah007.net.** Milestones M1–M7, M9 and M11–M15 are accepted and tagged. Three wait on the owner: M8 for GPU benchmarks, M10 for testing on real devices, and M11b for payment sandbox keys.
+> - **Working end to end:** admins (MFA, passkeys) create customers and IPTV logins; libraries are scanned, matched on TMDB (TheTVDB as the TV fallback) in English and Arabic, transcoded once into MP4 and an HLS ladder with per-plan quality ceilings, and served by signed-URL edges; IPTV apps and the customer portal play movies, series and live TV with catch-up.
+> - **Business:** plans, subscriptions with grace, invoices with VAT, manual, Stripe and Moyasar payments, emails, and editable privacy and terms pages.
+> - **Operations:** monitoring with alerts (email, Telegram), nightly encrypted backups with a weekly restore drill, hardened containers, CrowdSec, a strict CSP, sharing detection, rate limits, and every setting and integration configured in the admin.
+> - **Scale:** extra media edges on other hosts, a private S3 origin, a Bunny CDN option, a read replica and zero-downtime updates, all opt-in.
+> - **Needs the owner before go-live:** tests on real TVs and phones (M10); a TMDB commercial licence (and TheTVDB's tier past USD 50k revenue); SMTP and alert recipients in the admin; the backup passphrase kept off the server; a lawyer's review of the privacy and terms templates; payment provider keys if cards are wanted.
 >
 > See the [roadmap](#roadmap), [docs/PROGRESS.md](docs/PROGRESS.md) and the decisions in [docs/adr/](docs/adr/).
 
@@ -19,6 +15,7 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-16:** the follow-ups deployed to tv.mah007.net with a rolling update (no errors, 7 hosts green, contract suite 195 passed). Live TV, privacy and terms pages are live in the portal. Milestones M5 and M11 are tagged; every planned feature is built.
 - **2026-10-16:** the last follow-ups (ADR-0023):
   - **Metadata:** TheTVDB as the fallback for TV series TMDB can't match.
   - **Admin:** Devices and Lockouts pages; admins change their own password; customer lists and KPIs follow the governing subscription.

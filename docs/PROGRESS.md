@@ -21,6 +21,37 @@
 | Q1 Follow-ups | Done: TheTVDB fallback, admin Devices and Lockouts, subscription status, own passwords, my streams, portal live TV and catch-up, legal pages, MediaMTX sign-ins in the admin, capped MP4s for capped plans, the settings-cache healer ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md)) | — |
 | M10 client matrix (needs the owner's devices) | Planned | — |
 
+
+## Final state (2026-10-16)
+
+- **Final gate:** `make ci ALLOW_DIRTY=1 BUILD_FLAGS="--pull --no-cache"` passed for the tree committed as `57a0492` in 1343 s. It covered:
+  - the backend: 3369 tests at 93.3% coverage;
+  - Vitest: ui 164, admin 189, portal 66;
+  - the Xtream contract: offline 161, `compat-live` 212 (the 720p capped check included), IPTVnator 9;
+  - the browser suites: `e2e-admin` 130 passed with 1 skipped, `e2e-portal` 7;
+  - Semgrep, the dependency audit, ZAP, `edge-test`, `mediamtx-test`, `restore-test`, `hardening-test`, `monitoring-test`;
+  - images, Trivy and the licence gate.
+- **Tags:** `m1-done` to `m7-done`, `m9-done` and `m11-done` to `m15-done`. Not tagged:
+  - M8: GPU benchmarks;
+  - M10: real-device client matrix;
+  - M11b: Stripe and Moyasar sandbox checkout.
+- **Production (tv.mah007.net):** after a `pg_dump` safety copy, `install.sh --update` rolled the web replicas with no errors.
+  - HTTPS is green on seven hosts, and `/live`, `/privacy`, `/terms` and the legal API answer.
+  - Unsigned media gives 403, and failed Xtream sign-in returns `{"user_info":{"auth":0}}`.
+  - The live contract suite gives 195 passed and 4 skipped (no live channels configured).
+  - Nightly backups and the weekly drill have run on their own since 2026-10-11.
+- **Dev:** the dev PostgreSQL owner and redis-state/redis-cache default passwords were rotated with `scripts/rotate-keys.sh --dev`, because a builder had printed them in its transcript (dev only). Smoke and tests pass on the new values.
+- **For the owner before go-live:**
+  - the M10 tests on real devices;
+  - a TMDB commercial licence (TheTVDB's paid tier above USD 50k revenue);
+  - SMTP and alert recipients in the admin, then *Send a test alert*;
+  - moving the remaining `.env` settings into the admin (`manage.py settings_report`);
+  - the backup passphrase (`/root/smart-iptv-backup-passphrase.txt`) kept off the server;
+  - a lawyer's review of the privacy and terms templates;
+  - payment keys if cards are wanted;
+  - an SSL Labs check and SPF/DKIM/DMARC for the sending domain (`docs/runbooks/security.md`);
+  - a decision on the leftover dev volumes `smart-iptv_postgres-replica-data` and `smart-iptv_seaweedfs-data` (test data only).
+
 ## Q1: follow-ups (2026-10-16)
 
 ### Done ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md))
