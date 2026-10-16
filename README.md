@@ -2,7 +2,7 @@
 
 **A self-hosted OTT/VOD subscription platform with an Xtream Codes-compatible API.** It brings library management like Plex/Jellyfin together with an IPTV panel. IPTV Smarters, TiviMate, XCIPTV, OTT Navigator and similar apps work with it out of the box.
 
-> ✅ **Status: feature-complete and running in production at tv.mah007.net.** Milestones M1–M7, M9 and M11–M15 are accepted and tagged. Three wait on the owner: M8 for GPU benchmarks, M10 for testing on real devices, and M11b for payment sandbox keys.
+> ✅ **Status: feature-complete and running in production at tv.mah007.net.** Milestones M1–M9 and M11–M15 are accepted and tagged. Two wait on the owner: M10 for testing on real devices, and M11b for payment sandbox keys.
 > - **Working end to end:** admins (MFA, passkeys) create customers and IPTV logins; libraries are scanned, matched on TMDB (TheTVDB as the TV fallback) in English and Arabic, transcoded once into MP4 and an HLS ladder with per-plan quality ceilings, and served by signed-URL edges; IPTV apps and the customer portal play movies, series and live TV with catch-up.
 > - **Business:** plans, subscriptions with grace, invoices with VAT, manual, Stripe and Moyasar payments, emails, and editable privacy and terms pages.
 > - **Operations:** monitoring with alerts (email, Telegram), nightly encrypted backups with a weekly restore drill, hardened containers, CrowdSec, a strict CSP, sharing detection, rate limits, and every setting and integration configured in the admin.
@@ -15,6 +15,7 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-16:** GPU is optional by the owner's decision: servers transcode on the CPU by default, and a GPU server can opt in with a compose overlay. M8 is tagged.
 - **2026-10-16:** the follow-ups deployed to tv.mah007.net with a rolling update (no errors, 7 hosts green, contract suite 195 passed). Live TV, privacy and terms pages are live in the portal. Milestones M5 and M11 are tagged; every planned feature is built.
 - **2026-10-16:** the last follow-ups (ADR-0023):
   - **Metadata:** TheTVDB as the fallback for TV series TMDB can't match.
@@ -148,7 +149,7 @@ From a file on disk to a TV screen:
 - ✅ Each channel is packaged once (FFmpeg copy) and served by the edge as HLS or one continuous MPEG-TS stream. Channels start when someone watches. Catch-up recording has a disk budget set in the admin, and apps can timeshift.
 - ✅ XMLTV guide import from a URL on a schedule, or an upload, with channel mapping and an unmatched view. The guide table is partitioned monthly.
 - ✅ **Live TV in the customer portal:** a Live page with groups, what's on now and next, each channel's guide, and recorded programmes to watch from the start (catch-up); the player has a live mode.
-- 🔜 GPU real-time transcoding for live.
+- Live channels are copied, not re-encoded, so they need no GPU; real-time re-encoding stays a small CPU-capped fallback.
 
 **Admin and customer apps**
 - ✅ Admin SPA in Arabic (RTL) and English, with dark and light themes, a ⌘K command palette, keyboard shortcuts and live dashboards.
@@ -260,7 +261,7 @@ These are starting points. The M15 load test ([docs/benchmarks/load.md](docs/ben
 | Setup | CPU | RAM | Disk |
 |---|---|---|---|
 | Development laptop | 4+ cores | 8 GB (about 1 GB more with the monitoring overlay) | 40 GB free, plus sample media |
-| Small production (single host) | 8+ cores, iGPU or NVIDIA GPU recommended | 16–32 GB | NVMe for database and transcode scratch, plus library storage (below) |
+| Small production (single host) | 8+ cores (CPU transcoding; a GPU is optional and speeds up ingest) | 16–32 GB | NVMe for database and transcode scratch, plus library storage (below) |
 
 **Storage.** Plan for the source file plus about **7–9 GB per hour of 1080p content** for renditions. That is the HLS ladder at about 5.4 GB per hour plus the compatible MP4. The UHD variant adds about 7.5 GB per hour when enabled.
 
@@ -466,7 +467,7 @@ Each milestone ends with a checkpoint: what was built, how to verify it, and an 
 | M5 | Metadata | TMDB client, match scoring, review queue, English and Arabic enrichment, image pipeline, TheTVDB fallback | ✅ Done |
 | M6 | Catalog & search | Catalog API, categories, collections, Meilisearch with Arabic normalisation, home rows | ✅ Done |
 | M7 | Direct-play streaming | Nginx edge with signed tokens, playback API, concurrency limits, kick, session sweeper | ✅ Done |
-| M8 | Transcoding | Rendition planner, GPU detection, compatible MP4, HLS ladder with per-plan ceilings, UHD/HDR, thumbnails, subtitles, retention | ✅ Done (GPU benchmarks pending) |
+| M8 | Transcoding | Rendition planner, GPU detection, compatible MP4, HLS ladder with per-plan ceilings, UHD/HDR, thumbnails, subtitles, retention | ✅ Done (CPU by default; NVIDIA and Intel GPUs optional) |
 | M9 | Xtream API | All VOD and series endpoints with exact types, per-plan cache, M3U, contract tests, IPTVnator E2E | ✅ Done |
 | M10 | Client compatibility | Verified on Smarters, TiviMate, XCIPTV, OTT Navigator, UHF and a webOS/Tizen app; Arabic and English setup guides | Needs real devices |
 | M11 | Admin UI | Every admin page (Devices and Lockouts included), both themes, Arabic RTL and English, shortcuts, live views, accessibility checks | ✅ Done |

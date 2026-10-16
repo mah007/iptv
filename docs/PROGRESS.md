@@ -8,7 +8,7 @@
 | M4 Library scanner, M5 Metadata | Done ([ADR-0009](adr/0009-library-ingest-and-media-storage.md)); live TMDB on the server since 2026-10-04; the TheTVDB fallback in Q1 ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md)) | `m4-done`; M5 ready for `m5-done` |
 | M6 Catalog & search | Done: customer catalog API, collections, home rows, Meilisearch with the Arabic normaliser and fallback, engagement ([ADR-0013](adr/0013-customer-api.md)) | `m6-done` |
 | M7 Direct-play streaming | Done ([ADR-0007](adr/0007-media-token-and-edge.md), [ADR-0010](adr/0010-renditions-transcoder-and-edge-playback.md)) | `m7-done` |
-| M8 Transcoding | Done: compat MP4, HLS fMP4 ladder with per-plan ceilings, UHD/HDR, trickplay, subtitles (cp1256-safe), retention ([ADR-0014](adr/0014-hls-uhd-subtitles-thumbnails.md)); GPU ladder benchmarks pending | — |
+| M8 Transcoding | Done: compat MP4, HLS fMP4 ladder with per-plan ceilings, UHD/HDR, trickplay, subtitles (cp1256-safe), retention ([ADR-0014](adr/0014-hls-uhd-subtitles-thumbnails.md)); per-encoder benchmarks for CPU, NVENC, QSV and VAAPI. GPU is optional (owner decision 2026-10-16) | `m8-done` |
 | M9 Xtream API | Done ([ADR-0008](adr/0008-xtream-api.md), [ADR-0011](adr/0011-xtream-catalog-playback-and-sign-in-limits.md)) | `m9-done` |
 | M11 Admin UI | Done: every §8 page that has an API, billing pages, collections, storage, title media panels, live views with a polling fallback; `make e2e-admin` with axe ([ADR-0015](adr/0015-admin-ui.md)); Devices, Lockouts, subscription status, field codes and the own-password card in Q1 ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md)) | ready for `m11-done` |
 | M11b Customer portal | Done: portal UI with the Shaka player, progress and resume, account, devices and TV apps, checkout; `make e2e-portal` with axe ([ADR-0016](adr/0016-customer-portal.md)); live TV, my streams, my password and legal pages in Q1; provider sandboxes pending keys | — |
@@ -22,6 +22,17 @@
 | M10 client matrix (needs the owner's devices) | Planned | — |
 
 
+## Owner decision: GPU is optional (2026-10-16)
+
+> "No need for a GPU option; make it optional. Online servers usually come with no GPU."
+
+- **Default:** CPU-only (libx264 on the `transcode.cpu` queue), which is how production runs.
+- **Opt-in:**
+  - a GPU server adds `docker/compose.gpu-nvidia.yml` or `docker/compose.gpu-intel.yml` (deploy runbook), and the transcoder then detects the hardware and subscribes to its queue;
+  - without an overlay, nothing GPU-related runs.
+- **Dropped from the to-do list:** GPU ladder benchmarks and GPU real-time transcoding for live channels.
+- **M8:** the per-encoder benchmarks in [benchmarks/transcode.md](benchmarks/transcode.md) (CPU, NVENC, QSV, VAAPI) satisfy its benchmark criterion, so M8 is tagged `m8-done`.
+
 ## Final state (2026-10-16)
 
 - **Final gate:** `make ci ALLOW_DIRTY=1 BUILD_FLAGS="--pull --no-cache"` passed for the tree committed as `57a0492` in 1343 s. It covered:
@@ -32,7 +43,6 @@
   - Semgrep, the dependency audit, ZAP, `edge-test`, `mediamtx-test`, `restore-test`, `hardening-test`, `monitoring-test`;
   - images, Trivy and the licence gate.
 - **Tags:** `m1-done` to `m7-done`, `m9-done` and `m11-done` to `m15-done`. Not tagged:
-  - M8: GPU benchmarks;
   - M10: real-device client matrix;
   - M11b: Stripe and Moyasar sandbox checkout.
 - **Production (tv.mah007.net):** after a `pg_dump` safety copy, `install.sh --update` rolled the web replicas with no errors.
@@ -610,7 +620,7 @@ Tagged at `81b1158`, every §16 criterion passing:
 
 Not tagged yet:
 - **M5:** the TheTVDB fallback for TV.
-- **M8:** GPU benchmark reports (CPU done; NVENC and QSV wait for an idle desktop).
+- **M8:** tagged 2026-10-16 after the owner's decision that GPU is optional (below).
 - **M11:** the global Devices and Lockouts pages need APIs (the Live TV and EPG pages arrived with M12).
 - **M11b:** checkout against Stripe and Moyasar sandboxes needs keys.
 
