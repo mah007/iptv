@@ -4986,7 +4986,8 @@
       "webdav": "WebDAV",
       "drive": "Google Drive",
       "dropbox": "Dropbox",
-      "onedrive": "OneDrive"
+      "onedrive": "OneDrive",
+      "xtream": "Xtream / أفلام IPTV"
     },
     "providers": {
       "aws": "Amazon S3",
@@ -5050,10 +5051,10 @@
     },
     "sources": {
       "title": "المصادر",
-      "description": "مساحات تخزين تتحكم بها: حاويات وخوادم وأقراص سحابية. تُشفَّر بيانات الدخول ولا تُعرض مرة أخرى.",
+      "description": "مساحات التخزين ومصادر الأفلام المرخّصة التي تتحكم بها. تُشفَّر بيانات الدخول ولا تُعرض مرة أخرى.",
       "new": "إضافة مصدر",
       "empty": "لا مصادر بعد",
-      "emptyDescription": "أضف حاوية متوافقة مع S3 أو خادم SFTP أو WebDAV أو Google Drive أو Dropbox أو OneDrive. لملف واحد استخدم رابطًا مباشرًا.",
+      "emptyDescription": "أضف مساحة تخزين أو قرصًا سحابيًا أو حساب أفلام متوافقًا مع Xtream. لملف واحد استخدم رابطًا مباشرًا.",
       "neverTested": "لم يُختبر",
       "lastTest": "اختُبر",
       "test": "اختبار",
@@ -5081,7 +5082,8 @@
         "webdav": "Nextcloud أو ownCloud أو SharePoint أو خادم WebDAV آخر.",
         "drive": "عبر rclone: الصق الرمز الذي يطبعه rclone authorize \"drive\" على جهازك.",
         "dropbox": "عبر rclone: الصق الرمز الذي يطبعه rclone authorize \"dropbox\" على جهازك.",
-        "onedrive": "عبر rclone: الصق الرمز الذي يطبعه rclone authorize \"onedrive\" على جهازك."
+        "onedrive": "عبر rclone: الصق الرمز الذي يطبعه rclone authorize \"onedrive\" على جهازك.",
+        "xtream": "تصفّح تصنيفات الأفلام في حساب متوافق مع Xtream واستورد يدويًا ما لديك ترخيص بنسخه."
       },
       "name": "الاسم",
       "provider": "المزوّد",
@@ -5109,6 +5111,10 @@
       "hostKeys": "مفتاح الخادم",
       "hostKeysHelp": "اختياري: المفتاح العام للخادم (ناتج ssh-keyscan). إن تُرك فارغًا يثبّت أول اختبار ناجح المفتاحَ الذي يراه.",
       "url": "العنوان",
+      "xtreamUrl": "عنوان خادم IPTV",
+      "xtreamUrlHelp": "عنوان الخادم فقط، من دون player_api.php أو بيانات الحساب.",
+      "insecureHttpTitle": "يستخدم هذا المزوّد HTTP غير المشفّر",
+      "insecureHttpDescription": "يمكن قراءة بيانات الحساب وبيانات الفيلم أثناء النقل. اطلب من المزوّد عنوان HTTPS متى أمكن.",
       "vendor": "برنامج الخادم",
       "token": "الرمز",
       "tokenHelp": {

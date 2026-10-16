@@ -1,13 +1,13 @@
-"""Imports from storage the operator controls, or from one direct link (ADR-0025).
+"""Imports from controlled storage, licensed VOD, or one direct link (ADR-0025/0027).
 
 SPEC §1.1: media enters only through admin libraries. An import is how a file the
 operator owns or is licensed for reaches a library folder without being uploaded from a
 home connection: the server pulls it at datacentre speed.
 
-- `ImportSource`: a remote the admin set up (an S3-compatible bucket, an SFTP or WebDAV
-  server, Google Drive, Dropbox or OneDrive through rclone). Credentials are Fernet
-  encrypted (`credentials_encrypted`) and never serialized; the API reports which ones
-  are set.
+- `ImportSource`: a remote the admin set up (an S3-compatible bucket, an SFTP or
+  WebDAV server, Google Drive, Dropbox or OneDrive through rclone, or licensed Xtream
+  VOD). Credentials are Fernet encrypted (`credentials_encrypted`) and never
+  serialized; the API reports which ones are set.
 - `ImportJob`: one admin's request to copy specific files or folders of a source, or
   one direct link, into a library, with who asked, from where and under which rights.
   Jobs run on the `import` queue in the `importer` service, the only one that mounts
@@ -32,6 +32,7 @@ class SourceKind(models.TextChoices):
     DRIVE = "drive", "Google Drive"
     DROPBOX = "dropbox", "Dropbox"
     ONEDRIVE = "onedrive", "OneDrive"
+    XTREAM = "xtream", "Xtream / IPTV VOD"
 
 
 #: Kinds whose credential is an OAuth token from `rclone authorize` (ADR-0025).

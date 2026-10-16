@@ -15687,6 +15687,7 @@ components:
         - key_passphrase
         - token
         - client_secret
+        - account_username
       type: string
       description: |-
         * `access_key_id` - access_key_id
@@ -15696,6 +15697,7 @@ components:
         * `key_passphrase` - key_passphrase
         * `token` - token
         * `client_secret` - client_secret
+        * `account_username` - account_username
     ImportSource:
       type: object
       properties:
@@ -15763,6 +15765,7 @@ components:
         - drive
         - dropbox
         - onedrive
+        - xtream
       type: string
       description: |-
         * `s3` - S3-compatible bucket
@@ -15771,6 +15774,7 @@ components:
         * `drive` - Google Drive
         * `dropbox` - Dropbox
         * `onedrive` - OneDrive
+        * `xtream` - Xtream / IPTV VOD
     ImportSourceWriteRequest:
       type: object
       description: Create a source (name, kind, options, secrets) or change one (kind
@@ -22370,6 +22374,9 @@ components:
         client_secret:
           type: string
           maxLength: 500
+        account_username:
+          type: string
+          maxLength: 200
     SourceTestQueued:
       type: object
       properties:

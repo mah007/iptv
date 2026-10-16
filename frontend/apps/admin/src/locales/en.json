@@ -4706,7 +4706,8 @@
       "webdav": "WebDAV",
       "drive": "Google Drive",
       "dropbox": "Dropbox",
-      "onedrive": "OneDrive"
+      "onedrive": "OneDrive",
+      "xtream": "Xtream / IPTV VOD"
     },
     "providers": {
       "aws": "Amazon S3",
@@ -4766,10 +4767,10 @@
     },
     "sources": {
       "title": "Sources",
-      "description": "Storage you control: buckets, servers and cloud drives. Credentials are encrypted and never shown again.",
+      "description": "Storage and licensed VOD sources you control. Credentials are encrypted and never shown again.",
       "new": "Add source",
       "empty": "No sources yet",
-      "emptyDescription": "Add an S3-compatible bucket, an SFTP or WebDAV server, or Google Drive, Dropbox or OneDrive. For a single file, use a direct link instead.",
+      "emptyDescription": "Add storage, a cloud drive or an Xtream-compatible VOD account. For a single file, use a direct link instead.",
       "neverTested": "Not tested",
       "lastTest": "Tested",
       "test": "Test",
@@ -4797,7 +4798,8 @@
         "webdav": "Nextcloud, ownCloud, SharePoint or another WebDAV server.",
         "drive": "Through rclone: paste the token rclone authorize \"drive\" prints on your computer.",
         "dropbox": "Through rclone: paste the token rclone authorize \"dropbox\" prints on your computer.",
-        "onedrive": "Through rclone: paste the token rclone authorize \"onedrive\" prints on your computer."
+        "onedrive": "Through rclone: paste the token rclone authorize \"onedrive\" prints on your computer.",
+        "xtream": "Browse the VOD categories of an Xtream-compatible account and manually import movies you are licensed to copy."
       },
       "name": "Name",
       "provider": "Provider",
@@ -4825,6 +4827,10 @@
       "hostKeys": "Host key",
       "hostKeysHelp": "Optional: the server's public key (ssh-keyscan's output). Left empty, the first successful Test pins the key it sees.",
       "url": "Address",
+      "xtreamUrl": "IPTV server address",
+      "xtreamUrlHelp": "The server address only, without player_api.php or account credentials.",
+      "insecureHttpTitle": "This provider uses unencrypted HTTP",
+      "insecureHttpDescription": "The account credentials and movie data can be read in transit. Ask the provider for an HTTPS address when possible.",
       "vendor": "Server software",
       "token": "Token",
       "tokenHelp": {

@@ -65,6 +65,7 @@ OPTIONS: Final[dict[str, tuple[str, ...]]] = {
     SourceKind.DRIVE: ("root_folder_id", "client_id", "root"),
     SourceKind.DROPBOX: ("client_id", "root"),
     SourceKind.ONEDRIVE: ("drive_id", "drive_type", "client_id", "root"),
+    SourceKind.XTREAM: ("url",),
 }
 SECRETS: Final[dict[str, tuple[str, ...]]] = {
     SourceKind.S3: ("access_key_id", "secret_access_key"),
@@ -73,6 +74,7 @@ SECRETS: Final[dict[str, tuple[str, ...]]] = {
     SourceKind.DRIVE: ("token", "client_secret"),
     SourceKind.DROPBOX: ("token", "client_secret"),
     SourceKind.ONEDRIVE: ("token", "client_secret"),
+    SourceKind.XTREAM: ("account_username", "password"),
 }
 ALL_SECRETS: Final = tuple(dict.fromkeys(name for names in SECRETS.values() for name in names))
 ALL_OPTIONS: Final = tuple(dict.fromkeys(name for names in OPTIONS.values() for name in names))
@@ -224,6 +226,20 @@ def _webdav(options: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _xtream(options: Mapping[str, Any]) -> dict[str, Any]:
+    if not options.get("url"):
+        raise SourceError("url", "required", "Enter the IPTV server address.")
+    url = _http_url(options.get("url"), "url")
+    parts = urlsplit(url)
+    if parts.query or parts.fragment:
+        raise SourceError(
+            "url", "invalid_url", "Use the server address without a query or fragment."
+        )
+    if parts.path.rstrip("/").endswith("/player_api.php"):
+        raise SourceError("url", "invalid_url", "Use the server address without player_api.php.")
+    return {"url": url}
+
+
 def _oauth(kind: str) -> Callable[[Mapping[str, Any]], dict[str, Any]]:
     def clean(options: Mapping[str, Any]) -> dict[str, Any]:
         result: dict[str, Any] = {
@@ -258,6 +274,7 @@ _CLEANERS: Final[dict[str, Callable[[Mapping[str, Any]], dict[str, Any]]]] = {
     SourceKind.DRIVE: _oauth(SourceKind.DRIVE),
     SourceKind.DROPBOX: _oauth(SourceKind.DROPBOX),
     SourceKind.ONEDRIVE: _oauth(SourceKind.ONEDRIVE),
+    SourceKind.XTREAM: _xtream,
 }
 
 
@@ -321,6 +338,8 @@ def missing_secrets(kind: str, secrets: Mapping[str, str]) -> list[str]:
         return [] if secrets.get("password") or secrets.get("private_key") else ["password"]
     if kind in OAUTH_KINDS:
         return [] if secrets.get("token") else ["token"]
+    if kind == SourceKind.XTREAM:
+        return [name for name in ("account_username", "password") if not secrets.get(name)]
     return []
 
 
@@ -329,7 +348,7 @@ def hosts(kind: str, options: Mapping[str, Any]) -> list[tuple[str, int | None]]
     if kind == SourceKind.SFTP:
         return [(str(options["host"]), int(options.get("port") or 22))]
     url = options.get("endpoint") if kind == SourceKind.S3 else options.get("url")
-    if kind in {SourceKind.S3, SourceKind.WEBDAV} and url:
+    if kind in {SourceKind.S3, SourceKind.WEBDAV, SourceKind.XTREAM} and url:
         parts = urlsplit(str(url))
         return [(parts.hostname or "", parts.port)]
     return []
@@ -344,6 +363,8 @@ def summary(kind: str, options: Mapping[str, Any]) -> str:
         return f"{options.get('username')}@{options.get('host')}:{options.get('port') or 22}"
     if kind == SourceKind.WEBDAV:
         return str(options.get("url") or "")
+    if kind == SourceKind.XTREAM:
+        return urlsplit(str(options.get("url") or "")).netloc
     return str(options.get("root") or "/")
 
 
@@ -439,8 +460,10 @@ def rclone_section(
         values = _sftp_section(options, secrets, obscure, pin=pin_host_key)
     elif kind == SourceKind.WEBDAV:
         values = _webdav_section(options, secrets, obscure)
-    else:
+    elif kind in OAUTH_KINDS:
         values = _oauth_section(kind, options, secrets)
+    else:
+        raise SourceError("kind", "invalid_choice", "This source does not use rclone.")
     for name, value in values.items():
         if "\n" in value or "\r" in value:
             msg = f"rclone option {name} has a line break"

@@ -22,8 +22,19 @@
 | V1 Last open items | Done: visual regression in `make ci` (48 baselines), G-17's byte flagging, G-25's setup cards, optional customer two-factor sign-in, TheTVDB's DVD and absolute orders for TMDB series ([ADR-0024](adr/0024-visual-regression-byte-flagging-setup-cards-customer-2fa-tvdb-orders.md)) | — |
 | I1 Import from storage | Done: admin-started imports from S3-compatible buckets, SFTP, WebDAV, Google Drive, Dropbox and OneDrive (rclone in the new `importer` service, the only one that writes the libraries) or one direct HTTPS link; space and type checks first, staged atomic moves, resume, checksums, progress, cancel, one retry, rights recorded and applied to matched titles, `make import-test` in `make ci` ([ADR-0025](adr/0025-imports-from-storage-and-direct-links.md)) | — |
 | MT1 Manual titles | Done: a movie described by hand for a file no provider knows (open or skipped review), rights holder, licence reference and an audited rights confirmation required, imported rights applied, frame poster and backdrop when none is uploaded, Reopen for skipped reviews, `MANUAL_METADATA` on refresh, match to TMDB later in place, the title editor's Details, genres and Rights, a Manual badge and Source filter, compat variants ([ADR-0026](adr/0026-manual-titles.md)) | — |
+| XV1 Licensed Xtream VOD import | Done: encrypted Xtream account source, Test, category browser, manual movie selection, guarded/resumable copies through the existing importer, HTTP warning, no whole-category imports, and the existing per-import rights record ([ADR-0027](adr/0027-licensed-xtream-vod-imports.md)) | — |
 | M10 client matrix (needs the owner's devices) | In progress: on an LG TV (webOS), the owner's own test (2026-10-16), Xtream sign-in and movie playback work. Still to test: series, seeking and subtitles on LG; Smarters (Android, iOS), TiviMate, XCIPTV, OTT Navigator, UHF; then the ar/en setup guides | — |
 
+
+## XV1: licensed Xtream VOD imports (2026-10-17)
+
+### Done ([ADR-0027](adr/0027-licensed-xtream-vod-imports.md))
+- **Source:** Admin → Libraries → Import → Add source → Xtream / IPTV VOD. The base address is non-secret; the account username and password are encrypted, write-only and require step-up to add or change.
+- **Catalog:** Test authenticates and lists VOD categories. Browse shows categories and their movies; categories themselves cannot be selected, preventing a whole-catalog grab. Admins explicitly choose one or more movies.
+- **Copy:** the job keeps only opaque movie ids and safe file names. Stream URLs containing credentials exist only in importer memory. The downloader probes size, enforces the egress guard on every hop, reserves disk, resumes with HTTP Range, reports progress, honours bandwidth/cancel settings, stages and atomically moves files, then invokes the normal scan/match/transcode pipeline.
+- **Transport:** HTTPS sources cannot redirect to HTTP. An HTTP-only provider is supported because many legacy Xtream panels expose no TLS, but the form warns that credentials and media are readable in transit.
+- **Rights:** access to a subscription is not treated as permission to copy or redistribute. Every selected movie still needs the existing rights holder, licence reference and optional end date before the job can start.
+- **Evidence:** import backend 79 passed; backend Ruff, formatting and mypy clean; admin Vitest 208 passed; ESLint, Prettier and all TypeScript projects clean. The generated admin schema/client includes the new source kind and write-only account field.
 
 ## MT1: manual titles (2026-10-16)
 

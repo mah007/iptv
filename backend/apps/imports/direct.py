@@ -107,11 +107,11 @@ def _context() -> ssl.SSLContext | bool:
     return context
 
 
-def client() -> httpx.Client:
-    schemes = allowed_schemes()
+def client(*, schemes: frozenset[str] | None = None) -> httpx.Client:
+    accepted = schemes or allowed_schemes()
 
     def scheme(request: httpx.Request) -> None:
-        if request.url.scheme not in schemes:
+        if request.url.scheme not in accepted:
             raise egress.UnsafeDestination("insecure_redirect")
 
     guarded = egress.guarded_client(
@@ -161,16 +161,19 @@ def _disposition_name(header: str) -> str:
     return name.replace("/", "").replace("\\", "").strip()
 
 
-def probe(url: str) -> LinkInfo:
+def probe(url: str, *, schemes: frozenset[str] | None = None) -> LinkInfo:
     """The file's size (None when the server won't say) and name, before downloading."""
-    with client() as http:
+    with client(schemes=schemes) as http:
         try:
             response = http.head(url)
             if response.status_code in {405, 501} or (
                 response.is_success and "content-length" not in response.headers
             ):
-                response = http.get(url, headers={"Range": "bytes=0-0"})
-                response.close()
+                # Some movie servers do not implement HEAD. Keep this request
+                # streaming so a server that ignores Range cannot make a size probe
+                # buffer the entire movie in memory.
+                with http.stream("GET", url, headers={"Range": "bytes=0-0"}) as response:
+                    pass
         except egress.UnsafeDestination as exc:
             raise DownloadError("unsafe_destination", f"Not allowed: {exc.reason}.") from None
         except httpx.TimeoutException:
@@ -215,6 +218,7 @@ def download(  # noqa: PLR0912, PLR0913, PLR0915 (one resumable loop)
     on_progress: Callable[[int, int | None, float], None],
     should_stop: Callable[[], bool],
     check_space: Callable[[], None],
+    schemes: frozenset[str] | None = None,
     sleep: Callable[[float], None] = time.sleep,
 ) -> int:
     """Download `url` to `destination`, resuming from what is there. Returns its size."""
@@ -231,7 +235,10 @@ def download(  # noqa: PLR0912, PLR0913, PLR0915 (one resumable loop)
             return have
         headers = {"Range": f"bytes={have}-"} if have else {}
         try:
-            with client() as http, http.stream("GET", url, headers=headers) as response:
+            with (
+                client(schemes=schemes) as http,
+                http.stream("GET", url, headers=headers) as response,
+            ):
                 if response.status_code == 416 and have:
                     matched = _TOTAL_RANGE.match(response.headers.get("content-range", ""))
                     if matched and int(matched[1]) == have:

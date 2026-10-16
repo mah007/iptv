@@ -59,6 +59,7 @@ class SourceSecretsSerializer(serializers.Serializer[Any]):
     key_passphrase = serializers.CharField(required=False, allow_blank=True, max_length=500)
     token = serializers.CharField(required=False, allow_blank=True, max_length=20000)
     client_secret = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    account_username = serializers.CharField(required=False, allow_blank=True, max_length=200)
 
 
 class ImportSourceSerializer(serializers.ModelSerializer[ImportSource]):

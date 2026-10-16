@@ -180,6 +180,47 @@ describe("imports", () => {
     });
   });
 
+  it("adds an Xtream VOD source with encrypted fields and warns about HTTP", async () => {
+    const api = mockApi(
+      mediaSignedIn(
+        routes({
+          [`GET ${BASE}/sources`]: { body: [] },
+          [`POST ${BASE}/sources`]: {
+            status: 201,
+            body: source({
+              name: "Licensed VOD",
+              kind: "xtream",
+              options: { url: "http://vod.example:8080" },
+              summary: "vod.example:8080",
+              secrets_set: ["account_username", "password"],
+            }),
+          },
+        }),
+      ),
+    );
+    const { user } = renderApp("/libraries/import");
+    await user.click(await screen.findByRole("button", { name: "Add source" }));
+    const sheet = await screen.findByRole("dialog", { name: "Add source" });
+    await user.click(within(sheet).getByRole("combobox", { name: "Kind" }));
+    await user.click(await screen.findByRole("option", { name: "Xtream / IPTV VOD" }));
+    await user.type(within(sheet).getByLabelText("Name"), "Licensed VOD");
+    await user.type(
+      within(sheet).getByLabelText("IPTV server address"),
+      "http://vod.example:8080",
+    );
+    expect(await within(sheet).findByText("This provider uses unencrypted HTTP")).toBeTruthy();
+    await user.type(within(sheet).getByLabelText("User name"), "viewer");
+    await user.type(within(sheet).getByLabelText("Password"), "account-password");
+    await user.click(within(sheet).getByRole("button", { name: "Add source" }));
+    expect(await screen.findByText("Licensed VOD saved")).toBeTruthy();
+    expect(api.sent("POST", `${BASE}/sources`)[0]?.body).toEqual({
+      name: "Licensed VOD",
+      kind: "xtream",
+      options: { url: "http://vod.example:8080" },
+      secrets: { account_username: "viewer", password: "account-password" },
+    });
+  });
+
   it("browses a source, picks a folder and starts its import under the stated rights", async () => {
     const api = mockApi(
       mediaSignedIn(

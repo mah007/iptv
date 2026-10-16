@@ -1,8 +1,8 @@
-# Runbook: import media from your storage or a direct link
+# Runbook: import media from storage, licensed VOD or a direct link
 
-Imports copy files you own, or are licensed to distribute, into a library. They come from storage you control (an S3-compatible bucket, an SFTP or WebDAV server, Google Drive, Dropbox or OneDrive), or from one direct HTTPS link, such as a public-domain film on the Internet Archive. The server downloads them itself, at its own connection's speed, so a 100 GB film never crosses your home uplink. The decisions are in [ADR-0025](../adr/0025-imports-from-storage-and-direct-links.md).
+Imports copy files you own, or are licensed to distribute, into a library. They come from storage you control (an S3-compatible bucket, an SFTP or WebDAV server, Google Drive, Dropbox or OneDrive), a licensed Xtream-compatible VOD account, or one direct HTTPS link such as a public-domain film on the Internet Archive. The server downloads them itself, at its own connection's speed, so a 100 GB film never crosses your home uplink. The decisions are in [ADR-0025](../adr/0025-imports-from-storage-and-direct-links.md) and [ADR-0027](../adr/0027-licensed-xtream-vod-imports.md).
 
-**What it is not.** There are no torrents or magnet links, no Usenet, no indexers, no search-and-download, no RSS and no automatic grabbing. Every import is started by an admin, for files they chose or one link they pasted. It records:
+**What it is not.** There are no torrents or magnet links, no Usenet, no indexers, no search-and-download, no RSS and no automatic grabbing. A subscription that permits viewing does not by itself permit copying or redistribution. Every import is started by an admin, for files or individual VOD movies they chose or one link they pasted. It records:
 - who started it;
 - what it brought, and from where;
 - under which rights: a rights holder and a licence reference are required. For a public-domain film, write *Public domain* and the page that shows it.
@@ -71,6 +71,17 @@ The sign-in happens on **your own computer**, so your password never reaches the
 5. **Google Drive:** set **Folder ID** (the last part of a folder's address) to start in one folder. For large libraries, create your own OAuth client in the Google Cloud console and run `rclone authorize "drive" "<client id>" "<client secret>"`. Then fill **Client ID** and **Client secret**, which must be the ones the token was made with.
 
 The token refreshes itself; when the provider rotates it (OneDrive does), the server keeps the new one, encrypted. Revoke access at the provider when you delete the source.
+
+## Import from a licensed Xtream / IPTV VOD account
+
+Use this only when the rights holder or your contract separately permits copying and redistribution; ordinary subscriber access is not enough.
+
+1. **Add source**, kind **Xtream / IPTV VOD**. Enter the server address only (for example `https://provider.example:8080`), the account username and password. Both account fields are encrypted and never shown again.
+2. Prefer HTTPS. If the provider offers only `http://`, the admin warns you: the credentials and movie bytes are not encrypted in transit. An HTTPS source is never allowed to redirect down to HTTP.
+3. Click **Test**, then **Browse**. Open a category and tick individual movies. A category cannot be ticked as a whole, so the importer never becomes an automatic catalog grabber.
+4. Choose the library and enter the independent rights holder and licence reference. The server probes each movie, checks disk space, downloads it resumably, and runs the normal scan, match and transcode pipeline.
+
+The account credentials exist only in the encrypted source row and importer memory. Jobs and import history keep the source name, opaque movie id and safe file name—not a playback URL containing the account.
 
 ## Choose files and start
 1. On a source, click **Browse**. Folders come first, then files with their sizes. Only folders, video files (`mkv`, `mp4`, `m4v`, `mov`, `avi`, `ts`, `m2ts`, `webm`) and subtitles (`srt`, `vtt`, `ass`, `ssa`) can be chosen. A folder brings its videos and subtitles only, and leaves posters, `.nfo` files and the like behind.

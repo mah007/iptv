@@ -14,6 +14,7 @@ import {
   type SourceSecretsRequest,
 } from "@smart-iptv/api";
 import {
+  Alert,
   Button,
   Form,
   FormControl,
@@ -78,6 +79,7 @@ const schema = z.object({
   key_passphrase: z.string().max(500),
   token: z.string().max(20000),
   client_secret: z.string().max(500),
+  account_username: z.string().max(200),
 });
 
 type Values = z.output<typeof schema>;
@@ -91,6 +93,7 @@ const OPTIONS: Record<ImportSourceKind, readonly Field[]> = {
   drive: ["root_folder_id", "client_id", "root"],
   dropbox: ["client_id", "root"],
   onedrive: ["drive_id", "drive_type", "client_id", "root"],
+  xtream: ["url"],
 };
 const SECRETS: Record<ImportSourceKind, readonly ImportSecretName[]> = {
   s3: ["access_key_id", "secret_access_key"],
@@ -99,6 +102,7 @@ const SECRETS: Record<ImportSourceKind, readonly ImportSecretName[]> = {
   drive: ["token", "client_secret"],
   dropbox: ["token", "client_secret"],
   onedrive: ["token", "client_secret"],
+  xtream: ["account_username", "password"],
 };
 
 /** API field names are the form's own (errors land on the field they name). */
@@ -133,6 +137,7 @@ function defaults(source: ImportSource | null): Values {
     key_passphrase: "",
     token: "",
     client_secret: "",
+    account_username: "",
   };
 }
 
@@ -256,6 +261,7 @@ function SourceForm({ source, onDone }: { source: ImportSource | null; onDone: (
   });
   const kind = useWatch({ control: form.control, name: "kind" });
   const provider = useWatch({ control: form.control, name: "provider" });
+  const sourceUrl = useWatch({ control: form.control, name: "url" });
   const saved = new Set<string>(source?.secrets_set ?? []);
   const submit = form.handleSubmit(async (values) => {
     try {
@@ -458,6 +464,31 @@ function SourceForm({ source, onDone }: { source: ImportSource | null; onDone: (
               />
             </>
           ) : null}
+          {kind === "xtream" ? (
+            <>
+              <TextField
+                name="url"
+                label={t("imports.sheet.xtreamUrl")}
+                help={t("imports.sheet.xtreamUrlHelp")}
+                placeholder="https://provider.example:8080"
+              />
+              {sourceUrl.trim().toLowerCase().startsWith("http://") ? (
+                <Alert tone="warning" title={t("imports.sheet.insecureHttpTitle")}>
+                  {t("imports.sheet.insecureHttpDescription")}
+                </Alert>
+              ) : null}
+              <SecretField
+                name="account_username"
+                label={t("imports.sheet.username")}
+                saved={saved.has("account_username")}
+              />
+              <SecretField
+                name="password"
+                label={t("imports.sheet.password")}
+                saved={saved.has("password")}
+              />
+            </>
+          ) : null}
           {OAUTH.has(kind) ? (
             <>
               <SecretField
@@ -524,11 +555,13 @@ function SourceForm({ source, onDone }: { source: ImportSource | null; onDone: (
               />
             </>
           ) : null}
-          <TextField
-            name="root"
-            label={t("imports.sheet.root")}
-            help={t(kind === "s3" ? "imports.sheet.rootHelpS3" : "imports.sheet.rootHelp")}
-          />
+          {kind === "xtream" ? null : (
+            <TextField
+              name="root"
+              label={t("imports.sheet.root")}
+              help={t(kind === "s3" ? "imports.sheet.rootHelpS3" : "imports.sheet.rootHelp")}
+            />
+          )}
           <p className="text-xs text-muted-foreground">{t("imports.sheet.stepUpNote")}</p>
         </SheetBody>
         <SheetFooter>

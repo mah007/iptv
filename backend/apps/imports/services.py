@@ -1,4 +1,4 @@
-"""Import sources and jobs (ADR-0025).
+"""Import sources and jobs (ADR-0025/0027).
 
 - **Sources** are created, changed and deleted by admins (audited without credentials).
   Their Test and their remote browser run rclone in the importer: the web process
@@ -47,7 +47,7 @@ from apps.audit import services as audit
 from apps.core.ids import uuid7
 from apps.core.services import get_setting
 from apps.core.stores import cache_redis, state_redis
-from apps.imports import direct, files, rclone, remotes
+from apps.imports import direct, files, rclone, remotes, xtream
 from apps.imports.models import (
     ACTIVE_JOB_STATUSES,
     FileKind,
@@ -363,10 +363,21 @@ def test_source(source: ImportSource) -> dict[str, Any]:
     SFTP server's host key is pinned on the first successful Test (trust on first use)."""
     pin = source.kind == SourceKind.SFTP and not source.options.get("host_keys")
     try:
-        with _remote(source, pin_host_key=pin) as current:
-            entries = rclone.lsjson(
-                current, remotes.remote_path(str(source.options.get("root", "")))
+        if source.kind == SourceKind.XTREAM:
+            _guard(source.kind, source.options)
+            secrets = source_secrets(source)
+            base_url = str(source.options["url"])
+            xtream.authenticate(
+                base_url, secrets.get("account_username", ""), secrets.get("password", "")
             )
+            entries = xtream.categories(
+                base_url, secrets.get("account_username", ""), secrets.get("password", "")
+            )
+        else:
+            with _remote(source, pin_host_key=pin) as current:
+                entries = rclone.lsjson(
+                    current, remotes.remote_path(str(source.options.get("root", "")))
+                )
         result: dict[str, Any] = {
             "ok": True,
             "code": TestStatus.OK,
@@ -376,6 +387,8 @@ def test_source(source: ImportSource) -> dict[str, Any]:
     except rclone.RcloneError as exc:
         result = {"ok": False, "code": exc.code, "message": exc.message}
     except ImportRefused as exc:
+        result = {"ok": False, "code": exc.code, "message": exc.message}
+    except xtream.XtreamError as exc:
         result = {"ok": False, "code": exc.code, "message": exc.message}
     if source.kind == SourceKind.SFTP:
         source.refresh_from_db(fields=["options"])
@@ -398,6 +411,8 @@ def browse(source: ImportSource, path: str) -> dict[str, Any]:
         relative = remotes.clean_root(path, "path")
     except remotes.SourceError as exc:
         return {"ok": False, "code": exc.code, "message": exc.message, "path": "", "entries": []}
+    if source.kind == SourceKind.XTREAM:
+        return _browse_xtream(source, relative)
     try:
         with _remote(source) as current:
             listing = rclone.lsjson(
@@ -436,6 +451,61 @@ def browse(source: ImportSource, path: str) -> dict[str, Any]:
                 "importable": is_dir or files.file_kind(name) is not None,
             }
         )
+    entries.sort(key=lambda item: (not item["is_dir"], str(item["name"]).casefold()))
+    return {
+        "ok": True,
+        "code": TestStatus.OK,
+        "message": "",
+        "path": relative,
+        "entries": entries[:BROWSE_LIMIT],
+        "truncated": len(entries) > BROWSE_LIMIT,
+    }
+
+
+def _browse_xtream(source: ImportSource, relative: str) -> dict[str, Any]:
+    """Categories at the top, and the movies inside one category."""
+    secrets = source_secrets(source)
+    base_url = str(source.options.get("url") or "")
+    username, password = secrets.get("account_username", ""), secrets.get("password", "")
+    try:
+        _guard(source.kind, source.options)
+        if not relative:
+            entries = [
+                {
+                    "name": row["name"],
+                    "path": f"category/{row['id']}",
+                    "is_dir": True,
+                    "size": None,
+                    "modified": None,
+                    # Open a category and choose individual movies. Whole-catalog
+                    # acquisition is deliberately not offered.
+                    "importable": False,
+                }
+                for row in xtream.categories(base_url, username, password)
+            ]
+        else:
+            kind, category_id = xtream.parse_path(relative)
+            if kind != "category":
+                raise xtream.XtreamError("invalid_path", "Open a movie category.")
+            entries = [
+                {
+                    "name": item.file_name,
+                    "path": item.path,
+                    "is_dir": False,
+                    "size": None,
+                    "modified": None,
+                    "importable": xtream.importable(item),
+                }
+                for item in xtream.movies(base_url, username, password, category_id=category_id)
+            ]
+    except (xtream.XtreamError, ImportRefused) as exc:
+        return {
+            "ok": False,
+            "code": exc.code,
+            "message": exc.message,
+            "path": relative,
+            "entries": [],
+        }
     entries.sort(key=lambda item: (not item["is_dir"], str(item["name"]).casefold()))
     return {
         "ok": True,
@@ -558,6 +628,17 @@ def create_source_job(  # noqa: PLR0913 (everything is keyword-only)
                 params={"field": "items"},
             )
         is_dir = bool(item.get("is_dir"))
+        if source.kind == SourceKind.XTREAM:
+            try:
+                xtream_kind, _item_id = xtream.parse_path(path)
+            except xtream.XtreamError as exc:
+                raise ImportRefused(exc.code, exc.message, params={"field": "items"}) from None
+            if is_dir or xtream_kind != "movie":
+                raise ImportRefused(
+                    "unsupported_type",
+                    "Open the category and choose individual movies.",
+                    params={"field": "items", "names": [path.rpartition("/")[2]]},
+                )
         if not is_dir and files.file_kind(path) is None:
             refused.append(path.rpartition("/")[2])
         cleaned.append({"path": path, "is_dir": is_dir})
@@ -924,6 +1005,8 @@ def _copy_source(
     source = job.source
     if source is None:
         raise ImportRefused("source_missing", "The source was deleted.")
+    if source.kind == SourceKind.XTREAM:
+        return _copy_xtream(job, source, library, staging, reporter)
     root = str(source.options.get("root", ""))
     with _remote(source) as current:
         plan, skipped = _plan_source(job, current, root)
@@ -956,6 +1039,145 @@ def _copy_source(
             )
         staged.append((item, path))
     return staged
+
+
+def _xtream_plan(
+    job: ImportJob, source: ImportSource
+) -> tuple[list[Planned], dict[str, str], dict[str, Any]]:
+    secrets = source_secrets(source)
+    base_url = str(source.options.get("url") or "")
+    username, password = secrets.get("account_username", ""), secrets.get("password", "")
+    selected: dict[str, xtream.Movie] = {}
+    skipped: list[str] = []
+    skipped_count = 0
+    try:
+        _guard(source.kind, source.options)
+        for raw in job.items:
+            kind, item_id = xtream.parse_path(str(raw.get("path") or ""))
+            if kind != "movie":
+                raise xtream.XtreamError(
+                    "invalid_path", "Open the category and choose individual movies."
+                )
+            found = [xtream.movie(base_url, username, password, item_id)]
+            for movie in found:
+                if xtream.importable(movie):
+                    selected.setdefault(movie.stream_id, movie)
+                else:
+                    skipped_count += 1
+                    if len(skipped) < 10:
+                        skipped.append(movie.file_name)
+                if len(selected) > MAX_FILES:
+                    raise ImportRefused(
+                        "too_many_items",
+                        f"At most {MAX_FILES} files per import.",
+                        params={"count": len(selected)},
+                    )
+    except xtream.XtreamError as exc:
+        raise ImportRefused(exc.code, exc.message, transient=exc.transient) from None
+    if not selected:
+        raise ImportRefused(
+            "nothing_to_import",
+            "No supported video files were found.",
+            params={"skipped": skipped_count},
+        )
+    plan: list[Planned] = []
+    for movie in selected.values():
+        url = xtream.stream_url(base_url, username, password, movie)
+        try:
+            info = direct.probe(url, schemes=xtream.schemes(base_url))
+        except direct.DownloadError as exc:
+            raise ImportRefused(exc.code, exc.message, transient=exc.transient) from None
+        plan.append(
+            Planned(
+                remote=movie.path,
+                key=files.library_key(job.subfolder, movie.file_name, False),
+                size=info.size or 0,
+                kind=FileKind.VIDEO,
+            )
+        )
+    return (
+        plan,
+        {"username": username, "password": password},
+        {"count": skipped_count, "names": skipped},
+    )
+
+
+def _copy_xtream(
+    job: ImportJob,
+    source: ImportSource,
+    library: Library,
+    staging: Path,
+    reporter: Reporter,
+) -> list[tuple[Planned, Path]]:
+    plan, credentials, skipped = _xtream_plan(job, source)
+    _check_targets(library.path, plan)
+    total = sum(item.size for item in plan)
+    _check_space(job, library.path, max(total - files.staged_bytes(staging), 0))
+    _set(
+        job,
+        files_total=len(plan),
+        bytes_total=total,
+        skipped=skipped,
+        phase=JobPhase.COPYING,
+    )
+    files.make_dirs(staging)
+    base_url = str(source.options["url"])
+    completed = 0
+    staged: list[tuple[Planned, Path]] = []
+    for index, item in enumerate(plan):
+        _kind, stream_id = xtream.parse_path(item.remote)
+        name = item.key.rpartition("/")[2]
+        movie = xtream.Movie(stream_id, name.rsplit(".", 1)[0], files.extension(name), "")
+        url = xtream.stream_url(base_url, credentials["username"], credentials["password"], movie)
+        final = staging / name
+        partial_file = staging / f"{name}.partial"
+        if final.is_file() and (not item.size or final.stat().st_size == item.size):
+            size = final.stat().st_size
+        else:
+
+            def progress(
+                done: int,
+                current_total: int | None,
+                speed: float,
+                *,
+                before: int = completed,
+                file_index: int = index,
+            ) -> None:
+                reporter.update(
+                    done=before + done,
+                    total=max(total, before + (current_total or done)),
+                    speed=speed,
+                    files_done=file_index,
+                )
+
+            try:
+                size = direct.download(
+                    url,
+                    partial_file,
+                    expected_size=item.size or None,
+                    bwlimit_bytes=bwlimit_bytes(),
+                    on_progress=progress,
+                    should_stop=reporter.should_stop,
+                    check_space=lambda: _check_download_space(library.path),
+                    schemes=xtream.schemes(base_url),
+                )
+            except direct.DownloadError as exc:
+                raise ImportRefused(exc.code, exc.message, transient=exc.transient) from None
+            partial_file.rename(final)
+        completed += size
+        reporter.update(
+            done=completed, total=max(total, completed), speed=0.0, files_done=index + 1
+        )
+        staged.append((Planned(remote=item.remote, key=item.key, size=size, kind=item.kind), final))
+    return staged
+
+
+def _check_download_space(library_path: str) -> None:
+    if files.free_bytes(library_path) < reserve_bytes() // 2:
+        raise ImportRefused(
+            "insufficient_space",
+            "The disk is filling up: the import stopped to keep the reserve free.",
+        )
 
 
 def _copy_link(

@@ -2242,6 +2242,7 @@ export const ImportRequestStatus = {
  * * `key_passphrase` - key_passphrase
  * * `token` - token
  * * `client_secret` - client_secret
+ * * `account_username` - account_username
  */
 export type ImportSecretName = (typeof ImportSecretName)[keyof typeof ImportSecretName];
 
@@ -2253,6 +2254,7 @@ export const ImportSecretName = {
   key_passphrase: "key_passphrase",
   token: "token",
   client_secret: "client_secret",
+  account_username: "account_username",
 } as const;
 
 /**
@@ -2262,6 +2264,7 @@ export const ImportSecretName = {
  * * `drive` - Google Drive
  * * `dropbox` - Dropbox
  * * `onedrive` - OneDrive
+ * * `xtream` - Xtream / IPTV VOD
  */
 export type ImportSourceKind = (typeof ImportSourceKind)[keyof typeof ImportSourceKind];
 
@@ -2272,6 +2275,7 @@ export const ImportSourceKind = {
   drive: "drive",
   dropbox: "dropbox",
   onedrive: "onedrive",
+  xtream: "xtream",
 } as const;
 
 /**
@@ -2438,6 +2442,8 @@ export interface SourceSecretsRequest {
   token?: string;
   /** @maxLength 500 */
   client_secret?: string;
+  /** @maxLength 200 */
+  account_username?: string;
 }
 
 /**
