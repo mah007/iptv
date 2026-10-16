@@ -70,6 +70,9 @@
 ### Still open
 - Manual series (seasons and episodes) are a follow-up.
 
+### Deployed (2026-10-16)
+- 6381186 on tv.mah007.net through `install.sh --update` (pg_dump first, `/root/pre-mt1.dump`): no errors, 7 hosts green, contract suite 197 passed and 4 skipped, every service healthy. No migrations. The gate before it (`make ci`, cached build) passed: backend 3,517 at 92.82%, compat-live 214, admin E2E 136, portal E2E 8, visual 48.
+
 ## I1: import from storage (2026-10-16)
 
 ### Done ([ADR-0025](adr/0025-imports-from-storage-and-direct-links.md))
