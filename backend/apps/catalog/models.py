@@ -98,7 +98,8 @@ class TitleStatus(models.TextChoices):
 class MetadataSource(models.TextChoices):
     """Where a title's metadata came from. `synthetic` is fixture mode (no TMDB key):
     hand-written sample data, labelled as such in the admin. `tvdb`: the TV fallback
-    (ADR-0023), for a series TMDB has no confident match for."""
+    (ADR-0023), for a series TMDB has no confident match for. `manual`: entered by an
+    admin for a file no provider knows (ADR-0026); every field locked, never refreshed."""
 
     TMDB = "tmdb", "TMDB"
     SYNTHETIC = "synthetic", "Synthetic fixtures"
@@ -523,7 +524,8 @@ class MatchReview(BaseModel):
     parse_result = models.JSONField(default=dict)
     candidates = models.JSONField(default=list)
     status = models.CharField(max_length=8, choices=ReviewStatus.choices, default=ReviewStatus.OPEN)
-    #: `tmdb` or `tvdb` (ADR-0023): whose id `chosen_provider_id` is.
+    #: `tmdb` or `tvdb` (ADR-0023): whose id `chosen_provider_id` is; `manual` (no id)
+    #: when an admin described the movie by hand (ADR-0026).
     chosen_provider = models.CharField(max_length=8, blank=True, default="", db_default="")
     chosen_provider_id = models.PositiveIntegerField(null=True, blank=True)
     decided_by = models.ForeignKey(

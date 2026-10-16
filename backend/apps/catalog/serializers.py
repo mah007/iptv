@@ -2,13 +2,16 @@
 categories). Files are shown by their library-relative path; storage paths never leave
 the server. Artwork URLs point at the media edge (`MEDIA_BASE_URL/images/...`)."""
 
+import re
 from typing import Any, ClassVar
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import extend_schema_field, extend_schema_serializer
 from rest_framework import serializers
 from rest_framework.exceptions import ErrorDetail
 
 from apps.accounts.models import User
+from apps.accounts.validators import normalize_country
 from apps.catalog.models import (
     Category,
     CategoryKind,
@@ -467,6 +470,33 @@ class SeriesDetailSerializer(TitleDetailFields, serializers.ModelSerializer[Seri
         read_only_fields = fields
 
 
+MAX_COUNTRIES = 30
+_LANGUAGE = re.compile(r"[a-z]{2,3}")
+
+
+def language_code(value: str) -> str:
+    """An ISO 639-1 or 639-2 code as TMDB writes it (`ar`, `en`), or empty."""
+    code = value.strip().lower()
+    if code and not _LANGUAGE.fullmatch(code):
+        raise serializers.ValidationError(
+            "Use a two- or three-letter language code, e.g. ar.", code="invalid_language_code"
+        )
+    return code
+
+
+def country_codes(values: list[str]) -> list[str]:
+    """ISO 3166-1 alpha-2 codes, upper case, each once."""
+    codes: list[str] = []
+    for value in values:
+        try:
+            code = normalize_country(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages[0], code="invalid_country") from None
+        if code not in codes:
+            codes.append(code)
+    return codes
+
+
 #: An admin hides a title or shows it again (its files then decide the status).
 VISIBILITY_CHOICES = [
     (TitleStatus.HIDDEN.value, "Hide the title"),
@@ -488,6 +518,18 @@ class TitleUpdateSerializer(serializers.Serializer[Any]):
     year = serializers.IntegerField(min_value=1870, max_value=2200, required=False, allow_null=True)
     rating = serializers.FloatField(min_value=0, max_value=10, required=False, allow_null=True)
     certification = serializers.CharField(max_length=16, required=False, allow_blank=True)
+    original_language = serializers.CharField(
+        max_length=8,
+        required=False,
+        allow_blank=True,
+        help_text="ISO 639 code of the original language, e.g. ar.",
+    )
+    countries = serializers.ListField(
+        child=serializers.CharField(max_length=2),
+        required=False,
+        max_length=MAX_COUNTRIES,
+        help_text="ISO 3166-1 alpha-2 codes of the production countries.",
+    )
     trailer_youtube_key = serializers.CharField(max_length=32, required=False, allow_blank=True)
     featured = serializers.BooleanField(required=False)
     rights_holder = serializers.CharField(max_length=255, required=False, allow_blank=True)
@@ -497,9 +539,18 @@ class TitleUpdateSerializer(serializers.Serializer[Any]):
     categories = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), many=True, required=False
     )
+    genres = serializers.PrimaryKeyRelatedField(
+        queryset=Genre.objects.all(), many=True, required=False
+    )
     metadata_locked_fields = serializers.ListField(
         child=serializers.CharField(max_length=64), required=False, max_length=64
     )
+
+    def validate_original_language(self, value: str) -> str:
+        return language_code(value)
+
+    def validate_countries(self, value: list[str]) -> list[str]:
+        return country_codes(value)
 
 
 class MovieUpdateSerializer(TitleUpdateSerializer):
@@ -596,6 +647,11 @@ class CandidateSerializer(serializers.Serializer[Any]):
 class ReviewFileSerializer(serializers.ModelSerializer[MediaFile]):
     library = LibraryBriefSerializer(read_only=True)
     relative_path = SafeTextField(read_only=True)
+    movie: serializers.PrimaryKeyRelatedField[Movie] = serializers.PrimaryKeyRelatedField(
+        read_only=True,
+        allow_null=True,
+        help_text="The movie the file belongs to now (a manual one, for example).",
+    )
 
     class Meta:
         model = MediaFile
@@ -603,6 +659,7 @@ class ReviewFileSerializer(serializers.ModelSerializer[MediaFile]):
             "id",
             "library",
             "relative_path",
+            "movie",
             "size",
             "container",
             "duration_ms",
@@ -689,6 +746,98 @@ class SearchQuerySerializer(serializers.Serializer[Any]):
         choices=PROVIDER_CHOICES,
         default="tmdb",
         help_text="TheTVDB searches series only, when its key is set (ADR-0023).",
+    )
+
+
+# --- Manual titles (ADR-0026) ---------------------------------------------------------------------
+
+
+class ManualSourceSerializer(serializers.Serializer[Any]):
+    """The file a manual movie is for: a review's (open or skipped), or the file itself."""
+
+    review = serializers.UUIDField(required=False, help_text="An open or skipped review.")
+    media_file = serializers.UUIDField(required=False, help_text="A file no title owns yet.")
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if ("review" in attrs) == ("media_file" in attrs):
+            raise serializers.ValidationError(
+                {"review": [ErrorDetail("Give a review or a file.", code="one_source")]}
+            )
+        return attrs
+
+
+class ManualMovieCreateSerializer(ManualSourceSerializer):
+    """A movie entered by hand (multipart with `poster` and `backdrop`, or JSON without).
+    Rights holder, licence reference and the confirmation are required; categories left
+    out (or empty) take the library's defaults."""
+
+    title = serializers.CharField(max_length=255)
+    title_ar = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    original_title = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    overview = serializers.CharField(required=False, allow_blank=True, max_length=10000)
+    overview_ar = serializers.CharField(required=False, allow_blank=True, max_length=10000)
+    tagline = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    tagline_ar = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    year = serializers.IntegerField(min_value=1870, max_value=2200, required=False, allow_null=True)
+    release_date = serializers.DateField(required=False, allow_null=True)
+    runtime_min = serializers.IntegerField(
+        min_value=1,
+        max_value=2000,
+        required=False,
+        allow_null=True,
+        help_text="Minutes; the file's duration when left out.",
+    )
+    certification = serializers.CharField(max_length=16, required=False, allow_blank=True)
+    original_language = serializers.CharField(max_length=8, required=False, allow_blank=True)
+    countries = serializers.ListField(
+        child=serializers.CharField(max_length=2), required=False, max_length=MAX_COUNTRIES
+    )
+    trailer_youtube_key = serializers.CharField(max_length=32, required=False, allow_blank=True)
+    categories = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(), many=True, required=False
+    )
+    genres = serializers.PrimaryKeyRelatedField(
+        queryset=Genre.objects.all(), many=True, required=False
+    )
+    rights_holder = serializers.CharField(max_length=255)
+    license_ref = serializers.CharField(max_length=255)
+    license_expires_at = serializers.DateTimeField(required=False, allow_null=True)
+    rights_confirmed = serializers.BooleanField(
+        help_text="The admin confirms owning the content or holding the rights to distribute it."
+    )
+    poster = serializers.FileField(required=False, help_text="JPEG, PNG, WebP, AVIF or GIF.")
+    backdrop = serializers.FileField(required=False, help_text="JPEG, PNG, WebP, AVIF or GIF.")
+
+    def validate_original_language(self, value: str) -> str:
+        return language_code(value)
+
+    def validate_countries(self, value: list[str]) -> list[str]:
+        return country_codes(value)
+
+    def validate_rights_confirmed(self, value: bool) -> bool:
+        if value is not True:
+            raise serializers.ValidationError(
+                "Confirm that you own this content or hold the rights to distribute it.",
+                code="rights_confirmation_required",
+            )
+        return value
+
+
+class ManualDefaultsSerializer(serializers.Serializer[Any]):
+    """What the manual form starts from (ADR-0026)."""
+
+    title = serializers.CharField(allow_blank=True, help_text="The title the file name gives.")
+    year = serializers.IntegerField(allow_null=True)
+    runtime_min = serializers.IntegerField(
+        allow_null=True, help_text="The file's duration, rounded up."
+    )
+    rights_holder = serializers.CharField(
+        allow_blank=True, help_text="From the import that brought the file (ADR-0025)."
+    )
+    license_ref = serializers.CharField(allow_blank=True)
+    license_expires_at = serializers.DateTimeField(allow_null=True)
+    categories = serializers.ListField(
+        child=serializers.UUIDField(), help_text="The library's default categories."
     )
 
 

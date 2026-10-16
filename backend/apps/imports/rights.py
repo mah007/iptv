@@ -7,6 +7,8 @@ those fields the title doesn't have yet is filled from the import. A field the t
 already has, or one an admin edited (locked), is left alone.
 """
 
+from typing import Any
+
 from django.utils import timezone
 
 from apps.catalog.models import MediaFile, Title
@@ -15,16 +17,29 @@ from apps.imports.models import ImportFile
 RIGHTS_FIELDS = ("rights_holder", "license_ref", "license_expires_at")
 
 
-def apply_import_rights(file: MediaFile, title: Title) -> list[str]:
-    """Fill the title's empty, unlocked rights fields from the import that brought
-    `file`; returns the fields set. Call before the title's status is refreshed (an
-    expiry date in the past hides it)."""
-    record = (
+def _record_of(file: MediaFile) -> ImportFile | None:
+    return (
         ImportFile.objects.select_related("job")
         .filter(library_id=file.library_id, storage_key=file.storage_key)
         .order_by("-created_at")
         .first()
     )
+
+
+def import_rights_of(file: MediaFile) -> dict[str, Any] | None:
+    """The rights stated with the import that brought `file`, or None: the manual title
+    form starts from them (ADR-0026)."""
+    record = _record_of(file)
+    if record is None:
+        return None
+    return {name: getattr(record.job, name) for name in RIGHTS_FIELDS}
+
+
+def apply_import_rights(file: MediaFile, title: Title) -> list[str]:
+    """Fill the title's empty, unlocked rights fields from the import that brought
+    `file`; returns the fields set. Call before the title's status is refreshed (an
+    expiry date in the past hides it)."""
+    record = _record_of(file)
     if record is None:
         return []
     job = record.job

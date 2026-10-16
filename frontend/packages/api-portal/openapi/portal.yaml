@@ -3554,11 +3554,6 @@ components:
         * `720` - 720p
         * `1080` - 1080p
         * `2160` - 2160p
-    MetadataProvider:
-      enum:
-        - tmdb
-        - tvdb
-      type: string
     MfaConfirmRequest:
       type: object
       properties:
@@ -3687,9 +3682,10 @@ components:
           readOnly: true
         attribution:
           allOf:
-            - $ref: "#/components/schemas/MetadataProvider"
+            - $ref: "#/components/schemas/TitleAttribution"
           description: "Whose metadata the page shows, for the credit its licence
-            asks for: TMDB, or TheTVDB for a series built from it (ADR-0023)."
+            asks for: TMDB, TheTVDB for a series built from it (ADR-0023), or `manual`
+            for a title an admin entered by hand, which credits no provider (ADR-0026)."
           readOnly: true
         release_date:
           type:
@@ -4873,9 +4869,10 @@ components:
           readOnly: true
         attribution:
           allOf:
-            - $ref: "#/components/schemas/MetadataProvider"
+            - $ref: "#/components/schemas/TitleAttribution"
           description: "Whose metadata the page shows, for the credit its licence
-            asks for: TMDB, or TheTVDB for a series built from it (ADR-0023)."
+            asks for: TMDB, TheTVDB for a series built from it (ADR-0023), or `manual`
+            for a title an admin entered by hand, which credits no provider (ADR-0026)."
           readOnly: true
         first_air_date:
           type:
@@ -5054,6 +5051,12 @@ components:
       description: |-
         * `up` - Up
         * `down` - Down
+    TitleAttribution:
+      enum:
+        - tmdb
+        - tvdb
+        - manual
+      type: string
     TitleCard:
       type: object
       description: A movie or a series in a grid or a row.
@@ -5250,6 +5253,7 @@ components:
         - WEBHOOK_INVALID
         - STEP_UP_REQUIRED
         - IP_NOT_ALLOWED
+        - MANUAL_METADATA
       description: Stable machine-readable error code.
     Problem:
       type: object

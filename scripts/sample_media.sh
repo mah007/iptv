@@ -26,6 +26,9 @@
 #   movies/The Matrix.mp4
 #       H.264 720p, AAC stereo, faststart MP4 (direct play); no year, so the metadata match
 #       is ambiguous between the film and its sequels and goes to the review queue
+#   movies/Smart IPTV Sample Home Video (2026).mp4
+#       H.264 720p, AAC stereo, faststart MP4 (direct play); no metadata provider knows it,
+#       so it waits in the review queue for a manual title (ADR-0026, the admin E2E journey)
 #   live/test-pattern.mp4
 #       the live test channel's source (ADR-0017): testsrc2 (a running clock) and a sine
 #       tone, H.264 Main 640x360 25 fps with 2 s GOPs, AAC stereo, 60 s; the dev MediaMTX
@@ -344,6 +347,17 @@ make_ambiguous() {
 		-c:a aac -b:a 128k -metadata:s:a:0 language=eng
 }
 
+# No metadata provider knows this one: the review queue offers it as a manual title
+# (ADR-0026), which the admin end-to-end journey creates. Plays as is once it is a title's.
+make_home_video() {
+	produce "movies/Smart IPTV Sample Home Video (2026).mp4" \
+		"H.264 High 720p25, AAC-LC stereo (eng), faststart MP4, 30 s (no provider knows it)" \
+		-filter_complex "testsrc2=size=1280x720:rate=25,format=yuv420p[v];${SINE_STEREO}[a]" \
+		-map '[v]' -map '[a]' -t 30 \
+		-c:v libx264 -preset veryfast -crf 34 -profile:v high -level:v 4.0 -g 50 -keyint_min 50 -sc_threshold 0 "${SDR_TAGS[@]}" \
+		-c:a aac -b:a 128k -metadata:s:a:0 language=eng
+}
+
 make_live_source() {
 	produce "live/test-pattern.mp4" \
 		"H.264 Main 640x360 25 fps, 2 s GOP, AAC stereo, 60 s (the live test channel)" \
@@ -420,6 +434,7 @@ main() {
 	make_breaking_bad
 	make_double_episode
 	make_ambiguous
+	make_home_video
 	make_live_source
 	printf 'Done: %d made, %d already there; %s in movies/ and series/.\n' \
 		"$MADE" "$SKIPPED" "$(human_size "$TOTAL_BYTES")"

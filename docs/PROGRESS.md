@@ -21,8 +21,54 @@
 | Q1 Follow-ups | Done: TheTVDB fallback, admin Devices and Lockouts, subscription status, own passwords, my streams, portal live TV and catch-up, legal pages, MediaMTX sign-ins in the admin, capped MP4s for capped plans, the settings-cache healer ([ADR-0023](adr/0023-follow-ups-tvdb-admin-portal-live-legal-ingest.md)) | — |
 | V1 Last open items | Done: visual regression in `make ci` (48 baselines), G-17's byte flagging, G-25's setup cards, optional customer two-factor sign-in, TheTVDB's DVD and absolute orders for TMDB series ([ADR-0024](adr/0024-visual-regression-byte-flagging-setup-cards-customer-2fa-tvdb-orders.md)) | — |
 | I1 Import from storage | Done: admin-started imports from S3-compatible buckets, SFTP, WebDAV, Google Drive, Dropbox and OneDrive (rclone in the new `importer` service, the only one that writes the libraries) or one direct HTTPS link; space and type checks first, staged atomic moves, resume, checksums, progress, cancel, one retry, rights recorded and applied to matched titles, `make import-test` in `make ci` ([ADR-0025](adr/0025-imports-from-storage-and-direct-links.md)) | — |
+| MT1 Manual titles | Done: a movie described by hand for a file no provider knows (open or skipped review), rights holder, licence reference and an audited rights confirmation required, imported rights applied, frame poster and backdrop when none is uploaded, Reopen for skipped reviews, `MANUAL_METADATA` on refresh, match to TMDB later in place, the title editor's Details, genres and Rights, a Manual badge and Source filter, compat variants ([ADR-0026](adr/0026-manual-titles.md)) | — |
 | M10 client matrix (needs the owner's devices) | In progress: on an LG TV (webOS), the owner's own test (2026-10-16), Xtream sign-in and movie playback work. Still to test: series, seeking and subtitles on LG; Smarters (Android, iOS), TiviMate, XCIPTV, OTT Navigator, UHF; then the ar/en setup guides | — |
 
+
+## MT1: manual titles (2026-10-16)
+
+### Done ([ADR-0026](adr/0026-manual-titles.md))
+- **Why:** a file TMDB or TheTVDB doesn't know stayed in the review queue forever. Own videos, independent and regional films can now be added by hand, with the rights stated (owned or licensed content only, SPEC §1.1).
+- **Review queue:**
+  - **Create movie manually** (the main action when there are no candidates) on open and skipped reviews opens a form sheet;
+  - the sheet starts from the file name's title and year, the probed runtime, the import's rights (ADR-0025) and the library's categories;
+  - it takes English and Arabic texts, details, categories (adult ones marked), genres, a poster and a backdrop;
+  - rights holder, licence reference and the confirmation "I own this content or hold the rights to distribute it" are required.
+  - **Reopen** brings back a skipped review.
+- **Backend:**
+  - `POST admin/movies/manual` (multipart or JSON) and `GET admin/movies/manual/defaults`, `POST admin/review-queue/{id}/reopen` and `GET admin/genres`, all with `library.review` (genres with view);
+  - the file is matched like `accept_movie`'s, and the reviews close with `chosen_provider="manual"`;
+  - audited as `title.create_manual` and `review.manual` (with `rights_confirmed` and the actor), and `review.reopen`;
+  - every field is locked, and "Refresh metadata" answers 409 `MANUAL_METADATA`.
+- **Artwork:** uploads go through the existing converter. Without them, the worker takes a frame at 10% (`media.tasks.frame_artwork` on `images`): the middle 2:3 as the poster, the whole frame as the backdrop. A frame never replaces an image that arrived meanwhile.
+- **Match to TMDB later:** the same row, so the Xtream id stays. TMDB replaces the texts and artwork; the rights, categories and visibility stay, and fields TMDB leaves empty keep the admin's value.
+- **Everywhere else:**
+  - the title editor gains Details, genres and Rights for every title (`genres`, `original_language` and `countries` are now editable and lockable);
+  - Movies and Series get a Manual badge and a Source filter;
+  - a manual title's page has no Refresh and offers "Match to TMDB";
+  - the portal credits no provider for it (`attribution: "manual"`).
+- **Adult categories:** a manual title follows them like any title.
+  - The portal, search and recommendations hide adult categories unless the plan names them.
+  - Xtream (ADR-0011, unchanged) lists them for a plan with every category, flagged `is_adult:"1"`; the apps lock them themselves.
+- **Xtream:** a title without TMDB data keeps the §7.5 types: `""` and `[]`, never null. `make compat` gains a variants mechanism (patches to a golden file that must pass) with two manual-title cases.
+- **Dev:** a new synthetic sample no provider knows (`Smart IPTV Sample Home Video (2026).mp4`). `e2e_admin_account --manual-review` resets it to a skipped review for the admin journey (DEBUG only).
+
+### Evidence (dev stack, lane 1)
+- **Backend:** the new suites (`metadata/tests/test_manual_titles.py` 30, `media/tests/test_frame_artwork.py` 5, `xtream_api/tests/test_manual_titles.py` 1) and the touched areas (catalog, metadata matching and TheTVDB, media titles and outputs, imports rights, Xtream catalog source, e2e command, parser CSV, Celery routes) all pass: 686 tests in one targeted run. Ruff, `ruff format --check`, mypy and `makemigrations --check` are clean, with no new migration.
+- **Vitest:** admin 207 (full) with the new `manual-titles.test.tsx` (8); portal `pages.test.tsx` 15. ESLint, Prettier and tsc are clean for every file touched, and `make api-client` was regenerated.
+- **Contract:** `make compat` 163 (2 new variants); `make compat-live` 214 with the manual movie in the live catalogue.
+- **Admin E2E:** the two new journeys passed twice, with the keyboard review journey after them:
+  - the form in Arabic, dark, at 390 px, with axe and no sideways scroll;
+  - Reopen, then create with a poster upload, then the title page with axe.
+  
+  The movie was ready at once: the uploaded poster is primary and the backdrop came from a frame. No CSP violation.
+- **Not run here (the integrator's gate runs them):** the full backend suite, the full `e2e-admin` and `e2e-portal`, and `make visual`. No baseline was changed: TMDB titles' pages render as before.
+
+### For the production server
+`install.sh --update` covers it: no migration, no setting, no `.env` change. The new `apps.media.tasks.frame_artwork` route sends the task to the worker's `images` queue (code only).
+
+### Still open
+- Manual series (seasons and episodes) are a follow-up.
 
 ## I1: import from storage (2026-10-16)
 

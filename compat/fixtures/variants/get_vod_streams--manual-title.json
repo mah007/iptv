@@ -1,0 +1,36 @@
+{
+  "description": "A manual title (ADR-0026) in an adult category, before its artwork exists: no TMDB id, no icon, no rating, flagged adult for the app's own lock (ADR-0011).",
+  "fixture": "get_vod_streams.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/0/name",
+      "value": "Our Trip to AlUla"
+    },
+    {
+      "op": "replace",
+      "path": "/0/stream_icon",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/0/rating",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/0/rating_5based",
+      "value": 0
+    },
+    {
+      "op": "replace",
+      "path": "/0/tmdb_id",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/0/is_adult",
+      "value": "1"
+    }
+  ]
+}

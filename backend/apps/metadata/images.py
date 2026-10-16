@@ -49,6 +49,7 @@ __all__ = [
     "StoredImage",
     "available_formats",
     "blurhash",
+    "check_image",
     "download_image",
     "fetch_and_store",
     "store_image",
@@ -224,6 +225,24 @@ def download_image(url: str, *, client: httpx.Client, max_bytes: int = MAX_DOWNL
         msg = f"image download failed ({type(exc).__name__})"
         raise ImageError(msg) from exc
     return b"".join(chunks)
+
+
+def check_image(data: bytes) -> tuple[int, int]:
+    """The width and height of an image the pipeline will accept; ImageError otherwise.
+
+    Reads the header only (format and size, no pixels), so the web process can refuse
+    an upload before it queues the conversion on the worker (ADR-0026)."""
+    try:
+        with Image.open(io.BytesIO(data), formats=_DECODERS) as image:
+            width, height = image.size
+            image.verify()
+    except (UnidentifiedImageError, Image.DecompressionBombError, OSError, SyntaxError) as exc:
+        msg = f"not a supported image ({type(exc).__name__})"
+        raise ImageError(msg) from exc
+    if width * height > MAX_PIXELS:
+        msg = f"image is larger than {MAX_PIXELS} pixels"
+        raise ImageError(msg)
+    return width, height
 
 
 def store_image(  # noqa: PLR0913

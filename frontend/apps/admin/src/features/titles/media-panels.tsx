@@ -843,7 +843,16 @@ function ImageTile({
 }
 
 /** Artwork (SPEC §8.3.6 image picker): stored images, TMDB alternatives, or an upload. */
-export function ImagesPanel({ titleId, kind }: { titleId: string; kind: "movie" | "series" }) {
+export function ImagesPanel({
+  titleId,
+  kind,
+  providerArtwork = true,
+}: {
+  titleId: string;
+  kind: "movie" | "series";
+  /** False for a manual title (ADR-0026): no provider offers alternatives. */
+  providerArtwork?: boolean;
+}) {
   const { t } = useTranslation();
   const can = useCan();
   const manage = can("library.manage");
@@ -963,7 +972,7 @@ export function ImagesPanel({ titleId, kind }: { titleId: string; kind: "movie" 
                     <Input
                       id={ids.file}
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
                       disabled={uploading}
                       onChange={(event) => {
                         const file = event.target.files?.[0];
@@ -976,10 +985,16 @@ export function ImagesPanel({ titleId, kind }: { titleId: string; kind: "movie" 
                     <ImagePlus aria-hidden="true" className="size-4 animate-pulse" />
                   ) : null}
                 </div>
-                <h3 className="text-xs font-medium text-muted-foreground">
-                  {t("titleMedia.images.alternatives")}
-                </h3>
-                {query.data.alternatives_error ? (
+                {providerArtwork ? (
+                  <h3 className="text-xs font-medium text-muted-foreground">
+                    {t("titleMedia.images.alternatives")}
+                  </h3>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {t("titleMedia.images.manualHelp")}
+                  </p>
+                )}
+                {!providerArtwork ? null : query.data.alternatives_error ? (
                   <p className="text-ui text-muted-foreground">
                     {t("titleMedia.images.unavailable")}
                   </p>
@@ -1073,12 +1088,15 @@ export function RematchDialog({
   initialQuery,
   open,
   onOpenChange,
+  manual = false,
 }: {
   titleId: string;
   kind: "movie" | "series";
   initialQuery: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** A manual title (ADR-0026) is matched to a TMDB title in place, never automatically. */
+  manual?: boolean;
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -1126,8 +1144,14 @@ export function RematchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{t("titleMedia.rematch.title")}</DialogTitle>
-          <DialogDescription>{t("titleMedia.rematch.description")}</DialogDescription>
+          <DialogTitle>
+            {manual ? t("titleMedia.rematch.manualTitle") : t("titleMedia.rematch.title")}
+          </DialogTitle>
+          <DialogDescription>
+            {manual
+              ? t("titleMedia.rematch.manualDescription")
+              : t("titleMedia.rematch.description")}
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap items-end gap-3">
           {kind === "series" ? (
@@ -1203,17 +1227,19 @@ export function RematchDialog({
             </ul>
           )}
         </div>
-        <DialogFooter>
-          <Button
-            variant="secondary"
-            pending={rematch.isPending}
-            onClick={() => {
-              run(null);
-            }}
-          >
-            {t("titleMedia.rematch.automatic")}
-          </Button>
-        </DialogFooter>
+        {manual ? null : (
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              pending={rematch.isPending}
+              onClick={() => {
+                run(null);
+              }}
+            >
+              {t("titleMedia.rematch.automatic")}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

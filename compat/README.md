@@ -7,6 +7,7 @@ What IPTV apps receive from the Xtream host (`tv.*`) is a public contract. Smart
 | `schemas/<action>.schema.json` | JSON Schema 2020-12 for every `player_api.php` response. `common.schema.json` holds the shared field types. |
 | `fixtures/<action>.json` | Golden responses built from the spec's examples (The Matrix, TMDB 603; Breaking Bad, TMDB 1396). |
 | `fixtures/m3u_plus.m3u`, `fixtures/xmltv.xml` | Golden `get.php` and `xmltv.php` documents ([m3u.md](m3u.md), [xmltv.md](xmltv.md)). |
+| `fixtures/variants/*.json` | Valid shapes the golden files don't show, each a change to one golden file that must still pass (a manual title without TMDB id or artwork, ADR-0026). The golden files stay canonical. |
 | `fixtures/invalid/*.json` | 146 cases. Each makes one small change to a golden file and states where the check must fail. |
 | `validate.py` | The checker for fixtures, invalid cases and, with `--live`, a running server. |
 | `fixture_server.py` | A standard-library test double that serves the golden files as an Xtream host. |
@@ -86,6 +87,10 @@ A failure names the place, what was found there and the rule it breaks:
       - when the channel has `tv_archive` 1, a 2-minute `/timeshift/<u>/<p>/2/<now − 3 min>/<id>.ts` window, which must play.
       `make live-ready` provides such a channel in dev (the synthetic test pattern, recorded).
    10. Last, because they trip rate limits: a wrong password, an unknown username and a wrong password on an action. All three bodies must be `{"user_info":{"auth":0}}` with HTTP 200 and byte-for-byte identical.
+
+## Variants
+
+Each file in `fixtures/variants/<golden-file-stem>--<what-differs>.json` has the shape of an invalid case without `expect`: a `description`, the `fixture` and a `patch` (or `replace`). The changed document must pass every check, the cross-action ones included. Variants pin real shapes the golden files don't show, such as a manual title (ADR-0026) with `""` for the TMDB id and the images and `[]` for the backdrops.
 
 ## Invalid cases
 

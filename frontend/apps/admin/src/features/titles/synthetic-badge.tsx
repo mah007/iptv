@@ -12,3 +12,13 @@ export function SyntheticBadge() {
     </Badge>
   );
 }
+
+/** Metadata an admin entered by hand (ADR-0026): no provider behind it. */
+export function ManualBadge() {
+  const { t } = useTranslation();
+  return (
+    <Badge tone="violet" title={t("titles.manualHelp")}>
+      {t("titles.manualBadge")}
+    </Badge>
+  );
+}

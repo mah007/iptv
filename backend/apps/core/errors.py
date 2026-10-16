@@ -71,6 +71,8 @@ class ErrorCode(StrEnum):
     # Application security (M14a, ADR-0021).
     STEP_UP_REQUIRED = "STEP_UP_REQUIRED"
     IP_NOT_ALLOWED = "IP_NOT_ALLOWED"
+    # Manual titles (ADR-0026): their metadata has no provider to refresh or rematch from.
+    MANUAL_METADATA = "MANUAL_METADATA"
 
 
 # Default HTTP status and RFC 9457 title per code; a raise site may override the status.
@@ -110,6 +112,8 @@ _DEFAULTS: dict[ErrorCode, tuple[int, str]] = {
     # Application security (M14a, ADR-0021).
     ErrorCode.STEP_UP_REQUIRED: (403, "Confirm it's you"),
     ErrorCode.IP_NOT_ALLOWED: (403, "Network not allowed"),
+    # Manual titles (ADR-0026).
+    ErrorCode.MANUAL_METADATA: (409, "Metadata entered by hand"),
 }
 
 # Key for errors that belong to no single field (DRF's convention).

@@ -755,13 +755,6 @@ export interface LiveListing {
   channels: LiveChannel[];
 }
 
-export type MetadataProvider = (typeof MetadataProvider)[keyof typeof MetadataProvider];
-
-export const MetadataProvider = {
-  tmdb: "tmdb",
-  tvdb: "tvdb",
-} as const;
-
 export interface MfaConfirmRequest {
   /**
    * The first code the app shows.
@@ -820,6 +813,14 @@ export interface ViewerState {
   progress: Progress | null;
 }
 
+export type TitleAttribution = (typeof TitleAttribution)[keyof typeof TitleAttribution];
+
+export const TitleAttribution = {
+  tmdb: "tmdb",
+  tvdb: "tvdb",
+  manual: "manual",
+} as const;
+
 /**
  * A movie or a series in a grid or a row.
  */
@@ -856,8 +857,8 @@ export interface MovieDetail {
   readonly tracks: TrackLanguages;
   readonly viewer: ViewerState;
   readonly similar: readonly TitleCard[];
-  /** Whose metadata the page shows, for the credit its licence asks for: TMDB, or TheTVDB for a series built from it (ADR-0023). */
-  readonly attribution: MetadataProvider;
+  /** Whose metadata the page shows, for the credit its licence asks for: TMDB, TheTVDB for a series built from it (ADR-0023), or `manual` for a title an admin entered by hand, which credits no provider (ADR-0026). */
+  readonly attribution: TitleAttribution;
   /** @nullable */
   release_date: string | null;
 }
@@ -1388,8 +1389,8 @@ export interface SeriesDetail {
   readonly tracks: TrackLanguages;
   readonly viewer: ViewerState;
   readonly similar: readonly TitleCard[];
-  /** Whose metadata the page shows, for the credit its licence asks for: TMDB, or TheTVDB for a series built from it (ADR-0023). */
-  readonly attribution: MetadataProvider;
+  /** Whose metadata the page shows, for the credit its licence asks for: TMDB, TheTVDB for a series built from it (ADR-0023), or `manual` for a title an admin entered by hand, which credits no provider (ADR-0026). */
+  readonly attribution: TitleAttribution;
   /** @nullable */
   first_air_date: string | null;
   /** @nullable */
@@ -1462,6 +1463,7 @@ export const ErrorCode = {
   WEBHOOK_INVALID: "WEBHOOK_INVALID",
   STEP_UP_REQUIRED: "STEP_UP_REQUIRED",
   IP_NOT_ALLOWED: "IP_NOT_ALLOWED",
+  MANUAL_METADATA: "MANUAL_METADATA",
 } as const;
 
 /**

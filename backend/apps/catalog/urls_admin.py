@@ -11,6 +11,12 @@ urlpatterns = [
     ),
     path("categories/<uuid:pk>", views.CategoryDetailView.as_view(), name="admin-category"),
     path("movies", views.MovieListView.as_view(), name="admin-movies-list"),
+    path("movies/manual", views.ManualMovieView.as_view(), name="admin-movies-manual"),
+    path(
+        "movies/manual/defaults",
+        views.ManualDefaultsView.as_view(),
+        name="admin-movies-manual-defaults",
+    ),
     path("movies/<uuid:pk>", views.MovieDetailView.as_view(), name="admin-movie"),
     path(
         "movies/<uuid:pk>/refresh-metadata",
@@ -32,6 +38,12 @@ urlpatterns = [
         name="admin-review-resolve",
     ),
     path("review-queue/<uuid:pk>/skip", views.ReviewSkipView.as_view(), name="admin-review-skip"),
+    path(
+        "review-queue/<uuid:pk>/reopen",
+        views.ReviewReopenView.as_view(),
+        name="admin-review-reopen",
+    ),
+    path("genres", views.GenreListView.as_view(), name="admin-genres-list"),
     path("metadata/search", views.MetadataSearchView.as_view(), name="admin-metadata-search"),
     # Collections (C1, ADR-0013): curated rows for the portal's home and their pages.
     path("collections", views.CollectionListView.as_view(), name="admin-collections-list"),

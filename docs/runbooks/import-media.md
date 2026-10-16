@@ -105,6 +105,19 @@ rsync -a --partial-dir=.rsync-partial --delay-updates --info=progress2 \
 - Files copied this way carry **no rights**: set the rights holder and licence on the titles in the admin afterwards, and keep your own record of where they came from.
 - The importer is the better choice when the files are in a bucket or a cloud drive, when you want the rights recorded with the copy, or when the server can't be reached over SSH from the source.
 
+## Titles TMDB doesn't know (manual titles, ADR-0026)
+
+Your own videos and films TMDB lacks wait in **Library → Review queue** with *No candidates*.
+
+1. Open the file and choose **Create movie manually**. The form starts from the file name's title and year, the file's runtime, the rights you gave the import, and the library's categories.
+2. Fill in the English and Arabic texts. Tick categories: without one, IPTV apps don't list the title.
+3. Upload a poster (2:3) and a backdrop (16:9), or leave them out: a frame of the video is used, and you can replace it on the title page.
+4. Enter the rights holder and licence reference, tick **I own this content or hold the rights to distribute it** (recorded in the audit log with your name), and choose **Create movie**. The title is ready once its file is prepared.
+
+A skipped review comes back with **Reopen** (Skipped tab). A manual title is never refreshed. **Match to TMDB** on its page converts it in place if TMDB adds it later; the Xtream id, rights and categories stay.
+
+**Adult categories:** the portal shows them only to plans that name them. IPTV apps get every category of a plan that allows all categories, adult ones flagged for the app's own parental lock (ADR-0011). Give adult titles their own category and leave it out of the plans that shouldn't have it.
+
 ## Troubleshooting
 | The card or history says | What to do |
 |---|---|

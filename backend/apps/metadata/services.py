@@ -23,25 +23,29 @@
   `images` into `DATA_ROOT/images` and recorded as `MediaImage` rows.
 """
 
+import base64
 import logging
+import math
 import re
 import threading
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date
-from functools import cache
+from functools import cache, partial
 from pathlib import Path
 from typing import Any, Final, cast
 
 import httpx
 from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from redis.exceptions import LockError
 
 from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.catalog.models import (
+    CategoryKind,
     Credit,
     CreditRole,
     Episode,
@@ -62,18 +66,19 @@ from apps.catalog.models import (
     Title,
 )
 from apps.catalog.services import (
+    MANUAL_MOVIE_LOCKS,
     categories_for_genres,
     refresh_movie_status,
     refresh_series_status,
     refresh_status_of_files,
 )
 from apps.catalog.signals import notify_catalog_changed
-from apps.core.errors import ErrorCode, ProblemError, field_error
+from apps.core.errors import NON_FIELD_ERRORS, ErrorCode, ProblemError, field_error
 from apps.core.metrics import MATCH_CONFIDENCE
 from apps.core.services import get_setting
 from apps.core.stores import state_redis
 from apps.core.text import strip_bidi
-from apps.imports.rights import apply_import_rights
+from apps.imports.rights import apply_import_rights, import_rights_of
 from apps.library.parsing import ParseResult
 from apps.metadata.images import ImageError, LocalImageStore, fetch_and_store, tmdb_source_size
 from apps.metadata.images import ImageKind as ImageKindName
@@ -362,7 +367,7 @@ def _open_review(
 
 
 def _close_reviews(
-    file: MediaFile, provider_id: int, actor: User | None, provider: str = "tmdb"
+    file: MediaFile, provider_id: int | None, actor: User | None, provider: str = "tmdb"
 ) -> None:
     MatchReview.objects.filter(media_file=file, status=ReviewStatus.OPEN).update(
         status=ReviewStatus.RESOLVED,
@@ -717,7 +722,8 @@ def _assign(title: Title, values: Mapping[str, Any], locked: set[str]) -> None:
 
 def _apply_relations(title: Movie | Series, details: JSONObject, kind: str) -> None:
     genres = _genres(details, kind)
-    title.genres.set(genres)
+    if "genres" not in title.metadata_locked_fields:
+        title.genres.set(genres)
     if "categories" not in title.metadata_locked_fields:
         category_kind = "vod" if kind == "movie" else "series"
         title.categories.add(
@@ -1133,6 +1139,8 @@ def fetch_series_images(series: Series, client: TMDBClient | None = None) -> int
 
 def refresh_movie(movie: Movie, client: TMDBClient | None = None) -> Movie:
     """Fetch the movie again; locked fields stay as the admin left them."""
+    if movie.metadata_source == MetadataSource.MANUAL:
+        raise manual_metadata_problem()
     client = client or tmdb()
     if movie.tmdb_id is None:
         raise ProblemError(ErrorCode.CONFLICT, "This movie has no TMDB id to refresh from.")
@@ -1161,7 +1169,7 @@ def refresh_series(series: Series, client: TMDBClient | None = None) -> Series:
 # --- The review queue (SPEC §8.3) -----------------------------------------------------------------
 
 
-def _provider_problem(exc: TMDBError, provider: str = "tmdb") -> ProblemError:
+def provider_problem(exc: TMDBError, provider: str = "tmdb") -> ProblemError:
     name, field = ("TheTVDB", "tvdb_id") if provider == "tvdb" else ("TMDB", "tmdb_id")
     if isinstance(exc, TMDBNotFoundError):
         return ProblemError(
@@ -1227,7 +1235,7 @@ def resolve_review(  # noqa: PLR0913 (everything after provider_id is keyword-on
             field_errors={field: [field_error(str(exc), code=f"placement_{exc.reason}")]},
         ) from None
     except TMDBError as exc:
-        raise _provider_problem(exc, provider) from None
+        raise provider_problem(exc, provider) from None
     review.refresh_from_db()
     with transaction.atomic():
         review.kind = kind
@@ -1260,6 +1268,364 @@ def skip_review(review: MatchReview, *, actor: User | None, ip: str | None) -> M
     return review
 
 
+# --- Manual titles (ADR-0026) ---------------------------------------------------------------------
+
+#: `MatchReview.chosen_provider` of a review an admin resolved with a manual title.
+MANUAL_PROVIDER: Final = "manual"
+#: What the manual form sets on the movie itself (genres and categories are relations).
+MANUAL_MOVIE_FIELDS: Final = (
+    "title",
+    "title_ar",
+    "original_title",
+    "overview",
+    "overview_ar",
+    "tagline",
+    "tagline_ar",
+    "year",
+    "release_date",
+    "runtime_min",
+    "certification",
+    "original_language",
+    "countries",
+    "trailer_youtube_key",
+    "rights_holder",
+    "license_ref",
+    "license_expires_at",
+)
+#: Locks a manual movie keeps when it is matched to TMDB later: what the admin stated
+#: about the rights, the categories and the visibility. The rest comes from TMDB.
+KEPT_ON_CONVERT: Final = (
+    "rights_holder",
+    "license_ref",
+    "license_expires_at",
+    "featured",
+    "categories",
+    "status",
+)
+#: Fields that keep the admin's value (and their lock) when TMDB has none for them.
+KEPT_WHEN_TMDB_EMPTY: Final = (
+    "title_ar",
+    "original_title",
+    "overview",
+    "overview_ar",
+    "tagline",
+    "tagline_ar",
+    "year",
+    "release_date",
+    "runtime_min",
+    "certification",
+    "original_language",
+    "countries",
+    "trailer_youtube_key",
+)
+MANUAL_IMAGE_KINDS: Final = (ImageKind.POSTER, ImageKind.BACKDROP)
+#: Largest poster or backdrop upload (the same as the title page's, `media.titles`).
+MANUAL_IMAGE_MAX_BYTES: Final = 15 * 1024 * 1024
+
+
+@dataclass(frozen=True, slots=True)
+class ManualImage:
+    """A poster or backdrop uploaded with a manual movie."""
+
+    kind: str
+    data: bytes
+
+
+def manual_metadata_problem() -> ProblemError:
+    return ProblemError(
+        ErrorCode.MANUAL_METADATA,
+        "This title's metadata was entered by hand: there is no provider to refresh it from. "
+        "Edit it, or match it to a TMDB title.",
+    )
+
+
+def _refused(message: str, code: str) -> ProblemError:
+    return ProblemError(
+        ErrorCode.CONFLICT,
+        message,
+        field_errors={NON_FIELD_ERRORS: [field_error(message, code=code)]},
+    )
+
+
+def _invalid(field: str, message: str, code: str) -> ProblemError:
+    return ProblemError(
+        ErrorCode.VALIDATION_ERROR,
+        message,
+        field_errors={field: [field_error(message, code=code)]},
+    )
+
+
+def _check_manual_file(file: MediaFile) -> None:
+    if file.removed_at is not None:
+        raise _refused("The file is no longer in its library.", "file_removed")
+    if file.state == FileState.MATCHED:
+        raise _refused("The file is already matched to a title.", "file_matched")
+    if file.state == FileState.PENDING or file.duration_ms is None:
+        raise _refused("The file hasn't been probed yet; try again shortly.", "file_not_probed")
+
+
+def _check_manual_review(review: MatchReview | None) -> None:
+    if review is not None and review.status not in (ReviewStatus.OPEN, ReviewStatus.SKIPPED):
+        raise _refused("This review was already decided.", "review_decided")
+
+
+def runtime_of(file: MediaFile) -> int | None:
+    """The file's duration in whole minutes, rounded up (the form's default runtime)."""
+    if not file.duration_ms:
+        return None
+    return max(1, math.ceil(file.duration_ms / 60000))
+
+
+def manual_defaults(file: MediaFile, review: MatchReview | None = None) -> dict[str, Any]:
+    """What the manual form starts from: the name's title and year, the probed runtime,
+    the rights stated with the file's import (ADR-0025) and the library's categories."""
+    parsed = ParseResult.from_json((review.parse_result if review else None) or file.parse_result)
+    rights = import_rights_of(file) or {}
+    return {
+        "title": (parsed.title or "")[:255],
+        "year": parsed.year,
+        "runtime_min": runtime_of(file),
+        "rights_holder": rights.get("rights_holder") or "",
+        "license_ref": rights.get("license_ref") or "",
+        "license_expires_at": rights.get("license_expires_at"),
+        "categories": [category.pk for category in file.library.default_categories.all()],
+    }
+
+
+def _check_manual_data(data: Mapping[str, Any], images: Sequence[ManualImage]) -> dict[str, Any]:
+    """The movie's values from the form, refusing what the serializer can't judge."""
+    from apps.metadata import images as image_pipeline  # noqa: PLC0415 (same package)
+
+    if data.get("rights_confirmed") is not True:
+        raise _invalid(
+            "rights_confirmed",
+            "Confirm that you own this content or hold the rights to distribute it.",
+            "rights_confirmation_required",
+        )
+    values = {name: data[name] for name in MANUAL_MOVIE_FIELDS if name in data}
+    for name in ("title", "rights_holder", "license_ref"):
+        values[name] = str(values.get(name) or "").strip()
+        if not values[name]:
+            raise _invalid(name, "This field is required.", "required")
+    expires = values.get("license_expires_at")
+    if expires is not None and expires <= timezone.now():
+        raise _invalid("license_expires_at", "Must be in the future.", "not_in_future")
+    categories = list(data.get("categories") or [])
+    if any(category.kind != CategoryKind.VOD for category in categories):
+        raise _invalid("categories", "Use vod categories.", "category_kind")
+    kinds = [image.kind for image in images]
+    for image in images:
+        if image.kind not in MANUAL_IMAGE_KINDS or kinds.count(image.kind) > 1:
+            raise _invalid(image.kind, "One poster and one backdrop at most.", "invalid")
+        if len(image.data) > MANUAL_IMAGE_MAX_BYTES:
+            raise _invalid(image.kind, "The image is too large (15 MB at most).", "too_large")
+        try:
+            image_pipeline.check_image(image.data)
+        except image_pipeline.ImageError:
+            raise _invalid(
+                image.kind, "Use a JPEG, PNG, WebP, AVIF or GIF image.", "unsupported_format"
+            ) from None
+    return values
+
+
+def create_manual_movie(  # noqa: PLR0913 (everything is keyword-only)
+    *,
+    file: MediaFile,
+    review: MatchReview | None,
+    data: Mapping[str, Any],
+    images: Sequence[ManualImage] = (),
+    actor: User | None,
+    ip: str | None,
+) -> Movie:
+    """A movie an admin describes by hand for a file no provider knows (ADR-0026).
+
+    `data` holds the form's fields (`MANUAL_MOVIE_FIELDS`, `genres`, `categories` and
+    `rights_confirmed`); `review` is the open or skipped review it comes from, if any.
+    Attaching the file follows `accept_movie`: the file is matched (the media pipeline
+    prepares it), the reviews close, imported rights fill what the form left empty, the
+    status follows the files and the catalogue is told. Every field is locked: there is
+    no provider to refresh from. Without an uploaded poster or backdrop, the worker takes
+    them from a frame of the video."""
+    values = _check_manual_data(data, images)
+    categories = list(data.get("categories") or [])
+    genres = list(data.get("genres") or [])
+    with transaction.atomic():
+        file = MediaFile.objects.select_for_update().select_related("library").get(pk=file.pk)
+        if review is not None:
+            review = MatchReview.objects.select_for_update().get(pk=review.pk)
+        _check_manual_review(review)
+        _check_manual_file(file)
+        previous = _owners(file)
+        movie = Movie(metadata_source=MetadataSource.MANUAL, **values)
+        if movie.runtime_min is None:
+            movie.runtime_min = runtime_of(file)
+        if movie.year is None and movie.release_date is not None:
+            movie.year = movie.release_date.year
+        movie.save()
+        movie.genres.set(genres)
+        # The form starts from the library's categories; with none chosen, they apply.
+        movie.categories.set(categories or list(file.library.default_categories.all()))
+        file.movie = movie
+        file.state = FileState.MATCHED
+        file.match_confidence = None
+        file.save(update_fields=["movie", "state", "match_confidence", "updated_at"])
+        file.episodes.clear()
+        imported = apply_import_rights(file, movie)
+        movie.metadata_locked_fields = list(MANUAL_MOVIE_LOCKS)
+        movie.save(update_fields=["metadata_locked_fields", "updated_at"])
+        decided = _resolve_manual_reviews(file, review, actor)
+        refresh_movie_status(movie)
+        _refresh_previous(previous, keep=movie)
+        audit.record(
+            "title.create_manual",
+            actor=actor,
+            target=movie,
+            after={
+                **{name: getattr(movie, name) for name in MANUAL_MOVIE_FIELDS},
+                "categories": sorted(str(c.pk) for c in movie.categories.all()),
+                "genres": sorted(str(g.pk) for g in genres),
+                "file": str(file.pk),
+                "images": sorted(image.kind for image in images),
+                "import_rights": imported,
+                "rights_confirmed": True,
+            },
+            ip=ip,
+        )
+        for decided_review in decided:
+            audit.record(
+                "review.manual",
+                actor=actor,
+                target=decided_review,
+                after={"movie": str(movie.pk), "file": str(file.pk), "rights_confirmed": True},
+                ip=ip,
+            )
+        notify_catalog_changed("movie", [movie.pk])
+        _queue_manual_artwork(movie, file, images)
+    return movie
+
+
+def _resolve_manual_reviews(
+    file: MediaFile, review: MatchReview | None, actor: User | None
+) -> list[MatchReview]:
+    """Close the given review (open or skipped) and any open review of the file."""
+    now = timezone.now()
+    reviews = MatchReview.objects.filter(media_file=file, status=ReviewStatus.OPEN)
+    if review is not None:
+        reviews = MatchReview.objects.filter(
+            Q(pk=review.pk) | Q(media_file=file, status=ReviewStatus.OPEN)
+        )
+    decided = list(reviews.order_by("created_at"))
+    for item in decided:
+        if item.kind != ReviewKind.MOVIE:
+            item.kind = ReviewKind.MOVIE
+        item.status = ReviewStatus.RESOLVED
+        item.chosen_provider = MANUAL_PROVIDER
+        item.chosen_provider_id = None
+        item.decided_by = actor
+        item.decided_at = now
+        item.save()
+    return decided
+
+
+def _queue_manual_artwork(movie: Movie, file: MediaFile, images: Sequence[ManualImage]) -> None:
+    """Uploads go to the worker's image converter (`media.tasks.store_title_image`, as
+    on the title page); what wasn't uploaded comes from a frame of the video."""
+    from apps.media import tasks as media_tasks  # noqa: PLC0415 (media builds on metadata)
+
+    for image in images:
+        request = {
+            "title_kind": "movie",
+            "title_id": str(movie.pk),
+            "kind": image.kind,
+            "tmdb_path": "",
+            "upload_b64": base64.b64encode(image.data).decode("ascii"),
+            "primary": True,
+        }
+        transaction.on_commit(partial(media_tasks.store_title_image.delay, request))
+    given = {image.kind for image in images}
+    missing = [str(kind) for kind in MANUAL_IMAGE_KINDS if kind not in given]
+    if missing:
+        file_id = str(file.pk)
+        transaction.on_commit(lambda: media_tasks.frame_artwork.delay(file_id, missing))
+
+
+def reopen_review(review: MatchReview, *, actor: User | None, ip: str | None) -> MatchReview:
+    """Put a skipped review back in the queue."""
+    with transaction.atomic():
+        review = MatchReview.objects.select_for_update().get(pk=review.pk)
+        if review.status != ReviewStatus.SKIPPED:
+            raise _refused("Only a skipped review can be reopened.", "review_not_skipped")
+        file = MediaFile.objects.select_for_update().get(pk=review.media_file_id)
+        if file.removed_at is not None:
+            raise _refused("The file is no longer in its library.", "file_removed")
+        if file.state == FileState.MATCHED:
+            raise _refused("The file was matched to a title since.", "file_matched")
+        if file.state == FileState.MATCHING:
+            raise _refused("The file is being matched again.", "file_matching")
+        if MatchReview.objects.filter(media_file=file, status=ReviewStatus.OPEN).exists():
+            raise _refused("The file already has an open review.", "review_open_exists")
+        review.status = ReviewStatus.OPEN
+        review.decided_by = None
+        review.decided_at = None
+        review.save()
+        if file.state != FileState.REVIEW:
+            file.state = FileState.REVIEW
+            file.save(update_fields=["state", "updated_at"])
+        audit.record("review.reopen", actor=actor, target=review, ip=ip)
+    return review
+
+
+def convert_manual_movie(
+    movie: Movie,
+    tmdb_id: int,
+    client: TMDBClient | None = None,
+    *,
+    actor: User | None,
+    ip: str | None,
+) -> Movie | None:
+    """Match a manual movie to TMDB in place ("match to TMDB later", ADR-0026): the same
+    row, so its Xtream id, history and favourites stay. TMDB's metadata replaces the
+    admin's, except the rights, categories, featured flag and visibility, and fields TMDB
+    has no value for (those keep the admin's value, locked). None when the catalogue
+    already has this TMDB movie: the caller moves the files to it instead. A provider
+    error leaves the movie as it was."""
+    client = client or tmdb()
+    with transaction.atomic():
+        movie = Movie.objects.select_for_update().get(pk=movie.pk)
+        if movie.metadata_source != MetadataSource.MANUAL:
+            raise _refused("Only a manual title can be matched in place.", "not_manual")
+        if Movie.objects.filter(tmdb_id=tmdb_id).exclude(pk=movie.pk).exists():
+            return None
+        before = {name: getattr(movie, name) for name in KEPT_WHEN_TMDB_EMPTY}
+        movie.tmdb_id = tmdb_id
+        movie.metadata_locked_fields = [
+            name for name in movie.metadata_locked_fields if name in KEPT_ON_CONVERT
+        ]
+        movie.metadata_refreshed_at = None
+        movie.save()
+        upsert_movie(tmdb_id, client, refresh=True)
+        movie.refresh_from_db()
+        kept = [
+            name
+            for name, value in before.items()
+            if value not in ("", None, []) and getattr(movie, name) in ("", None, [])
+        ]
+        for name in kept:
+            setattr(movie, name, before[name])
+        movie.metadata_locked_fields = list(dict.fromkeys([*movie.metadata_locked_fields, *kept]))
+        movie.save()
+        refresh_movie_status(movie)
+        audit.record(
+            "title.rematch",
+            actor=actor,
+            target=movie,
+            after={"converted": True, "tmdb_id": tmdb_id, "kept": kept},
+            ip=ip,
+        )
+        notify_catalog_changed("movie", [movie.pk])
+    return movie
+
+
 def search(
     kind: str,
     query: str,
@@ -1281,7 +1647,7 @@ def search(
         else:
             results = client.search_tv(query, first_air_date_year=year).get("results") or []
     except TMDBError as exc:
-        raise _provider_problem(exc) from None
+        raise provider_problem(exc) from None
     found = []
     for item in results[: SEARCH_LIMIT * 2]:
         if not isinstance(item, dict):

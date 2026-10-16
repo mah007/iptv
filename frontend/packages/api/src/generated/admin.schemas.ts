@@ -3210,6 +3210,104 @@ export interface LogoRequest {
 }
 
 /**
+ * What the manual form starts from (ADR-0026).
+ */
+export interface ManualDefaults {
+  /** The title the file name gives. */
+  title: string;
+  /** @nullable */
+  year: number | null;
+  /**
+   * The file's duration, rounded up.
+   * @nullable
+   */
+  runtime_min: number | null;
+  /** From the import that brought the file (ADR-0025). */
+  rights_holder: string;
+  license_ref: string;
+  /** @nullable */
+  license_expires_at: string | null;
+  /** The library's default categories. */
+  categories: string[];
+}
+
+/**
+ * A movie entered by hand (multipart with `poster` and `backdrop`, or JSON without).
+ * Rights holder, licence reference and the confirmation are required; categories left
+ * out (or empty) take the library's defaults.
+ */
+export interface ManualMovieCreateRequest {
+  /** An open or skipped review. */
+  review?: string;
+  /** A file no title owns yet. */
+  media_file?: string;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  title: string;
+  /** @maxLength 255 */
+  title_ar?: string;
+  /** @maxLength 255 */
+  original_title?: string;
+  /** @maxLength 10000 */
+  overview?: string;
+  /** @maxLength 10000 */
+  overview_ar?: string;
+  /** @maxLength 500 */
+  tagline?: string;
+  /** @maxLength 500 */
+  tagline_ar?: string;
+  /**
+   * @minimum 1870
+   * @maximum 2200
+   * @nullable
+   */
+  year?: number | null;
+  /** @nullable */
+  release_date?: string | null;
+  /**
+   * Minutes; the file's duration when left out.
+   * @minimum 1
+   * @maximum 2000
+   * @nullable
+   */
+  runtime_min?: number | null;
+  /** @maxLength 16 */
+  certification?: string;
+  /** @maxLength 8 */
+  original_language?: string;
+  /**
+   * @maxItems 30
+   * @items.minLength 1
+   * @items.maxLength 2
+   */
+  countries?: string[];
+  /** @maxLength 32 */
+  trailer_youtube_key?: string;
+  categories?: string[];
+  genres?: string[];
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  rights_holder: string;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  license_ref: string;
+  /** @nullable */
+  license_expires_at?: string | null;
+  /** The admin confirms owning the content or holding the rights to distribute it. */
+  rights_confirmed: boolean;
+  /** JPEG, PNG, WebP, AVIF or GIF. */
+  poster?: Blob | File;
+  /** JPEG, PNG, WebP, AVIF or GIF. */
+  backdrop?: Blob | File;
+}
+
+/**
  * * `bank_transfer` - bank_transfer
  * * `cash` - cash
  * * `other` - other
@@ -3671,6 +3769,15 @@ export interface PaginatedDeviceListItemList {
   results: DeviceListItem[];
 }
 
+export interface PaginatedGenreList {
+  count: number;
+  /** @nullable */
+  next: string | null;
+  /** @nullable */
+  previous: string | null;
+  results: Genre[];
+}
+
 export interface PaginatedImportJobList {
   count: number;
   /** @nullable */
@@ -3830,6 +3937,11 @@ export interface ReviewFile {
   readonly id: string;
   readonly library: LibraryBrief;
   readonly relative_path: string;
+  /**
+   * The movie the file belongs to now (a manual one, for example).
+   * @nullable
+   */
+  readonly movie: string | null;
   readonly size: number;
   readonly container: string;
   /** @nullable */
@@ -4597,6 +4709,18 @@ export interface PatchedMovieUpdateRequest {
   rating?: number | null;
   /** @maxLength 16 */
   certification?: string;
+  /**
+   * ISO 639 code of the original language, e.g. ar.
+   * @maxLength 8
+   */
+  original_language?: string;
+  /**
+   * ISO 3166-1 alpha-2 codes of the production countries.
+   * @maxItems 30
+   * @items.minLength 1
+   * @items.maxLength 2
+   */
+  countries?: string[];
   /** @maxLength 32 */
   trailer_youtube_key?: string;
   featured?: boolean;
@@ -4608,6 +4732,7 @@ export interface PatchedMovieUpdateRequest {
   license_expires_at?: string | null;
   status?: TitleVisibility;
   categories?: string[];
+  genres?: string[];
   /**
    * @maxItems 64
    * @items.minLength 1
@@ -4751,6 +4876,18 @@ export interface PatchedSeriesUpdateRequest {
   rating?: number | null;
   /** @maxLength 16 */
   certification?: string;
+  /**
+   * ISO 639 code of the original language, e.g. ar.
+   * @maxLength 8
+   */
+  original_language?: string;
+  /**
+   * ISO 3166-1 alpha-2 codes of the production countries.
+   * @maxItems 30
+   * @items.minLength 1
+   * @items.maxLength 2
+   */
+  countries?: string[];
   /** @maxLength 32 */
   trailer_youtube_key?: string;
   featured?: boolean;
@@ -4762,6 +4899,7 @@ export interface PatchedSeriesUpdateRequest {
   license_expires_at?: string | null;
   status?: TitleVisibility;
   categories?: string[];
+  genres?: string[];
   /**
    * @maxItems 64
    * @items.minLength 1
@@ -5954,6 +6092,7 @@ export const ErrorCode = {
   WEBHOOK_INVALID: "WEBHOOK_INVALID",
   STEP_UP_REQUIRED: "STEP_UP_REQUIRED",
   IP_NOT_ALLOWED: "IP_NOT_ALLOWED",
+  MANUAL_METADATA: "MANUAL_METADATA",
 } as const;
 
 /**
@@ -6402,6 +6541,25 @@ export const DevicesListStatus = {
   revoked: "revoked",
 } as const;
 
+export type GenresListParams = {
+  /**
+   * Which field to use when ordering the results.
+   */
+  ordering?: string;
+  /**
+   * A page number within the paginated result set.
+   */
+  page?: number;
+  /**
+   * Number of results to return per page.
+   */
+  page_size?: number;
+  /**
+   * A search term.
+   */
+  search?: string;
+};
+
 export type ImportJobsListParams = {
   /**
    * A page number within the paginated result set.
@@ -6688,6 +6846,17 @@ export const MoviesListStatusItem = {
   ready: "ready",
   review: "review",
 } as const;
+
+export type MoviesManualDefaultsParams = {
+  /**
+   * A file no title owns yet.
+   */
+  media_file?: string;
+  /**
+   * An open or skipped review.
+   */
+  review?: string;
+};
 
 export type NotificationsListParams = {
   /**

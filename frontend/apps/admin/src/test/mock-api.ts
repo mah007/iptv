@@ -6,6 +6,8 @@ export interface MockRequest {
   path: string;
   query: URLSearchParams;
   body: unknown;
+  /** A multipart body (uploads), as sent. */
+  form?: FormData;
 }
 
 export interface MockReply {
@@ -54,6 +56,7 @@ export function mockApi(routes: Routes) {
     const method = (init.method ?? "GET").toUpperCase();
     const body: unknown = typeof init.body === "string" ? JSON.parse(init.body) : undefined;
     const request: MockRequest = { method, path: url.pathname, query: url.searchParams, body };
+    if (init.body instanceof FormData) request.form = init.body;
     requests.push(request);
     const handler = routes[`${method} ${url.pathname}`];
     const reply =

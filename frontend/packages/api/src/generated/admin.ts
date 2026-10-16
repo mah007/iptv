@@ -73,6 +73,7 @@ import type {
   EpgSource,
   EpgSourceWriteRequest,
   ExtendRequest,
+  GenresListParams,
   GeoIpQueued,
   GeoIpStatus,
   GeoLookup,
@@ -112,6 +113,8 @@ import type {
   LoginRequest,
   LoginResponse,
   LogoRequest,
+  ManualDefaults,
+  ManualMovieCreateRequest,
   ManualPaymentRequest,
   Me,
   MediaQueued,
@@ -124,6 +127,7 @@ import type {
   MonitoringTicketRequest,
   MovieDetail,
   MoviesListParams,
+  MoviesManualDefaultsParams,
   NotificationsListParams,
   Outbox,
   OutboxDetail,
@@ -137,6 +141,7 @@ import type {
   PaginatedCustomerSummaryList,
   PaginatedDeviceList,
   PaginatedDeviceListItemList,
+  PaginatedGenreList,
   PaginatedImportJobList,
   PaginatedInvoiceList,
   PaginatedLibraryList,
@@ -6852,6 +6857,139 @@ export const useEdgesTest = <TError = ErrorType<Problem>, TContext = unknown>(
 > => {
   return useMutation(getEdgesTestMutationOptions(options), queryClient);
 };
+
+export const getGenresListUrl = (params?: GenresListParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/genres?${stringifiedParams}`
+    : `/api/v1/admin/genres`;
+};
+
+/**
+ * @summary Genres, for the title editor and the manual form
+ */
+export const genresList = async (
+  params?: GenresListParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<PaginatedGenreList> => {
+  return apiFetch<PaginatedGenreList>(getGenresListUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGenresListQueryKey = (params?: GenresListParams) => {
+  return [`/api/v1/admin/genres`, ...(params ? [params] : [])] as const;
+};
+
+export const getGenresListQueryOptions = <
+  TData = Awaited<ReturnType<typeof genresList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: GenresListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof genresList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGenresListQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof genresList>>> = ({ signal }) =>
+    genresList(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof genresList>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GenresListQueryResult = NonNullable<Awaited<ReturnType<typeof genresList>>>;
+export type GenresListQueryError = ErrorType<Problem>;
+
+export function useGenresList<
+  TData = Awaited<ReturnType<typeof genresList>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | GenresListParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof genresList>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof genresList>>,
+          TError,
+          Awaited<ReturnType<typeof genresList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGenresList<
+  TData = Awaited<ReturnType<typeof genresList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: GenresListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof genresList>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof genresList>>,
+          TError,
+          Awaited<ReturnType<typeof genresList>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGenresList<
+  TData = Awaited<ReturnType<typeof genresList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: GenresListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof genresList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Genres, for the title editor and the manual form
+ */
+
+export function useGenresList<
+  TData = Awaited<ReturnType<typeof genresList>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: GenresListParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof genresList>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGenresListQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export const getGeoipStatusUrl = () => {
   return `/api/v1/admin/geoip`;
@@ -14156,6 +14294,7 @@ export const getMoviesRefreshMetadataUrl = (id: string) => {
 };
 
 /**
+ * A manual title (ADR-0026) has nothing to fetch: 409 MANUAL_METADATA.
  * @summary Fetch the movie's metadata again (locked fields are kept)
  */
 export const moviesRefreshMetadata = async (
@@ -14235,6 +14374,313 @@ export const useMoviesRefreshMetadata = <TError = ErrorType<Problem>, TContext =
 > => {
   return useMutation(getMoviesRefreshMetadataMutationOptions(options), queryClient);
 };
+
+export const getMoviesCreateManualUrl = () => {
+  return `/api/v1/admin/movies/manual`;
+};
+
+/**
+ * For an open or skipped review's file, or a file no title owns. The admin states the rights and confirms holding them. Every field is locked; the title is ready once its file is prepared. Without an uploaded poster or backdrop, a frame of the video is used (ADR-0026).
+ * @summary Create a movie by hand for a file no metadata provider knows
+ */
+export const moviesCreateManual = async (
+  manualMovieCreateRequest: ManualMovieCreateRequest,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<MovieDetail> => {
+  const formData = new FormData();
+  if (manualMovieCreateRequest.review !== undefined) {
+    formData.append(`review`, manualMovieCreateRequest.review);
+  }
+  if (manualMovieCreateRequest.media_file !== undefined) {
+    formData.append(`media_file`, manualMovieCreateRequest.media_file);
+  }
+  formData.append(`title`, manualMovieCreateRequest.title);
+  if (manualMovieCreateRequest.title_ar !== undefined) {
+    formData.append(`title_ar`, manualMovieCreateRequest.title_ar);
+  }
+  if (manualMovieCreateRequest.original_title !== undefined) {
+    formData.append(`original_title`, manualMovieCreateRequest.original_title);
+  }
+  if (manualMovieCreateRequest.overview !== undefined) {
+    formData.append(`overview`, manualMovieCreateRequest.overview);
+  }
+  if (manualMovieCreateRequest.overview_ar !== undefined) {
+    formData.append(`overview_ar`, manualMovieCreateRequest.overview_ar);
+  }
+  if (manualMovieCreateRequest.tagline !== undefined) {
+    formData.append(`tagline`, manualMovieCreateRequest.tagline);
+  }
+  if (manualMovieCreateRequest.tagline_ar !== undefined) {
+    formData.append(`tagline_ar`, manualMovieCreateRequest.tagline_ar);
+  }
+  if (manualMovieCreateRequest.year !== undefined && manualMovieCreateRequest.year !== null) {
+    formData.append(`year`, manualMovieCreateRequest.year.toString());
+  }
+  if (
+    manualMovieCreateRequest.release_date !== undefined &&
+    manualMovieCreateRequest.release_date !== null
+  ) {
+    formData.append(`release_date`, manualMovieCreateRequest.release_date);
+  }
+  if (
+    manualMovieCreateRequest.runtime_min !== undefined &&
+    manualMovieCreateRequest.runtime_min !== null
+  ) {
+    formData.append(`runtime_min`, manualMovieCreateRequest.runtime_min.toString());
+  }
+  if (manualMovieCreateRequest.certification !== undefined) {
+    formData.append(`certification`, manualMovieCreateRequest.certification);
+  }
+  if (manualMovieCreateRequest.original_language !== undefined) {
+    formData.append(`original_language`, manualMovieCreateRequest.original_language);
+  }
+  if (manualMovieCreateRequest.countries !== undefined) {
+    manualMovieCreateRequest.countries.forEach((value) => formData.append(`countries`, value));
+  }
+  if (manualMovieCreateRequest.trailer_youtube_key !== undefined) {
+    formData.append(`trailer_youtube_key`, manualMovieCreateRequest.trailer_youtube_key);
+  }
+  if (manualMovieCreateRequest.categories !== undefined) {
+    manualMovieCreateRequest.categories.forEach((value) => formData.append(`categories`, value));
+  }
+  if (manualMovieCreateRequest.genres !== undefined) {
+    manualMovieCreateRequest.genres.forEach((value) => formData.append(`genres`, value));
+  }
+  formData.append(`rights_holder`, manualMovieCreateRequest.rights_holder);
+  formData.append(`license_ref`, manualMovieCreateRequest.license_ref);
+  if (
+    manualMovieCreateRequest.license_expires_at !== undefined &&
+    manualMovieCreateRequest.license_expires_at !== null
+  ) {
+    formData.append(`license_expires_at`, manualMovieCreateRequest.license_expires_at);
+  }
+  formData.append(`rights_confirmed`, manualMovieCreateRequest.rights_confirmed.toString());
+  if (manualMovieCreateRequest.poster !== undefined) {
+    formData.append(`poster`, manualMovieCreateRequest.poster);
+  }
+  if (manualMovieCreateRequest.backdrop !== undefined) {
+    formData.append(`backdrop`, manualMovieCreateRequest.backdrop);
+  }
+
+  return apiFetch<MovieDetail>(getMoviesCreateManualUrl(), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getMoviesCreateManualMutationKey = () => ["moviesCreateManual"] as const;
+
+export const getMoviesCreateManualMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof moviesCreateManual>>,
+    TError,
+    MoviesCreateManualMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof moviesCreateManual>>,
+  TError,
+  MoviesCreateManualMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMoviesCreateManualMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof moviesCreateManual>>,
+    MoviesCreateManualMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return moviesCreateManual(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MoviesCreateManualMutationResult = NonNullable<
+  Awaited<ReturnType<typeof moviesCreateManual>>
+>;
+export type MoviesCreateManualMutationBody = ManualMovieCreateRequest;
+export type MoviesCreateManualMutationError = ErrorType<Problem>;
+export type MoviesCreateManualMutationVariables = { data: ManualMovieCreateRequest };
+
+/**
+ * @summary Create a movie by hand for a file no metadata provider knows
+ */
+export const useMoviesCreateManual = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof moviesCreateManual>>,
+      TError,
+      MoviesCreateManualMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof moviesCreateManual>>,
+  TError,
+  MoviesCreateManualMutationVariables,
+  TContext
+> => {
+  return useMutation(getMoviesCreateManualMutationOptions(options), queryClient);
+};
+
+export const getMoviesManualDefaultsUrl = (params?: MoviesManualDefaultsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/admin/movies/manual/defaults?${stringifiedParams}`
+    : `/api/v1/admin/movies/manual/defaults`;
+};
+
+/**
+ * @summary What the manual movie form starts from, for a review or a file
+ */
+export const moviesManualDefaults = async (
+  params?: MoviesManualDefaultsParams,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ManualDefaults> => {
+  return apiFetch<ManualDefaults>(getMoviesManualDefaultsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getMoviesManualDefaultsQueryKey = (params?: MoviesManualDefaultsParams) => {
+  return [`/api/v1/admin/movies/manual/defaults`, ...(params ? [params] : [])] as const;
+};
+
+export const getMoviesManualDefaultsQueryOptions = <
+  TData = Awaited<ReturnType<typeof moviesManualDefaults>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: MoviesManualDefaultsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof moviesManualDefaults>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMoviesManualDefaultsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof moviesManualDefaults>>> = ({ signal }) =>
+    moviesManualDefaults(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof moviesManualDefaults>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type MoviesManualDefaultsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof moviesManualDefaults>>
+>;
+export type MoviesManualDefaultsQueryError = ErrorType<Problem>;
+
+export function useMoviesManualDefaults<
+  TData = Awaited<ReturnType<typeof moviesManualDefaults>>,
+  TError = ErrorType<Problem>,
+>(
+  params: undefined | MoviesManualDefaultsParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof moviesManualDefaults>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof moviesManualDefaults>>,
+          TError,
+          Awaited<ReturnType<typeof moviesManualDefaults>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMoviesManualDefaults<
+  TData = Awaited<ReturnType<typeof moviesManualDefaults>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: MoviesManualDefaultsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof moviesManualDefaults>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof moviesManualDefaults>>,
+          TError,
+          Awaited<ReturnType<typeof moviesManualDefaults>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMoviesManualDefaults<
+  TData = Awaited<ReturnType<typeof moviesManualDefaults>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: MoviesManualDefaultsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof moviesManualDefaults>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary What the manual movie form starts from, for a review or a file
+ */
+
+export function useMoviesManualDefaults<
+  TData = Awaited<ReturnType<typeof moviesManualDefaults>>,
+  TError = ErrorType<Problem>,
+>(
+  params?: MoviesManualDefaultsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof moviesManualDefaults>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getMoviesManualDefaultsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
 
 export const getNotificationsListUrl = (params?: NotificationsListParams) => {
   const normalizedParams = new URLSearchParams();
@@ -16433,6 +16879,91 @@ export function useReviewQueueRetrieve<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+export const getReviewQueueReopenUrl = (id: string) => {
+  return `/api/v1/admin/review-queue/${encodeURIComponent(String(id))}/reopen`;
+};
+
+/**
+ * @summary Put a skipped review back in the queue
+ */
+export const reviewQueueReopen = async (
+  id: string,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Review> => {
+  return apiFetch<Review>(getReviewQueueReopenUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getReviewQueueReopenMutationKey = () => ["reviewQueueReopen"] as const;
+
+export const getReviewQueueReopenMutationOptions = <
+  TError = ErrorType<Problem>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviewQueueReopen>>,
+    TError,
+    ReviewQueueReopenMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reviewQueueReopen>>,
+  TError,
+  ReviewQueueReopenMutationVariables,
+  TContext
+> => {
+  const mutationKey = getReviewQueueReopenMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reviewQueueReopen>>,
+    ReviewQueueReopenMutationVariables
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return reviewQueueReopen(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReviewQueueReopenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reviewQueueReopen>>
+>;
+
+export type ReviewQueueReopenMutationError = ErrorType<Problem>;
+export type ReviewQueueReopenMutationVariables = { id: string };
+
+/**
+ * @summary Put a skipped review back in the queue
+ */
+export const useReviewQueueReopen = <TError = ErrorType<Problem>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof reviewQueueReopen>>,
+      TError,
+      ReviewQueueReopenMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof reviewQueueReopen>>,
+  TError,
+  ReviewQueueReopenMutationVariables,
+  TContext
+> => {
+  return useMutation(getReviewQueueReopenMutationOptions(options), queryClient);
+};
 
 export const getReviewQueueResolveUrl = (id: string) => {
   return `/api/v1/admin/review-queue/${encodeURIComponent(String(id))}/resolve`;

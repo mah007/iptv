@@ -6,7 +6,7 @@ import logging
 from celery import shared_task
 from celery.app.task import Task
 
-from apps.catalog.models import FileState, MediaFile, Movie, Series
+from apps.catalog.models import FileState, MediaFile, MetadataSource, Movie, Series
 from apps.metadata import services
 from apps.metadata.tmdb import TMDBAuthError, TMDBRateLimitedError, TMDBRetryableError
 
@@ -42,7 +42,10 @@ def refresh_title(self: Task, kind: str, title_id: str) -> None:
     try:
         if kind == "movie":
             movie = Movie.objects.filter(pk=title_id).first()
-            if movie is not None:
+            if movie is not None and movie.metadata_source == MetadataSource.MANUAL:
+                # Nothing to fetch (ADR-0026); the admin API refuses before queueing.
+                logger.info("manual title not refreshed", extra={"movie": title_id})
+            elif movie is not None:
                 services.refresh_movie(movie)
         else:
             series = Series.objects.filter(pk=title_id).first()

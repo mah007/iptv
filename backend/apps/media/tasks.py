@@ -118,3 +118,15 @@ def store_title_image(request: dict[str, Any]) -> bool:
         upload=base64.b64decode(upload_b64) if upload_b64 else None,
         primary=bool(request.get("primary")),
     )
+
+
+@shared_task(name="apps.media.tasks.frame_artwork")
+def frame_artwork(file_id: str, kinds: list[str]) -> list[str]:
+    """A manual movie's poster and backdrop from a frame of its video, for the kinds the
+    admin didn't upload (ADR-0026). On the worker's `images` queue: it reads the
+    library and writes artwork like the other image tasks."""
+    from apps.media import outputs  # noqa: PLC0415 (heavy imports, worker only)
+
+    stored = outputs.frame_artwork(file_id, kinds)
+    logger.info("media.frame_artwork", file=file_id, stored=stored)
+    return stored

@@ -3312,6 +3312,70 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/genres:
+    get:
+      operationId: genres_list
+      summary: Genres, for the title editor and the manual form
+      parameters:
+        - name: ordering
+          required: false
+          in: query
+          description: Which field to use when ordering the results.
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          description: A page number within the paginated result set.
+          schema:
+            type: integer
+        - name: page_size
+          required: false
+          in: query
+          description: Number of results to return per page.
+          schema:
+            type: integer
+        - name: search
+          required: false
+          in: query
+          description: A search term.
+          schema:
+            type: string
+      tags:
+        - genres
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedGenreList"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/geoip:
     get:
       operationId: geoip_status
@@ -6562,6 +6626,7 @@ paths:
   /api/v1/admin/movies/{id}/refresh-metadata:
     post:
       operationId: movies_refresh_metadata
+      description: "A manual title (ADR-0026) has nothing to fetch: 409 MANUAL_METADATA."
       summary: Fetch the movie's metadata again (locked fields are kept)
       parameters:
         - in: path
@@ -6581,6 +6646,134 @@ paths:
               schema:
                 $ref: "#/components/schemas/Queued"
           description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/movies/manual:
+    post:
+      operationId: movies_create_manual
+      description: For an open or skipped review's file, or a file no title owns.
+        The admin states the rights and confirms holding them. Every field is locked;
+        the title is ready once its file is prepared. Without an uploaded poster or
+        backdrop, a frame of the video is used (ADR-0026).
+      summary: Create a movie by hand for a file no metadata provider knows
+      tags:
+        - movies
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ManualMovieCreateRequest"
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualMovieCreateRequest"
+        required: true
+      security:
+        - sessionAuth: []
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MovieDetail"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/movies/manual/defaults:
+    get:
+      operationId: movies_manual_defaults
+      summary: What the manual movie form starts from, for a review or a file
+      parameters:
+        - in: query
+          name: media_file
+          schema:
+            type: string
+            format: uuid
+          description: A file no title owns yet.
+        - in: query
+          name: review
+          schema:
+            type: string
+            format: uuid
+          description: An open or skipped review.
+      tags:
+        - movies
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManualDefaults"
+          description: ""
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Invalid request (VALIDATION_ERROR, or a more specific code).
         "401":
           content:
             application/problem+json:
@@ -7675,6 +7868,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: No such resource (NOT_FOUND).
+        default:
+          description: Error (RFC 9457 problem details).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/review-queue/{id}/reopen:
+    post:
+      operationId: review_queue_reopen
+      summary: Put a skipped review back in the queue
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      tags:
+        - review-queue
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+          description: ""
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not signed in (NOT_AUTHENTICATED).
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not allowed (PERMISSION_DENIED, or a more specific code).
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: No such resource (NOT_FOUND).
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflicts with the current state (CONFLICT, DEVICE_LIMIT, ...).
         default:
           description: Error (RFC 9457 problem details).
           content:
@@ -16734,6 +16979,157 @@ components:
           format: uri
           minLength: 1
           maxLength: 1024
+    ManualDefaults:
+      type: object
+      description: What the manual form starts from (ADR-0026).
+      properties:
+        title:
+          type: string
+          description: The title the file name gives.
+        year:
+          type:
+            - integer
+            - "null"
+        runtime_min:
+          type:
+            - integer
+            - "null"
+          description: The file's duration, rounded up.
+        rights_holder:
+          type: string
+          description: From the import that brought the file (ADR-0025).
+        license_ref:
+          type: string
+        license_expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        categories:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: The library's default categories.
+      required:
+        - categories
+        - license_expires_at
+        - license_ref
+        - rights_holder
+        - runtime_min
+        - title
+        - year
+    ManualMovieCreateRequest:
+      type: object
+      description: |-
+        A movie entered by hand (multipart with `poster` and `backdrop`, or JSON without).
+        Rights holder, licence reference and the confirmation are required; categories left
+        out (or empty) take the library's defaults.
+      properties:
+        review:
+          type: string
+          format: uuid
+          description: An open or skipped review.
+        media_file:
+          type: string
+          format: uuid
+          description: A file no title owns yet.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        title_ar:
+          type: string
+          maxLength: 255
+        original_title:
+          type: string
+          maxLength: 255
+        overview:
+          type: string
+          maxLength: 10000
+        overview_ar:
+          type: string
+          maxLength: 10000
+        tagline:
+          type: string
+          maxLength: 500
+        tagline_ar:
+          type: string
+          maxLength: 500
+        year:
+          type:
+            - integer
+            - "null"
+          maximum: 2200
+          minimum: 1870
+        release_date:
+          type:
+            - string
+            - "null"
+          format: date
+        runtime_min:
+          type:
+            - integer
+            - "null"
+          maximum: 2000
+          minimum: 1
+          description: Minutes; the file's duration when left out.
+        certification:
+          type: string
+          maxLength: 16
+        original_language:
+          type: string
+          maxLength: 8
+        countries:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2
+          maxItems: 30
+        trailer_youtube_key:
+          type: string
+          maxLength: 32
+        categories:
+          type: array
+          items:
+            type: string
+            format: uuid
+        genres:
+          type: array
+          items:
+            type: string
+            format: uuid
+        rights_holder:
+          type: string
+          minLength: 1
+          maxLength: 255
+        license_ref:
+          type: string
+          minLength: 1
+          maxLength: 255
+        license_expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        rights_confirmed:
+          type: boolean
+          description: The admin confirms owning the content or holding the rights
+            to distribute it.
+        poster:
+          type: string
+          format: binary
+          description: JPEG, PNG, WebP, AVIF or GIF.
+        backdrop:
+          type: string
+          format: binary
+          description: JPEG, PNG, WebP, AVIF or GIF.
+      required:
+        - license_ref
+        - rights_confirmed
+        - rights_holder
+        - title
     ManualPaymentMethodEnum:
       enum:
         - bank_transfer
@@ -18007,6 +18403,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DeviceListItem"
+    PaginatedGenreList:
+      type: object
+      required:
+        - count
+        - next
+        - previous
+        - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type:
+            - string
+            - "null"
+          format: uri
+        previous:
+          type:
+            - string
+            - "null"
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Genre"
     PaginatedImportJobList:
       type: object
       required:
@@ -18914,6 +19335,18 @@ components:
         certification:
           type: string
           maxLength: 16
+        original_language:
+          type: string
+          description: ISO 639 code of the original language, e.g. ar.
+          maxLength: 8
+        countries:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2
+          description: ISO 3166-1 alpha-2 codes of the production countries.
+          maxItems: 30
         trailer_youtube_key:
           type: string
           maxLength: 32
@@ -18933,6 +19366,11 @@ components:
         status:
           $ref: "#/components/schemas/TitleVisibility"
         categories:
+          type: array
+          items:
+            type: string
+            format: uuid
+        genres:
           type: array
           items:
             type: string
@@ -19113,6 +19551,18 @@ components:
         certification:
           type: string
           maxLength: 16
+        original_language:
+          type: string
+          description: ISO 639 code of the original language, e.g. ar.
+          maxLength: 8
+        countries:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2
+          description: ISO 3166-1 alpha-2 codes of the production countries.
+          maxItems: 30
         trailer_youtube_key:
           type: string
           maxLength: 32
@@ -19132,6 +19582,11 @@ components:
         status:
           $ref: "#/components/schemas/TitleVisibility"
         categories:
+          type: array
+          items:
+            type: string
+            format: uuid
+        genres:
           type: array
           items:
             type: string
@@ -20479,6 +20934,13 @@ components:
         relative_path:
           type: string
           readOnly: true
+        movie:
+          type:
+            - string
+            - "null"
+          format: uuid
+          readOnly: true
+          description: The movie the file belongs to now (a manual one, for example).
         size:
           type: integer
           readOnly: true
@@ -20518,6 +20980,7 @@ components:
         - height
         - id
         - library
+        - movie
         - relative_path
         - size
         - state
@@ -23320,6 +23783,7 @@ components:
         - WEBHOOK_INVALID
         - STEP_UP_REQUIRED
         - IP_NOT_ALLOWED
+        - MANUAL_METADATA
       description: Stable machine-readable error code.
     Problem:
       type: object

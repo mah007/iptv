@@ -1,0 +1,221 @@
+{
+  "description": "A manual title (ADR-0026) before its artwork exists: no TMDB or IMDb id, no images, no credits, no rating; empty strings and an empty backdrop list, never null.",
+  "fixture": "get_vod_info.json",
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/info/name",
+      "value": "Our Trip to AlUla"
+    },
+    {
+      "op": "replace",
+      "path": "/name",
+      "value": "Our Trip to AlUla"
+    },
+    {
+      "op": "replace",
+      "path": "/info/o_name",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/o_name",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/cover_big",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/cover_big",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/movie_image",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/movie_image",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/backdrop_path",
+      "value": []
+    },
+    {
+      "op": "replace",
+      "path": "/backdrop_path",
+      "value": []
+    },
+    {
+      "op": "replace",
+      "path": "/info/plot",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/plot",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/description",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/description",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/cast",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/cast",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/actors",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/actors",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/director",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/director",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/genre",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/genre",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/release_date",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/release_date",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/releasedate",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/releasedate",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/year",
+      "value": "2025"
+    },
+    {
+      "op": "replace",
+      "path": "/year",
+      "value": "2025"
+    },
+    {
+      "op": "replace",
+      "path": "/info/country",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/country",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/rating",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/rating",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/rating_5based",
+      "value": 0
+    },
+    {
+      "op": "replace",
+      "path": "/rating_5based",
+      "value": 0
+    },
+    {
+      "op": "replace",
+      "path": "/info/tmdb_id",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/tmdb_id",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/imdb_id",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/imdb_id",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/youtube_trailer",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/youtube_trailer",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/info/age",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/age",
+      "value": ""
+    },
+    {
+      "op": "replace",
+      "path": "/movie_data/name",
+      "value": "Our Trip to AlUla"
+    }
+  ]
+}

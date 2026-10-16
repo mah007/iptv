@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import io
 import os
+import tempfile
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Final
@@ -58,8 +59,8 @@ from apps.media.planner import (
     UhdMode,
     plan_processing,
 )
-from apps.media.probe import HdrKind, ProbeResult, probe
-from apps.media.profiles import Backend, Profiles, VideoCodec
+from apps.media.probe import HdrKind, ProbeError, ProbeResult, probe
+from apps.media.profiles import Backend, ProfileError, Profiles, VideoCodec, default_profiles
 from apps.media.progress import ProgressUpdate
 from apps.media.verify import (
     Expected,
@@ -538,15 +539,8 @@ def _frame_artwork(ctx: JobContext, source: Path, plan: Any) -> None:
     ]  # fmt: skip
     if not wants_poster and not episodes:
         return
-    frame = ctx.temporary / "frame.jpg"
-    try:
-        ffmpeg.run(
-            ffmpeg.poster_command(plan, source=source, output=frame, profiles=ctx.profiles),
-            timeout_s=300,
-        )
-        data = frame.read_bytes()
-    except (ffmpeg.FfmpegError, OSError) as exc:
-        logger.warning("media.frame_artwork_failed", file=str(file.pk), error=str(exc)[:120])
+    data = _grab_frame(file, plan, source, ctx.temporary / "frame.jpg", ctx.profiles)
+    if data is None:
         return
     from apps.metadata import images  # noqa: PLC0415 (metadata imports catalog services)
     from apps.metadata.services import image_store  # noqa: PLC0415
@@ -566,6 +560,84 @@ def _frame_artwork(ctx: JobContext, source: Path, plan: Any) -> None:
         notify_catalog_changed("series", list(series_ids))
 
 
+def _grab_frame(
+    file: MediaFile, plan: Any, source: Path, output: Path, profiles: Profiles
+) -> bytes | None:
+    """One JPEG frame at the plan's poster time (10%), or None when ffmpeg can't."""
+    try:
+        ffmpeg.run(
+            ffmpeg.poster_command(plan, source=source, output=output, profiles=profiles),
+            timeout_s=300,
+        )
+        return output.read_bytes()
+    except (ffmpeg.FfmpegError, OSError) as exc:
+        logger.warning("media.frame_artwork_failed", file=str(file.pk), error=str(exc)[:120])
+        return None
+
+
+def _frame_input(file: MediaFile) -> Path:
+    """The compat MP4 when it is ready on this volume (SDR already), else the source."""
+    ready = Rendition.objects.filter(
+        media_file=file, kind=RenditionKind.COMPAT_MP4, status=RenditionStatus.READY
+    ).exists()
+    if ready:
+        compat = layout.asset_dir(layout.asset_key(file)) / f"{layout.COMPAT}.mp4"
+        if compat.is_file():
+            return compat
+    return layout.source_path(file)
+
+
+def frame_artwork(file_id: str, kinds: Sequence[str]) -> list[str]:
+    """The poster (the middle 2:3 of the frame) and the backdrop (the whole frame) of
+    the file's movie, from a frame at 10%, each only while the movie has none of that
+    kind. A manual movie (ADR-0026) gets them at once, without waiting for its
+    thumbnails. Runs on the worker; returns the kinds stored."""
+    from apps.metadata import images  # noqa: PLC0415 (metadata imports catalog services)
+    from apps.metadata.services import image_store  # noqa: PLC0415
+
+    file = MediaFile.objects.select_related("library", "movie").filter(pk=file_id).first()
+    movie = file.movie if file is not None else None
+    if file is None or movie is None or file.removed_at is not None:
+        return []
+    allowed = (ImageKind.POSTER, ImageKind.BACKDROP)
+    wanted = [
+        kind for kind in dict.fromkeys(kinds)
+        if kind in allowed and not MediaImage.objects.filter(movie=movie, kind=kind).exists()
+    ]  # fmt: skip
+    if not wanted:
+        return []
+    try:
+        profiles = default_profiles()
+        source = _frame_input(file)
+        plan = plan_processing(
+            probe(source), policy=ProcessingPolicy.PASSTHROUGH, max_quality=SDR_MAX_QUALITY,
+            profiles=profiles,
+        ).thumbnails  # fmt: skip
+    except (ProbeError, PlanError, ProfileError, ValueError, OSError) as exc:
+        logger.warning("media.frame_artwork_failed", file=str(file.pk), error=str(exc)[:120])
+        return []
+    with tempfile.TemporaryDirectory(prefix="frame-") as folder:
+        data = _grab_frame(file, plan, source, Path(folder) / "frame.jpg", profiles)
+    if data is None:
+        return []
+    store = image_store()
+    stored_kinds = []
+    for kind in wanted:
+        poster = kind == ImageKind.POSTER
+        name: images.ImageKind = "poster" if poster else "backdrop"
+        try:
+            picture = _portrait(data) if poster else data
+            stored = images.store_image(picture, owner=f"movie/{movie.pk}", kind=name, store=store)
+        except (images.ImageError, ValueError, OSError) as exc:
+            logger.warning("media.frame_artwork_failed", file=str(file.pk), error=str(exc)[:120])
+            continue
+        if _record_image(stored, kind=kind, movie=movie):
+            stored_kinds.append(kind)
+    if stored_kinds:
+        notify_catalog_changed("movie", [movie.pk])
+    return stored_kinds
+
+
 def _portrait(data: bytes) -> bytes:
     """The middle 2:3 of a frame, as a poster."""
     with Image.open(io.BytesIO(data)) as image:
@@ -578,9 +650,12 @@ def _portrait(data: bytes) -> bytes:
         return buffer.getvalue()
 
 
-def _record_image(stored: Any, *, kind: str, **owner: Any) -> None:
+def _record_image(stored: Any, *, kind: str, **owner: Any) -> bool:
+    """Record a frame image unless one of its kind arrived meanwhile (an upload, the
+    provider's, or another frame): a frame is only ever the fallback."""
     with transaction.atomic():
-        MediaImage.objects.filter(**owner, kind=kind).update(is_primary=False)
+        if MediaImage.objects.filter(**owner, kind=kind).exists():
+            return False
         MediaImage.objects.create(
             **owner,
             kind=kind,
@@ -592,6 +667,7 @@ def _record_image(stored: Any, *, kind: str, **owner: Any) -> None:
             source_path=FRAME_SOURCE_PATH,
             is_primary=True,
         )
+    return True
 
 
 # --- Subtitles ------------------------------------------------------------------------------

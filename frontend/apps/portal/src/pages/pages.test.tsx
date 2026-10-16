@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { device, first, GRANT, MATRIX, MATRIX_DETAIL, ME, PLAN } from "../test/fixtures";
@@ -122,6 +122,28 @@ describe("title page", () => {
         title_id: "matrix",
       });
     });
+  });
+
+  it("credits TheTVDB under its titles, and no provider under one entered by hand", async () => {
+    const credits = () =>
+      screen
+        .queryAllByRole("link")
+        .map((link) => link.getAttribute("href") ?? "")
+        .filter((href) => /themoviedb|thetvdb/u.test(href));
+    for (const [attribution, expected] of [
+      ["tvdb", ["https://thetvdb.com/subscribe"]],
+      ["manual", []],
+    ] as const) {
+      mockApi({
+        ...SIGNED_IN,
+        "GET /api/v1/movies/matrix": { body: { ...MATRIX_DETAIL, attribution } },
+        "GET /api/v1/home": { body: { hero: [], continue_watching: [], rows: [] } },
+      });
+      renderApp("/movies/matrix");
+      expect(await screen.findByRole("heading", { level: 1, name: "The Matrix" })).toBeTruthy();
+      expect(credits()).toEqual(expected);
+      cleanup();
+    }
   });
 
   it("offers Resume and Start over when the movie is half watched", async () => {

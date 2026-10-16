@@ -79,6 +79,10 @@ const KNOWN_ACTIONS = [
   "import.source.create",
   "import.source.update",
   "import.source.delete",
+  // Manual titles (ADR-0026).
+  "title.create_manual",
+  "review.manual",
+  "review.reopen",
   "category.create",
   "category.update",
   "category.delete",

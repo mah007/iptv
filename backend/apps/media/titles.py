@@ -35,6 +35,7 @@ from apps.catalog.models import (
     ImageKind,
     MediaFile,
     MediaImage,
+    MetadataSource,
     Movie,
     Series,
 )
@@ -573,6 +574,9 @@ def rematch(  # noqa: PLR0913 (everything is keyword-only)
         raise _invalid("kind", "Choose movie or tv.")
     if tvdb_id is not None:
         return _rematch_tvdb(title, files, tvdb_id, target_kind, actor=actor, ip=ip)
+    converted = _convert_manual(title, tmdb_id, target_kind, actor=actor, ip=ip)
+    if converted is not None:
+        return converted
     if tmdb_id is None:
         with transaction.atomic():
             for file in files:
@@ -612,6 +616,32 @@ def rematch(  # noqa: PLR0913 (everything is keyword-only)
         ip=ip,
     )
     return {"files": len(files), "automatic": False, "title_ids": sorted(titles)}
+
+
+def _convert_manual(
+    title: Title, tmdb_id: int | None, target_kind: str, *, actor: User | None, ip: str | None
+) -> dict[str, Any] | None:
+    """A manual movie matched to a TMDB movie in place (ADR-0026). None for any other
+    title, another kind, or when the catalogue already has that TMDB movie: its files
+    then move to it, as for any title. Matching a manual movie again automatically is
+    refused: it would leave the admin's title behind, empty."""
+    from apps.metadata import services as metadata  # noqa: PLC0415
+    from apps.metadata.tmdb import TMDBError  # noqa: PLC0415
+
+    movie = title.obj
+    if not isinstance(movie, Movie) or movie.metadata_source != MetadataSource.MANUAL:
+        return None
+    if tmdb_id is None:
+        raise metadata.manual_metadata_problem()
+    if target_kind != "movie":
+        return None
+    try:
+        converted = metadata.convert_manual_movie(movie, tmdb_id, actor=actor, ip=ip)
+    except TMDBError as exc:
+        raise metadata.provider_problem(exc) from None
+    if converted is None:
+        return None
+    return {"files": len(title_files(title)), "automatic": False, "title_ids": [converted.pk]}
 
 
 def _rematch_tvdb(  # noqa: PLR0913

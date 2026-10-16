@@ -79,7 +79,7 @@ import {
   RematchDialog,
   ReprocessButton,
 } from "../features/titles/media-panels";
-import { SyntheticBadge, type TitleKind } from "../features/titles/synthetic-badge";
+import { ManualBadge, SyntheticBadge, type TitleKind } from "../features/titles/synthetic-badge";
 import { TitleEditorSheet, type TitleDetail } from "../features/titles/title-editor";
 import { LIBRARY_VIEW, useCan } from "../lib/auth";
 import { usePageTitle } from "../lib/page-title";
@@ -501,7 +501,9 @@ function DetailsCard({
             ) : null}
           </DescriptionItem>
           <DescriptionItem label={t("titles.detail.locked")}>
-            {title.metadata_locked_fields.length > 0 ? (
+            {title.metadata_source === "manual" ? (
+              <Badge>{t("titles.detail.allLocked")}</Badge>
+            ) : title.metadata_locked_fields.length > 0 ? (
               <span className="flex flex-wrap gap-1">
                 {title.metadata_locked_fields.map((field) => (
                   <Badge key={field} className="font-mono">
@@ -565,6 +567,7 @@ function Hero({ title }: { title: TitleDetail }) {
           <div className="flex flex-wrap items-center gap-1.5">
             <StatusBadge status={title.status} />
             {title.synthetic ? <SyntheticBadge /> : null}
+            {title.metadata_source === "manual" ? <ManualBadge /> : null}
             {title.rating ? (
               <Badge>
                 <Star aria-hidden="true" className="size-3 fill-warning text-warning" />
@@ -643,6 +646,8 @@ function TitleView({
   const [rematching, setRematching] = useState(false);
   const hidden = title.status === "hidden";
   const name = localTitle(title, i18n.language);
+  // ADR-0026: nothing to refresh a manual title from; it can be matched to TMDB later.
+  const manual = title.metadata_source === "manual";
 
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -675,10 +680,12 @@ function TitleView({
               <Pencil aria-hidden="true" />
               {t("titles.detail.edit")}
             </Button>
-            <Button variant="secondary" pending={refreshing} onClick={onRefresh}>
-              <RefreshCw aria-hidden="true" />
-              {t("titles.detail.refresh")}
-            </Button>
+            {manual ? null : (
+              <Button variant="secondary" pending={refreshing} onClick={onRefresh}>
+                <RefreshCw aria-hidden="true" />
+                {t("titles.detail.refresh")}
+              </Button>
+            )}
             {rematchable ? (
               <Button
                 variant="secondary"
@@ -687,7 +694,7 @@ function TitleView({
                 }}
               >
                 <Repeat aria-hidden="true" />
-                {t("titleMedia.rematch.action")}
+                {manual ? t("titleMedia.rematch.matchTmdb") : t("titleMedia.rematch.action")}
               </Button>
             ) : null}
             {kind === "series" ? <ReprocessButton titleId={title.id} /> : null}
@@ -738,7 +745,7 @@ function TitleView({
         </Card>
       )}
       {kind === "movie" ? <MediaPanel titleId={title.id} /> : null}
-      <ImagesPanel titleId={title.id} kind={kind} />
+      <ImagesPanel titleId={title.id} kind={kind} providerArtwork={!manual} />
       {rematchable && rematching ? (
         <RematchDialog
           titleId={title.id}
@@ -746,6 +753,7 @@ function TitleView({
           initialQuery={title.title}
           open={rematching}
           onOpenChange={setRematching}
+          manual={manual}
         />
       ) : null}
       {manage ? (

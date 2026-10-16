@@ -40,6 +40,9 @@ export function mediaSignedIn(routes: Routes = {}, permissions = MEDIA_PERMISSIO
       "GET /api/v1/admin/libraries": {
         body: { count: 0, next: null, previous: null, results: [] },
       },
+      "GET /api/v1/admin/genres": {
+        body: { count: 0, next: null, previous: null, results: [] },
+      },
       ...routes,
     },
     me({ permissions }),
@@ -336,6 +339,7 @@ export function review(overrides: Partial<Review> = {}): Review {
       height: 720,
       hdr: "sdr",
       state: "review",
+      movie: null,
     },
     parse_result: null,
     candidates: [

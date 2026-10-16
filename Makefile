@@ -316,9 +316,9 @@ ADMIN_URL = http://admin.$$(sed -n 's/^DOMAIN=//p' .env)$$(port=$$(sed -n 's/^HT
 	[ "$$port" = "80" ] || echo ":$$port")
 E2E_TOTP_COMMAND = ["docker","compose","--project-directory","$(CURDIR)","-f","$(CURDIR)/docker/compose.yml","-f","$(CURDIR)/docker/compose.dev.yml","exec","-T","web","python","manage.py","totp_code"]
 
-e2e-admin: ## Admin journeys (MFA sign-in, customer, device, scan, review, kill) and axe checks in Playwright
+e2e-admin: ## Admin journeys (MFA sign-in, customer, device, scan, a manual movie, review, kill) and axe checks in Playwright
 	@export E2E_ADMIN_USER=e2e-admin E2E_ADMIN_PASS="$$(openssl rand -hex 16)"; \
-	$(COMPOSE) exec -T -e E2E_ADMIN_USER -e E2E_ADMIN_PASS web python manage.py e2e_admin_account --open-review; \
+	$(COMPOSE) exec -T -e E2E_ADMIN_USER -e E2E_ADMIN_PASS web python manage.py e2e_admin_account --open-review --manual-review; \
 	export ADMIN_URL="$(ADMIN_URL)" TV_URL="$(TV_URL)" E2E_ARTIFACTS="$(CURDIR)/dist/admin-e2e" \
 	  E2E_TOTP_COMMAND='$(E2E_TOTP_COMMAND)' E2E_MONITORING="$(MONITORING_ON)" E2E_MAIL_URL="$(MAIL_URL)"; \
 	cd frontend/apps/admin && node_modules/.bin/playwright test --config e2e/playwright.config.ts

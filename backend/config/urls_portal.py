@@ -41,6 +41,8 @@ SPECTACULAR_SETTINGS = {
         # Q1 (ADR-0023): what playback/start plays, and what plays (live and catch-up too).
         "PlaybackTitleType": "apps.engagement.serializers.PLAYBACK_TITLE_TYPES",
         "PlaybackKind": "apps.playback.models.TitleKind",
+        # ADR-0026: whose credit a title page shows (manual titles credit no provider).
+        "TitleAttribution": "apps.catalog.serializers_customer.ATTRIBUTION_CHOICES",
     },
     # Nullable choices (a rating cleared with null, `prefer` left out) are typed as such
     # in the portal's client (ADR-0016's follow-up, ADR-0023).

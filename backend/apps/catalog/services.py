@@ -78,6 +78,8 @@ EDITABLE_FIELDS: Final = (
     "year",
     "rating",
     "certification",
+    "original_language",
+    "countries",
     "trailer_youtube_key",
     "featured",
     "rights_holder",
@@ -91,8 +93,11 @@ SERIES_EDITABLE_FIELDS: Final = (
     "episode_run_time",
     "episode_ordering",
 )
-#: Lock names that are not model fields: the M2M and the admin's visibility choice.
-EXTRA_LOCKS: Final = ("categories", "status")
+#: Lock names that are not model fields: the M2Ms and the admin's visibility choice.
+EXTRA_LOCKS: Final = ("categories", "genres", "status")
+#: A manual title (ADR-0026) locks everything an admin can enter, except the visibility
+#: (a `status` lock means "hidden by an admin").
+MANUAL_MOVIE_LOCKS: Final = (*MOVIE_EDITABLE_FIELDS, "categories", "genres")
 _SORT_STEP: Final = 10
 
 
@@ -248,8 +253,8 @@ def update_title(  # noqa: PLR0912 (one branch per kind of change)
     """Apply an admin's edit. Each edited metadata field joins `metadata_locked_fields`,
     so a refresh keeps it (SPEC §7.2 step 9). `status` "hidden" hides the title and locks
     it; any other status unlocks it and lets the files decide again. `categories` replaces
-    the categories and locks them. `metadata_locked_fields`, when given, sets the locks
-    explicitly (after the edit's own locks)."""
+    the categories and locks them, `genres` likewise. `metadata_locked_fields`, when
+    given, sets the locks explicitly (after the edit's own locks)."""
     editable = MOVIE_EDITABLE_FIELDS if isinstance(title, Movie) else SERIES_EDITABLE_FIELDS
     kind = "movie" if isinstance(title, Movie) else "series"
     fields = [name for name in editable if name in changes]
@@ -261,6 +266,10 @@ def update_title(  # noqa: PLR0912 (one branch per kind of change)
             setattr(title, name, changes[name])
             if name not in locks:
                 locks.append(name)
+        if "genres" in changes:
+            title.genres.set(list(changes["genres"]))
+            if "genres" not in locks:
+                locks.append("genres")
         if "categories" in changes:
             categories = list(changes["categories"])
             expected = CategoryKind.VOD if kind == "movie" else CategoryKind.SERIES
@@ -298,6 +307,8 @@ def update_title(  # noqa: PLR0912 (one branch per kind of change)
         after = _snapshot(title, [*fields, "status", "metadata_locked_fields"])
         if "categories" in changes:
             after["categories"] = sorted(str(c.pk) for c in title.categories.all())
+        if "genres" in changes:
+            after["genres"] = sorted(str(g.pk) for g in title.genres.all())
         audit.record(f"{kind}.update", actor=actor, target=title, before=before, after=after, ip=ip)
         notify_catalog_changed(kind, [title.pk])
         if reorder and isinstance(title, Series):

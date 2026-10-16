@@ -84,7 +84,8 @@
     "NETWORK_ERROR": "The server couldn't be reached. Check your connection.",
     "UNEXPECTED": "Something went wrong. Try again.",
     "STEP_UP_REQUIRED": "Not done: confirm it's you to continue.",
-    "IP_NOT_ALLOWED": "The admin can't be used from this network."
+    "IP_NOT_ALLOWED": "The admin can't be used from this network.",
+    "MANUAL_METADATA": "This title was entered by hand: there's nothing to refresh it from. Edit it, or match it to TMDB."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -796,7 +797,10 @@
       "import_cancel": "Import cancelled",
       "import_source_create": "Import source added",
       "import_source_update": "Import source changed",
-      "import_source_delete": "Import source deleted"
+      "import_source_delete": "Import source deleted",
+      "title_create_manual": "Movie created manually",
+      "review_manual": "Review resolved with a manual movie",
+      "review_reopen": "Match review reopened"
     },
     "targets": {
       "accounts_user": "User",
@@ -2023,7 +2027,9 @@
       "category": "Category",
       "chipStatus": "Status: {{value}}",
       "chipLibrary": "Library: {{value}}",
-      "chipCategory": "Category: {{value}}"
+      "chipCategory": "Category: {{value}}",
+      "source": "Source",
+      "chipSource": "Source: {{value}}"
     },
     "view": {
       "label": "View",
@@ -2083,7 +2089,8 @@
       "ordering": "Episode order",
       "orderingSaved": "Episode order changed. The series is being fetched again.",
       "orderingReplaced": "Episode order changed. The series' files are being placed again.",
-      "orderingHint": "Files named after the DVDs or with absolute numbers are mapped to TMDB's episodes through TheTVDB."
+      "orderingHint": "Files named after the DVDs or with absolute numbers are mapped to TMDB's episodes through TheTVDB.",
+      "allLocked": "All fields (entered by hand)"
     },
     "files": {
       "title": "Files",
@@ -2123,13 +2130,42 @@
         "overview_ar": "Overview (Arabic)",
         "tagline": "Tagline (English)",
         "tagline_ar": "Tagline (Arabic)",
-        "year": "Year"
-      }
+        "year": "Year",
+        "original_title": "Original title",
+        "release_date": "Release date",
+        "runtime_min": "Runtime (minutes)",
+        "certification": "Age rating",
+        "original_language": "Original language",
+        "countries": "Countries",
+        "trailer_youtube_key": "Trailer (YouTube ID)",
+        "rights_holder": "Rights holder",
+        "license_ref": "Licence reference",
+        "license_expires_at": "Licence ends"
+      },
+      "sections": {
+        "texts": "Titles and texts",
+        "details": "Details",
+        "classification": "Categories and genres",
+        "rights": "Rights"
+      },
+      "genres": "Genres",
+      "noGenres": "No genres yet. They arrive with the first TMDB matches.",
+      "noCategories": "No categories yet. Add them on the Categories page.",
+      "adult": "Adult",
+      "countriesHelp": "Two-letter codes, e.g. SA, EG.",
+      "languageHelp": "Two letters, e.g. ar or en.",
+      "trailerHelp": "The YouTube video ID (the part after v=).",
+      "rightsHolderHelp": "Who owns the content, or licensed it to you.",
+      "expiryHelp": "Customers stop seeing the title after this day. Leave it empty when the licence doesn't end.",
+      "manualHelp": "A manual title keeps every field as you enter it: there's no provider to refresh it from."
     },
     "validation": {
       "titleRequired": "Enter the English title.",
       "tooLong": "That's too long.",
-      "year": "Enter a year from 1870 to 2200, or leave it empty."
+      "year": "Enter a year from 1870 to 2200, or leave it empty.",
+      "runtime": "Enter minutes from 1 to 2000, or leave it empty.",
+      "language": "Use a two- or three-letter language code, e.g. ar.",
+      "countries": "Use two-letter country codes separated by commas, e.g. SA, EG."
     },
     "orderings": {
       "tmdb_default": "TMDB",
@@ -2141,6 +2177,36 @@
       "tmdb_default": "TMDB (as aired)",
       "tvdb_dvd": "File names in TheTVDB's DVD order",
       "tvdb_absolute": "File names in TheTVDB's absolute order"
+    },
+    "manualBadge": "Manual",
+    "manualHelp": "Metadata entered by hand: no provider behind it.",
+    "manual": {
+      "title": "Create a movie manually",
+      "description": "For a file TMDB doesn't know: your own videos, independent and regional films. Only for content you own or are licensed to distribute.",
+      "forFile": "File:",
+      "runtimeHelp": "The file runs {{minutes}} min.",
+      "categoriesHelp": "Starts from the library's categories. Without a category, IPTV apps don't list the title.",
+      "images": {
+        "title": "Artwork",
+        "poster": "Poster",
+        "backdrop": "Backdrop",
+        "posterHelp": "Portrait (2:3), at least 500 px wide.",
+        "backdropHelp": "Landscape (16:9), at least 1280 px wide.",
+        "frameHelp": "JPEG, PNG, WebP, AVIF or GIF, up to 15 MB each. Without an upload, a frame of the video is used; you can replace it on the title page.",
+        "preview": "{{kind}} preview",
+        "remove": "Remove the {{kind}}",
+        "tooLarge": "The image is too large (15 MB at most)."
+      },
+      "confirm": "I own this content or hold the rights to distribute it.",
+      "confirmHelp": "Recorded in the audit log with your name.",
+      "submit": "Create movie",
+      "seriesNote": "Manual series aren't available yet: this creates a movie.",
+      "validation": {
+        "rightsHolder": "Enter who holds the rights.",
+        "licenseRef": "Enter the licence reference (your own, for content you own).",
+        "expiry": "Pick a day after today, or leave it empty.",
+        "confirm": "Confirm the rights to create the title."
+      }
     }
   },
   "review": {
@@ -2153,7 +2219,8 @@
     "decided": {
       "resolved": "Matched by {{name}}",
       "skipped": "Skipped by {{name}}",
-      "open": "Open"
+      "open": "Open",
+      "manual": "Created manually by {{name}}"
     },
     "kinds": {
       "movie": "Movie",
@@ -2237,7 +2304,13 @@
     "providerId": {
       "tmdb": "TMDB {{id}}",
       "tvdb": "TheTVDB {{id}}"
-    }
+    },
+    "createManual": "Create movie manually",
+    "noCandidatesManual": "No provider knows this file. If it's your own video or a film TMDB lacks, describe it yourself.",
+    "reopen": "Reopen",
+    "reopenedToast": "Review reopened",
+    "manualCreated": "{{title}} created",
+    "openMovie": "Open the movie"
   },
   "categories": {
     "title": "Categories",
@@ -2499,7 +2572,18 @@
     "link_not_https": "Use an https:// link.",
     "source_name_taken": "Another source already has this name.",
     "unknown_option": "This kind of source doesn't take this field.",
-    "too_many_items": "Too many items for one import."
+    "too_many_items": "Too many items for one import.",
+    "rights_confirmation_required": "Confirm that you own this content or hold the rights to distribute it.",
+    "invalid_language_code": "Use a two- or three-letter language code, e.g. ar.",
+    "one_source": "Choose a review or a file.",
+    "review_decided": "This review was already decided.",
+    "review_not_skipped": "Only a skipped review can be reopened.",
+    "review_open_exists": "The file already has an open review.",
+    "file_matched": "The file is already matched to a title.",
+    "file_matching": "The file is being matched again. Try again in a moment.",
+    "file_removed": "The file is no longer in its library.",
+    "file_not_probed": "The file hasn't been read yet. Try again shortly.",
+    "not_manual": "Only a manual title can be matched in place."
   },
   "activity": {
     "label": "Activity",
@@ -3373,7 +3457,10 @@
       "candidateOf": {
         "tmdb": "{{year}} · TMDB {{id}}",
         "tvdb": "{{year}} · TheTVDB {{id}}"
-      }
+      },
+      "matchTmdb": "Match to TMDB",
+      "manualTitle": "Match this manual title to TMDB",
+      "manualDescription": "TMDB's metadata and artwork replace yours, except the rights, categories and visibility; fields TMDB leaves empty keep your text. The title keeps its Xtream ID."
     },
     "images": {
       "title": "Artwork",
@@ -3398,7 +3485,8 @@
       "delete": "Delete image",
       "deleteTitle": "Delete this image?",
       "deleteDescription": "Every stored size of the image is removed.",
-      "deleted": "Image deleted"
+      "deleted": "Image deleted",
+      "manualHelp": "No provider offers artwork for a manual title: upload your own."
     },
     "audioFormat": "{{codec}} · {{channels}} ch"
   },

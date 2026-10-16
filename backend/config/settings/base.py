@@ -352,6 +352,8 @@ CELERY_TASK_ROUTES = {
     # sent to their backend's transcode.* queue explicitly (CPU if anyone forgets).
     "apps.media.tasks.prepare_media_file": {"queue": "scan"},
     "apps.media.tasks.run_transcode_job": {"queue": "transcode.cpu"},
+    # A manual movie's artwork from a frame (ADR-0026): one short ffmpeg run, with the art.
+    "apps.media.tasks.frame_artwork": {"queue": "images"},
     "apps.metadata.tasks.fetch_*": {"queue": "images"},
     "apps.metadata.tasks.*": {"queue": "metadata"},
     # Notifications (SPEC §7.7, B1/ADR-0012): delivery on the notify queue.

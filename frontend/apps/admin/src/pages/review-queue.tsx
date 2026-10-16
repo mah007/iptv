@@ -6,9 +6,11 @@ import {
   getSeriesListQueryKey,
   useMetadataSearch,
   useReviewQueueList,
+  useReviewQueueReopen,
   useReviewQueueResolve,
   useReviewQueueSkip,
   type Candidate,
+  type MovieDetail,
   type Review,
   type ReviewStatus,
 } from "@smart-iptv/api";
@@ -45,13 +47,22 @@ import {
   useFormatters,
 } from "@smart-iptv/ui";
 import { useQueryClient } from "@tanstack/react-query";
-import { getRouteApi } from "@tanstack/react-router";
-import { Check, CheckCheck, FileVideo, Search, SkipForward } from "lucide-react";
+import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
+import {
+  Check,
+  CheckCheck,
+  FilePlus2,
+  FileVideo,
+  RotateCcw,
+  Search,
+  SkipForward,
+} from "lucide-react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError, RequirePermission } from "../components/states";
 import { REVIEW_REASONS, type ReviewSearch } from "../features/review/search";
+import { ManualMovieSheet } from "../features/titles/manual-movie-sheet";
 import { LIBRARY_VIEW, useCan } from "../lib/auth";
 import { usePageTitle } from "../lib/page-title";
 import { notifyError } from "../lib/problems";
@@ -425,10 +436,18 @@ function ReviewDetail({
   const { t } = useTranslation();
   const can = useCan();
   const queryClient = useQueryClient();
-  const decide = can("library.review") && review.status === "open";
+  const navigate = useNavigate();
+  const reviewer = can("library.review");
+  const decide = reviewer && review.status === "open";
+  // ADR-0026: a movie described by hand, for an open or a skipped review's file.
+  const manual = reviewer && (review.status === "open" || review.status === "skipped");
   const resolve = useReviewQueueResolve();
   const skip = useReviewQueueSkip();
-  const pending = resolve.isPending || skip.isPending;
+  const reopen = useReviewQueueReopen();
+  const [creating, setCreating] = useState(false);
+  const pending = resolve.isPending || skip.isPending || reopen.isPending;
+  const noCandidates = review.candidates.length === 0;
+  const manualMovie = review.chosen_provider === "manual" ? review.media_file.movie : null;
 
   async function refresh(): Promise<void> {
     await Promise.all(
@@ -462,6 +481,50 @@ function ReviewDetail({
       },
     );
   }
+
+  function reopenReview(): void {
+    reopen.mutate(
+      { id: review.id },
+      {
+        onSuccess: () => {
+          toast.success(t("review.reopenedToast"));
+          onDone(next);
+          void refresh();
+        },
+        onError: (error) => {
+          notifyError(t, error);
+        },
+      },
+    );
+  }
+
+  function created(movie: MovieDetail): void {
+    setCreating(false);
+    toast.success(t("review.manualCreated", { title: movie.title }), {
+      action: {
+        label: t("review.openMovie"),
+        onClick: () => {
+          void navigate({ to: "/movies/$titleId", params: { titleId: movie.id } });
+        },
+      },
+    });
+    onDone(next);
+    void refresh();
+  }
+
+  const createButton = (prominent: boolean) => (
+    <Button
+      variant={prominent ? "primary" : "secondary"}
+      size={prominent ? "md" : "sm"}
+      disabled={pending}
+      onClick={() => {
+        setCreating(true);
+      }}
+    >
+      <FilePlus2 aria-hidden="true" />
+      {t("review.createManual")}
+    </Button>
+  );
 
   function skipReview(): void {
     skip.mutate(
@@ -520,26 +583,55 @@ function ReviewDetail({
         </p>
         {review.status !== "open" && review.decided_at ? (
           <p className="text-ui text-muted-foreground">
-            {t(`review.decided.${review.status}`, { name: review.decided_by || "—" })}{" "}
+            {t(manualMovie === null ? `review.decided.${review.status}` : "review.decided.manual", {
+              name: review.decided_by || "—",
+            })}{" "}
             <RelativeTime value={review.decided_at} />
           </p>
         ) : null}
-        {decide ? (
-          <div>
-            <Button
-              variant="secondary"
-              size="sm"
-              pending={skip.isPending}
-              disabled={pending}
-              onClick={skipReview}
-              aria-keyshortcuts="s"
+        {manualMovie === null ? null : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="violet">{t("titles.manualBadge")}</Badge>
+            <Link
+              to="/movies/$titleId"
+              params={{ titleId: manualMovie }}
+              className="text-ui font-medium text-primary underline-offset-4 hover:underline"
             >
-              <SkipForward aria-hidden="true" className="rtl:-scale-x-100" />
-              {t("review.skip")}
-              <Kbd aria-hidden="true" className="ms-1 hidden sm:inline-flex">
-                S
-              </Kbd>
-            </Button>
+              {t("review.openMovie")}
+            </Link>
+          </div>
+        )}
+        {decide || manual ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {decide ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                pending={skip.isPending}
+                disabled={pending}
+                onClick={skipReview}
+                aria-keyshortcuts="s"
+              >
+                <SkipForward aria-hidden="true" className="rtl:-scale-x-100" />
+                {t("review.skip")}
+                <Kbd aria-hidden="true" className="ms-1 hidden sm:inline-flex">
+                  S
+                </Kbd>
+              </Button>
+            ) : null}
+            {review.status === "skipped" ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                pending={reopen.isPending}
+                disabled={pending}
+                onClick={reopenReview}
+              >
+                <RotateCcw aria-hidden="true" />
+                {t("review.reopen")}
+              </Button>
+            ) : null}
+            {manual && !noCandidates ? createButton(false) : null}
           </div>
         ) : null}
       </div>
@@ -548,7 +640,14 @@ function ReviewDetail({
         <h3 id={`${review.id}-candidates`} className="text-sm font-semibold text-foreground">
           {t("review.candidates", { number: review.candidates.length })}
         </h3>
-        {review.candidates.length === 0 ? (
+        {noCandidates && manual ? (
+          <Card className="border-dashed">
+            <CardContent className="grid justify-items-start gap-3 pt-(--density-card)">
+              <p className="text-ui text-foreground">{t("review.noCandidatesManual")}</p>
+              {createButton(true)}
+            </CardContent>
+          </Card>
+        ) : noCandidates ? (
           <p className="text-ui text-muted-foreground">{t("review.noCandidates")}</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -585,6 +684,14 @@ function ReviewDetail({
           review={review}
           onResolve={choose}
           pending={resolve.isPending}
+        />
+      ) : null}
+      {manual ? (
+        <ManualMovieSheet
+          review={review}
+          open={creating}
+          onOpenChange={setCreating}
+          onCreated={created}
         />
       ) : null}
     </div>

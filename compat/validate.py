@@ -2,8 +2,9 @@
 """Xtream contract suite for Smart IPTV (SPEC §7.5).
 
 Checks what IPTV apps receive from the Xtream host against the JSON Schemas in
-compat/schemas, the golden fixtures in compat/fixtures and the invalid cases in
-compat/fixtures/invalid; with --live, also against a running server:
+compat/schemas, the golden fixtures in compat/fixtures, the variants in
+compat/fixtures/variants and the invalid cases in compat/fixtures/invalid; with --live,
+also against a running server:
 
     uvx --with 'jsonschema==4.*' python compat/validate.py
     XC_USER=... XC_PASS=... uvx --with 'jsonschema==4.*' python compat/validate.py \\
@@ -44,6 +45,8 @@ ROOT = Path(__file__).resolve().parent
 SCHEMA_DIR = ROOT / "schemas"
 FIXTURE_DIR = ROOT / "fixtures"
 INVALID_DIR = FIXTURE_DIR / "invalid"
+#: Valid shapes the golden files don't show, each a change to one of them (must pass).
+VARIANT_DIR = FIXTURE_DIR / "variants"
 SCHEMA_BASE = "https://smart-iptv.invalid/compat/schemas/"
 DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
 USER_AGENT = "smart-iptv-compat/1"
@@ -1459,28 +1462,57 @@ class InvalidCase:
     expect_kind: str
 
 
+@dataclass(frozen=True)
+class VariantCase:
+    name: str
+    description: str
+    fixture: str
+    data: bytes
+
+
 _CASE_KEYS = {"description", "fixture", "patch", "replace", "expect"}
 
 
-def load_case(path: Path, golden: GoldenSet) -> InvalidCase:
+def _read_case(path: Path, golden: GoldenSet, *, invalid: bool) -> dict[str, Any]:
     case, problems = parse_json(path.read_bytes())
     if problems or not isinstance(case, dict):
         raise SuiteError(f"{path.name}: not a JSON object")
-    unknown = case.keys() - _CASE_KEYS
-    fixture = case.get("fixture")
+    unknown = case.keys() - (_CASE_KEYS if invalid else _CASE_KEYS - {"expect"})
     expect = case.get("expect")
     if (
         unknown
         or not isinstance(case.get("description"), str)
-        or fixture not in golden.raw
-        or not isinstance(expect, dict)
-        or set(expect) != {"at", "kind"}
+        or case.get("fixture") not in golden.raw
+        or (invalid and (not isinstance(expect, dict) or set(expect) != {"at", "kind"}))
         or ("patch" in case) == ("replace" in case)
     ):
+        needs = "expect {at, kind} and " if invalid else ""
         raise SuiteError(
-            f"{path.name}: needs description, fixture (a golden file), expect "
-            "{at, kind} and exactly one of patch or replace"
+            f"{path.name}: needs description, fixture (a golden file), {needs}"
+            "exactly one of patch or replace"
         )
+    return case
+
+
+def load_case(path: Path, golden: GoldenSet) -> InvalidCase:
+    case = _read_case(path, golden, invalid=True)
+    data = _changed_document(path, case, golden)
+    expect = case["expect"]
+    return InvalidCase(
+        path.stem, case["description"], case["fixture"], data, expect["at"], expect["kind"]
+    )
+
+
+def load_variant(path: Path, golden: GoldenSet) -> VariantCase:
+    case = _read_case(path, golden, invalid=False)
+    return VariantCase(
+        path.stem, case["description"], case["fixture"], _changed_document(path, case, golden)
+    )
+
+
+def _changed_document(path: Path, case: dict[str, Any], golden: GoldenSet) -> bytes:
+    """The golden file with the case's patch (JSON) or text replacements applied."""
+    fixture = case["fixture"]
     try:
         if "patch" in case:
             if not fixture.endswith(".json"):
@@ -1499,15 +1531,27 @@ def load_case(path: Path, golden: GoldenSet) -> InvalidCase:
         raise SuiteError(f"{path.name}: cannot apply the change: {exc!r}") from exc
     except SuiteError as exc:
         raise SuiteError(f"{path.name}: {exc}") from exc
-    return InvalidCase(path.stem, case["description"], fixture, data, expect["at"], expect["kind"])
+    return data
 
 
 def run_fixture_checks(suite: SchemaSuite, reporter: Reporter) -> None:
     reporter.section("Golden fixtures (must pass)")
     golden = load_golden(suite, reporter)
     if golden is None:
-        reporter.write("  Invalid cases skipped: the golden fixtures must pass first.")
+        reporter.write("  Variants and invalid cases skipped: the golden fixtures must pass first.")
         return
+    reporter.section("Variants (must pass)")
+    for path in sorted(VARIANT_DIR.glob("*.json")):
+        try:
+            variant = load_variant(path, golden)
+        except SuiteError as exc:
+            reporter.fail(path.stem, [Problem(f"fixtures/variants/{path.name}", "case", str(exc))])
+            continue
+        reporter.result(
+            variant.name,
+            check_document(suite, golden, variant.fixture, variant.data),
+            variant.description,
+        )
     reporter.section("Invalid cases (must fail at the expected place)")
     paths = sorted(INVALID_DIR.glob("*.json"))
     if not paths:

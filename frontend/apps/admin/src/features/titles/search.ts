@@ -1,4 +1,4 @@
-import { TitleStatus } from "@smart-iptv/api";
+import { MetadataSource, TitleStatus } from "@smart-iptv/api";
 import { parseTableSearch } from "@smart-iptv/ui";
 
 import { compact, enumParam, stringParam } from "../../lib/search";
@@ -18,6 +18,7 @@ export function parseTitlesSearch(raw: Record<string, unknown>) {
     status: enumParam(raw.status, Object.values(TitleStatus)),
     library: stringParam(raw.library),
     category: stringParam(raw.category),
+    source: enumParam(raw.source, Object.values(MetadataSource)),
     view: enumParam(raw.view, TITLE_VIEWS),
     page: table.page,
     page_size: table.page_size,

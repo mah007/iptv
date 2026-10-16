@@ -24,6 +24,7 @@ from apps.catalog.models import (
     Episode,
     Genre,
     MediaImage,
+    MetadataSource,
     Movie,
     Person,
     Season,
@@ -32,6 +33,8 @@ from apps.catalog.models import (
 from apps.catalog.serializers import PROVIDER_CHOICES
 from apps.catalog.services import media_url
 
+#: Whose credit a title page shows (ADR-0023, ADR-0026).
+ATTRIBUTION_CHOICES = (*PROVIDER_CHOICES, ("manual", "Entered by hand"))
 POSTER_SIZES: Final = ("w500", "w185", "original")
 BACKDROP_SIZES: Final = ("w1280", "w780", "original")
 STILL_SIZES: Final = ("w500", "w185", "original")
@@ -266,12 +269,15 @@ class TitleDetailFields(TitleCardSerializer):
     similar = serializers.SerializerMethodField()
     attribution = serializers.SerializerMethodField(
         help_text="Whose metadata the page shows, for the credit its licence asks for: "
-        "TMDB, or TheTVDB for a series built from it (ADR-0023)."
+        "TMDB, TheTVDB for a series built from it (ADR-0023), or `manual` for a title an "
+        "admin entered by hand, which credits no provider (ADR-0026)."
     )
 
-    @extend_schema_field(serializers.ChoiceField(choices=PROVIDER_CHOICES))
+    @extend_schema_field(serializers.ChoiceField(choices=ATTRIBUTION_CHOICES))
     def get_attribution(self, title: Movie | Series) -> str:
-        return "tvdb" if title.metadata_source == "tvdb" else "tmdb"
+        if title.metadata_source in (MetadataSource.TVDB, MetadataSource.MANUAL):
+            return str(title.metadata_source)
+        return "tmdb"
 
     def get_overview(self, title: Movie | Series) -> str:
         return self.text(title, "overview")

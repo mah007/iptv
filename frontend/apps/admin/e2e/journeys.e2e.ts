@@ -1,13 +1,13 @@
 import { request, type Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { env, settled, usePreferences } from "./support";
+import { env, expectAccessible, settled, usePreferences } from "./support";
 
 /*
  * The admin journeys of SPEC §15: create a customer with chosen credentials,
- * reset a device, start a scan, resolve a review and kill a live session.
- * They run in order against the dev stack; the customer made first is the one
- * that plays and gets stopped at the end.
+ * reset a device, start a scan, create a movie by hand (ADR-0026), resolve a
+ * review and kill a live session. They run in order against the dev stack; the
+ * customer made first is the one that plays and gets stopped at the end.
  */
 
 const stamp = Date.now().toString(36);
@@ -105,6 +105,77 @@ test("start a library scan", async ({ page }) => {
   await expect(
     page.getByText(/Scan of .+ started|is already being scanned/u).first(),
   ).toBeVisible();
+});
+
+/** The sample no provider knows (scripts/sample_media.sh); `make e2e-admin` sets it back
+ * to a skipped review before the run (`e2e_admin_account --manual-review`). */
+const HOME_VIDEO = "Smart IPTV Sample Home Video (2026).mp4";
+/** A 200 x 300 synthetic poster (a frame drawn in code, no third-party content). */
+const POSTER_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAMgAAAEsCAIAAAAJmGvpAAACS0lEQVR42u3XUQ2AMAxAQSATgYTKQNYkTGLlIIKFNNvdP3w0L1163k8/YLbLCBAWwkJYICyEhbBAWAgLYYGwEBbCAmEhLIQFwkJYCAuEhbAQFggLYSEsEBbCQlggLISFsEBYCAthgbAQFsICYSEs1tW+fJwjTXBt0cPGwlOIsEBYCAtX4Q9HBBVMPPNtLDyFCAthgbAQFsICYSEshAXCQlgIC4SFsBAWCAthISwQFsJCWCAshIWwQFgIC2GBsBAWwgJhISyEBcJCWAgLhIWwEBYIC2EhLBAWwkJYICyEhbBAWAgLYYGwEBbCAmEhLIQFwkJYCAuEhbAQFggLYSEsEBbCQlggLISFsEBYCAthgbAQFsICYSEshAXCQlgIC4SFsBAWwgJhISyEBcJCWAgLhIWwEBYIC2EhLBAWwkJYICyEhbBAWAgLYYGwEBbCAmEhLIQFwkJYCAuEhbAQFggLYSEsEBbCQlggLISFsEBYCAthgbAQFsICYSEshAXCQlgIC4SFsBAWCAthISwQFsJCWCAshIWwQFgIC2GBsBAWwgJhISyEBcJCWAgLhIWwEBYIC2EhLIRlBAgLYSEsEBbCQlggLISFsEBYCAthgbAQFsICYSEshAXCQlgIC4SFsBAWCAthISwQFsJCWCAshIWwQFhU0eb+LkeaKTYWwkJYICyExSZXYfQwQWwshIWwQFgIC2GBsBAWwgJhISyEBcJCWAgLhIWwEBYIC2EhLBAWwkJYCAuEhbAQFggLYSEsEBbCQlggLISFsEBYFPYCo/YMMF9UUsAAAAAASUVORK5CYII=";
+
+test("the manual movie form, in Arabic and dark at 390 px", async ({ page }) => {
+  await usePreferences(page, "ar", "dark");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/review?status=skipped");
+  await settled(page);
+  await page.getByRole("button", { name: HOME_VIDEO }).click();
+  await page.getByRole("button", { name: "إنشاء فيلم يدويًا" }).click();
+  const sheet = page.getByRole("dialog", { name: "إنشاء فيلم يدويًا" });
+  await expect(sheet.getByLabel("العنوان (بالإنجليزية)")).toHaveValue(
+    "Smart IPTV Sample Home Video",
+  );
+  await expect(sheet.getByLabel("المدة (بالدقائق)")).toHaveValue("1");
+  await expectAccessible(page, "manual movie form (ar, dark, 390 px)");
+  const overflow = await sheet.evaluate((element) => element.scrollWidth - element.clientWidth);
+  expect(overflow, "the form scrolls sideways at 390 px").toBeLessThanOrEqual(0);
+  await sheet.getByRole("button", { name: "إلغاء" }).click();
+  await expect(sheet).toBeHidden();
+});
+
+test("create a movie by hand for a file no provider knows", async ({ page }) => {
+  // The skipped review comes back to the queue first.
+  await page.goto("/review?status=skipped");
+  await settled(page);
+  await page.getByRole("button", { name: HOME_VIDEO }).click();
+  await page.getByRole("button", { name: "Reopen" }).click();
+  await expect(page.getByText("Review reopened")).toBeVisible();
+
+  await page.goto("/review");
+  await settled(page);
+  await page.getByRole("button", { name: HOME_VIDEO }).click();
+  await expect(page.getByText(/No provider knows this file/u)).toBeVisible();
+  await page.getByRole("button", { name: "Create movie manually" }).click();
+  const sheet = page.getByRole("dialog", { name: "Create a movie manually" });
+  await expect(sheet.getByLabel("Title (English)")).toHaveValue("Smart IPTV Sample Home Video");
+  await sheet.getByLabel("Title (Arabic)").fill("فيديو منزلي تجريبي");
+  await sheet.getByLabel("Overview (English)").fill("A synthetic test pattern made by FFmpeg.");
+  await sheet.getByLabel("Countries").fill("SA");
+  await sheet.getByLabel("Rights holder").fill("Smart IPTV test fixtures");
+  await sheet.getByLabel("Licence reference").fill("E2E-OWN-1");
+  await sheet.getByLabel("Poster").setInputFiles({
+    name: "poster.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(POSTER_PNG, "base64"),
+  });
+  await expect(sheet.getByRole("img", { name: "Poster preview" })).toBeVisible();
+  await sheet
+    .getByRole("checkbox", { name: /I own this content or hold the rights to distribute it/u })
+    .check();
+  await expectAccessible(page, "manual movie form (en, light)");
+  await sheet.getByRole("button", { name: "Create movie" }).click();
+  await expect(page.getByText("Smart IPTV Sample Home Video created")).toBeVisible();
+
+  // The movie: a Manual badge, nothing to refresh, TMDB later if the admin wants.
+  await page.goto("/movies?source=manual&view=list");
+  await page.getByRole("link", { name: "Smart IPTV Sample Home Video" }).first().click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: /Smart IPTV Sample Home Video/u }),
+  ).toBeVisible();
+  await expect(page.getByText("All fields (entered by hand)")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Refresh metadata" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Match to TMDB" })).toBeVisible();
+  await expectAccessible(page, "manual movie page");
 });
 
 test("resolve a review with the keyboard", async ({ page }) => {

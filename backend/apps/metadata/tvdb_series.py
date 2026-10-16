@@ -347,7 +347,7 @@ def search(kind: str, query: str, year: int | None = None) -> list[dict[str, Any
     try:
         results = client.search_series(query, year=year, limit=SEARCH_LIMIT * 2)
     except TVDBError as exc:
-        raise services._provider_problem(exc, PROVIDER) from None
+        raise services.provider_problem(exc, PROVIDER) from None
     found = []
     for item in results:
         candidate = Candidate.from_tvdb(item)

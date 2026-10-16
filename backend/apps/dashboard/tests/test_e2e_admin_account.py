@@ -84,8 +84,11 @@ def test_reopens_the_latest_decided_review_with_the_chosen_candidate_first(
     with pytest.raises(CommandError, match="No decided movie review"):
         run(monkeypatch, "--open-review")
     review = open_review(library)
-    assert "already has an open item" in run(monkeypatch, "--open-review")
+    with pytest.raises(CommandError, match="No decided movie review"):
+        run(monkeypatch, "--open-review")  # an open item without candidates doesn't count
     review.candidates = [{"id": 1, "title": "A"}, {"id": 2, "title": "B"}]
+    review.save()
+    assert "already has an open item" in run(monkeypatch, "--open-review")
     review.status = ReviewStatus.RESOLVED
     review.chosen_provider_id = 2
     review.decided_at = timezone.now()
@@ -94,3 +97,38 @@ def test_reopens_the_latest_decided_review_with_the_chosen_candidate_first(
     reopened = MatchReview.objects.get(status=ReviewStatus.OPEN)
     assert reopened.media_file_id == review.media_file_id
     assert [candidate["id"] for candidate in reopened.candidates] == [2, 1]
+
+
+def test_sets_the_home_video_back_to_a_skipped_review(
+    settings: Any, monkeypatch: pytest.MonkeyPatch, library: Library
+) -> None:
+    from apps.catalog.models import FileState, MediaFile, MetadataSource, Movie  # noqa: PLC0415
+    from apps.dashboard.management.commands.e2e_admin_account import HOME_VIDEO  # noqa: PLC0415
+
+    settings.DEBUG = True
+    with pytest.raises(CommandError, match="media-ready"):
+        run(monkeypatch, "--manual-review")
+    file = MediaFile.objects.create(library=library, storage_key=HOME_VIDEO, state=FileState.REVIEW)
+    MatchReview.objects.create(media_file=file, kind="movie", reason="no_candidates")
+    assert "skipped" in run(monkeypatch, "--manual-review")
+    (review,) = MatchReview.objects.filter(media_file=file)
+    assert review.status == ReviewStatus.SKIPPED
+
+    # An earlier run's manual movie goes; the file is back in review.
+    manual = Movie.objects.create(title="Home video", metadata_source=MetadataSource.MANUAL)
+    MediaFile.objects.filter(pk=file.pk).update(movie=manual, state=FileState.MATCHED)
+    review.status = ReviewStatus.RESOLVED
+    review.save()
+    run(monkeypatch, "--manual-review")
+    assert not Movie.objects.filter(pk=manual.pk).exists()
+    file.refresh_from_db()
+    assert (file.movie_id, file.state) == (None, FileState.REVIEW)
+    assert MatchReview.objects.filter(media_file=file, status=ReviewStatus.SKIPPED).count() == 1
+
+    # Anything else keeps its row: a provider's title only loses the file.
+    kept = Movie.objects.create(title="Someone else's", tmdb_id=42)
+    MediaFile.objects.filter(pk=file.pk).update(movie=kept, state=FileState.MATCHED)
+    run(monkeypatch, "--manual-review")
+    assert Movie.objects.filter(pk=kept.pk).exists()
+    file.refresh_from_db()
+    assert file.movie_id is None

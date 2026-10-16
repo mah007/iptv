@@ -1,4 +1,5 @@
 import {
+  MetadataSource,
   TitleStatus,
   useCategoriesList,
   useLibrariesList,
@@ -39,7 +40,7 @@ import { useTranslation } from "react-i18next";
 import { RequirePermission } from "../components/states";
 import { imageSource, localName, localTitle } from "../features/catalog/artwork";
 import type { TitlesSearch } from "../features/titles/search";
-import { SyntheticBadge, type TitleKind } from "../features/titles/synthetic-badge";
+import { ManualBadge, SyntheticBadge, type TitleKind } from "../features/titles/synthetic-badge";
 import { LIBRARY_VIEW } from "../lib/auth";
 import { usePageTitle } from "../lib/page-title";
 import { compact, type SearchPatch } from "../lib/search";
@@ -114,6 +115,7 @@ function useColumns(kind: TitleKind) {
             <span className="flex flex-wrap items-center gap-1">
               <StatusBadge status={row.original.status} />
               {row.original.synthetic ? <SyntheticBadge /> : null}
+              {row.original.metadata_source === "manual" ? <ManualBadge /> : null}
             </span>
           ),
         }),
@@ -174,6 +176,7 @@ function apiParams(search: TitlesSearch, pageSize: number): MoviesListParams {
     status: search.status ? [search.status] : undefined,
     library: search.library,
     category: search.category,
+    metadata_source: search.source,
     ordering: search.ordering,
     page: search.page,
     page_size: pageSize,
@@ -266,7 +269,8 @@ function TitlesView({
     search.q !== undefined ||
     search.status !== undefined ||
     search.library !== undefined ||
-    search.category !== undefined;
+    search.category !== undefined ||
+    search.source !== undefined;
   const chips: FilterChip[] = [];
   if (search.status !== undefined) {
     chips.push({
@@ -292,6 +296,15 @@ function TitlesView({
       label: t("titles.filters.chipCategory", { value: categoryName(search.category) }),
       onRemove: () => {
         update({ category: undefined });
+      },
+    });
+  }
+  if (search.source !== undefined) {
+    chips.push({
+      id: "source",
+      label: t("titles.filters.chipSource", { value: t(`titles.sources.${search.source}`) }),
+      onRemove: () => {
+        update({ source: undefined });
       },
     });
   }
@@ -375,11 +388,29 @@ function TitlesView({
               update({ category: values[0] });
             }}
           />
+          <FacetFilter
+            single
+            title={t("titles.filters.source")}
+            options={Object.values(MetadataSource).map((value) => ({
+              value,
+              label: t(`titles.sources.${value}`),
+            }))}
+            selected={search.source ? [search.source] : []}
+            onSelectedChange={(values) => {
+              update({ source: values[0] as TitlesSearch["source"] });
+            }}
+          />
         </>
       }
       chips={chips}
       onClearAll={() => {
-        update({ q: undefined, status: undefined, library: undefined, category: undefined });
+        update({
+          q: undefined,
+          status: undefined,
+          library: undefined,
+          category: undefined,
+          source: undefined,
+        });
       }}
       actions={viewToggle}
     />
@@ -466,6 +497,7 @@ function TitlesView({
                   <>
                     {title.status === "ready" ? null : <StatusBadge status={title.status} />}
                     {title.synthetic ? <SyntheticBadge /> : null}
+                    {title.metadata_source === "manual" ? <ManualBadge /> : null}
                   </>
                 }
               >

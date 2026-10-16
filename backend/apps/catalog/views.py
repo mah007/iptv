@@ -1,8 +1,10 @@
 """Admin API of the catalogue (SPEC §8.3, docs/plans/poc.md slice 2): movies and series
 (list, detail, edit, refresh metadata), the metadata review queue with a TMDB search for
-manual matching, and categories (CRUD and reorder).
+manual matching, manual movies for files no provider knows (ADR-0026), genres, and
+categories (CRUD and reorder).
 
-RBAC: `library.view` reads, `library.manage` edits, `library.review` decides reviews.
+RBAC: `library.view` reads, `library.manage` edits, `library.review` decides reviews
+(manual movies and reopening skipped reviews included).
 Every change is audited by the services it calls.
 """
 
@@ -14,6 +16,7 @@ from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import filters, generics, status
+from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -27,9 +30,11 @@ from apps.catalog.models import (
     CollectionItem,
     Credit,
     Episode,
+    Genre,
     MatchReview,
     MediaFile,
     MediaImage,
+    MetadataSource,
     Movie,
     Season,
     Series,
@@ -41,6 +46,10 @@ from apps.catalog.serializers import (
     CategoryWriteSerializer,
     CollectionSerializer,
     CollectionWriteSerializer,
+    GenreSerializer,
+    ManualDefaultsSerializer,
+    ManualMovieCreateSerializer,
+    ManualSourceSerializer,
     MovieDetailSerializer,
     MovieSummarySerializer,
     MovieUpdateSerializer,
@@ -52,6 +61,7 @@ from apps.catalog.serializers import (
     SeriesSummarySerializer,
     SeriesUpdateSerializer,
 )
+from apps.core.errors import ErrorCode, ProblemError, field_error
 from apps.core.http import acting_user, client_ip
 from apps.core.schema import problems
 from apps.core.throttling import AdminTmdbThrottle
@@ -197,11 +207,16 @@ class MovieRefreshView(AdminView):
     @extend_schema(
         operation_id="movies_refresh_metadata",
         summary="Fetch the movie's metadata again (locked fields are kept)",
+        description="A manual title (ADR-0026) has nothing to fetch: 409 MANUAL_METADATA.",
         request=None,
-        responses={202: QueuedSerializer, **problems(401, 403, 404)},
+        responses={202: QueuedSerializer, **problems(401, 403, 404, 409)},
     )
     def post(self, request: Request, pk: UUID) -> Response:
+        from apps.metadata import services as metadata  # noqa: PLC0415
+
         movie = get_object_or_404(Movie, pk=pk)
+        if movie.metadata_source == MetadataSource.MANUAL:
+            raise metadata.manual_metadata_problem()
         return _queue_refresh(request, "movie", movie)
 
 
@@ -367,6 +382,120 @@ class ReviewSkipView(AdminView):
         review = get_object_or_404(review_queryset(), pk=pk)
         metadata.skip_review(review, actor=acting_user(request), ip=client_ip(request))
         return Response(ReviewSerializer(review_queryset().get(pk=pk)).data)
+
+
+class ReviewReopenView(AdminView):
+    required_permissions: ClassVar[Requirements] = {"POST": "library.review"}
+
+    @extend_schema(
+        operation_id="review_queue_reopen",
+        summary="Put a skipped review back in the queue",
+        request=None,
+        responses={200: ReviewSerializer, **problems(401, 403, 404, 409)},
+    )
+    def post(self, request: Request, pk: UUID) -> Response:
+        from apps.metadata import services as metadata  # noqa: PLC0415
+
+        review = get_object_or_404(review_queryset(), pk=pk)
+        metadata.reopen_review(review, actor=acting_user(request), ip=client_ip(request))
+        return Response(ReviewSerializer(review_queryset().get(pk=pk)).data)
+
+
+# --- Manual titles (ADR-0026) ---------------------------------------------------------------------
+
+
+def _manual_source(data: dict[str, Any]) -> tuple[MediaFile, MatchReview | None]:
+    if data.get("review") is not None:
+        review = get_object_or_404(review_queryset(), pk=data["review"])
+        return review.media_file, review
+    file = get_object_or_404(MediaFile.objects.select_related("library"), pk=data["media_file"])
+    return file, None
+
+
+class ManualMovieView(AdminView):
+    parser_classes = (MultiPartParser, JSONParser)
+    required_permissions: ClassVar[Requirements] = {"POST": "library.review"}
+
+    @extend_schema(
+        operation_id="movies_create_manual",
+        summary="Create a movie by hand for a file no metadata provider knows",
+        description=(
+            "For an open or skipped review's file, or a file no title owns. The admin states "
+            "the rights and confirms holding them. Every field is locked; the title is "
+            "ready once its file is prepared. Without an uploaded poster or backdrop, a "
+            "frame of the video is used (ADR-0026)."
+        ),
+        request={
+            "multipart/form-data": ManualMovieCreateSerializer,
+            "application/json": ManualMovieCreateSerializer,
+        },
+        responses={201: MovieDetailSerializer, **problems(400, 401, 403, 404, 409)},
+    )
+    def post(self, request: Request) -> Response:
+        from apps.metadata import services as metadata  # noqa: PLC0415
+
+        body = ManualMovieCreateSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        data = dict(body.validated_data)
+        file, review = _manual_source(data)
+        images = []
+        for kind in metadata.MANUAL_IMAGE_KINDS:
+            upload = data.pop(str(kind), None)
+            if upload is None:
+                continue
+            if upload.size > metadata.MANUAL_IMAGE_MAX_BYTES:
+                raise ProblemError(
+                    ErrorCode.VALIDATION_ERROR,
+                    "The image is too large (15 MB at most).",
+                    field_errors={str(kind): [field_error("15 MB at most.", code="too_large")]},
+                )
+            images.append(metadata.ManualImage(str(kind), upload.read()))
+        movie = metadata.create_manual_movie(
+            file=file,
+            review=review,
+            data=data,
+            images=images,
+            actor=acting_user(request),
+            ip=client_ip(request),
+        )
+        return Response(
+            MovieDetailSerializer(movie_detail_queryset().get(pk=movie.pk)).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ManualDefaultsView(AdminView):
+    required_permissions: ClassVar[Requirements] = {"GET": "library.review"}
+
+    @extend_schema(
+        operation_id="movies_manual_defaults",
+        summary="What the manual movie form starts from, for a review or a file",
+        parameters=[ManualSourceSerializer],
+        responses={200: ManualDefaultsSerializer, **problems(400, 401, 403, 404)},
+    )
+    def get(self, request: Request) -> Response:
+        from apps.metadata import services as metadata  # noqa: PLC0415
+
+        query = ManualSourceSerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        file, review = _manual_source(dict(query.validated_data))
+        return Response(ManualDefaultsSerializer(metadata.manual_defaults(file, review)).data)
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="genres_list",
+        summary="Genres, for the title editor and the manual form",
+        responses={200: GenreSerializer(many=True), **problems(400, 401, 403)},
+    )
+)
+class GenreListView(generics.ListAPIView[Genre]):
+    permission_classes = (HasPermission,)
+    required_permissions: ClassVar[Requirements] = {"GET": VIEW}
+    serializer_class = GenreSerializer
+
+    def get_queryset(self) -> QuerySet[Genre]:
+        return Genre.objects.order_by("name_en", "id")
 
 
 class MetadataSearchView(AdminView):

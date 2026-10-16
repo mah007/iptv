@@ -15,6 +15,7 @@ const MESSAGE_CODES = new Set([
   "NETWORK_ERROR",
   "STEP_UP_REQUIRED",
   "IP_NOT_ALLOWED",
+  "MANUAL_METADATA",
 ]);
 
 /** Translation key that explains a failed request to the admin. */
@@ -23,18 +24,30 @@ export function errorMessageKey(error: unknown): string {
   return "errors.UNEXPECTED";
 }
 
-/** The API's own explanation (problem `detail`) when it is specific enough to show. */
-function problemDetail(error: unknown): string | undefined {
+/** Key of the reasons that belong to no single field (DRF's `non_field_errors`). */
+const NON_FIELD = "non_field_errors";
+
+/**
+ * The API's own explanation (problem `detail`) when it is specific enough to show; in
+ * the admin's language when the problem names a reason the admin translates (a conflict
+ * such as `review_decided`, ADR-0026).
+ */
+function problemDetail(t: TFunction, error: unknown): string | undefined {
   if (!isApiError(error) || error.problem === null) return undefined;
   if (error.status >= 500 || error.code === "VALIDATION_ERROR") return undefined;
-  // The step-up dialog was dismissed: the summary says it all.
-  if (error.code === "STEP_UP_REQUIRED") return undefined;
+  // The step-up dialog was dismissed, or the summary says it all.
+  if (error.code === "STEP_UP_REQUIRED" || error.code === "MANUAL_METADATA") return undefined;
+  const reason = fieldErrorCodes(error, NON_FIELD)[0];
+  const message = error.fieldErrors[NON_FIELD]?.[0];
+  if (reason !== undefined && message !== undefined && Object.hasOwn(FIELD_CODE_PARAMS, reason)) {
+    return fieldErrorMessage(t, reason, message);
+  }
   return error.detail || undefined;
 }
 
 /** Toast for a failed action: a translated summary plus the API's detail when useful. */
 export function notifyError(t: TFunction, error: unknown): void {
-  const description = problemDetail(error);
+  const description = problemDetail(t, error);
   toast.error(t(errorMessageKey(error)), description === undefined ? undefined : { description });
 }
 
@@ -165,6 +178,18 @@ export const FIELD_CODE_PARAMS: Readonly<Record<string, readonly string[]>> = {
   link_not_https: [],
   source_name_taken: [],
   unknown_option: [],
+  // Manual titles (ADR-0026).
+  rights_confirmation_required: [],
+  invalid_language_code: [],
+  one_source: [],
+  review_decided: [],
+  review_not_skipped: [],
+  review_open_exists: [],
+  file_matched: [],
+  file_matching: [],
+  file_removed: [],
+  file_not_probed: [],
+  not_manual: [],
   // My password (ADR-0023): Django's validators and the current password.
   wrong_password: [],
   password_unchanged: [],
