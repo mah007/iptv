@@ -204,10 +204,7 @@ describe("imports", () => {
     await user.click(within(sheet).getByRole("combobox", { name: "Kind" }));
     await user.click(await screen.findByRole("option", { name: "Xtream / IPTV VOD" }));
     await user.type(within(sheet).getByLabelText("Name"), "Licensed VOD");
-    await user.type(
-      within(sheet).getByLabelText("IPTV server address"),
-      "http://vod.example:8080",
-    );
+    await user.type(within(sheet).getByLabelText("IPTV server address"), "http://vod.example:8080");
     expect(await within(sheet).findByText("This provider uses unencrypted HTTP")).toBeTruthy();
     await user.type(within(sheet).getByLabelText("User name"), "viewer");
     await user.type(within(sheet).getByLabelText("Password"), "account-password");
