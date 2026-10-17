@@ -56,7 +56,7 @@ Dev only: `pytest 9.1.1`, `pytest-django 4.14.0`, `pytest-cov 7.1.0`, `ruff 0.16
 
 ## Consequences
 - Upgrade checkpoints: Django 6.2 LTS (2027-04), Node 26 (2027), TypeScript 7 (when typescript-eslint supports it), redis-py 8 (when kombu 5.7 is final), Python 3.14 (native uuid7).
-- Every new dependency goes through `dep-check` and an ADR note; the licence gate in `make ci` enforces it.
+- Every new dependency goes through `dep-check` and an ADR note; `make licenses` checks it (run by hand; the owner removed it from `make ci` on 2026-10-17).
 
 ## M2/M3 additions
 Checked on 2026-10-03 with `.claude/skills/dep-check`. Every package passes the licence gate (61 Python packages, including dev ones, against the backend virtualenv).

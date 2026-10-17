@@ -417,7 +417,7 @@ scan: ## Trivy: fixable HIGH/CRITICAL CVEs and secrets in the images, secrets in
 	  fs --quiet --scanners secret --exit-code 1 --skip-files .env \
 	  --skip-dirs .git --skip-dirs '**/node_modules' --skip-dirs '**/.venv' --skip-dirs '**/dist' --skip-dirs '**/.pytest_cache' /repo
 
-licenses: ## Licence gate (SPEC §1.2) on production dependencies; run after make build
+licenses: ## Licence gate (SPEC §1.2) on production dependencies; run by hand after make build (not in make ci)
 	python3 scripts/license_gate.py --self-test
 	docker run --rm -i --entrypoint python smart-iptv/app:$(APP_VERSION) - python < scripts/license_gate.py
 	$(RUN_FRONTEND) sh -c 'pnpm install --frozen-lockfile --store-dir /pnpm-store > /dev/null && pnpm -r licenses list --prod --json' \
@@ -474,7 +474,7 @@ ci: ## Full quality gate on the committed tree (ALLOW_DIRTY=1 to check uncommitt
 	@$(MAKE) ci-steps || { echo "make ci FAILED. Service status and recent logs:" >&2; \
 	  $(COMPOSE) ps >&2 || true; $(COMPOSE) logs --no-color --tail=60 >&2 || true; exit 1; }
 	@echo ""
-	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Semgrep, dependency audit, ZAP baseline, Xtream contract, media edges, monitoring configs and log redaction, types, API client, tests, live Xtream checks, imports, IPTVnator, admin and portal E2E with axe, visual regression, images, Trivy, licences."
+	@echo "Quality gate passed for $$(git rev-parse --short HEAD)$(if $(ALLOW_DIRTY), plus uncommitted changes,): stack, smoke, lint, Semgrep, dependency audit, ZAP baseline, Xtream contract, media edges, monitoring configs and log redaction, types, API client, tests, live Xtream checks, imports, IPTVnator, admin and portal E2E with axe, visual regression, images, Trivy."
 
 ci-steps:
 	$(MAKE) up
@@ -503,4 +503,3 @@ ci-steps:
 	$(MAKE) build
 	$(MAKE) smoke-images
 	$(MAKE) scan
-	$(MAKE) licenses

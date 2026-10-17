@@ -61,7 +61,7 @@ A self-hosted OTT/VOD subscription platform for **owned or licensed content** on
 Everything runs in containers through the Makefile (`make` lists targets). The stack must be up for backend tests: they use the real Postgres, Valkey and Meilisearch.
 - `make secrets` (creates `.env`; never read or print it), `make up` (build, wait for health, migrate), `make smoke`, `make down`, `make ps`, `make logs s=web`, `make shell`
 - `make test`: pytest with 85% coverage enforced, plus Vitest.
-- `make lint`, `make fmt`, `make typecheck`, `make build` (production images), `make scan` (Trivy) and `make licenses` (licence gate); run the last two after `make build`.
+- `make lint`, `make fmt`, `make typecheck`, `make build` (production images), `make scan` (Trivy) and `make licenses` (licence gate); run the last two after `make build`. `make licenses` is not part of `make ci` (owner, 2026-10-17): run it after adding or upgrading a dependency.
 - `make ci`: the full quality gate (ADR-0003 lists its steps). It checks the committed tree: commit first, or use `ALLOW_DIRTY=1` for a check of uncommitted work. There's no hosted CI, so run it before pushing; before tagging `m{N}-done` run `make ci BUILD_FLAGS="--pull --no-cache"`. Don't add GitHub Actions or another hosted CI.
 - Single backend test: `make test-backend t="apps/core/tests/test_routing.py -k internal"`. Passing `t` skips the coverage gate.
 - Parallel backend test runs (several agents at once) must each pass a lane, `lane=1`, `2` or `3`: a lane has its own Postgres test database and Redis indexes. Two runs in the same lane drop and flush each other's data.

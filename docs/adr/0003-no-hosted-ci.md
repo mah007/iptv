@@ -27,7 +27,7 @@ The checks themselves still matter. Only where they run changes.
   11. `build`: production images, with `--pull`;
   12. `smoke-images`: start the production images with an env generated from `.env.example`, run `check --deploy`, wait for their healthchecks;
   13. `scan`: Trivy, pinned by digest, for fixable HIGH/CRITICAL CVEs and secrets in the images, plus a secret scan of the repository;
-  14. `licenses`: the licence gate, after its self-test.
+  14. ~~`licenses`~~: removed from `make ci` by the owner on 2026-10-17; the licence gate still runs by hand (`make licenses`, after `make build`).
 - **It checks the committed tree.** It refuses uncommitted changes unless `ALLOW_DIRTY=1`, refuses a test subset (`t=`), names the commit it passed for, and prints service status and logs when it fails.
 - **Run it before pushing to `main`.** Before tagging `m{N}-done`, run `make ci BUILD_FLAGS="--pull --no-cache"`. Milestone acceptance cites its result.
 - Where the spec says "CI", read `make ci`:
@@ -36,7 +36,7 @@ The checks themselves still matter. Only where they run changes.
 |---|---|
 | Lint, types, tests, build (§15, §16) | `make ci`, today |
 | Trivy image scan (§11, §15) | `make scan` inside `make ci`, today |
-| Licence gate (§1.2) | `make licenses` inside `make ci`, today |
+| Licence gate (§1.2) | `make licenses`, run by hand after adding or upgrading a dependency (removed from `make ci` by the owner, 2026-10-17) |
 | OpenAPI client freshness (§8.4) | Added to `make ci` in M2 |
 | Xtream contract tests and the IPTVnator end-to-end run (§7.5) | Added to `make ci` in M9 |
 | Admin and portal Playwright journeys with axe (§8, §9, §15) | Added to `make ci` in M11 and M11b |

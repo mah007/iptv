@@ -15,6 +15,7 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-17:** The licence gate is no longer part of `make ci` (the owner's decision). `make licenses` still runs by hand after `make build`; run it after adding or upgrading a dependency.
 - **2026-10-17:** **Licensed Xtream VOD imports** (ADR-0027): Libraries → Import can save an Xtream-compatible IPTV account with its username and password encrypted, test it, browse VOD categories and manually select movies for the existing resumable import pipeline. Account details never enter job history or logs; whole-category imports are deliberately disabled; every movie still requires a rights holder and licence reference. HTTP-only providers work with a warning, while HTTPS sources may never downgrade.
 - **2026-10-16:** Manual titles deployed to tv.mah007.net with a rolling update (no errors, 7 hosts green, contract suite 197 passed, every service healthy).
 - **2026-10-16:** **Manual titles** (ADR-0026): a film TMDB doesn't know can now be added by hand. Review queue → **Create movie manually** (open or skipped reviews) takes the titles in English and Arabic, year, description, categories, genres, poster and backdrop (or a frame of the video), and the rights holder, licence reference and a rights confirmation. The file then goes through the normal pipeline. Also new: **Reopen** for skipped reviews, **Match to TMDB** later (keeps the title's history), a Manual badge and source filter, and Details and Rights sections in every title's editor.
@@ -252,11 +253,11 @@ flowchart LR
 | Edge and ingress | Nginx with njs, Traefik v3 |
 | Observability | Prometheus, Grafana, Loki, Grafana Alloy |
 | Tooling | uv, Ruff, mypy, pytest, pnpm, Vitest, Playwright, Locust, k6 |
-| Quality gate | `make ci`, run locally (no hosted CI): lint, types, tests, image build, Trivy, licence gate, pip-audit, pnpm audit, Semgrep (own rules) and a ZAP baseline |
+| Quality gate | `make ci`, run locally (no hosted CI): lint, types, tests, image build, Trivy, pip-audit, pnpm audit, Semgrep (own rules) and a ZAP baseline |
 
 **Pinned today:** Python 3.13, Django 5.2 LTS, Celery 5.6, PostgreSQL 18, Valkey 9.1, Meilisearch 1.54, Traefik 3.7, Node.js 24 LTS, pnpm 12, React 19, Vite 8, Tailwind CSS 4, TypeScript 6.0. [ADR-0001](docs/adr/0001-stack-and-versions.md) lists every version, the date it was checked, and the reason for each deviation from the original spec.
 
-Every dependency imported into our code is permissively licensed (MIT, BSD, Apache-2.0, ISC, MPL-2.0, or LGPL used unmodified), and the licence gate in `make ci` enforces this. GPL/AGPL tools run only as separate processes.
+Every dependency imported into our code is permissively licensed (MIT, BSD, Apache-2.0, ISC, MPL-2.0, or LGPL used unmodified), and `make licenses` checks this; run it after adding or upgrading a dependency (it is no longer part of `make ci`). GPL/AGPL tools run only as separate processes.
 
 ## System requirements
 
@@ -540,7 +541,7 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, threat model, client setup
   - sample media scanned and transcoded, live Xtream contract checks, and the IPTVnator journey;
   - the admin and portal browser journeys with axe, and the visual regression screenshots;
   - production images, started and health-checked with `check --deploy`;
-  - a Trivy CVE and secret scan, and the licence gate.
+  - a Trivy CVE and secret scan.
 
   It checks the committed tree, so commit first (or pass `ALLOW_DIRTY=1`), and run it before pushing.
 - The frontend lint blocks hard-coded user-facing text (use i18next) and physical left/right Tailwind classes (use logical ones so Arabic mirrors).
@@ -556,7 +557,7 @@ docs/        PROGRESS.md, ADRs (docs/adr/), runbooks, threat model, client setup
 - Rate limiting at Traefik and in Django (per IP and per account), progressive Xtream sign-in pauses, CrowdSec, and an append-only audit log.
 - A strict Content-Security-Policy with per-request nonces and no inline script on both apps, `default-src 'none'` on the API and media, and the other security headers per host (`make smoke` checks them).
 - Sharing detection with DB-IP Lite geolocation and the bytes each session was served: flags with evidence and a manual warn, reset, suspend ladder; never an automatic lock.
-- Supply chain: pinned lockfiles, a licence gate, Trivy, pip-audit and pnpm audit, the project's own Semgrep rules and a ZAP baseline, all in `make ci`. The STRIDE [threat model](docs/security/threat-model.md) gives every finding its status.
+- Supply chain: pinned lockfiles, Trivy, pip-audit and pnpm audit, the project's own Semgrep rules and a ZAP baseline, all in `make ci`, plus a licence gate run by hand (`make licenses`). The STRIDE [threat model](docs/security/threat-model.md) gives every finding its status.
 - Least privilege on the server: the app uses a database role that can't change the schema or rewrite the audit log, and Valkey users without dangerous commands; only two allowlisting proxies reach the Docker socket; every container drops all capabilities, can't gain privileges, has a read-only root and a digest-pinned image (`make hardening-test` enforces it).
 - Encrypted backups with point-in-time recovery and a weekly restore drill; scripted rotation of every key and password; personal-data retention jobs.
 - Credentials and tokens are redacted in every log pipeline (Traefik, Nginx, Django, Alloy), and a test enforces it.
