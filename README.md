@@ -15,6 +15,7 @@
 
 Newest first; each step that lands on `main` adds a line here. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
+- **2026-10-17:** Import fixes: film names from an Xtream provider are cut by bytes, so long titles (Arabic ones above about 120 letters) no longer fail to download, and a direct link's name over 200 bytes is refused up front. A panel that leaves out a film's details is listed once per import instead of once per film. The full no-cache gate passed for the Xtream VOD import (backend 3,522 tests at 92.68%, contract 214, e2e admin 136 and portal 8, visual 48).
 - **2026-10-17:** The licence gate is no longer part of `make ci` (the owner's decision). `make licenses` still runs by hand after `make build`; run it after adding or upgrading a dependency.
 - **2026-10-17:** **Licensed Xtream VOD imports** (ADR-0027): Libraries → Import can save an Xtream-compatible IPTV account with its username and password encrypted, test it, browse VOD categories and manually select movies for the existing resumable import pipeline. Account details never enter job history or logs; whole-category imports are deliberately disabled; every movie still requires a rights holder and licence reference. HTTP-only providers work with a warning, while HTTPS sources may never downgrade.
 - **2026-10-16:** Manual titles deployed to tv.mah007.net with a rolling update (no errors, 7 hosts green, contract suite 197 passed, every service healthy).

@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from apps.imports import direct, services, xtream
+from apps.imports import direct, files, services, xtream
 from apps.imports.models import ImportFile, ImportSource, JobStatus, SourceKind
 from apps.library.models import Library
 
@@ -139,6 +139,63 @@ def test_bad_account_and_paths_are_named(source: ImportSource) -> None:
     source.save(update_fields=["credentials_encrypted"])
     assert services.test_source(source)["code"] == "auth_failed"
     assert services.browse(source, "../../etc")["code"] == "invalid_path"
+
+
+def test_panels_without_movie_data_share_one_listing(
+    source: ImportSource,
+    library: Library,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.imports import tasks  # noqa: PLC0415
+
+    listings: list[str] = []
+    rows = [
+        {"stream_id": 42, "name": "Metropolis (1927)", "container_extension": "mp4"},
+        {"stream_id": 43, "name": "Nosferatu (1922)", "container_extension": "mkv"},
+    ]
+
+    def panel(request: httpx.Request) -> httpx.Response:
+        action = request.url.params.get("action")
+        if action == "get_vod_info":
+            return httpx.Response(200, json={"info": {}})
+        if action == "get_vod_streams":
+            listings.append(action)
+            return httpx.Response(200, json=rows)
+        return handler(request)
+
+    monkeypatch.setattr(xtream, "_transport", httpx.MockTransport(panel))
+    monkeypatch.setattr(direct, "probe", lambda *_args, **_kwargs: direct.LinkInfo(10, ""))
+    monkeypatch.setattr(tasks.run_import, "delay", lambda *_args: None)
+    job = services.create_source_job(
+        source=source,
+        items=[
+            {"path": "movie/42/Metropolis (1927).mp4", "is_dir": False},
+            {"path": "movie/43/Nosferatu (1922).mkv", "is_dir": False},
+        ],
+        library=library,
+        subfolder="",
+        rights_holder="Licensed distributor",
+        license_ref="CONTRACT-2026-10",
+        license_expires_at=None,
+        actor=None,
+        ip=None,
+    )
+    plan, _credentials, _skipped = services._xtream_plan(job, source)
+    assert [item.key for item in plan] == ["Metropolis (1927).mp4", "Nosferatu (1922).mkv"]
+    assert listings == ["get_vod_streams"]
+    with pytest.raises(xtream.XtreamError) as error:
+        xtream.movie(BASE, USER, PASSWORD, "44")
+    assert error.value.code == "not_found"
+
+
+def test_long_provider_names_fit_the_file_system() -> None:
+    title = "فيلم " * 80
+    name = xtream.safe_name(title, "mkv", "9")
+    assert name.endswith(".mkv")
+    assert title.startswith(name.removesuffix(".mkv"))
+    assert len(name.encode()) <= files.MAX_NAME_BYTES
+    assert len(f"{name}.partial".encode()) <= 255
+    assert xtream.safe_name("." * 300, "mp4", "9") == "Movie 9.mp4"
 
 
 def test_xtream_options_and_file_names_are_safe() -> None:

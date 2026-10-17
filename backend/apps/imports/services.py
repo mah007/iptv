@@ -1047,6 +1047,7 @@ def _xtream_plan(
     secrets = source_secrets(source)
     base_url = str(source.options.get("url") or "")
     username, password = secrets.get("account_username", ""), secrets.get("password", "")
+    listing = xtream.Listing(base_url, username, password)
     selected: dict[str, xtream.Movie] = {}
     skipped: list[str] = []
     skipped_count = 0
@@ -1058,20 +1059,19 @@ def _xtream_plan(
                 raise xtream.XtreamError(
                     "invalid_path", "Open the category and choose individual movies."
                 )
-            found = [xtream.movie(base_url, username, password, item_id)]
-            for movie in found:
-                if xtream.importable(movie):
-                    selected.setdefault(movie.stream_id, movie)
-                else:
-                    skipped_count += 1
-                    if len(skipped) < 10:
-                        skipped.append(movie.file_name)
-                if len(selected) > MAX_FILES:
-                    raise ImportRefused(
-                        "too_many_items",
-                        f"At most {MAX_FILES} files per import.",
-                        params={"count": len(selected)},
-                    )
+            movie = xtream.movie(base_url, username, password, item_id, listing=listing)
+            if xtream.importable(movie):
+                selected.setdefault(movie.stream_id, movie)
+            else:
+                skipped_count += 1
+                if len(skipped) < 10:
+                    skipped.append(movie.file_name)
+            if len(selected) > MAX_FILES:
+                raise ImportRefused(
+                    "too_many_items",
+                    f"At most {MAX_FILES} files per import.",
+                    params={"count": len(selected)},
+                )
     except xtream.XtreamError as exc:
         raise ImportRefused(exc.code, exc.message, transient=exc.transient) from None
     if not selected:
@@ -1211,14 +1211,6 @@ def _copy_link(
     _check_space(job, library.path, max((info.size or 0) - have, 0))
     _set(job, file_name=name, files_total=1, bytes_total=info.size or 0, phase=JobPhase.COPYING)
     files.make_dirs(staging)
-
-    def check_space() -> None:
-        if files.free_bytes(library.path) < reserve_bytes() // 2:
-            raise ImportRefused(
-                "insufficient_space",
-                "The disk is filling up: the import stopped to keep the reserve free.",
-            )
-
     try:
         size = direct.download(
             url,
@@ -1229,7 +1221,7 @@ def _copy_link(
                 done=done, total=total, speed=speed
             ),
             should_stop=reporter.should_stop,
-            check_space=check_space,
+            check_space=lambda: _check_download_space(library.path),
         )
         if job.checksum:
             direct.verify(partial_file, job.checksum)

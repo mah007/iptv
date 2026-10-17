@@ -27,7 +27,8 @@ def test_subfolders_and_names() -> None:
         with pytest.raises(PathRefused):
             files.clean_subfolder(bad)
     assert files.clean_file_name("Metropolis (1927).mp4") == "Metropolis (1927).mp4"
-    for bad in ("a/b.mp4", ".x.mp4", "", "x" * 300 + ".mp4"):
+    # 120 Arabic letters are 240 bytes: no room left for the `.partial` download suffix.
+    for bad in ("a/b.mp4", ".x.mp4", "", "x" * 300 + ".mp4", "ف" * 120 + ".mp4"):
         with pytest.raises(PathRefused) as error:
             files.clean_file_name(bad)
         assert error.value.code == "invalid_name"

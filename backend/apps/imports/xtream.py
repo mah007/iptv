@@ -162,7 +162,24 @@ def movies(base_url: str, username: str, password: str, *, category_id: str = ""
     return found
 
 
-def movie(base_url: str, username: str, password: str, stream_id: str) -> Movie:
+class Listing:
+    """The provider's whole VOD list, fetched at most once per import. A few compatible
+    panels omit movie_data from get_vod_info, and a listing can hold tens of thousands
+    of movies, so every selected movie shares one copy."""
+
+    def __init__(self, base_url: str, username: str, password: str) -> None:
+        self._account = (base_url, username, password)
+        self._movies: dict[str, Movie] | None = None
+
+    def get(self, stream_id: str) -> Movie | None:
+        if self._movies is None:
+            self._movies = {item.stream_id: item for item in movies(*self._account)}
+        return self._movies.get(stream_id)
+
+
+def movie(
+    base_url: str, username: str, password: str, stream_id: str, *, listing: Listing | None = None
+) -> Movie:
     if not _STREAM_ID.fullmatch(stream_id):
         raise XtreamError("not_found", "The selected movie no longer exists.")
     payload = request(base_url, username, password, "get_vod_info", vod_id=stream_id)
@@ -170,11 +187,10 @@ def movie(base_url: str, username: str, password: str, stream_id: str) -> Movie:
         found = _movie(payload.get("movie_data"))
         if found is not None and found.stream_id == stream_id:
             return found
-    # A few compatible panels omit movie_data; fall back to their VOD listing.
-    for found in movies(base_url, username, password):
-        if found.stream_id == stream_id:
-            return found
-    raise XtreamError("not_found", "The selected movie no longer exists.")
+    found = (listing or Listing(base_url, username, password)).get(stream_id)
+    if found is None:
+        raise XtreamError("not_found", "The selected movie no longer exists.")
+    return found
 
 
 def safe_name(name: str, extension: str, stream_id: str) -> str:
@@ -182,7 +198,11 @@ def safe_name(name: str, extension: str, stream_id: str) -> str:
     clean = "".join(char for char in clean if ord(char) >= 32 and ord(char) != 127).strip(" .")
     clean = clean or f"Movie {stream_id}"
     suffix = f".{extension}" if extension else ""
-    return f"{clean[: max(1, 255 - len(suffix))].rstrip()}{suffix}"
+    # Cut by bytes, not characters: file systems limit names in bytes, and an Arabic
+    # letter takes two. A torn character at the cut is dropped.
+    budget = files.MAX_NAME_BYTES - len(suffix.encode())
+    clean = clean.encode()[:budget].decode(errors="ignore").rstrip(" .") or f"Movie {stream_id}"
+    return f"{clean}{suffix}"
 
 
 def parse_path(path: str) -> tuple[str, str]:

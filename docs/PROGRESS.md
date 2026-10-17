@@ -36,6 +36,12 @@
 - **Rights:** access to a subscription is not treated as permission to copy or redistribute. Every selected movie still needs the existing rights holder, licence reference and optional end date before the job can start.
 - **Evidence:** import backend 79 passed; backend Ruff, formatting and mypy clean; admin Vitest 208 passed; ESLint, Prettier and all TypeScript projects clean. The generated admin schema/client includes the new source kind and write-only account field.
 
+### Follow-ups (2026-10-17)
+- **Gate:** the full `make ci BUILD_FLAGS="--pull --no-cache"` passed for XV1 (with a Prettier fix to `imports.test.tsx`, which XV1's own checks missed): backend 3,522 tests at 92.68%, frontend 168 + 208 + 72, restore drill, compat-live 214, MediaMTX, import round trip, IPTVnator 9, e2e admin 136 and portal 8, visual 24 + 24, images, Trivy, licences.
+- **Licence gate:** removed from `make ci` by the owner; `make licenses` runs by hand after adding or upgrading a dependency (ADR-0003).
+- **Names:** provider titles are cut to `files.MAX_NAME_BYTES` (200 UTF-8 bytes) so the `.partial` file fits the 255-byte limit; direct-link names over 200 bytes are refused (`invalid_name`).
+- **Listing:** `xtream.Listing` fetches a panel's whole VOD list at most once per import when `get_vod_info` has no `movie_data`.
+
 ## MT1: manual titles (2026-10-16)
 
 ### Done ([ADR-0026](adr/0026-manual-titles.md))

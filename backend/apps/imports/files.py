@@ -30,6 +30,9 @@ SUBTITLE_EXTENSIONS: Final = frozenset(extension.lstrip(".") for extension in SI
 ALLOWED_EXTENSIONS: Final = VIDEO_EXTENSIONS | SUBTITLE_EXTENSIONS
 #: Settings say GB: decimal gigabytes, as disks are sold and the admin displays sizes.
 GB: Final = 1000**3
+#: A file name's limit in UTF-8 bytes: under the usual 255, with room for the
+#: `.partial` suffix of a download in progress.
+MAX_NAME_BYTES: Final = 200
 
 
 class PathRefused(ValueError):
@@ -78,7 +81,13 @@ def clean_subfolder(value: str) -> str:
 def clean_file_name(value: str) -> str:
     """One file name for a direct link: no folders, not hidden, an importable type."""
     name = value.strip()
-    if not name or "/" in name or "\\" in name or name.startswith(".") or len(name) > 255:
+    if (
+        not name
+        or "/" in name
+        or "\\" in name
+        or name.startswith(".")
+        or len(name.encode()) > MAX_NAME_BYTES
+    ):
         raise PathRefused("invalid_name", "Give a plain file name, such as Metropolis (1927).mp4.")
     if any(ord(char) < 32 or ord(char) == 127 for char in name):
         raise PathRefused("invalid_name", "Give a plain file name, such as Metropolis (1927).mp4.")
