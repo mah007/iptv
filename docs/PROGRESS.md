@@ -41,6 +41,7 @@
 - **Licence gate:** removed from `make ci` by the owner; `make licenses` runs by hand after adding or upgrading a dependency (ADR-0003).
 - **Names:** provider titles are cut to `files.MAX_NAME_BYTES` (200 UTF-8 bytes) so the `.partial` file fits the 255-byte limit; direct-link names over 200 bytes are refused (`invalid_name`).
 - **Listing:** `xtream.Listing` fetches a panel's whole VOD list at most once per import when `get_vod_info` has no `movie_data`.
+- **Deployed** b9beeb0 to tv.mah007.net with `install.sh --update --yes` after a `pg_dump` safety copy and the installer's restore point `pre-update-20261017T005542Z`: images 61 s, migrations, web replicas and frontend rolled behind health checks, contract suite 197 passed (4 skipped), every service healthy. Five settings still come from `.env` (owner item).
 
 ## MT1: manual titles (2026-10-16)
 
